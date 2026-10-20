@@ -1,0 +1,192 @@
+import { requireProductionAuth } from './production-auth.mjs';
+import { observedReadiness } from '../modules/deploy-kit/readiness-window.mjs';
+import { readFile, readdir } from 'node:fs/promises';
+import { contained } from './project.mjs';
+import { invalid, refuse, RerError } from './errors.mjs';
+import { ownerDeploy } from './deploy.mjs';
+import { secretFailureMessage } from './deploy-secret-error.mjs';
+import { deployEnvironment, deployAgain } from './deploy-inputs.mjs';
+import { claimHostedOwner } from './deploy-owner.mjs';
+import { deployOwnerInput } from './deploy-owner-input.mjs';
+import { checkHostedSetup, hostedSetupFailure } from './deploy-setup.mjs';
+import { mutationReadinessFailure } from './deploy-readiness.mjs';
+import { observeOwner, ownerExchangeFailure } from './deploy-observation.mjs';
+import { committedSource } from './deploy-source.mjs';
+import { hookOrigin, waitForSource } from './deploy-hook.mjs';
+import { rememberHookState, hookState } from './deploy-hook-record.mjs';
+import { main as owner } from '../modules/deploy-kit/owner-cli.mjs';
+import { localOnlyBinding, ownerWorkerName } from '../modules/deploy-kit/owner.mjs';
+import { refuseLocalModels } from '../modules/deploy-kit/local-only.mjs';
+import { migrationFailure, providerFailure, assetFailure } from '../modules/deploy-kit/diagnostics.mjs';
+import { shared } from './shared.mjs';
+import { settingKinds } from './deploy-settings.mjs';
+import { deployGuide, neededForRealDeploy, reportNeeded } from './deploy-needs.mjs';
+import { keepHookSecrets } from './deploy-secrets.mjs';
+import { withoutLocalSettings, refuseLocalEnvOutput } from './local-env.mjs';
+import { deployProductDirectory, deployProductArguments, DeployProductError } from './deploy-product.mjs';
+
+export function validateDeployOptions(options) {
+ const changes = [options.remove && '--remove', options.setSecret && '--set-secret', options.unsetSecret && '--unset-secret', options.rotateSecret && '--rotate-secret'].filter(Boolean);
+ if (changes.length > 1 || changes.length && options.dryRun) throw invalid(`Use ${changes.join(', ')}${options.dryRun ? ' and --dry-run' : ''} on separate runs.`);
+ if (options.remove && !options.yes) throw invalid(`${deployAgain(options)} --remove deletes this environment's Worker and every D1, R2, KV and queue rer created for it, with their data. Add --yes to confirm.`);
+}
+
+// An explicit adapter declaration wins. Older hooks use a conventional root
+// declaration; discover it by its schema, never by seed identity or hook source.
+export async function declarationFor(root, adapter) {
+ const declared = adapter.deployDeclaration ?? adapter.deploy?.declaration;
+ const paths = declared ? [declared] : (await readdir(root)).filter(path => path.endsWith('.json') && path !== adapter.site?.declaration);
+ const matches = [];
+ for (const path of paths) {
+  let value;
+  try { value = JSON.parse(await readFile(await contained(root, path), 'utf8')); }
+  catch (error) { if (declared) throw error; continue; }
+  if (declared || value?.version === 1 && typeof value.project === 'string' && typeof value.compatibilityDate === 'string') matches.push({ path, value });
+ }
+ if (matches.length !== 1) throw refuse('A single owner-account deploy declaration is required. Declare deployDeclaration on the adapter; missing or ambiguous declarations cannot be used safely.');
+ return matches[0];
+}
+
+// What a real deploy of this checkout still needs from its owner, read from its
+// deploy declaration as a dry run reads it. Local setup lists it when it ends.
+export async function hostedDeployNeeds(project) {
+ const { adapter, root, setupManifest, setupSeed } = project;
+ if (typeof adapter?.deploy !== 'function') return [];
+ const { path, value: declaration } = await declarationFor(root, adapter);
+ const options = { dryRun: true }, settings = adapter.hooks?.secrets ?? adapter.settings;
+ const { env } = await deployEnvironment({ root, options, declaration, setupManifest, settings, localOnlyKeys: adapter.localOnlyKeys ?? [] });
+ const { signIn } = await requireProductionAuth({ root, declaration, env, setupManifest, setupSeed, adapter, declarationPath: path, options }) ?? {};
+ return neededForRealDeploy({ declaration, env, signIn });
+}
+
+export async function deployCommand(context) {
+ const { adapter, root, options, store, setupManifest, linkDependencies, localOnlyKeys = [] } = context;
+ validateDeployOptions(options);
+ try { await refuseLocalModels(root); } catch { throw refuse('Deploy refuses the local-only key file .rer/local/models.json. Remove live-dev credentials before deployment.'); }
+ const { path, value: declaration } = await declarationFor(root, adapter);
+ try { ownerWorkerName(declaration.project, options.environment ?? 'production'); }
+ catch (error) {
+  const message = {
+   'invalid-owner-environment': 'Invalid deployment environment: use at most 32 characters, starting with a lowercase letter, with lowercase letters or digits separated by single hyphens.',
+   'invalid-owner-project': 'Invalid deployment project in the deploy declaration: use a lowercase project name, optionally preceded by its owner and a slash.',
+   'owner-name-too-long': 'The project and environment produce a Worker name longer than 63 characters.',
+  }[error.message];
+  if (!message) throw error;
+  const failure = invalid(`${message} Nothing was uploaded.`);
+  store.report(failure.message);
+  throw failure;
+ }
+ const local = localOnlyBinding(declaration, localOnlyKeys);
+ if (local) throw refuse(`${path} names the local-only key ${local} as a deploy binding or secret. Remove it; local dev keys never reach a deployment.`);
+ deployGuide(declaration);
+ const settings = adapter.hooks?.secrets ?? adapter.settings;
+ // Required secrets have been checked; retain the production sign-in guidance.
+ const dryRun = async result => {
+  const production = await deployEnvironment({ root, options, declaration, setupManifest, settings, localOnlyKeys });
+  const { signIn } = await requireProductionAuth({ root, declaration, env: production.env, setupManifest, setupSeed: context.setupSeed, adapter, declarationPath: path, options }) ?? {};
+  const needed = neededForRealDeploy({ declaration, env: production.env, signIn, secretsChecked: true });
+  reportNeeded(store, needed);
+  return needed.length && result && typeof result === 'object' ? { ...result, neededForRealDeploy: needed } : result;
+ };
+ // Custom hooks historically ignored these flags. Only the ownership controller
+ // may perform them; neither a build nor a custom upload runs here.
+ if (options.remove || options.setSecret || options.unsetSecret) return ownerDeploy(path, adapter)(context);
+ // A hook that deployed through the kit keeps what its Worker holds: rotate there as a secret change.
+ if (options.rotateSecret && !adapter.deploy.managesHostedOwner && await hookState(root, options.environment ?? 'production')) return ownerDeploy(path, adapter)(context);
+ if (adapter.deploy.managesHostedOwner) { const result = await adapter.deploy(context); return options.dryRun ? dryRun(result) : result; }
+ const productDirectory = deployProductDirectory(declaration);
+ const production = await deployEnvironment({ root, options, declaration, setupManifest, settings, localOnlyKeys });
+ await requireProductionAuth({ root, declaration, env: production.env, setupManifest, setupSeed: context.setupSeed, adapter, declarationPath: path, options });
+ const sourceSha = options.dryRun ? undefined : committedSource(root, options);
+ const ownerInput = await deployOwnerInput(context);
+ const { env, supplied, generated, reused, rotated } = await deployEnvironment({ root, options, declaration, setupManifest, settings, localOnlyKeys });
+ const { createRedaction } = await shared('redaction.mjs');
+ const redaction = createRedaction();
+ const kinds = await settingKinds({ declaration, setupManifest });
+ const addSecret = value => { redaction.addSecrets([value]); store.addSecrets?.([value]); };
+ for (const value of [...kinds.privateValues(env), env.CLOUDFLARE_ACCOUNT_ID, ...(declaration.secrets ?? []).map(item => env[item.environment])].filter(Boolean)) addSecret(value);
+ const environment = options.environment ?? 'production';
+ // The hook uploads every value it is given: a generated secret it gets is the one the Worker keeps.
+ if (!options.dryRun) await keepHookSecrets({ root, environment, declaration, setupManifest, env, generated, reused, rotated, again: deployAgain(options), report: line => store.report(line) });
+ // A hook keeping the kit's record in its own state file named it; every kit
+ // step after the hook (inspect, secret, record-owner) reads that record.
+ let hookRecord = await hookState(root, environment);
+ const command = async (verb, extra = [], values = env, more = {}) => owner([verb, '--declaration', path, '--environment', environment, ...(hookRecord ? ['--state', hookRecord] : []), ...(['dry-run', 'deploy', 'health'].includes(verb) ? await deployProductArguments(root, productDirectory) : []), ...extra], values, { cwd: root, localOnlyKeys, ...more });
+ // A hook that deployed through the kit's standard record lets rer issue and
+ // retire the setup token; a hook keeping an unnamed record of its own keeps its token.
+ let recorded, hookReturned = false;
+ const inspect = async (origin = deployed?.origin) => {
+  try { return recorded = await command('inspect', [], env, hookReturned ? {} : {propagation:observedReadiness(origin)?.propagation}); }
+  catch (error) { if (error.message !== 'missing-owner-receipt') throw error; }
+ };
+ let observedClaims = [];
+ let deployed, claimed, linked = false, linkResult, step = 'custom deploy';
+ const link = async (token, origin) => { if (!linked) { const state = await inspect(origin); linkResult = await linkDependencies?.(state?.origin ?? origin, token); linked = true; } return linkResult; };
+ try {
+  const result = await observeOwner({ paths: ['/auth/bootstrap', adapter.hooks?.owner?.path, setupManifest?.steps?.find(item => item.type === 'owner-claim')?.path].filter(Boolean), inspect, beforeClaim: link, addSecret, deployed: () => deployed, tokenKey: setupManifest?.steps?.find(item => item.type === 'owner-claim')?.tokenField }, async claims => {
+   observedClaims = claims;
+   const saved = { ...process.env };
+   try {
+    Object.assign(process.env, env);
+    // The hook builds and uploads by itself: it never sees the checkout's local settings.
+    deployed = await withoutLocalSettings(root, { settings: [...(Array.isArray(adapter.settings) ? adapter.settings : []), adapter.hooks?.secrets?.file], operationToken: context.operationToken },
+     () => adapter.deploy({ ...context, input: ownerInput.input, linkDependencies: async (origin, token) => link(token, origin) }));
+   } finally {
+    for (const key of Object.keys(process.env)) if (!Object.hasOwn(saved, key)) delete process.env[key];
+    Object.assign(process.env, saved);
+   }
+   hookReturned = true;
+   await deployProductArguments(root, productDirectory);
+   await refuseLocalEnvOutput(root, adapter.devIdentity?.output, { uploaded: !options.dryRun });
+   if (options.dryRun) {
+    await command('dry-run');
+    return dryRun(deployed);
+   }
+   await rememberHookState(root, environment, deployed?.state);
+   hookRecord = await hookState(root, environment);
+   const origin = hookOrigin(deployed, deployAgain(options));
+   const uploaded = observedReadiness(origin);
+   step = 'verify recorded deployment';
+   // A hook may already have claimed the owner and retired its token. Read the
+   // current version independently of the original upload's spent deadline.
+   const state = await inspect(origin);
+   if ((state?.origin ?? origin) !== origin || claims.some(item => item.origin !== origin)) throw new Error('owner-claim-origin-mismatch');
+   if (claims.some(item => !item.outcome)) { const error = new Error('owner-claim-failed'); error.ownerExchange = claims.find(item => !item.outcome); throw error; }
+   claimed = claims.at(-1)?.outcome;
+   step = 'wait for the deployed source';
+   await waitForSource({ origin, sourceSha, versionId: state?.versionId ?? (!claims.length && !deployed.owner ? uploaded?.versionId : undefined), again: deployAgain(options) });
+   step = 'claim owner';
+   if (typeof deployed.setupToken === 'string' && deployed.setupToken) addSecret(deployed.setupToken);
+   const sentSecrets = (uploaded?.sentSecrets ?? []).filter(binding => uploaded.propagation.matchesToken(binding, env[declaration.secrets.find(item => item.binding === binding)?.environment]));
+   const kit = state ? { secret: (extra, values) => command('secret', extra, values), recordClaim: outcome => command('record-owner', ['--outcome', outcome]) } : { token: deployed.setupToken || undefined };
+   claimed = await claimHostedOwner({ hook: adapter.hooks?.owner, setupManifest, declaration, deployed: { ...state, sentSecrets, propagation:deployed.propagation ?? uploaded?.propagation, origin, owner: claimed, observedOwner: () => claims.at(-1)?.outcome }, env, ...ownerInput, supplied, ...kit, addSecret, beforeClaim: token => link(token, origin), store, signal: context.signal });
+   if (!linked) await linkDependencies?.(origin);
+   step = 'verify hosted setup';
+   await checkHostedSetup({ origin, claimed: claimed ?? state?.ownerClaim?.outcome ?? claims.at(-1)?.outcome, signal: context.signal });
+   const { setupToken: _, ...result } = deployed;
+   return { ...result, ...(claimed ? { owner: claimed } : {}), dependenciesLinked: true };
+  });
+  if (claimed) store.report(`${claimed === 'claimed' ? 'Claimed the hosted owner' : 'The hosted owner was already claimed and was kept'}${recorded ? '; the one-time setup token was removed' : ''}. Sign in by email at ${result.origin}.`);
+  return result;
+ } catch (error) {
+  if (error instanceof DeployProductError) throw error;
+  const again = deployAgain(options);
+  const { commandFailure } = await shared('failures.mjs');
+  const secrets = secretFailureMessage(error);
+  if (secrets) throw commandFailure(secrets);
+  if (options.dryRun && error.message === 'missing-input') throw new RerError('missing_input', `Dry run cannot read the target secret bindings without ${error.inputs.join(' and ')}. Set the Cloudflare credentials in the environment or an owned 0600 --env-file, then run the same command again.`, 3);
+  if (error.hookFailure) throw commandFailure(store.redact?.(redaction.redact(error.message)) ?? redaction.redact(error.message));
+  if (error instanceof RerError && !deployed?.deployed && !recorded) { error.message = store.redact?.(redaction.redact(error.message)) ?? redaction.redact(error.message); throw error; }
+  const outcome = error.owner ?? claimed ?? observedClaims.at(-1)?.outcome;
+  const state = deployed?.deployed || recorded ? `The application is deployed at ${deployed?.origin ?? recorded.origin}; ${outcome ? `owner ${outcome}` : 'owner claim is not confirmed'}${recorded ? '; setup token retirement is not confirmed' : ''}.` : 'The custom deploy did not finish; inspect its deployment record before recovery.';
+  const redact = value => store.redact?.(redaction.redact(value)) ?? redaction.redact(value);
+  const setup = hostedSetupFailure(error, { origin: deployed?.origin ?? recorded?.origin, again });
+  if (setup) throw commandFailure(redact(setup));
+  const readiness = mutationReadinessFailure(error, { again, redact });
+  if (readiness) throw commandFailure(readiness);
+  const refused = [providerFailure(error,redact), assetFailure(error)].filter(Boolean).join('; '), migration = migrationFailure(error, again);
+  const exchange = error.ownerExchange ?? (error.message === 'owner-claim-failed' ? observedClaims.lastExchange ?? observedClaims.at(-1) : undefined);
+  const ownerCause = ownerExchangeFailure(exchange);
+  throw commandFailure(redact(`${state} Failed at ${step}: ${error.message}${refused ? ` (${refused})` : ''}${ownerCause ? ` (${ownerCause})` : ''}${error.cause ? ` (${error.cause})` : ''}.${migration ? ` ${migration}` : ''} Fix the cause and run ${again} again using the same environment credentials. ${outcome && recorded ? `To retire the token without rebuilding: ${again} --unset-secret ${setupManifest?.steps?.find(item => item.type === 'owner-claim')?.tokenField ?? 'SETUP_TOKEN'}.` : ''}`));
+ }
+}
