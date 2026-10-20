@@ -1,11 +1,11 @@
-import { seedIcons } from './scripts/base-onboarding/icon-files.mjs'
+import { seedIcons } from '@runeditrun/rer/seed-icons'
 import { cloudflare } from '@cloudflare/vite-plugin'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { demoSockets } from './src/modules/demo/vite.mjs'
-import { archiveOutputGuard } from './scripts/base-onboarding/archive-output.mjs'
-import { excludeLocalVariables } from './scripts/base-onboarding/local-variables-output.mjs'
+import { archiveOutputGuard } from '@runeditrun/rer/archive-output'
+import { excludeLocalVariables } from '@runeditrun/rer/local-variables-output'
 
 // Only `vite dev` loads the local-only entry and the checkout's dev key; a build
 // keeps src/server.ts and never sees either (rer build checks its output).

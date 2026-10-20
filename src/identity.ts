@@ -8,8 +8,8 @@ import site from '../deploy-site.json'
 export const identity: EditionIdentity = {
   product: branding.name,
   deployment: branding.name,
-  purpose: '{deployment} runs on a technical foundation: owner sign-in, a D1 database and local development mail.',
-  tagline: 'A technical foundation: owner sign-in, a D1 database and local development mail on one Cloudflare Worker.',
+  purpose: 'Business password and secrets management.',
+  tagline: 'Business password and secrets management.',
   signInPath: '/signin',
   // The run site `rer deploy --site` publishes (deploy-site.json).
   runSite: `https://${site.domain}`,

@@ -7,30 +7,31 @@
     "node": "22.20.0"
   },
   "scripts": {
-    "build": "node scripts/rer.mjs build",
-    "dev": "node scripts/rer.mjs dev",
-    "preview": "node scripts/rer.mjs preview",
+    "build": "rer build",
+    "dev": "rer dev",
+    "preview": "rer preview",
     "typecheck": "tsc --build --incremental",
-    "test:typecheck": "node scripts/base-onboarding/queued-entry.mjs test:typecheck -- sh -c \"node --test tests/incremental-typecheck.test.mjs\"",
-    "verify": "node scripts/rer.mjs verify",
+    "test:typecheck": "rer queue test:typecheck -- sh -c \"node --test tests/incremental-typecheck.test.mjs\"",
+    "verify": "rer verify",
     "verify:agent": "pnpm run build && pnpm run typecheck && pnpm run source:check && pnpm run verify:base-source",
-    "source:check": "pnpm install --lockfile-only --frozen-lockfile --offline --ignore-scripts",
-    "verify:base-source": "node scripts/rer.mjs check --profile first-party",
-    "setup": "node scripts/rer.mjs setup",
-    "deploy": "node scripts/rer.mjs deploy",
-    "test:runtime": "node scripts/base-onboarding/queued-entry.mjs test:runtime -- sh -c \"node tests/runtime.mjs\"",
+    "source:check": "pnpm install --lockfile-only --frozen-lockfile --offline --ignore-scripts && node scripts/edition-authoring/cli.mjs check",
+    "verify:base-source": "rer check --profile first-party",
+    "setup": "rer setup",
+    "deploy": "rer deploy",
+    "test:runtime": "rer queue test:runtime -- sh -c \"node tests/runtime.mjs\"",
     "onboard": "node scripts/install.mjs",
-    "build:app": "node scripts/base-onboarding/queued-entry.mjs build:app -- sh -c \"vite build\"",
+    "build:app": "rer queue build:app -- sh -c \"vite build\"",
     "verify:app": "node scripts/verify-app.mjs",
-    "reset": "node scripts/rer.mjs reset",
-    "export": "node scripts/rer.mjs export",
-    "import": "node scripts/rer.mjs import",
-    "release": "node scripts/rer.mjs release",
-    "doctor": "node scripts/rer.mjs doctor",
-    "describe": "node scripts/rer.mjs describe",
-    "check": "node scripts/rer.mjs check",
-    "deps": "node scripts/rer.mjs install",
-    "rer": "node scripts/rer.mjs"
+    "reset": "rer reset",
+    "export": "rer export",
+    "import": "rer import",
+    "release": "rer release",
+    "doctor": "rer doctor",
+    "describe": "rer describe",
+    "check": "rer check",
+    "deps": "rer install",
+    "rer": "rer",
+    "source:lock": "node scripts/edition-authoring/cli.mjs lock"
   },
   "dependencies": {
     "@tanstack/react-router": "1.170.33",
@@ -43,6 +44,7 @@
     "@cloudflare/vite-plugin": "1.54.5",
     "@cloudflare/workers-types": "5.20260908.1",
     "@playwright/test": "1.63.0",
+    "@runeditrun/rer": "0.2.74",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.7",
     "@vitejs/plugin-react": "6.1.1",
@@ -61,5 +63,7 @@
       "esbuild",
       "workerd"
     ]
-  }
+  },
+  "repository": "https://github.com/just-every/run-latchkey",
+  "license": "MIT"
 }

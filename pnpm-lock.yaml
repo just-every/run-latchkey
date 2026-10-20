@@ -38,6 +38,9 @@ importers:
       '@playwright/test':
         specifier: 1.63.0
         version: 1.63.0
+      '@runeditrun/rer':
+        specifier: 0.2.74
+        version: 0.2.74
       '@types/react':
         specifier: 19.2.18
         version: 19.2.18
@@ -636,6 +639,11 @@ packages:
 
   '@rolldown/pluginutils@1.0.1':
     resolution: {integrity: sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw==}
+
+  '@runeditrun/rer@0.2.74':
+    resolution: {integrity: sha512-akPjzVCLWdxCgJecxf4cFNc6nS0SQIUAZOKy82i4ugb6hizR1fpwpPeWfUf/CbYuOgUyh4Thv1OhP/FqlrIwqg==}
+    engines: {node: '>=22'}
+    hasBin: true
 
   '@sindresorhus/is@7.2.0':
     resolution: {integrity: sha512-P1Cz1dWaFfR4IR+U13mqqiGsLFf1KbayybWwdd2vfctdV6hDpUkgCY0nKOLLTMSoRd/jJNjtbqzf13K8DCCXQw==}
@@ -1744,6 +1752,8 @@ snapshots:
     optional: true
 
   '@rolldown/pluginutils@1.0.1': {}
+
+  '@runeditrun/rer@0.2.74': {}
 
   '@sindresorhus/is@7.2.0': {}
 

@@ -1,10 +1,10 @@
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { operatorInstaller, developmentTarget, previewTarget } from '../base-onboarding/operator-installer.mjs';
-import { selectLocalState } from '../base-onboarding/local/state.mjs';
-import { commandAdapter as createCommandAdapter } from '../base-cli/cli/adapter.mjs';
-import { ownerDeploy } from '../base-cli/cli/deploy.mjs';
-import { localPortability } from '../base-cli/cli/portability.mjs';
+import { operatorInstaller, developmentTarget, previewTarget } from '@runeditrun/rer/operator-installer';
+import { selectLocalState } from '@runeditrun/rer/local/state';
+import { commandAdapter as createCommandAdapter } from '@runeditrun/rer/adapter';
+import { ownerDeploy } from '@runeditrun/rer/deploy';
+import { localPortability } from '@runeditrun/rer/portability';
 import * as model from './ui/seed.mjs';
 
 export { selectLocalState };

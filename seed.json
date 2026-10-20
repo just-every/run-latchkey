@@ -1,14 +1,14 @@
 {
   "id": "latchkey",
-  "name": "latchkey",
+  "name": "Latchkey",
   "version": "0.1.0",
   "maturity": "technical-foundation-not-product",
-  "category": "status",
+  "category": "password-secrets",
   "spine": {
     "id": "foundation",
     "record": "No domain record selected"
   },
-  "description": "TanStack Start and Hono Worker with real owner authentication, D1 and silent development mail suppression.",
+  "description": "Business password and secrets management. New seed: the product target is entirely missing.",
   "capabilities": [
     {
       "id": "http-dispatch",

@@ -35,11 +35,7 @@ the exact pnpm version declared in `package.json` when it is missing, using
 off PATH, so where a project's docs say `pnpm run X -- ARGS`, run
 `rer run X -- ARGS`: the same script, with the pnpm and Node the project pins.
 `rer run` alone lists the scripts.
-First-party seeds pin the command implementation in either vendored mode or
-package mode. Vendored mode carries Base's exported CLI; package mode pins an
-exact `@runeditrun/rer` devDependency. In both modes the checkout's
-`OPERATIONS.json` argv and `package.json` aliases select the version that
-`rer VERB` runs.
+Package-mode seeds pin an exact `@runeditrun/rer` devDependency. The checkout's `OPERATIONS.json` argv and `package.json` aliases select the version that `rer VERB` runs.
 
 ## Launch with one command
 
@@ -178,11 +174,7 @@ only into an empty destination. Rows
 the app's own migrations insert, such as default settings, do not count: the
 archive's rows replace them. Any other row refuses the import, naming its table.
 
-Queue waits report immediately with a reason and numeric one-based position,
-then refresh about every 15 seconds while waiting. The running command reports
-its live queue position. Package mode has no queue status verb; vendored mode
-can inspect the live queue from the runnable project root with
-`node scripts/base-cli/modules/job-queue/cli.mjs status`.
+Queue waits report their reason and live position while the command waits. Package mode has no queue status command.
 
 For the real owner mailbox, `rer setup` can prompt instead of receiving
 `--owner-email` on the command line. Setup builds the app, applies local

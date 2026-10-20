@@ -1,5 +1,5 @@
 {
-  "name": "latchkey",
+  "name": "Latchkey",
   "repository": "https://github.com/just-every/run-latchkey",
   "clone": "npx -y @runeditrun/rer dev just-every/run-latchkey",
   "folder": "run-latchkey",

@@ -1,0 +1,379 @@
+{
+  "schemaVersion": 1,
+  "id": "just-every/latchkey",
+  "identityKind": "project",
+  "toolchain": {
+    "id": "runeditrun/edition-authoring",
+    "version": "1.1.0"
+  },
+  "parent": null,
+  "components": [
+    {
+      "id": "just-every/latchkey",
+      "role": "edition",
+      "source": {
+        "kind": "local",
+        "paths": [
+          "src/routes",
+          "src/site",
+          "src/identity.ts"
+        ]
+      }
+    },
+    {
+      "id": "runeditrun/base",
+      "role": "foundation",
+      "source": {
+        "kind": "local",
+        "paths": [
+          "src/base"
+        ],
+        "origin": {
+          "repository": "https://github.com/runeditrun/base.git",
+          "revision": "d1249b3d696c4011e9c72de2097f3757436074a6",
+          "path": "foundation/runtime"
+        }
+      }
+    },
+    {
+      "id": "runeditrun/operator-auth",
+      "role": "module",
+      "source": {
+        "kind": "local",
+        "paths": [
+          "src/modules/operator-auth"
+        ],
+        "origin": {
+          "repository": "https://github.com/runeditrun/base.git",
+          "revision": "d1249b3d696c4011e9c72de2097f3757436074a6",
+          "path": "modules/operator-auth",
+          "paths": [
+            "README.md",
+            "SCHEDULED-POLICY.md",
+            "accounts/adapter.mjs",
+            "accounts/admin.mjs",
+            "accounts/credentials.mjs",
+            "accounts/display-name.mjs",
+            "accounts/editor-owner.mjs",
+            "accounts/email-change.mjs",
+            "accounts/index.d.mts",
+            "accounts/index.mjs",
+            "accounts/native.d.mts",
+            "accounts/native.mjs",
+            "accounts/oa.mjs",
+            "accounts/one-click.mjs",
+            "accounts/owner-signin.mjs",
+            "accounts/provider-control.mjs",
+            "accounts/provider-pin.mjs",
+            "accounts/roles.mjs",
+            "accounts/schema/dependency-setup.sql",
+            "accounts/schema/dev-sessions.sql",
+            "accounts/schema/domain-rules-step-up.sql",
+            "accounts/schema/invitation-cancellation.sql",
+            "accounts/schema/last-signin.sql",
+            "accounts/schema/operator-auth.sql",
+            "accounts/schema/owner-signin.sql",
+            "accounts/schema/provider-control.sql",
+            "accounts/schema/provider-pins.sql",
+            "accounts/schema/scheduled-policy-hardening.sql",
+            "accounts/schema/scheduled-policy.sql",
+            "accounts/settings-page.mjs",
+            "accounts/status.mjs",
+            "accounts/store.mjs",
+            "branding.mjs",
+            "config.mjs",
+            "conformance/README.md",
+            "conformance/index.d.mts",
+            "conformance/index.mjs",
+            "conformance/presentation.mjs",
+            "crypto.mjs",
+            "csp.mjs",
+            "dev-admission.d.mts",
+            "dev-admission.mjs",
+            "dev-gate.mjs",
+            "dev/cli-session.mjs",
+            "dev/index.d.mts",
+            "dev/index.mjs",
+            "dev/personas.mjs",
+            "dev/sign-in-as.d.mts",
+            "dev/sign-in-as.mjs",
+            "docs/README.md",
+            "docs/native-accounts.md",
+            "docs/tanstack-start.md",
+            "docs/vite-spa.md",
+            "errors.mjs",
+            "http.mjs",
+            "icon-head.d.mts",
+            "icon-head.mjs",
+            "identity/admission.mjs",
+            "identity/after-confirm.mjs",
+            "identity/email-link/confirmation.mjs",
+            "identity/email-link/expiry.mjs",
+            "identity/email-link/index.d.mts",
+            "identity/email-link/index.mjs",
+            "identity/email-link/message.mjs",
+            "identity/index.d.mts",
+            "identity/index.mjs",
+            "identity/oidc/README.md",
+            "identity/oidc/client-auth.mjs",
+            "identity/oidc/config.mjs",
+            "identity/oidc/crypto.mjs",
+            "identity/oidc/errors.mjs",
+            "identity/oidc/index.d.mts",
+            "identity/oidc/index.mjs",
+            "identity/oidc/jwt.mjs",
+            "identity/oidc/network.mjs",
+            "identity/oidc/presets.mjs",
+            "identity/oidc/schema/oidc.sql",
+            "identity/oidc/store.mjs",
+            "identity/principal.mjs",
+            "index.d.mts",
+            "index.mjs",
+            "input.mjs",
+            "local-cli.mjs",
+            "loopback.mjs",
+            "owner-signin-grant.mjs",
+            "page.mjs",
+            "policy.d.mts",
+            "policy.mjs",
+            "rejected-response.mjs",
+            "routes.mjs",
+            "scheduled/definition.mjs",
+            "scheduled/expiry.mjs",
+            "scheduled/fence.mjs",
+            "scheduled/history.mjs",
+            "scheduled/index.d.mts",
+            "scheduled/index.mjs",
+            "scheduled/runner.mjs",
+            "service.mjs",
+            "signin/index.d.mts",
+            "signin/index.mjs",
+            "signin/one-click.mjs"
+          ]
+        }
+      }
+    },
+    {
+      "id": "runeditrun/mail",
+      "role": "module",
+      "source": {
+        "kind": "local",
+        "paths": [
+          "src/modules/mail"
+        ],
+        "origin": {
+          "repository": "https://github.com/runeditrun/base.git",
+          "revision": "d1249b3d696c4011e9c72de2097f3757436074a6",
+          "path": "modules/mail",
+          "paths": [
+            ".gitignore",
+            "LICENSE",
+            "README.md",
+            "doctor.mjs",
+            "index.mjs",
+            "live-proof/README.md",
+            "live-proof/run.mjs",
+            "package.json",
+            "pnpm-lock.yaml",
+            "src/adapters/cloudflare/README.md",
+            "src/adapters/cloudflare/headers.mjs",
+            "src/adapters/cloudflare/index.mjs",
+            "src/adapters/cloudflare/response.mjs",
+            "src/adapters/messaging/README.md",
+            "src/adapters/messaging/contract.mjs",
+            "src/adapters/messaging/event-schema.mjs",
+            "src/adapters/messaging/index.mjs",
+            "src/adapters/messaging/jws.mjs",
+            "src/adapters/messaging/request.mjs",
+            "src/adapters/messaging/serialize.mjs",
+            "src/adapters/rer/contract.mjs",
+            "src/adapters/rer/index.mjs",
+            "src/adapters/rer/list-headers.mjs",
+            "src/adapters/resend/README.md",
+            "src/adapters/resend/index.mjs",
+            "src/adapters/resend/response.mjs",
+            "src/adapters/resend/serialize.mjs",
+            "src/adapters/resend/size.mjs",
+            "src/adapters/sendgrid/README.md",
+            "src/adapters/sendgrid/index.mjs",
+            "src/adapters/sendgrid/serialize.mjs",
+            "src/core/errors.mjs",
+            "src/core/transport.mjs",
+            "src/core/validation.mjs",
+            "src/development/index.d.mts",
+            "src/development/index.mjs",
+            "src/development/outbox.mjs",
+            "src/development/schema.sql",
+            "src/doctor/README.md",
+            "src/doctor/common.mjs",
+            "src/doctor/dns.mjs",
+            "src/doctor/index.mjs",
+            "src/doctor/probe.mjs",
+            "src/doctor/receive.mjs",
+            "src/doctor/records.mjs",
+            "src/events/README.md",
+            "src/events/d1-schema.sql",
+            "src/events/d1-storage.mjs",
+            "src/events/index.mjs",
+            "src/events/intake.mjs",
+            "src/events/storage.mjs",
+            "src/events/verify.mjs",
+            "src/inbound/README.md",
+            "src/inbound/bytes.mjs",
+            "src/inbound/headers.mjs",
+            "src/inbound/index.mjs",
+            "src/inbound/mime.mjs",
+            "src/inbound/multipart.mjs",
+            "src/inbound/resend-attachment.mjs",
+            "src/inbound/resend.mjs",
+            "src/inbound/sendgrid.mjs",
+            "src/sender.mjs",
+            "src/sendgrid-email/index.d.mts",
+            "src/sendgrid-email/index.mjs",
+            "src/unsubscribe/index.mjs"
+          ]
+        }
+      }
+    },
+    {
+      "id": "runeditrun/dependencies",
+      "role": "module",
+      "source": {
+        "kind": "local",
+        "paths": [
+          "src/modules/dependencies"
+        ],
+        "origin": {
+          "repository": "https://github.com/runeditrun/base.git",
+          "revision": "d1249b3d696c4011e9c72de2097f3757436074a6",
+          "path": "modules/dependencies",
+          "paths": [
+            "README.md",
+            "approval.mjs",
+            "auth.mjs",
+            "authority.mjs",
+            "crypto.mjs",
+            "index.d.mts",
+            "index.mjs",
+            "logout.mjs",
+            "native.mjs",
+            "protocol.mjs",
+            "schema/approval-attempt.sql",
+            "schema/dependencies.sql",
+            "store.mjs"
+          ]
+        }
+      }
+    },
+    {
+      "id": "runeditrun/owner-claim",
+      "role": "module",
+      "source": {
+        "kind": "local",
+        "paths": [
+          "src/modules/owner-claim"
+        ],
+        "origin": {
+          "repository": "https://github.com/runeditrun/base.git",
+          "revision": "d1249b3d696c4011e9c72de2097f3757436074a6",
+          "path": "modules/owner-claim",
+          "paths": [
+            "README.md",
+            "idp.mjs",
+            "index.d.mts",
+            "index.mjs",
+            "page.mjs",
+            "schema/idp.sql",
+            "schema/owner-claim.sql",
+            "transaction.mjs",
+            "verify.d.mts",
+            "verify.mjs"
+          ]
+        }
+      }
+    },
+    {
+      "id": "runeditrun/demo",
+      "role": "module",
+      "source": {
+        "kind": "local",
+        "paths": [
+          "src/modules/demo"
+        ],
+        "origin": {
+          "repository": "https://github.com/runeditrun/base.git",
+          "revision": "d1249b3d696c4011e9c72de2097f3757436074a6",
+          "path": "modules/demo",
+          "paths": [
+            "README.md",
+            "effects.mjs",
+            "index.d.mts",
+            "index.mjs",
+            "label.d.mts",
+            "label.mjs",
+            "responses.mjs",
+            "sockets.mjs",
+            "vite.d.mts",
+            "vite.mjs"
+          ]
+        }
+      }
+    },
+    {
+      "id": "runeditrun/ai",
+      "role": "module",
+      "source": {
+        "kind": "local",
+        "paths": [
+          "src/modules/ai"
+        ],
+        "origin": {
+          "repository": "https://github.com/runeditrun/base.git",
+          "revision": "d1249b3d696c4011e9c72de2097f3757436074a6",
+          "path": "modules/ai",
+          "paths": [
+            "LICENSE",
+            "README.md",
+            "client.mjs",
+            "config.mjs",
+            "dev/index.d.mts",
+            "dev/index.mjs",
+            "dev/outbox.mjs",
+            "errors.mjs",
+            "fake/index.d.mts",
+            "fake/index.mjs",
+            "index.d.mts",
+            "index.mjs",
+            "package.json"
+          ]
+        }
+      }
+    },
+    {
+      "id": "runeditrun/edition-authoring",
+      "role": "module",
+      "source": {
+        "kind": "local",
+        "paths": [
+          "scripts/edition-authoring"
+        ],
+        "origin": {
+          "repository": "https://github.com/runeditrun/base.git",
+          "revision": "d1249b3d696c4011e9c72de2097f3757436074a6",
+          "path": "edition-authoring",
+          "paths": [
+            "base-copies.mjs",
+            "cli.mjs",
+            "files.mjs",
+            "manifest.mjs",
+            "parent-comparison.mjs",
+            "projection-lock.mjs",
+            "release.mjs",
+            "sources.mjs",
+            "updates.mjs"
+          ]
+        }
+      }
+    }
+  ]
+}

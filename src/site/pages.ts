@@ -11,7 +11,7 @@ export function sitePages({ contract }: Partial<SiteContext> = {}): SiteBuild {
   const data: RunData = run
   return {
     pages: [
-      { path: '/', html: siteHomeHtml(identity, data, contract) },
+      { path: '/', html: siteHomeHtml(identity, data, contract).replace('100% free and open source.', '100% free, open source alternative to 1Password Business, Bitwarden, Keeper, LastPass Business') },
       { path: '/run', html: runPageHtml(identity, data, contract) },
       ...(contract ? [{ path: '/contract', html: contractPageHtml(identity, data, contract) }] : []),
       { path: '/404', html: siteNotFoundHtml(identity, data, contract) },
