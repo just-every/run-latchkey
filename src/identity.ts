@@ -8,7 +8,7 @@ import site from '../deploy-site.json'
 export const identity: EditionIdentity = {
   product: branding.name,
   deployment: branding.name,
-  purpose: 'Business password and secrets management.',
+  purpose: '{deployment}’s business passwords and secrets.',
   tagline: 'Business password and secrets management.',
   signInPath: '/signin',
   // The run site `rer deploy --site` publishes (deploy-site.json).
