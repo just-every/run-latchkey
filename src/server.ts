@@ -1,3 +1,4 @@
+import { latchkeyResponse } from './latchkey/service'
 import { withDemo } from './modules/demo/index.mjs'
 import { rejectedResponse } from './base/rejected-response'
 import start from '@tanstack/react-start/server-entry'
@@ -7,7 +8,7 @@ import { staticAssetResponse } from './base/static-assets'
 import { deploymentHealth } from './base/deployment-health'
 import { lobbyResponse } from './base/lobby'
 import { setupStateResponse } from './base/setup-state'
-import { authResponse, runtimeBindings, type Bindings } from './auth.server'
+import { authResponse, operatorAuth, runtimeBindings, type Bindings } from './auth.server'
 import { identity } from './identity'
 
 const api = new Hono<{ Bindings: Bindings }>()
@@ -28,6 +29,8 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (asset) return asset
     const auth = await authResponse(request, env)
     if (auth) return auth
+    const vault = await latchkeyResponse(request, runtimeBindings(env), operatorAuth(runtimeBindings(env)))
+    if (vault) return vault
     // The installed variant: the Lobby at / and the public claim state it reads.
     // Local dev serves the saved origin's data at its own port (RER_DEV_ORIGIN).
     const state = await setupStateResponse(request, runtimeBindings(env))
