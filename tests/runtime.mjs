@@ -51,9 +51,11 @@ try {
 // OPAQUE on both ends. Only the SendGrid network edge is substituted, using its
 // published v3 JSON request and HTTP 202 acceptance response.
 const { createRequire } = await import('node:module')
+const { unstable_splitSqlQuery } = await import('wrangler')
 const { readdir } = await import('node:fs/promises')
 const fromWrangler = createRequire(import.meta.resolve('wrangler/package.json'))
 const { Miniflare, convertV4MiniflareOptions, Log, LogLevel } = fromWrangler('miniflare')
+const { MachineClient } = await import('../src/latchkey/machine.mjs')
 const { VaultClient } = await import('../src/latchkey/client.mjs')
 const cryptography = await import('../src/latchkey/crypto/envelope.mjs')
 const { bytes, decode, digest, encode, id, open, random, signingText, sign, itemKey } = cryptography
@@ -94,7 +96,7 @@ const dump = async () => {
 }
 try {
  productDb = await product.getD1Database('DB')
- for (const migration of (await readdir('migrations/core')).filter(name => name.endsWith('.sql')).sort()) await productDb.exec(await readFile(join('migrations/core', migration), 'utf8'))
+ for (const migration of (await readdir('migrations/core')).filter(name => name.endsWith('.sql')).sort()) await productDb.batch(unstable_splitSqlQuery(await readFile(join('migrations/core', migration), 'utf8')).map(sql => productDb.prepare(sql)))
  const bootstrap = await post('/auth/bootstrap', { token: bindings.SETUP_TOKEN, displayName: 'Synthetic Latchkey owner' })
  assert.equal(bootstrap.status, 303)
  const ownerCookie = bootstrap.headers.get('set-cookie').split(';')[0]
@@ -213,11 +215,36 @@ try {
  for (const action of ['account_enrolled', 'vault_created', 'item_written', 'vault_shared', 'vault_rotated', 'device_approved', 'device_enrolled', 'device_revoked', 'account_recovered']) assert.ok(events.some(event => event.action === action), action)
  console.log('Device/account lifecycle: verified second-device enrollment, revocation, expiry, sign-out, two-factor recovery and old-kit rejection passed')
 
+ const runtimeKey = encode(random())
+ const machineProfile = await MachineClient.create(productOrigin, runtimeKey)
+ const machineIdentity = await MachineClient.identity(machineProfile)
+ await rejected(owner.grantMachine(vault, objects[0], machineIdentity, await digest('synthetic-latchkey-22')), 'recipient_mismatch')
+ const machineGrant = await owner.grantMachine(vault, objects[0], machineIdentity, machineIdentity.fingerprint)
+ assert.deepEqual(await MachineClient.read(machineProfile, machineGrant, runtimeKey, { fetcher: fetchProduct }), { value: 'synthetic-latchkey-11' })
+ await rejected(MachineClient.read(machineProfile, machineGrant, encode(random()), { fetcher: fetchProduct }), 'cannot_decrypt')
+ await rejected(MachineClient.read(machineProfile, { ...machineGrant, object: objects[1] }, runtimeKey, { fetcher: fetchProduct }), 'context_mismatch')
+ await owner.call('machine/revoke', { machine: machineIdentity.machine })
+ await rejected(MachineClient.read(machineProfile, machineGrant, runtimeKey, { fetcher: fetchProduct }), 'machine_authority_expired')
+ const secondMachine = await MachineClient.create(productOrigin, runtimeKey), secondIdentity = await MachineClient.identity(secondMachine)
+ const secondGrant = await owner.grantMachine(vault, objects[0], secondIdentity, secondIdentity.fingerprint)
+ await owner.rotate(vault)
+ await rejected(MachineClient.read(secondMachine, secondGrant, runtimeKey, { fetcher: fetchProduct }), 'machine_authority_expired')
+ const thirdMachine = await MachineClient.create(productOrigin, runtimeKey), thirdIdentity = await MachineClient.identity(thirdMachine)
+ const thirdGrant = await owner.grantMachine(vault, objects[0], thirdIdentity, thirdIdentity.fingerprint)
+ await productDb.prepare('UPDATE lky_machines SET expires_at=? WHERE id=?').bind(Date.now() - 1, thirdIdentity.machine).run()
+ await rejected(MachineClient.read(thirdMachine, thirdGrant, runtimeKey, { fetcher: fetchProduct }), 'machine_authority_expired')
+ console.log('Machine-runtime custody: explicit item-key wrap, private runtime profile, exact object context, expiry, revoke and rotation fences passed')
+ const passwordChanged = await owner.changePassword('synthetic-latchkey-21')
+ await rejected(new VaultClient(productOrigin, { fetcher: fetchProduct }).unlock(passwordChanged.profile, password), 'authentication_failed')
+ await owner.unlock(passwordChanged.profile, 'synthetic-latchkey-21')
+ assert.ok((await owner.readVault(vault)).versions.some(row => row.value.value === 'synthetic-latchkey-11'))
+ await rejected(new VaultClient(productOrigin, { fetcher: fetchProduct }).unlock(recovered.profile, password), 'authentication_failed')
+ console.log('Password lifecycle: fresh PAKE record and local factors, old-device/old-password exclusion and preserved encrypted values passed')
  const otherOrigin = 'https://synthetic-latchkey-18.test'
  const otherProduct = new Miniflare(convertV4MiniflareOptions({ modules: workerModules, modulesRoot: join(process.cwd(), 'dist/server'), compatibilityDate: '2026-09-08', compatibilityFlags: ['nodejs_compat'], d1Databases: { DB: 'synthetic-latchkey-19' }, bindings: { ...bindings, AUTH_ORIGIN: otherOrigin }, log: new Log(LogLevel.ERROR) }))
  try {
   const otherDb = await otherProduct.getD1Database('DB')
-  for (const migration of (await readdir('migrations/core')).filter(name => name.endsWith('.sql')).sort()) await otherDb.exec(await readFile(join('migrations/core', migration), 'utf8'))
+  for (const migration of (await readdir('migrations/core')).filter(name => name.endsWith('.sql')).sort()) await otherDb.batch(unstable_splitSqlQuery(await readFile(join('migrations/core', migration), 'utf8')).map(sql => otherDb.prepare(sql)))
   const boot = await otherProduct.dispatchFetch(otherOrigin + '/auth/bootstrap', { method: 'POST', headers: { origin: otherOrigin, 'content-type': 'application/json' }, body: JSON.stringify({ token: bindings.SETUP_TOKEN, displayName: 'Synthetic other owner' }) })
   assert.equal(boot.status, 303)
   const other = new VaultClient(otherOrigin, { cookie: boot.headers.get('set-cookie').split(';')[0], fetcher: otherProduct.dispatchFetch.bind(otherProduct) })
@@ -237,7 +264,7 @@ try {
  // client API request/response payloads, and captured runtime error/log records.
  const serverState = JSON.stringify(await dump())
  const inspected = [serverState, JSON.stringify(archive), JSON.stringify(traces), JSON.stringify(runtimeLogs)]
- const privateValues = [password, 'synthetic-latchkey-10', enrolled.profile.deviceSecret, enrolled.kit.recoverySecret, recovered.profile.deviceSecret, recovered.kit.recoverySecret, owner.bundle.root.recipient.privateKey, owner.bundle.root.recovery.privateKey, owner.bundle.signing.privateKey, archiveKey, ...values.flatMap(value => [value.title, value.value, value.custom.label, value.custom.secret, value.attachment.name, value.attachment.content])]
+ const privateValues = [runtimeKey, 'synthetic-latchkey-21', password, 'synthetic-latchkey-10', enrolled.profile.deviceSecret, enrolled.kit.recoverySecret, recovered.profile.deviceSecret, recovered.kit.recoverySecret, owner.bundle.root.recipient.privateKey, owner.bundle.root.recovery.privateKey, owner.bundle.signing.privateKey, archiveKey, ...values.flatMap(value => [value.title, value.value, value.custom.label, value.custom.secret, value.attachment.name, value.attachment.content])]
  for (const secret of privateValues) for (let channel = 0; channel < inspected.length; channel++) assert.ok(!inspected[channel].includes(secret), `plaintext or private key in channel ${channel}`)
  const nonces = (await productDb.prepare('SELECT envelope FROM lky_versions').all()).results.map(row => JSON.parse(row.envelope).nonce)
  assert.equal(new Set(nonces).size, nonces.length)

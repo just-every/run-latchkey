@@ -3,6 +3,7 @@
 // explicitly selects local files; no ambient credential file is discovered.
 import { constants } from 'node:fs';
 import { open, rename, unlink } from 'node:fs/promises';
+import { MachineClient } from '../src/latchkey/machine.mjs';
 import { VaultClient, ClientError } from '../src/latchkey/client.mjs';
 
 async function readPrivate(path) {
@@ -23,7 +24,13 @@ try {
  let raw = ''; for await (const chunk of process.stdin) { raw += chunk; if (Buffer.byteLength(raw) > 1500000) throw new ClientError('input_too_large'); }
  const input = JSON.parse(raw), command = process.argv[2];
  let client, profile, result;
- if (command === 'archive-open') {
+ if (command === 'runtime-keygen') {
+  const machine = await MachineClient.create(input.origin, input.runtimeKey);
+  await writePrivate(input.machineProfile, machine); result = await MachineClient.identity(machine);
+ } else if (command === 'runtime-read') {
+  const value = await MachineClient.read(await readPrivate(input.machineProfile), await readPrivate(input.grant), input.runtimeKey);
+  await writePrivate(input.output, value); result = { written: true };
+ } else if (command === 'archive-open') {
   result = await VaultClient.openExport(await readPrivate(input.archive), input.exportKey);
   await writePrivate(input.output, result);
   result = { written: true, versions: result.versions.length };
@@ -57,6 +64,9 @@ try {
    case 'share': result = await client.share(input.vault, input.account, input.fingerprint, input.rights); break;
    case 'rotate': result = await client.rotate(input.vault, input.remove ?? null, input.confirmedKeys ?? {}); break;
    case 'export': { const archive = await client.exportVault(input.vault, input.exportKey); await writePrivate(input.output, archive); result = { written: true }; break; }
+   case 'runtime-grant': { const grant = await client.grantMachine(input.vault, input.object, input.identity, input.fingerprint, input.expiresInSeconds); await writePrivate(input.output, grant); result = { machine: grant.machine, expires: grant.expires }; break; }
+   case 'runtime-revoke': result = await client.call('machine/revoke', { machine: input.machine }); break;
+   case 'password-change': { const changed = await client.changePassword(input.newPassword, { beforeCommit: async ({ profile, kit }) => { await writePrivate(input.newProfile, profile); await writePrivate(input.newKit, kit); } }); result = { generation: changed.profile.generation, device: changed.profile.device, kitWritten: true }; break; }
    case 'devices': result = await client.call('devices', {}); break;
    case 'device-revoke': result = await client.call('device/revoke', { device: input.device }); break;
    case 'enroll-approve': result = await client.approveEnrollment(input.device, input.fingerprint); break;

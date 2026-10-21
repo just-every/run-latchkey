@@ -534,6 +534,10 @@
       "sha256": "1299c682b3a623c6830544d15f40292639401bae0abe6ed59ba9e1cbb3f56d4d",
       "executable": false
     },
+    "migrations/core/0017_latchkey_runtime.sql": {
+      "sha256": "b47784f4e6741a47a5708945c7c6485b0d5b520d13870ea8259803aa39e90045",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "a2e48542c3e51e31c8d35148905c3654fd7600d22a8b1c1380e2397bd805408a",
       "executable": false
@@ -655,7 +659,7 @@
       "executable": false
     },
     "scripts/latchkey.mjs": {
-      "sha256": "269e6245495cfa3e8a08f40001247e4e92e7956e1861e5a973ba8244971370fa",
+      "sha256": "5417f74aff6e5ad9bae47d388bb3ae98116067423bc4930ef3ea7676a5566ad3",
       "executable": false
     },
     "scripts/latchkey/opaque-worker.d.mts": {
@@ -823,7 +827,7 @@
       "executable": false
     },
     "src/latchkey/client.mjs": {
-      "sha256": "1ed82ebb752e8857cd0934e6834a95917e8f4a5c15ab8426284d0d31fefce5e2",
+      "sha256": "735bd5191a3c332d671c51ec7479c1c681ac4e4dd1f606d21d678412c589c4c6",
       "executable": false
     },
     "src/latchkey/crypto/envelope.d.mts": {
@@ -834,8 +838,12 @@
       "sha256": "2a0461832f4ff2b9765cda30de5987c4fd36eaea786e70978688fe5cff07d75f",
       "executable": false
     },
+    "src/latchkey/machine.mjs": {
+      "sha256": "bd6cf57662a7d53d2e63100df292a7b60610e4cf17cdf37c70fcb5617c084baf",
+      "executable": false
+    },
     "src/latchkey/service.ts": {
-      "sha256": "f0b8561cd4ece0a84762cbb08e7e94071f7bf49d8344070e77e41f20457ef24e",
+      "sha256": "820d5cbdf5c8963bffd7bdf69e9297fae7d1184a27f569c0e233b1847c524122",
       "executable": false
     },
     "src/mail.server.d.mts": {
@@ -1727,7 +1735,7 @@
       "executable": false
     },
     "tests/runtime.mjs": {
-      "sha256": "07414aa88fcb460a9c7092892316bb540fc3010d93f4b65662439c0f0e9c1145",
+      "sha256": "f1978a4aee8984ff96b17bcc17b6fd72309974511e55e59be5cf043edcf2932a",
       "executable": false
     },
     "tests/typecheck-checks.mjs": {

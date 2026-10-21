@@ -188,6 +188,34 @@ export class VaultClient {
    return profile;
   } finally { key.fill(0); }
  }
+ async grantMachine(vault, object, identity, fingerprint, expiresInSeconds = 3600) {
+  requireValue(await digest(JSON.stringify([identity.machine, identity.deviceKey, identity.recipientKey])) === fingerprint, 'recipient_mismatch');
+  const snapshot = await this.snapshot(vault), token = encode(random());
+  try {
+   requireValue(snapshot.result.versions.some(row => row.object_id === object), 'not_found');
+   const key = await itemKey(snapshot.key, this.profile.tenant, vault, object);
+   let wrapped;
+   try { wrapped = await wrapRecipient(key, identity.recipientKey, binding(this.profile.tenant, vault, identity.machine, `machine-key:${object}`, snapshot.result.epoch)); } finally { key.fill(0); }
+   const result = await this.call('machine/grant', { vault, object, machine: identity.machine, deviceKey: identity.deviceKey, recipientKey: identity.recipientKey, fingerprint, wrapped, tokenHash: await digest(token), expiresInSeconds });
+   return { schema: 1, origin: this.origin, tenant: this.profile.tenant, vault, object, epoch: snapshot.result.epoch, machine: result.machine, token, expires: result.expires };
+  } finally { snapshot.key.fill(0); }
+ }
+ async changePassword(password, { beforeCommit } = {}) {
+  requireValue(typeof password === 'string' && password.length > 0, 'password_required');
+  const started = opaque.client.startRegistration({ password });
+  const registration = await this.call('password/start', { request: started.registrationRequest });
+  const result = opaque.client.finishRegistration({ clientRegistrationState: started.clientRegistrationState, registrationResponse: registration.response, password, identifiers: { client: this.profile.account, server: this.profile.tenant }, keyStretching: 'memory-constrained' });
+  requireValue(result.serverStaticPublicKey === registration.serverKey, 'server_key_changed');
+  const profile = { ...this.profile, generation: this.profile.generation + 1, device: id(), deviceSecret: encode(random()), serverKey: result.serverStaticPublicKey };
+  const root = { recipient: this.bundle.root.recipient, recovery: await keypair('sign') }, signing = await keypair('sign');
+  const kit = { schema: 1, origin: this.origin, account: profile.account, tenant: profile.tenant, serverKey: profile.serverKey, recoverySecret: encode(random()), generation: profile.generation };
+  const bundle = await seal(await unlockKey(result.exportKey, profile.deviceSecret, profile.account), bytes({ root, signing }), binding(profile.tenant, 'account', profile.device, 'device', profile.generation));
+  const recoveryWrap = await seal(await unlockKey(result.exportKey, kit.recoverySecret, profile.account), bytes({ root }), binding(profile.tenant, 'account', profile.account, 'recovery', profile.generation));
+  if (beforeCommit) await beforeCommit({ profile, kit });
+  await this.call('password/finish', { change: registration.change, record: result.registrationRecord, device: profile.device, deviceKey: signing.publicKey, bundle, recoveryKey: root.recovery.publicKey, recoveryWrap });
+  this.lock();
+  return { profile, kit };
+ }
  async recover(kit, password, { beforeCommit } = {}) {
   const { result, admitted } = await this.exchange(kit, password, 'recovery');
   requireValue(kit.generation === admitted.generation, 'kit_revoked');

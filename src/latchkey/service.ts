@@ -66,11 +66,26 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
    try { opaque.server.finishLogin({ serverLoginState: exchange.state, finishLoginRequest: string(input.request) }) } catch { refuse('authentication_failed', 401) }
    const account = await first('SELECT a.*,o.version,o.status FROM lky_accounts a JOIN oa_operators o ON o.id=a.operator_id WHERE a.id=?', exchange.account_id)
    if (!account || account.status !== 'active' || account.generation !== exchange.generation || account.version !== exchange.operator_version || !['recovery', 'enrollment'].includes(exchange.device_id) && !await first('SELECT id FROM lky_devices WHERE id=? AND account_id=? AND revoked_at IS NULL AND generation=?', exchange.device_id, account.id, account.generation)) refuse('authentication_failed', 401)
-   const completed = await auth.admitVerifiedPassword(request, account.operator_id)
+   const existing = await auth.getSession(request)
+   const completed = existing && existing.operator.id === account.operator_id ? { session: existing, cookie: undefined } : await auth.admitVerifiedPassword(request, account.operator_id)
    const token = encode(random()), expires = Math.min(now + 600000, completed.session.expiresAt)
    await db.batch([stmt('DELETE FROM lky_grants WHERE expires_at<?', now), stmt('DELETE FROM lky_nonces WHERE expires_at<?', now), stmt('INSERT INTO lky_grants VALUES(?,?,?,?,?,?,?)', await digest(token), account.id, exchange.device_id, completed.session.id, account.generation, expires, exchange.device_id === 'recovery' ? 1 : exchange.device_id === 'enrollment' ? 2 : 0), event(account.id, exchange.device_id, 'password_authenticated', account.id)])
    const device = ['recovery', 'enrollment'].includes(exchange.device_id) ? null : await first('SELECT bundle FROM lky_devices WHERE id=?', exchange.device_id)
    return response({ token, expires, account: account.id, tenant: account.tenant, generation: account.generation, recipientKey: account.recipient_key, recoveryKey: account.recovery_key, bundle: device ? JSON.parse(device.bundle) : exchange.device_id === 'recovery' ? JSON.parse(account.recovery_wrap) : null }, 200, completed.cookie)
+  }
+  if (route === 'runtime/read') {
+   exact(input, ['machine'])
+   const hash = await digest(string(request.headers.get('x-latchkey-grant'), 100))
+   const machine = await first(`SELECT m.*,a.tenant FROM lky_machines m JOIN lky_accounts a ON a.id=m.account_id JOIN oa_operators o ON o.id=a.operator_id JOIN lky_devices d ON d.id=m.device_id JOIN lky_vaults v ON v.id=m.vault_id JOIN lky_recipients r ON r.vault_id=v.id AND r.account_id=a.id WHERE m.id=? AND m.token_hash=? AND m.revoked_at IS NULL AND m.expires_at>? AND m.generation=a.generation AND m.operator_version=o.version AND o.status='active' AND d.account_id=a.id AND d.generation=a.generation AND d.revoked_at IS NULL AND v.tenant=a.tenant AND v.epoch=m.epoch AND EXISTS(SELECT 1 FROM json_each(r.rights) WHERE value='read') AND EXISTS(SELECT 1 FROM json_each(r.rights) WHERE value='share')`, identifier(input.machine), hash, now)
+   if (!machine) refuse('machine_authority_expired', 401)
+   const nonce = identifier(request.headers.get('x-latchkey-nonce')), time = string(request.headers.get('x-latchkey-time'), 20)
+   if (!/^\d+$/.test(time) || Math.abs(now - Number(time)) > 60000) refuse('request_expired', 401)
+   if (!await verify(machine.public_key, string(request.headers.get('x-latchkey-signature')), signingText('POST', url.pathname, string(request.headers.get('x-latchkey-grant'), 100), nonce, time, await digest(raw)))) refuse('invalid_signature', 403)
+   if (!await first('INSERT INTO lky_nonces VALUES(?,?,?) ON CONFLICT DO NOTHING RETURNING nonce', hash, nonce, machine.expires_at)) refuse('request_replayed', 409)
+   const value = await first('SELECT version,envelope FROM lky_versions WHERE vault_id=? AND object_id=? ORDER BY version DESC LIMIT 1', machine.vault_id, machine.object_id)
+   if (!value) refuse('not_found', 404)
+   await event(machine.account_id, machine.id, 'runtime_read', machine.object_id).run()
+   return response({ tenant: machine.tenant, vault: machine.vault_id, object: machine.object_id, epoch: machine.epoch, version: value.version, envelope: JSON.parse(value.envelope), wrapped: JSON.parse(machine.wrapped_key) })
   }
   const session = await auth.getSession(request)
   if (!session) refuse('authentication_required', 401)
@@ -137,6 +152,37 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
    return response({ generation: next, device: newDevice })
   }
   if (grant.recovery === 1) refuse('recovery_only', 403)
+  if (route === 'password/start') {
+   exact(input, ['request'])
+   await limited(actor)
+   const setup = opaque.server.createSetup(), change = id()
+   const registration = opaque.server.createRegistrationResponse({ serverSetup: setup, userIdentifier: actor, registrationRequest: string(input.request) })
+   await db.batch([stmt('DELETE FROM lky_password_changes WHERE expires_at<?', now), stmt(`INSERT INTO lky_password_changes SELECT ?,?,?,?,?,? WHERE ${fence}`, change, actor, device, grant.generation, setup, now + 120000, ...fenceArgs)])
+   return response({ change, response: registration.registrationResponse, serverKey: opaque.server.getPublicKey(setup) })
+  }
+  if (route === 'password/finish') {
+   exact(input, ['change', 'record', 'device', 'deviceKey', 'bundle', 'recoveryKey', 'recoveryWrap'])
+   const pending = await first('SELECT * FROM lky_password_changes WHERE id=? AND account_id=? AND device_id=? AND generation=? AND expires_at>?', identifier(input.change), actor, device, grant.generation, now)
+   if (!pending) refuse('password_change_expired', 409)
+   const next = grant.generation + 1, target = identifier(input.device)
+   string(input.record); await publicKey(string(input.deviceKey), 'sign'); await publicKey(string(input.recoveryKey), 'sign')
+   validateEnvelope(input.bundle, binding(tenant, 'account', target, 'device', next)); validateEnvelope(input.recoveryWrap, binding(tenant, 'account', actor, 'recovery', next))
+   const active = '(SELECT mutation FROM lky_accounts WHERE id=?)=?', activeArgs = [actor, target]
+   const changed = await db.batch([
+    stmt(`UPDATE lky_accounts SET opaque_setup=?,opaque_record=?,generation=?,recovery_key=?,recovery_wrap=?,mutation=? WHERE id=? AND generation=? AND ${fence}`, pending.setup, input.record, next, input.recoveryKey, envString(input.recoveryWrap), target, actor, grant.generation, ...fenceArgs),
+    stmt(`UPDATE lky_devices SET revoked_at=? WHERE account_id=? AND ${active}`, now, actor, ...activeArgs),
+    stmt(`INSERT INTO lky_devices SELECT ?,?,?,?,?,NULL WHERE ${active}`, target, actor, input.deviceKey, envString(input.bundle), next, ...activeArgs),
+    event(actor, target, 'password_changed', actor, active, activeArgs), stmt('DELETE FROM lky_password_changes WHERE id=?', input.change),
+   ])
+   if (!changed[0].meta.changes) refuse('authority_changed', 409)
+   return response({ generation: next, device: target })
+  }
+  if (route === 'machine/revoke') {
+   exact(input, ['machine']); const machine = identifier(input.machine), mutation = id()
+   const changed = await db.batch([stmt(`UPDATE lky_machines SET revoked_at=?,mutation=? WHERE id=? AND account_id=? AND revoked_at IS NULL AND ${fence}`, now, mutation, machine, actor, ...fenceArgs), event(actor, device, 'machine_revoked', machine, 'EXISTS(SELECT 1 FROM lky_machines WHERE id=? AND mutation=?)', [machine, mutation])])
+   if (!changed[0].meta.changes) refuse('not_found', 404)
+   return response({ revoked: machine })
+  }
   if (route === 'directory') {
    exact(input, ['account']); const recipient = await first('SELECT a.id,a.tenant,a.recipient_key FROM lky_accounts a JOIN oa_operators o ON o.id=a.operator_id WHERE a.id=? AND a.tenant=? AND o.status=\'active\'', identifier(input.account), tenant)
    if (!recipient) refuse('not_found', 404)
@@ -197,6 +243,23 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
   if (route === 'vault/read' || route === 'vault/export') {
    exact(input, ['vault']); has(route === 'vault/read' ? 'read' : 'export')
    return response({ vault: vault.id, tenant, epoch: vault.epoch, revision: vault.revision, owner: vault.owner, wrapped: JSON.parse(vault.wrapped_key), versions: await all('SELECT object_id,version,envelope FROM lky_versions WHERE vault_id=? ORDER BY object_id,version', vault.id), recipients: (JSON.parse(vault.rights) as string[]).includes('share') ? await all('SELECT r.account_id,r.rights,a.recipient_key FROM lky_recipients r JOIN lky_accounts a ON a.id=r.account_id WHERE r.vault_id=?', vault.id) : [] })
+  }
+  if (route === 'machine/grant') {
+   exact(input, ['vault', 'object', 'machine', 'deviceKey', 'recipientKey', 'fingerprint', 'wrapped', 'tokenHash', 'expiresInSeconds']); has('read'); has('share')
+   const object = identifier(input.object), machine = identifier(input.machine), ttl = integer(input.expiresInSeconds)
+   if (ttl > 3600) refuse('invalid_expiry')
+   if (!await first('SELECT version FROM lky_versions WHERE vault_id=? AND object_id=? LIMIT 1', vault.id, object)) refuse('not_found', 404)
+   await publicKey(string(input.deviceKey), 'sign'); await publicKey(string(input.recipientKey), 'wrap')
+   if (input.fingerprint !== await digest(envString([machine, input.deviceKey, input.recipientKey]))) refuse('recipient_mismatch', 409)
+   if (!/^[A-Za-z0-9_-]{43}$/.test(input.tokenHash)) refuse('invalid_token_hash')
+   await publicKey(string(input.wrapped?.publicKey), 'wrap'); validateEnvelope(input.wrapped?.envelope, binding(tenant, vault.id, machine, `machine-key:${object}`, vault.epoch))
+   const mutation = id(), expires = now + ttl * 1000
+   const changed = await db.batch([
+    stmt(`INSERT INTO lky_machines SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,NULL,? WHERE ${fence} AND EXISTS(SELECT 1 FROM lky_vaults WHERE id=? AND epoch=? AND revision=?)`, machine, input.tokenHash, actor, device, grant.generation, session.operator.version, vault.id, object, vault.epoch, input.deviceKey, input.recipientKey, envString(input.wrapped), expires, mutation, ...fenceArgs, vault.id, vault.epoch, vault.revision),
+    event(actor, device, 'machine_granted', machine, 'EXISTS(SELECT 1 FROM lky_machines WHERE id=? AND mutation=?)', [machine, mutation]),
+   ])
+   if (!changed[0].meta.changes) refuse('authority_changed', 409)
+   return response({ machine, expires }, 201)
   }
   if (route === 'item/put') {
    exact(input, ['vault', 'object', 'version', 'revision', 'envelope']); const object = identifier(input.object), version = integer(input.version)
