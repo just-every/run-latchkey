@@ -60,10 +60,15 @@ const { VaultClient } = await import('../src/latchkey/client.mjs')
 const cryptography = await import('../src/latchkey/crypto/envelope.mjs')
 const { bytes, decode, digest, encode, id, open, random, signingText, sign, itemKey } = cryptography
 const mail = [], traces = [], runtimeLogs = []
-const productOrigin = 'https://synthetic-latchkey-1.test'
+const tlsDirectory = await mkdtemp(join(tmpdir(), 'latchkey-tls-'))
+execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', join(tlsDirectory, 'key.pem'), '-out', join(tlsDirectory, 'cert.pem'), '-days', '1', '-subj', '/CN=localhost', '-addext', 'subjectAltName=IP:127.0.0.1,DNS:localhost'], { stdio: 'pipe' })
+const tls = { https: true, httpsKey: await readFile(join(tlsDirectory, 'key.pem'), 'utf8'), httpsCert: await readFile(join(tlsDirectory, 'cert.pem'), 'utf8') }
+const { Agent } = fromWrangler('undici')
+const dispatcher = new Agent({ connect: { ca: tls.httpsCert } })
+const productOrigin = `https://127.0.0.1:${port}`
 const bindings = { AUTH_ORIGIN: productOrigin, OWNER_EMAIL: 'synthetic-latchkey-1@example.test', SESSION_SECRET: 'synthetic-latchkey-2'.repeat(3), SETUP_TOKEN: 'synthetic-latchkey-3'.repeat(3), MAIL_PROVIDER: 'sendgrid', MAIL_API_KEY: 'synthetic-latchkey-4', MAIL_FROM: 'synthetic-latchkey-5@example.test' }
 const workerModules = [{ type: 'ESModule', path: join(process.cwd(), 'dist/server/index.js') }, ...(await readdir('dist/server/assets')).filter(name => /\.(?:js|wasm)$/.test(name)).map(name => ({ type: name.endsWith('.wasm') ? 'CompiledWasm' : 'ESModule', path: join(process.cwd(), 'dist/server/assets', name) }))]
-const product = new Miniflare(convertV4MiniflareOptions({
+const product = new Miniflare(convertV4MiniflareOptions({ ...tls, host: '127.0.0.1', port,
  modules: workerModules, modulesRoot: join(process.cwd(), 'dist/server'),
  compatibilityDate: '2026-09-08', compatibilityFlags: ['nodejs_compat'],
  d1Databases: { DB: 'synthetic-latchkey-6' }, bindings,
@@ -79,7 +84,7 @@ const product = new Miniflare(convertV4MiniflareOptions({
   return new Response(null, { status: 202, headers: { 'x-message-id': 'synthetic-latchkey-7' } })
  },
 }))
-const dispatchProduct = async (url, init) => (await product.getWorker()).fetch(url, init)
+const dispatchProduct = async (url, init) => { await product.ready; return fetch(url, { ...init, dispatcher }) }
 let productDb
 const fetchProduct = async (url, init) => {
  init = { ...init, headers: { ...init.headers, host: new URL(url).host } }
@@ -242,14 +247,16 @@ try {
  assert.ok((await owner.readVault(vault)).versions.some(row => row.value.value === 'synthetic-latchkey-11'))
  await rejected(new VaultClient(productOrigin, { fetcher: fetchProduct }).unlock(recovered.profile, password), 'authentication_failed')
  console.log('Password lifecycle: fresh PAKE record and local factors, old-device/old-password exclusion and preserved encrypted values passed')
- const otherOrigin = 'https://synthetic-latchkey-18.test'
- const otherProduct = new Miniflare(convertV4MiniflareOptions({ modules: workerModules, modulesRoot: join(process.cwd(), 'dist/server'), compatibilityDate: '2026-09-08', compatibilityFlags: ['nodejs_compat'], d1Databases: { DB: 'synthetic-latchkey-19' }, bindings: { ...bindings, AUTH_ORIGIN: otherOrigin }, log: new Log(LogLevel.ERROR) }))
+ const otherSocket = createServer(); await new Promise(resolve => otherSocket.listen(0, '127.0.0.1', resolve)); const otherPort = otherSocket.address().port; await new Promise(resolve => otherSocket.close(resolve))
+ const otherOrigin = `https://127.0.0.1:${otherPort}`
+ const otherProduct = new Miniflare(convertV4MiniflareOptions({ ...tls, host: '127.0.0.1', port: otherPort, modules: workerModules, modulesRoot: join(process.cwd(), 'dist/server'), compatibilityDate: '2026-09-08', compatibilityFlags: ['nodejs_compat'], d1Databases: { DB: 'synthetic-latchkey-19' }, bindings: { ...bindings, AUTH_ORIGIN: otherOrigin }, log: new Log(LogLevel.ERROR) }))
  try {
   const otherDb = await otherProduct.getD1Database('DB')
   for (const migration of (await readdir('migrations/core')).filter(name => name.endsWith('.sql')).sort()) await otherDb.batch(unstable_splitSqlQuery(await readFile(join('migrations/core', migration), 'utf8')).map(sql => otherDb.prepare(sql)))
-  const boot = await (await otherProduct.getWorker()).fetch(otherOrigin + '/auth/bootstrap', { method: 'POST', headers: { host: new URL(otherOrigin).host, origin: otherOrigin, 'content-type': 'application/json' }, body: JSON.stringify({ token: bindings.SETUP_TOKEN, displayName: 'Synthetic other owner' }) })
+  await otherProduct.ready
+  const boot = await fetch(otherOrigin + '/auth/bootstrap', { method: 'POST', headers: { host: new URL(otherOrigin).host, origin: otherOrigin, 'content-type': 'application/json' }, body: JSON.stringify({ token: bindings.SETUP_TOKEN, displayName: 'Synthetic other owner' }), dispatcher, redirect: 'manual' })
   assert.equal(boot.status, 303)
-  const other = new VaultClient(otherOrigin, { cookie: boot.headers.get('set-cookie').split(';')[0], fetcher: async (url, init) => (await otherProduct.getWorker()).fetch(url, { ...init, headers: { ...init.headers, host: new URL(url).host } }) })
+  const other = new VaultClient(otherOrigin, { cookie: boot.headers.get('set-cookie').split(';')[0], fetcher: (url, init) => fetch(url, { ...init, dispatcher }) })
   const otherAccount = await other.register('synthetic-latchkey-20')
   await other.unlock(otherAccount.profile, 'synthetic-latchkey-20')
   assert.notEqual(otherAccount.profile.tenant, recovered.profile.tenant)
@@ -273,4 +280,6 @@ try {
  console.log('Leakage inspection: complete D1 table dump, encrypted archive, wire payloads and captured runtime logs contain no tested values, sensitive metadata or client private keys')
 } finally {
  await product.dispose()
+ await dispatcher.close()
+ await rm(tlsDirectory, { recursive: true, force: true })
 }
