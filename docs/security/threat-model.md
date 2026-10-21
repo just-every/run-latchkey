@@ -1,6 +1,6 @@
 # Threat model and review status
 
-This is an implemented client-cryptography foundation, not independent security assurance. LKY-001 remains partial. No certification, penetration-test pass or independent Latchkey cryptographic review is claimed.
+This is an implemented client-cryptography foundation, not independent security assurance. LKY-001 covers the implemented doors under the ct split; LKY-076 remains missing for the owner-engaged independent review. No certification, penetration-test pass or independent Latchkey cryptographic review is claimed.
 
 | Boundary or attacker | Current protection | Limit or remaining evidence |
 | --- | --- | --- |

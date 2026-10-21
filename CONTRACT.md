@@ -2,7 +2,7 @@
 
 Target edition: **20 October 2026**. Latchkey is the complete business password and secrets manager a US company buys instead of 1Password Business, Bitwarden, Keeper or LastPass Business, with the collaboration, privacy and developer depth buyers seek from Passbolt, Proton Pass for Business and Infisical. Dashlane Omnix, NordPass Business and Psono are included in the switching destination. It keeps employee logins, TOTP and passkeys, shared privileged credentials and machine secrets encrypted, usable on every device and accountable through grant, use, offboarding and verified rotation.
 
-This is a build target, not a claim of shipped capability. No repository or code was available for judgment when the draft was written. The Status table records the client-held CLI/API foundation for LKY-001 as partial; the remaining clauses are missing. The original desk IDs LKY-001–030 retain their meaning and numbering. Difficulty in encryption, provider apps, native clients, controlled browsers, certification or migration is engineering work in the named clauses, not a scope reduction. Naming and the friendly latchkey mark remain as specified by the desk; this document changes no brand, UI or homepage.
+This is a build target, not a claim of shipped capability. No repository or code was available for judgment when the draft was written. The Status table records LKY-001 for the existing client-held CLI/API doors as done under the ct split of 22 October 2026; the independent Latchkey review is separately missing under LKY-076. The original desk IDs LKY-001–030 retain their meaning and numbering. Difficulty in encryption, provider apps, native clients, controlled browsers, certification or migration is engineering work in the named clauses, not a scope reduction. Naming and the friendly latchkey mark remain as specified by the desk; this document changes no brand, UI or homepage.
 
 ## Product target
 
@@ -67,9 +67,13 @@ Routes and command names describe required public doors and may be made concrete
 
 ### Vault and everyday clients
 
-**LKY-001 — Zero-knowledge vault and published security design.** Every item, secret value, TOTP seed, passkey private material, custom field, attachment and sensitive item metadata is encrypted on the client with per-vault AES-256-GCM keys and authenticated context. Each recipient gets only wrapped keys authorized for that vault; their account key derives from the unlock secret plus a device-held secret key. Password-authenticated sign-in uses a reviewed SRP or OPAQUE exchange, so the server never receives the password or an equivalent decryption secret. Key derivation, nonce generation, device enrollment, membership removal, recovery, SSO and rotation are specified in a published design. The operator and vendor staff cannot recover plaintext from server state, backups or logs. Owner-authorized clients, scanners and brokers decrypt only inside the explicitly trusted client boundary; they are not a vendor key escrow. The threat model describes malicious client and update and endpoint compromise honestly.
+**LKY-001 — Zero-knowledge vault and published security design.** Every item, secret value, TOTP seed, passkey private material, custom field, attachment and sensitive item metadata is encrypted on the client with per-vault AES-256-GCM keys and authenticated context. Each recipient gets only wrapped keys authorized for that vault; their account key derives from the unlock secret plus a device-held secret key. Password-authenticated sign-in uses a reviewed SRP or OPAQUE exchange, so the server never receives the password or an equivalent decryption secret. Key derivation, nonce generation, device enrollment, membership removal, recovery, SSO and rotation are specified in a published design. The operator and vendor staff cannot recover plaintext from server state, backups or logs. Owner-authorized clients, scanners and brokers decrypt only inside the explicitly trusted client boundary; they are not a vendor key escrow. The threat model describes malicious client and update and endpoint compromise honestly. Exact semantics (ct 22 October 2026): reviewed SRP or OPAQUE means OPAQUE (RFC 9807) or SRP-6a (RFC 5054) through a maintained implementation, never a home-grown variant; independent review of Latchkey’s use is LKY-076. Item types, doors and runtimes that do not yet exist inherit this same leakage journey as they land under LKY-002/003/004/008/009/017/018/024/029/030/032/033/034/051/057/067/070/072; no future door is claimed here.
 
-**Acceptance evidence:** Through signup, create, share, edit, export and recovery and machine-runtime doors put unique synthetic secrets in every item type; inspect full server database dumps, backups, logs, error reports and network payloads for plaintext and derivable keys. Demonstrate authenticated-ciphertext and context tampering rejection and key separation across tenants. Publish the protocol and design and obtain an independent cryptographic review covering recovery, SSO, trusted broker and malicious-server and update boundaries; review findings have resolved or explicitly open dispositions.
+**Acceptance evidence:** Through signup, create, share, edit, export and recovery and machine-runtime doors put unique synthetic secrets in every item type; inspect full server database dumps, backups, logs, error reports and network payloads for plaintext and derivable keys. Demonstrate authenticated-ciphertext and context tampering rejection and key separation across tenants. Publish the protocol and design.
+
+**LKY-076 — Independent cryptographic review of the vault design.** An independent party outside the builders and agents reviews LKY-001’s published protocol and implementation.
+
+**Acceptance evidence:** Obtain an independent cryptographic review covering recovery, SSO, trusted broker and malicious-server and update boundaries; review findings have resolved or explicitly open dispositions, linked from the security design. Engaging the reviewer is the owner’s decision; no agent-written review substitutes, and no page claims independent review before the report exists.
 
 **LKY-002 — Complete item types, generator and history.** Members create logins with multiple URL rules, TOTP and passkeys; secure notes, cards, identities, bank accounts, SSH keys, API credentials, databases, servers, Wi-Fi, software licenses and documents with encrypted attachments. Each supports custom fields, labels, tags, favorites, ownership, searchable non-secret views and clear reveal, copy and fill affordances appropriate to its type. A cryptographically random password and passphrase generator follows group policy without weakening entropy for convenience; generated-history retention is encrypted and controllable. Version history includes field and attachment changes, author and time, with a preview and explicit restore that appends a new version. Restoring an old provider password warns that vault history does not revert the provider; verified rotation state is separate. Capture TOTP seeds by scanning a QR code on screen or with the phone camera after the member chooses the target item; decode only in the trusted client, verify issuer and account and never upload the image or seed. Members with template-authoring rights create versioned custom item templates and record types with labeled, ordered typed and secret fields, required-field validation and organization sharing; later template changes preserve existing values and history. Generator history is encrypted locally for 30 days by default, individually clearable and excluded from telemetry; an administrator can set a shorter period for company profiles, shown before generation.
 
@@ -390,7 +394,7 @@ All 30 desk IDs are retained as named clauses. Expanded clauses and their linked
 
 | Desk ID | Named clause |
 | --- | --- |
-| LKY-001 | Zero-knowledge vault and published security design |
+| LKY-001, LKY-076 | Zero-knowledge vault, published security design and independent review |
 | LKY-002 | Complete item types, generator and history |
 | LKY-003 | Everyday apps, autofill and passkeys |
 | LKY-004 | Unlock and device security |
@@ -425,7 +429,7 @@ All 30 desk IDs are retained as named clauses. Expanded clauses and their linked
 
 | Desk requirement | Named clauses |
 | --- | --- |
-| missing 1: client encryption, device secret key, PAKE and published operator-exclusion design | LKY-001, LKY-004, LKY-030, LKY-057 |
+| missing 1: client encryption, device secret key, PAKE and published operator-exclusion design | LKY-001, LKY-076, LKY-004, LKY-030, LKY-057 |
 | missing 2: every named browser, desktop and mobile client, strict matching, TOTP and passkeys, real-page fill suite | LKY-002, LKY-003, LKY-004, LKY-038, LKY-039 |
 | missing 3: shared groups, fill-only, time and guest rights, SCIM and SSO and administrator-held recovery | LKY-005–009, LKY-032, LKY-051, LKY-057 |
 | missing 4: breach, reuse and dark web, tamper-evident SIEM audit and access-review evidence | LKY-011–015, LKY-040, LKY-059 |
@@ -443,8 +447,8 @@ Every distinct inventory feature is mapped below, including all table-stakes row
 
 | Area / capability | Tier | Named clauses |
 | --- | --- | --- |
-| Security / Client-side end-to-end encrypted vault | table-stakes | LKY-001 |
-| Security / Device Secret Key and password-authenticated sign-in | table-stakes | LKY-001, LKY-004 |
+| Security / Client-side end-to-end encrypted vault | table-stakes | LKY-001, LKY-076 |
+| Security / Device Secret Key and password-authenticated sign-in | table-stakes | LKY-001, LKY-076, LKY-004 |
 | Security / Biometric unlock and automatic locking | table-stakes | LKY-004 |
 | Security / MFA and hardware security keys | table-stakes | LKY-007, LKY-051 |
 | Security / Origin-aware phishing-resistant filling | table-stakes | LKY-003, LKY-025 |
@@ -600,13 +604,13 @@ Open boundaries remain explicit: unreachable default-policy caches and already e
 
 ## Status
 
-Judged from the code and tests at commit `72ab49ca34e2330e130bf39d6f3b739a27e5e13b` (21 October 2026). LKY-001 is a client-held CLI/API foundation, not independent cryptographic assurance or a completed password manager.
+Existing-door evidence rerun for the ct split (22 October 2026). LKY-001 is a client-held CLI/API foundation, not independent cryptographic assurance or a completed password manager.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 0 | 0 | 0 | 0 |
-| Target and push further | 0 | 1 | 74 | 75 |
-| All | 0 | 1 | 74 | 75 |
+| Target and push further | 1 | 0 | 75 | 76 |
+| All | 1 | 0 | 75 | 76 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -619,7 +623,8 @@ Judged from the code and tests at commit `72ab49ca34e2330e130bf39d6f3b739a27e5e1
 | `LKY-056` | Recover the vault service without losing the keys | target | missing |  | No implementation or public-door acceptance evidence exists for recover the vault service without losing the keys. |
 | `LKY-074` | Defined managed edition and published USD buying terms | target | missing |  | No implementation or public-door acceptance evidence exists for defined managed edition and published usd buying terms. Owner must choose the actual USD rates, commercial operator and BAA signer; no price or legal entity is invented. |
 | `LKY-075` | Agent fleet control, budgets and global pause | target | missing |  | No implementation or public-door acceptance evidence exists for agent fleet control, budgets and global pause. |
-| `LKY-001` | Zero-knowledge vault and published security design | target | partial | `tests/runtime.mjs`: Vault envelopes and Shipped CLI (signup/create/edit/export and encrypted payload classes); Recipient lifecycle (pinned sharing/removal/rekey); Device/account lifecycle and Password lifecycle (enrollment/recovery/rotation); Machine-runtime custody (selected-item runtime); Records backup and Leakage inspection (database/backup/wire/log secret absence); Tamper and authority and Tenant isolation (authenticated context/ciphertext/key-wrap refusal and cross-tenant keys). `docs/security/protocol.md` and `docs/security/threat-model.md` publish the design and trust boundaries. | Independent Latchkey cryptographic review and finding dispositions remain pending evidence, not an account blocker. Generic CLI/API payload encryption does not prove every native/typed item door under LKY-002/003; full account-root replacement, SSO/MFA/admin recovery, trusted-broker/update and whole-product destination-restore/erasure journeys remain unproved under LKY-004/008/009/030/032/033/034/051/057. |
+| `LKY-001` | Zero-knowledge vault and published security design | target | done | `tests/runtime.mjs`: Vault envelopes and Shipped CLI (signup/create/edit/export and encrypted payload classes); Recipient lifecycle (pinned sharing/removal/rekey); Device/account lifecycle and Password lifecycle (enrollment/recovery/rotation); Machine-runtime custody (selected-item runtime); Records backup and Leakage inspection (database/backup/wire/log secret absence); Tamper and authority and Tenant isolation (authenticated context/ciphertext/key-wrap refusal and cross-tenant keys). `docs/security/protocol.md` and `docs/security/threat-model.md` publish the design and trust boundaries. | Existing doors proved. LKY-002/003/004/008/009/017/018/024/029/030/032/033/034/051/057/067/070/072 inherit the leakage journey when their doors land; independent assessment remains LKY-076. |
+| `LKY-076` | Independent cryptographic review of the vault design | target | missing |  | Owner must engage an independent reviewer; no actual report with finding dispositions exists. |
 | `LKY-002` | Complete item types, generator and history | target | missing |  | No implementation or public-door acceptance evidence exists for complete item types, generator and history. |
 | `LKY-003` | Everyday apps, autofill and passkeys | target | missing |  | No implementation or public-door acceptance evidence exists for everyday apps, autofill and passkeys. |
 | `LKY-004` | Unlock and device security | target | missing |  | No implementation or public-door acceptance evidence exists for unlock and device security. |
