@@ -60,9 +60,10 @@ const { bytes, decode, digest, encode, id, open, random, signingText, sign, item
 const mail = [], traces = [], runtimeLogs = []
 const productOrigin = 'https://synthetic-latchkey-1.test'
 const bindings = { AUTH_ORIGIN: productOrigin, OWNER_EMAIL: 'synthetic-latchkey-1@example.test', SESSION_SECRET: 'synthetic-latchkey-2'.repeat(3), SETUP_TOKEN: 'synthetic-latchkey-3'.repeat(3), MAIL_PROVIDER: 'sendgrid', MAIL_API_KEY: 'synthetic-latchkey-4', MAIL_FROM: 'synthetic-latchkey-5@example.test' }
+const workerModules = [{ type: 'ESModule', path: join(process.cwd(), 'dist/server/index.js') }, ...(await readdir('dist/server/assets')).filter(name => /\.(?:js|wasm)$/.test(name)).map(name => ({ type: name.endsWith('.wasm') ? 'CompiledWasm' : 'ESModule', path: join(process.cwd(), 'dist/server/assets', name) }))]
 const product = new Miniflare(convertV4MiniflareOptions({
- scriptPath: join(process.cwd(), 'dist/server/index.js'), modules: true, modulesRoot: join(process.cwd(), 'dist/server'),
- modulesRules: [{ type: 'CompiledWasm', include: ['**/*.wasm'] }], compatibilityDate: '2026-09-08', compatibilityFlags: ['nodejs_compat'],
+ modules: workerModules, modulesRoot: join(process.cwd(), 'dist/server'),
+ compatibilityDate: '2026-09-08', compatibilityFlags: ['nodejs_compat'],
  d1Databases: { DB: 'synthetic-latchkey-6' }, bindings,
  log: new Log(LogLevel.ERROR),
  handleStructuredLogs: value => runtimeLogs.push(JSON.stringify(value)),
@@ -213,7 +214,7 @@ try {
  console.log('Device/account lifecycle: verified second-device enrollment, revocation, expiry, sign-out, two-factor recovery and old-kit rejection passed')
 
  const otherOrigin = 'https://synthetic-latchkey-18.test'
- const otherProduct = new Miniflare(convertV4MiniflareOptions({ scriptPath: join(process.cwd(), 'dist/server/index.js'), modules: true, modulesRoot: join(process.cwd(), 'dist/server'), modulesRules: [{ type: 'CompiledWasm', include: ['**/*.wasm'] }], compatibilityDate: '2026-09-08', compatibilityFlags: ['nodejs_compat'], d1Databases: { DB: 'synthetic-latchkey-19' }, bindings: { ...bindings, AUTH_ORIGIN: otherOrigin }, log: new Log(LogLevel.ERROR) }))
+ const otherProduct = new Miniflare(convertV4MiniflareOptions({ modules: workerModules, modulesRoot: join(process.cwd(), 'dist/server'), compatibilityDate: '2026-09-08', compatibilityFlags: ['nodejs_compat'], d1Databases: { DB: 'synthetic-latchkey-19' }, bindings: { ...bindings, AUTH_ORIGIN: otherOrigin }, log: new Log(LogLevel.ERROR) }))
  try {
   const otherDb = await otherProduct.getD1Database('DB')
   for (const migration of (await readdir('migrations/core')).filter(name => name.endsWith('.sql')).sort()) await otherDb.exec(await readFile(join('migrations/core', migration), 'utf8'))

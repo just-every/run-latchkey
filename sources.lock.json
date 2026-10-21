@@ -1727,7 +1727,7 @@
       "executable": false
     },
     "tests/runtime.mjs": {
-      "sha256": "2c66573806338bd0012a060e204e42052e5a1bd7f4ad821bf9cbc67fc89ce4bc",
+      "sha256": "07414aa88fcb460a9c7092892316bb540fc3010d93f4b65662439c0f0e9c1145",
       "executable": false
     },
     "tests/typecheck-checks.mjs": {
