@@ -52,7 +52,7 @@ try {
 // published v3 JSON request and HTTP 202 acceptance response.
 const { createRequire } = await import('node:module')
 const { unstable_splitSqlQuery } = await import('wrangler')
-const { readdir } = await import('node:fs/promises')
+const { readdir, stat, writeFile } = await import('node:fs/promises')
 const fromWrangler = createRequire(import.meta.resolve('wrangler/package.json'))
 const { Miniflare, convertV4MiniflareOptions, Log, LogLevel } = fromWrangler('miniflare')
 const { MachineClient } = await import('../src/latchkey/machine.mjs')
@@ -255,6 +255,79 @@ try {
  assert.ok((await owner.readVault(vault)).versions.some(row => row.value.value === 'synthetic-latchkey-11'))
  await rejected(new VaultClient(productOrigin, { fetcher: fetchProduct }).unlock(recovered.profile, password), 'authentication_failed')
  console.log('Password lifecycle: fresh PAKE record and local factors, old-device/old-password exclusion and preserved encrypted values passed')
+ // The shipped command is also exercised in a separate Node process over
+ // HTTPS; no secret is passed in argv or inherited environment.
+ const cliDirectory = await mkdtemp(join(tmpdir(), 'latchkey-client-'))
+ const cliPrivateValues = []
+ const runCli = async (command, input, expected = 0) => {
+  const child = spawn(process.execPath, ['scripts/latchkey.mjs', command], { stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, NODE_EXTRA_CA_CERTS: join(tlsDirectory, 'cert.pem') } })
+  let output = '', errors = ''
+  child.stdout.on('data', chunk => { output += chunk }); child.stderr.on('data', chunk => { errors += chunk })
+  child.stdin.end(JSON.stringify(input))
+  const code = await new Promise((resolve, reject) => { child.once('error', reject); child.once('close', resolve) })
+  assert.equal(code, expected, errors)
+  for (const secret of ['synthetic-latchkey-24', 'synthetic-latchkey-25', input.password, input.newPassword, input.runtimeKey, input.exportKey].filter(Boolean)) assert.ok(!output.includes(secret) && !errors.includes(secret), 'CLI output must not contain input secrets')
+  if (expected) { assert.equal(output, ''); return JSON.parse(errors) }
+  return JSON.parse(output)
+ }
+ try {
+  const invite = await post('/auth/invite', { email: 'synthetic-latchkey-26@example.test', displayName: 'Synthetic CLI member', role: 'member' }, owner.cookie)
+  assert.equal(invite.status, 202)
+  const email = mail.at(-1).content.find(content => content.type === 'text/plain').value
+  const identityToken = new URL(email.match(/https:\/\/[^\s<>]+/)[0]).searchParams.get('token')
+  const profile = join(cliDirectory, 'device.json'), kit = join(cliDirectory, 'kit.json'), cliPassword = 'synthetic-latchkey-27'
+  await runCli('register', { origin: productOrigin, identityToken, password: cliPassword, profile, kit })
+  assert.equal((await stat(profile)).mode & 0o777, 0o600); assert.equal((await stat(kit)).mode & 0o777, 0o600)
+  const created = await runCli('vault-create', { profile, password: cliPassword })
+  const value = { title: 'synthetic-latchkey-24', value: 'synthetic-latchkey-25' }
+  const written = await runCli('put', { profile, password: cliPassword, vault: created.vault, value })
+  const output = join(cliDirectory, 'value.json')
+  await runCli('read', { profile, password: cliPassword, vault: created.vault, output })
+  assert.deepEqual(JSON.parse(await readFile(output, 'utf8')).versions[0].value, value)
+  assert.equal((await stat(output)).mode & 0o777, 0o600)
+  await runCli('read', { profile, password: 'synthetic-latchkey-28', vault: created.vault, output: join(cliDirectory, 'denied.json') }, 1)
+  const encrypted = join(cliDirectory, 'archive.json'), opened = join(cliDirectory, 'archive-open.json')
+  await runCli('export', { profile, password: cliPassword, vault: created.vault, exportKey: archiveKey, output: encrypted })
+  await runCli('archive-open', { archive: encrypted, exportKey: archiveKey, output: opened })
+  assert.deepEqual(JSON.parse(await readFile(opened, 'utf8')).versions[0].value, value)
+  const machineProfile = join(cliDirectory, 'machine.json'), grantPath = join(cliDirectory, 'grant.json')
+  const identity = await runCli('runtime-keygen', { origin: productOrigin, runtimeKey, machineProfile })
+  await runCli('runtime-grant', { profile, password: cliPassword, vault: created.vault, object: written.object, identity, fingerprint: identity.fingerprint, output: grantPath })
+  const runtimeOutput = join(cliDirectory, 'runtime.json')
+  await runCli('runtime-read', { machineProfile, grant: grantPath, runtimeKey, output: runtimeOutput })
+  assert.deepEqual(JSON.parse(await readFile(runtimeOutput, 'utf8')), value)
+  await runCli('runtime-revoke', { profile, password: cliPassword, machine: identity.machine })
+  assert.equal((await runCli('runtime-read', { machineProfile, grant: grantPath, runtimeKey, output: join(cliDirectory, 'runtime-denied.json') }, 1)).error, 'machine_authority_expired')
+  const fileProfile = JSON.parse(await readFile(profile, 'utf8')), fileKit = JSON.parse(await readFile(kit, 'utf8'))
+  cliPrivateValues.push(cliPassword, fileProfile.deviceSecret, fileKit.recoverySecret, value.title, value.value)
+  console.log('Shipped CLI: native-token registration, private custody files, encrypted write/read/export, local archive open and scoped runtime use/revoke passed')
+ } finally { await rm(cliDirectory, { recursive: true, force: true }) }
+
+ const { default: archivePolicy } = await import('../scripts/latchkey/archive-policy.mjs')
+ const { createPortability } = await import('../node_modules/@runeditrun/rer/modules/portability/index.mjs')
+ const records = await createPortability({ db: productDb, policy: archivePolicy })
+ const backupId = await records.exports.create('synthetic-latchkey-29')
+ let backupStatus = await records.exports.status(backupId)
+ for (let count = 0; backupStatus.phase !== 'complete' && count < 20; count++) backupStatus = await records.exports.advance(backupId, { maxParts: 100 })
+ assert.equal(backupStatus.phase, 'complete')
+ const backup = await new Response(await records.exports.download(backupId)).text()
+ const backupLines = backup.trim().split('\n').map(line => JSON.parse(line)), manifest = backupLines[0], closing = backupLines.at(-1)
+ assert.ok(manifest.tables.some(table => table.name === 'lky_versions'))
+ for (const table of ['lky_devices', 'lky_grants', 'lky_exchanges', 'lky_enrollments', 'lky_machines']) assert.ok(manifest.excludedTables.includes(table))
+ const restore = new Miniflare(convertV4MiniflareOptions({ modules: workerModules, modulesRoot: join(process.cwd(), 'dist/server'), compatibilityDate: '2026-09-08', compatibilityFlags: ['nodejs_compat'], d1Databases: { DB: 'synthetic-latchkey-30' }, bindings, log: new Log(LogLevel.ERROR) }))
+ try {
+  const restoreDb = await restore.getD1Database('DB')
+  for (const migration of (await readdir('migrations/core')).filter(name => name.endsWith('.sql')).sort()) await restoreDb.batch(unstable_splitSqlQuery(await readFile(join('migrations/core', migration), 'utf8')).map(sql => restoreDb.prepare(sql)))
+  const destination = await createPortability({ db: restoreDb, policy: archivePolicy })
+  const imported = await destination.imports.create(manifest, 'synthetic-latchkey-31')
+  for (const part of backupLines.slice(1, -1)) await destination.imports.uploadPart(imported, part.index, part)
+  const restored = await destination.imports.finalize(imported, { contentHash: closing.contentHash, archiveHash: closing.archiveHash })
+  assert.equal(restored.phase, 'complete')
+  assert.equal((await restoreDb.prepare('SELECT COUNT(*) AS total FROM lky_versions').first()).total, (await productDb.prepare('SELECT COUNT(*) AS total FROM lky_versions').first()).total)
+  assert.ok((await restoreDb.prepare('SELECT rights FROM lky_recipients').all()).results.every(row => row.rights === '[]'))
+  for (const table of ['lky_devices', 'lky_grants', 'lky_machines']) assert.equal((await restoreDb.prepare(`SELECT COUNT(*) AS total FROM ${table}`).first()).total, 0)
+ } finally { await restore.dispose() }
+ console.log('Records backup: encrypted values/history preserved, live device/grant/runtime authority omitted and restored recipient rights inactive')
  const otherSocket = createServer(); await new Promise(resolve => otherSocket.listen(0, '127.0.0.1', resolve)); const otherPort = otherSocket.address().port; await new Promise(resolve => otherSocket.close(resolve))
  const otherOrigin = `https://127.0.0.1:${otherPort}`
  const otherProduct = new Miniflare(convertV4MiniflareOptions({ ...tls, host: '127.0.0.1', port: otherPort, modules: workerModules, modulesRoot: join(process.cwd(), 'dist/server'), compatibilityDate: '2026-09-08', compatibilityFlags: ['nodejs_compat'], d1Databases: { DB: 'synthetic-latchkey-19' }, bindings: { ...bindings, AUTH_ORIGIN: otherOrigin }, log: new Log(LogLevel.ERROR) }))
@@ -280,8 +353,8 @@ try {
  // Inspect every table, the client-produced encrypted backup, all legitimate
  // client API request/response payloads, and captured runtime error/log records.
  const serverState = JSON.stringify(await dump())
- const inspected = [serverState, JSON.stringify(archive), JSON.stringify(traces), JSON.stringify(runtimeLogs)]
- const privateValues = [runtimeKey, 'synthetic-latchkey-21', password, 'synthetic-latchkey-10', enrolled.profile.deviceSecret, enrolled.kit.recoverySecret, recovered.profile.deviceSecret, recovered.kit.recoverySecret, owner.bundle.root.recipient.privateKey, owner.bundle.root.recovery.privateKey, owner.bundle.root.authority.privateKey, owner.bundle.signing.privateKey, archiveKey, ...values.flatMap(value => [value.title, value.value, value.custom.label, value.custom.secret, value.attachment.name, value.attachment.content])]
+ const inspected = [serverState, JSON.stringify(archive), JSON.stringify(traces), JSON.stringify(runtimeLogs), backup]
+ const privateValues = [...cliPrivateValues, runtimeKey, 'synthetic-latchkey-21', password, 'synthetic-latchkey-10', enrolled.profile.deviceSecret, enrolled.kit.recoverySecret, recovered.profile.deviceSecret, recovered.kit.recoverySecret, owner.bundle.root.recipient.privateKey, owner.bundle.root.recovery.privateKey, owner.bundle.root.authority.privateKey, owner.bundle.signing.privateKey, archiveKey, ...values.flatMap(value => [value.title, value.value, value.custom.label, value.custom.secret, value.attachment.name, value.attachment.content])]
  for (const secret of privateValues) for (let channel = 0; channel < inspected.length; channel++) assert.ok(!inspected[channel].includes(secret), `plaintext or private key in channel ${channel}`)
  const nonces = (await productDb.prepare('SELECT envelope FROM lky_versions').all()).results.map(row => JSON.parse(row.envelope).nonce)
  assert.equal(new Set(nonces).size, nonces.length)

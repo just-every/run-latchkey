@@ -458,6 +458,18 @@
       "sha256": "f561f2553e59cf2420a2f8971090415b6aceaff0236bce2a6b24c4f375cd3afa",
       "executable": false
     },
+    "docs/security/protocol.md": {
+      "sha256": "54fb633274a2fc645ee9e687e12f80b8b37d28c494e939ab25aee8456d5f455e",
+      "executable": false
+    },
+    "docs/security/threat-model.md": {
+      "sha256": "ec68a5c96c0d4013410bc7deadba70f5e6dc60a7fee5ed7133b29f0dcf5aad83",
+      "executable": false
+    },
+    "docs/vault-cli.md": {
+      "sha256": "2f711fb9389b87bf3219f6873ec4a77ee4760ebcf95f77e5cca63aaae6c65f63",
+      "executable": false
+    },
     "edition.json": {
       "sha256": "d71f06582c7425486f1e95836ff33c8e7b7b4817c142fef636c7cdd5815481d9",
       "executable": false
@@ -647,7 +659,7 @@
       "executable": false
     },
     "scripts/installer/local.mjs": {
-      "sha256": "bbcadebcaaeb554ea857fef1f0b96fabbbaf39908b0dc6517edda59e5e690e66",
+      "sha256": "d695711061fde14796ed087bbda30dfa1706cc13846622ae7a84d43e11d86103",
       "executable": false
     },
     "scripts/installer/seed.mjs": {
@@ -663,7 +675,11 @@
       "executable": false
     },
     "scripts/latchkey.mjs": {
-      "sha256": "681f0e54c6bb45fb9ca0de564e03ca6933a86605577dd022f3f35886e9111915",
+      "sha256": "6ff832832be9d0e3578c1ee5ac15d35fdf538c65bb5cd3359240c2230bb97609",
+      "executable": false
+    },
+    "scripts/latchkey/archive-policy.mjs": {
+      "sha256": "9d769da37d6f6c45e95ce77c0d545268bc0819b9c77d4bd46b09cec3c9eb61a3",
       "executable": false
     },
     "scripts/latchkey/opaque-worker.d.mts": {
@@ -831,7 +847,7 @@
       "executable": false
     },
     "src/latchkey/client.mjs": {
-      "sha256": "4fc7d609ba98612986da147057be58b60ccf2b1b56d5520d1ecfb7d5145ff592",
+      "sha256": "f883d64b18118bdd21013de32eb5b4f6267b56fd0959fa7f6ee46b7669ea9910",
       "executable": false
     },
     "src/latchkey/crypto/envelope.d.mts": {
@@ -847,7 +863,7 @@
       "executable": false
     },
     "src/latchkey/service.ts": {
-      "sha256": "696db7fb2ddd4d03e1c4d66e3d0a64b27d58c0a9fba71dfd806d125b2f5b3977",
+      "sha256": "f832ec7847c793a38d10f97cfc3611dc311b235f59e1dfb1c5cbf91693e6137b",
       "executable": false
     },
     "src/mail.server.d.mts": {
@@ -1739,7 +1755,7 @@
       "executable": false
     },
     "tests/runtime.mjs": {
-      "sha256": "e7f60e60214c2a482ff67396ae6e6cfb53e0fe523910c783d20819c8cc7c91bf",
+      "sha256": "6b6fb793c817285464d43353e8b89c1817476f50bc919e35b7ddeb8da411f7c6",
       "executable": false
     },
     "tests/typecheck-checks.mjs": {

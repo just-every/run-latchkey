@@ -24,7 +24,9 @@ try {
  let raw = ''; for await (const chunk of process.stdin) { raw += chunk; if (Buffer.byteLength(raw) > 1500000) throw new ClientError('input_too_large'); }
  const input = JSON.parse(raw), command = process.argv[2];
  let client, profile, result;
- if (command === 'runtime-keygen') {
+ if (command === 'identity-request') {
+  client = new VaultClient(input.origin); result = await client.requestIdentity(input.email);
+ } else if (command === 'runtime-keygen') {
   const machine = await MachineClient.create(input.origin, input.runtimeKey);
   await writePrivate(input.machineProfile, machine); result = await MachineClient.identity(machine);
  } else if (command === 'runtime-read') {

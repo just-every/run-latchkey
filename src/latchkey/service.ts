@@ -53,7 +53,7 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
   if (route === 'login/start') {
    exact(input, ['account', 'device', 'request'])
    const accountId = identifier(input.account), device = ['recovery', 'enrollment'].includes(input.device) ? input.device : identifier(input.device)
-   await limited(accountId)
+   await limited('start:' + accountId)
    const account = await first('SELECT a.*,o.version,o.status FROM lky_accounts a JOIN oa_operators o ON o.id=a.operator_id WHERE a.id=?', accountId)
    // No account, device or registration details in public failure responses.
    if (!account || account.status !== 'active' || !['recovery', 'enrollment'].includes(device) && !await first('SELECT id FROM lky_devices WHERE id=? AND account_id=? AND revoked_at IS NULL AND generation=?', device, accountId, account.generation)) refuse('authentication_failed', 401)
@@ -64,9 +64,9 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
   }
   if (route === 'login/finish') {
    exact(input, ['exchange', 'request'])
-   await limited('finish')
    const exchange = await first('UPDATE lky_exchanges SET used_at=? WHERE id=? AND used_at IS NULL AND expires_at>? RETURNING *', now, identifier(input.exchange), now)
-   if (!exchange) refuse('authentication_failed', 401)
+   if (!exchange) { await limited('invalid_finish'); refuse('authentication_failed', 401) }
+   await limited('finish:' + exchange.account_id)
    try { opaque.server.finishLogin({ serverLoginState: exchange.state, finishLoginRequest: string(input.request) }) } catch { refuse('authentication_failed', 401) }
    const account = await first('SELECT a.*,o.version,o.status FROM lky_accounts a JOIN oa_operators o ON o.id=a.operator_id WHERE a.id=?', exchange.account_id)
    if (!account || account.status !== 'active' || account.generation !== exchange.generation || account.version !== exchange.operator_version || !['recovery', 'enrollment'].includes(exchange.device_id) && !await first('SELECT id FROM lky_devices WHERE id=? AND account_id=? AND revoked_at IS NULL AND generation=?', exchange.device_id, account.id, account.generation)) refuse('authentication_failed', 401)

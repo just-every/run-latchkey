@@ -24,6 +24,11 @@ export class VaultClient {
   if (!response.ok) throw new ClientError(typeof result.error === 'string' && /^[a-z_]{1,64}$/.test(result.error) ? result.error : 'request_refused', response.status);
   return result;
  }
+ async requestIdentity(email) {
+  const response = await this.fetcher(this.origin + '/auth/magic-link', { method: 'POST', headers: { origin: this.origin, 'content-type': 'application/json' }, body: JSON.stringify({ email }), redirect: 'error' });
+  requireValue(response.status === 202, 'identity_request_failed');
+  return { status: 'accepted' };
+ }
  async confirmIdentity(token) {
   const response = await this.fetcher(this.origin + '/auth/confirm', { method: 'POST', headers: { origin: this.origin, 'content-type': 'application/json' }, body: JSON.stringify({ token }), redirect: 'manual' });
   const cookie = response.headers.get('set-cookie');
