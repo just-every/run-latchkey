@@ -1,3 +1,4 @@
+import { erasureText, validErasureProof } from './crypto/erasure.mjs';
 import * as opaque from '@serenity-kit/opaque';
 import { bytes, decode, digest, encode, id, itemKey, json, keypair, open, random, seal, sign, signingText, unlockKey, unwrapRecipient, wrapRecipient, unwrapSigned, wrapSigned } from './crypto/envelope.mjs';
 
@@ -5,7 +6,7 @@ const binding = (tenant, vault, object, purpose, epoch, version = 1) => ({ tenan
 export class ClientError extends Error { constructor(code, status = 0) { super(code); this.code = code; this.status = status; } }
 const requireValue = (condition, code) => { if (!condition) throw new ClientError(code); };
 export class VaultClient {
- constructor(origin, { cookie = '', fetcher = fetch } = {}) {
+ constructor(origin, { cookie = '', fetcher = (url, init) => globalThis.fetch(url, init) } = {}) {
   const url = new URL(origin);
   requireValue(url.origin === origin && (url.protocol === 'https:' || url.protocol === 'http:' && ['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)), 'https_required');
   this.origin = origin; this.cookie = cookie; this.fetcher = fetcher;
@@ -90,15 +91,25 @@ export class VaultClient {
   requireValue(profile, 'locked');
   try { return await this.call('vault/create', { vault, wrapped: await this.wrap(key, profile.recipientKey, binding(profile.tenant, vault, profile.account, 'vault-key', 1)) }); } finally { key.fill(0); }
  }
- async snapshot(vault, mode = 'read') {
-  const result = await this.call(`vault/${mode}`, { vault }), profile = this.profile;
+ async snapshot(vault, mode = 'read', selection) {
+  const result = await this.call(selection ? 'item/read' : `vault/${mode}`, selection ? { vault, ...selection } : { vault }), profile = this.profile;
   requireValue(result.vault === vault && result.tenant === profile.tenant, 'context_mismatch');
-  const seen = profile.seen[vault];
+  let seen = profile.seen[vault];
   requireValue(!seen || result.epoch >= seen.epoch && result.revision >= seen.revision, 'server_rollback');
   const owner = profile.trusted[result.owner];
   requireValue(owner?.authorityKey && (!seen?.owner || seen.owner === result.owner), 'recipient_confirmation_required');
+  const erased = { ...seen?.erased };
+  for (const proof of result.erased ?? []) {
+   const statement = proof?.statement, authority = statement?.owner === result.owner ? owner.authorityKey : profile.erasureAuthorities?.[vault]?.[statement?.owner];
+   requireValue(authority && statement.revision < result.revision && await validErasureProof(proof, { tenant: profile.tenant, vault }, authority), 'invalid_erasure_proof');
+   erased[statement.object] = true;
+  }
+  seen = { ...seen, erased, versions: Object.fromEntries(Object.entries(seen?.versions ?? {}).filter(([version]) => !erased[version.split(':')[0]])) };
   const present = new Set(result.versions.map(row => `${row.object_id}:${row.version}`));
-  requireValue(!seen?.versions || Object.keys(seen.versions).every(version => present.has(version)), 'server_rollback');
+  requireValue(result.versions.every(row => !seen?.erased?.[row.object_id]), 'server_replayed_erasure');
+  const observed = Object.keys(seen?.versions ?? {}).filter(version => !selection || version.startsWith(selection.object + ':'));
+  if (!selection || selection.history) requireValue(observed.every(version => present.has(version)), 'server_rollback');
+  else requireValue(Math.max(0, ...result.versions.map(row => row.version)) >= Math.max(0, ...observed.map(version => Number(version.split(':')[1]))), 'server_rollback');
   const key = await unwrapSigned(result.wrapped, this.bundle.root.recipient.privateKey, owner.authorityKey, result.owner, binding(profile.tenant, vault, profile.account, 'vault-key', result.epoch));
   requireValue(key.length === 32, 'invalid_key');
   const keyFingerprint = await digest(key);
@@ -125,10 +136,28 @@ export class VaultClient {
   const snapshot = await this.snapshot(vault);
   try { return { vault, epoch: snapshot.result.epoch, revision: snapshot.result.revision, versions: await this.decodeVersions(snapshot) }; } finally { snapshot.key.fill(0); }
  }
- async put(vault, value, object = id()) {
+ async eraseItem(vault, object, { confirmed = false, revision } = {}) {
+  requireValue(confirmed, 'erasure_confirmation_required');
+  if (revision == null) { const snapshot = await this.snapshot(vault); revision = snapshot.result.revision; snapshot.key.fill(0); }
+  const statement = { schema: 1, purpose: 'item-erasure', tenant: this.profile.tenant, vault, object, owner: this.profile.account, revision };
+  const proof = { statement, signature: await sign(this.bundle.root.authority.privateKey, erasureText(statement)) };
+  const result = await this.call('item/erase', { vault, object, confirmed: true, revision, proof });
+  const seen = this.profile.seen[vault] ?? { epoch: 1, versions: {} };
+  seen.versions = Object.fromEntries(Object.entries(seen.versions ?? {}).filter(([name]) => !name.startsWith(object + ':')));
+  seen.erased = { ...seen.erased, [object]: true }; seen.revision = Math.max(seen.revision ?? 0, result.revision);
+  this.profile.seen[vault] = seen;
+  return result;
+ }
+ async readItem(vault, object, history = false) {
+  const snapshot = await this.snapshot(vault, 'read', { object, history });
+  try { return { vault, epoch: snapshot.result.epoch, revision: snapshot.result.revision, versions: await this.decodeVersions(snapshot) }; } finally { snapshot.key.fill(0); }
+ }
+ async put(vault, value, object = id(), expectedVersion) {
+  requireValue(!this.profile?.seen[vault]?.erased?.[object], 'item_erased');
   const snapshot = await this.snapshot(vault);
   const { key, result } = snapshot;
   const version = Math.max(0, ...result.versions.filter(row => row.object_id === object).map(row => row.version)) + 1;
+  if (expectedVersion != null && version - 1 !== expectedVersion) { key.fill(0); throw new ClientError('version_conflict', 409); }
   const derived = await itemKey(key, result.tenant, vault, object);
   try {
    const envelope = await seal(derived, bytes(value), binding(result.tenant, vault, object, 'item', result.epoch, version));

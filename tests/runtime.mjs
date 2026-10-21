@@ -66,7 +66,7 @@ const tls = { https: true, httpsKey: await readFile(join(tlsDirectory, 'key.pem'
 const { Agent } = fromWrangler('undici')
 const dispatcher = new Agent({ connect: { ca: tls.httpsCert } })
 const productOrigin = `https://127.0.0.1:${port}`
-const bindings = { AUTH_ORIGIN: productOrigin, OWNER_EMAIL: 'synthetic-latchkey-1@example.test', SESSION_SECRET: 'synthetic-latchkey-2'.repeat(3), SETUP_TOKEN: 'synthetic-latchkey-3'.repeat(3), MAIL_PROVIDER: 'sendgrid', MAIL_API_KEY: 'synthetic-latchkey-4', MAIL_FROM: 'synthetic-latchkey-5@example.test' }
+const bindings = { LATCHKEY_ERASURE_SECRET: encode(random()), AUTH_ORIGIN: productOrigin, OWNER_EMAIL: 'synthetic-latchkey-1@example.test', SESSION_SECRET: 'synthetic-latchkey-2'.repeat(3), SETUP_TOKEN: 'synthetic-latchkey-3'.repeat(3), MAIL_PROVIDER: 'sendgrid', MAIL_API_KEY: 'synthetic-latchkey-4', MAIL_FROM: 'synthetic-latchkey-5@example.test' }
 const workerModules = [{ type: 'ESModule', path: join(process.cwd(), 'dist/server/index.js') }, ...(await readdir('dist/server/assets')).filter(name => /\.(?:js|wasm)$/.test(name)).map(name => ({ type: name.endsWith('.wasm') ? 'CompiledWasm' : 'ESModule', path: join(process.cwd(), 'dist/server/assets', name) }))]
 const product = new Miniflare(convertV4MiniflareOptions({ ...tls, host: '127.0.0.1', port,
  modules: workerModules, modulesRoot: join(process.cwd(), 'dist/server'),
@@ -255,6 +255,12 @@ try {
  assert.ok((await owner.readVault(vault)).versions.some(row => row.value.value === 'synthetic-latchkey-11'))
  await rejected(new VaultClient(productOrigin, { fetcher: fetchProduct }).unlock(recovered.profile, password), 'authentication_failed')
  console.log('Password lifecycle: fresh PAKE record and local factors, old-device/old-password exclusion and preserved encrypted values passed')
+ const { runTypedItemJourneys } = await import('./latchkey-items.mjs')
+ const typedPrivateValues = await runTypedItemJourneys({ owner, vault, reader: member })
+ const { runSharingJourneys } = await import('./latchkey-sharing.mjs')
+ const sharingPrivateValues = await runSharingJourneys({ owner, member, db: productDb, mail, fetcher: fetchProduct })
+ const { runGeneratorPolicyJourneys } = await import('./latchkey-generator-policy.mjs')
+ const policyPrivateValues = await runGeneratorPolicyJourneys({ owner, member, db: productDb })
  // The shipped command is also exercised in a separate Node process over
  // HTTPS; no secret is passed in argv or inherited environment.
  const cliDirectory = await mkdtemp(join(tmpdir(), 'latchkey-client-'))
@@ -300,25 +306,80 @@ try {
   assert.equal((await runCli('runtime-read', { machineProfile, grant: grantPath, runtimeKey, output: join(cliDirectory, 'runtime-denied.json') }, 1)).error, 'machine_authority_expired')
   const fileProfile = JSON.parse(await readFile(profile, 'utf8')), fileKit = JSON.parse(await readFile(kit, 'utf8'))
   cliPrivateValues.push(cliPassword, fileProfile.deviceSecret, fileKit.recoverySecret, value.title, value.value)
+  const typed = await runCli('item-save', { profile, password: cliPassword, vault: created.vault, type: 'login', value: { title: 'synthetic-latchkey-902', values: { username: 'synthetic-latchkey-903', password: 'synthetic-latchkey-904' }, fields: [{id:'recovery',label:'Recovery',type:'secret',secret:true,value:'synthetic-latchkey-905'}] }, attachments: [{name:'synthetic-latchkey-906.txt',bytes:[1,2,3],mediaType:'text/plain'}] })
+  const historyFile = join(cliDirectory, 'typed-history.json')
+  await runCli('item-history', { profile, password: cliPassword, vault: created.vault, object: typed.object, output: historyFile })
+  assert.equal(JSON.parse(await readFile(historyFile, 'utf8'))[0].value.fields.find(field => field.id === 'password').value, 'synthetic-latchkey-904')
+  const generatedFile = join(cliDirectory, 'generated.json'), generatorHistory = join(cliDirectory, 'generator-history.json')
+  const generatorPolicy = await runCli('generator-policy', {profile,password:cliPassword})
+  await runCli('generate', { profile, password: cliPassword, acknowledgedRetentionDays: generatorPolicy.history.days, history: generatorHistory, output: generatedFile })
+  const generated = JSON.parse(await readFile(generatedFile, 'utf8'))
+  assert.ok(generated.value.length >= 20)
+  await runCli('generator-clear', {profile,password:cliPassword,history:generatorHistory})
+  const clearedFile=join(cliDirectory,'generator-cleared.json')
+  await runCli('generator-history', {profile,password:cliPassword,history:generatorHistory,output:clearedFile})
+  assert.deepEqual(JSON.parse(await readFile(clearedFile,'utf8')),[])
+  cliPrivateValues.push(generated.value,'synthetic-latchkey-902','synthetic-latchkey-903','synthetic-latchkey-904','synthetic-latchkey-905','synthetic-latchkey-906')
   console.log('Shipped CLI: native-token registration, private custody files, encrypted write/read/export, local archive open and scoped runtime use/revoke passed')
  } finally { await rm(cliDirectory, { recursive: true, force: true }) }
 
+ // The source owner explicitly promotes the receiving person before export.
+ // A real email step-up, through the permitted SendGrid edge, authorizes it.
+ const stepUp = await post('/auth/step-up', { action: 'owner:transfer', returnTo: '/app' }, owner.cookie)
+ assert.equal(stepUp.status, 202, await stepUp.clone().text())
+ const stepMail = mail.at(-1).content.find(content => content.type === 'text/plain').value
+ const stepToken = new URL(stepMail.match(/https:\/\/[^\s<>]+/)[0]).searchParams.get('token')
+ assert.equal((await post('/auth/confirm', { token: stepToken }, owner.cookie)).status, 303)
+ const people = await body(await fetchProduct(productOrigin + '/auth/operators', { headers: { cookie: owner.cookie } }))
+ const receivingPerson = people.find(person => person.email === 'synthetic-latchkey-9@example.test')
+ assert.ok(receivingPerson)
+ assert.equal((await post('/auth/operator/role', { operatorId: receivingPerson.id, role: 'owner' }, owner.cookie)).status, 200)
+ await member.unlock(memberEnrollment.profile, 'synthetic-latchkey-10')
  const { default: archivePolicy } = await import('../scripts/latchkey/archive-policy.mjs')
  const { createPortability } = await import('../node_modules/@runeditrun/rer/modules/portability/index.mjs')
  const records = await createPortability({ db: productDb, policy: archivePolicy })
+ const { runItemErasureJourneys, refuseErasedArchive } = await import('./latchkey-erasure.mjs')
+ const erasureProof = await runItemErasureJourneys({ owner, member, db: productDb, records, mail, ownerPassword: 'synthetic-latchkey-21', fetcher: fetchProduct })
+ const { runSubjectErasureJourneys } = await import('./latchkey-subject-erasure.mjs');
+ const subjectProof = await runSubjectErasureJourneys({ owner, db: productDb, records, mail, post, fetcher: fetchProduct, erasureSecret: bindings.LATCHKEY_ERASURE_SECRET });
+ // A member’s separately owned personal vault is archived as ciphertext,
+ // without giving the company owner or a newly restored owner its keys.
+ const personalVault = (await member.createVault()).vault;
+ const personalAttachment = { name: 'synthetic-latchkey-1400', content: 'synthetic-latchkey-1401' };
+ const personalItem = await member.put(personalVault, { ownership: 'personal', title: 'synthetic-latchkey-1402', secret: 'synthetic-latchkey-1403', attachment: personalAttachment });
+ await member.put(personalVault, { ownership: 'personal', title: 'synthetic-latchkey-1402', secret: 'synthetic-latchkey-1404', attachment: personalAttachment }, personalItem.object);
+ await rejected(owner.readVault(personalVault), 'not_found');
+ const personalVersions = (await member.readVault(personalVault)).versions;
  const backupId = await records.exports.create('synthetic-latchkey-29')
  let backupStatus = await records.exports.status(backupId)
  for (let count = 0; backupStatus.phase !== 'complete' && count < 20; count++) backupStatus = await records.exports.advance(backupId, { maxParts: 100 })
  assert.equal(backupStatus.phase, 'complete')
  const backup = await new Response(await records.exports.download(backupId)).text()
+ const recordsDirectory = await mkdtemp(join(tmpdir(), 'latchkey-records-cli-'));
+ try {
+  const input = join(recordsDirectory, 'records.jsonl'), encrypted = join(recordsDirectory, 'records.lky'), output = join(recordsDirectory, 'restored.jsonl');
+  await writeFile(input, backup, { mode: 0o600 });
+  await runCli('records-seal', { input, output: encrypted, exportKey: archiveKey });
+  await runCli('records-open', { input: encrypted, output: join(recordsDirectory, 'wrong.jsonl'), exportKey: encode(random()) }, 1);
+  await assert.rejects(stat(join(recordsDirectory, 'wrong.jsonl')), { code: 'ENOENT' });
+  await runCli('records-open', { input: encrypted, output, exportKey: archiveKey });
+  assert.equal(await readFile(output, 'utf8'), backup);
+  console.log('Records CLI: real encrypted backup round trip, wrong key refusal and no partial destination passed');
+ } finally { await rm(recordsDirectory, { recursive: true, force: true }); }
  const backupLines = backup.trim().split('\n').map(line => JSON.parse(line)), manifest = backupLines[0], closing = backupLines.at(-1)
  assert.ok(manifest.tables.some(table => table.name === 'lky_versions'))
  for (const table of ['lky_devices', 'lky_grants', 'lky_exchanges', 'lky_enrollments', 'lky_machines']) assert.ok(manifest.excludedTables.includes(table))
- const restore = new Miniflare(convertV4MiniflareOptions({ modules: workerModules, modulesRoot: join(process.cwd(), 'dist/server'), compatibilityDate: '2026-09-08', compatibilityFlags: ['nodejs_compat'], d1Databases: { DB: 'synthetic-latchkey-30' }, bindings, log: new Log(LogLevel.ERROR) }))
+ const restoreSocket = createServer(); await new Promise(resolve => restoreSocket.listen(0, '127.0.0.1', resolve)); const restorePort = restoreSocket.address().port; await new Promise(resolve => restoreSocket.close(resolve))
+ const restoreOrigin = `https://127.0.0.1:${restorePort}`
+ let restoredServerState = ''
+ const restore = new Miniflare(convertV4MiniflareOptions({ ...tls, host: '127.0.0.1', port: restorePort, modules: workerModules, modulesRoot: join(process.cwd(), 'dist/server'), compatibilityDate: '2026-09-08', compatibilityFlags: ['nodejs_compat'], d1Databases: { DB: 'synthetic-latchkey-30' }, bindings: { ...bindings, AUTH_ORIGIN: restoreOrigin }, log: new Log(LogLevel.ERROR) }))
  try {
   const restoreDb = await restore.getD1Database('DB')
   for (const migration of (await readdir('migrations/core')).filter(name => name.endsWith('.sql')).sort()) await restoreDb.batch(unstable_splitSqlQuery(await readFile(join('migrations/core', migration), 'utf8')).map(sql => restoreDb.prepare(sql)))
   const destination = await createPortability({ db: restoreDb, policy: archivePolicy })
+  await refuseErasedArchive({ destination, ...erasureProof });
+  await refuseErasedArchive({ destination, ...subjectProof, subjectRedaction: true });
+  assert.equal((await restoreDb.prepare('SELECT COUNT(*) AS n FROM lky_versions').first()).n, 0);
   const imported = await destination.imports.create(manifest, 'synthetic-latchkey-31')
   for (const part of backupLines.slice(1, -1)) await destination.imports.uploadPart(imported, part.index, part)
   const restored = await destination.imports.finalize(imported, { contentHash: closing.contentHash, archiveHash: closing.archiveHash })
@@ -326,6 +387,36 @@ try {
   assert.equal((await restoreDb.prepare('SELECT COUNT(*) AS total FROM lky_versions').first()).total, (await productDb.prepare('SELECT COUNT(*) AS total FROM lky_versions').first()).total)
   assert.ok((await restoreDb.prepare('SELECT rights FROM lky_recipients').all()).results.every(row => row.rights === '[]'))
   for (const table of ['lky_devices', 'lky_grants', 'lky_machines']) assert.equal((await restoreDb.prepare(`SELECT COUNT(*) AS total FROM ${table}`).first()).total, 0)
+  const recipient = new VaultClient(restoreOrigin, { fetcher: fetchProduct })
+  const destinationKit = { ...memberEnrollment.kit, origin: restoreOrigin }
+  const destinationEnrollment = await recipient.recover(destinationKit, 'synthetic-latchkey-10')
+  await recipient.unlock(destinationEnrollment.profile, 'synthetic-latchkey-10')
+  const expectedVersions = {}
+  for (const row of await owner.call('vaults', {})) if (row.owner === owner.profile.account) {
+   try { expectedVersions[row.id] = (await owner.readVault(row.id)).versions; }
+   catch(error) { const seen = owner.profile.seen[row.id]; throw new Error(`Source checkpoint epoch/revision ${row.epoch}/${row.revision} follows ${seen?.epoch}/${seen?.revision}`, { cause: error }); }
+  }
+  const { exerciseRecordsRestore } = await import('./latchkey-restore.mjs')
+  const transferred = await exerciseRecordsRestore({ archive: backup, sourceClient: owner, destinationClient: recipient, expectedVersions });
+  assert.ok(!transferred.vaults.some(row => row.vault === personalVault));
+  assert.ok(transferred.unapprovedVaults.includes(personalVault));
+  await rejected(recipient.readVault(personalVault), 'permission_denied');
+  const preservedPersonal = (await restoreDb.prepare('SELECT version,envelope FROM lky_versions WHERE vault_id=? ORDER BY version').bind(personalVault).all()).results;
+  const originalPersonal = (await productDb.prepare('SELECT version,envelope FROM lky_versions WHERE vault_id=? ORDER BY version').bind(personalVault).all()).results;
+  assert.deepEqual(preservedPersonal, originalPersonal);assert.equal(preservedPersonal.length, personalVersions.length);
+  const reexport = await destination.exports.create('synthetic-latchkey-94')
+  let reexportStatus = await destination.exports.status(reexport)
+  while (reexportStatus.phase !== 'complete') reexportStatus = await destination.exports.advance(reexport, { maxParts: 100 })
+  const reexportLines = (await new Response(await destination.exports.download(reexport)).text()).trim().split('\n').map(line => JSON.parse(line))
+  const reexportManifest = reexportLines[0]
+  assert.deepEqual(reexportManifest.tables.map(table => table.name).sort(), manifest.tables.map(table => table.name).sort())
+  assert.equal(reexportManifest.tables.find(table => table.name === 'lky_versions').count, manifest.tables.find(table => table.name === 'lky_versions').count)
+  const restoredTables = (await restoreDb.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT GLOB '_cf_*'").all()).results
+  const state = {}; for (const table of restoredTables) state[table.name] = (await restoreDb.prepare(`SELECT * FROM "${table.name.replaceAll('"','""')}"`).all()).results
+  restoredServerState = JSON.stringify(state)
+  recipient.lock()
+  console.log('Destination restore: actual Base import, separate receiving owner recovery, independently approved key rewrap, inactive history, atomic activation and complete domain re-export passed')
+
  } finally { await restore.dispose() }
  console.log('Records backup: encrypted values/history preserved, live device/grant/runtime authority omitted and restored recipient rights inactive')
  const otherSocket = createServer(); await new Promise(resolve => otherSocket.listen(0, '127.0.0.1', resolve)); const otherPort = otherSocket.address().port; await new Promise(resolve => otherSocket.close(resolve))
@@ -353,9 +444,12 @@ try {
  // Inspect every table, the client-produced encrypted backup, all legitimate
  // client API request/response payloads, and captured runtime error/log records.
  const serverState = JSON.stringify(await dump())
- const inspected = [serverState, JSON.stringify(archive), JSON.stringify(traces), JSON.stringify(runtimeLogs), backup]
- const privateValues = [...cliPrivateValues, runtimeKey, 'synthetic-latchkey-21', password, 'synthetic-latchkey-10', enrolled.profile.deviceSecret, enrolled.kit.recoverySecret, recovered.profile.deviceSecret, recovered.kit.recoverySecret, owner.bundle.root.recipient.privateKey, owner.bundle.root.recovery.privateKey, owner.bundle.root.authority.privateKey, owner.bundle.signing.privateKey, archiveKey, ...values.flatMap(value => [value.title, value.value, value.custom.label, value.custom.secret, value.attachment.name, value.attachment.content])]
- for (const secret of privateValues) for (let channel = 0; channel < inspected.length; channel++) assert.ok(!inspected[channel].includes(secret), `plaintext or private key in channel ${channel}`)
+ const inspected = [serverState, restoredServerState, JSON.stringify(archive), JSON.stringify(traces), JSON.stringify(runtimeLogs), backup]
+ const privateValues = ['synthetic-latchkey-1400', 'synthetic-latchkey-1401', 'synthetic-latchkey-1402', 'synthetic-latchkey-1403', 'synthetic-latchkey-1404', ...subjectProof.privateValues, ...policyPrivateValues, ...erasureProof.privateValues, ...sharingPrivateValues, ...typedPrivateValues, ...cliPrivateValues, runtimeKey, 'synthetic-latchkey-21', password, 'synthetic-latchkey-10', enrolled.profile.deviceSecret, enrolled.kit.recoverySecret, recovered.profile.deviceSecret, recovered.kit.recoverySecret, owner.bundle.root.recipient.privateKey, owner.bundle.root.recovery.privateKey, owner.bundle.root.authority.privateKey, owner.bundle.signing.privateKey, archiveKey, ...values.flatMap(value => [value.title, value.value, value.custom.label, value.custom.secret, value.attachment.name, value.attachment.content])]
+ for (const [index, secret] of privateValues.entries()) for (let channel = 0; channel < inspected.length; channel++) {
+  const locations = channel === 0 && inspected[channel].includes(secret) ? Object.entries(JSON.parse(serverState)).flatMap(([table, rows]) => [...new Set(rows.flatMap(row => Object.entries(row).filter(([, value]) => String(value).includes(secret)).map(([column]) => `${table}.${column}`)))]) : [];
+  assert.ok(!inspected[channel].includes(secret), `private fixture ${index} in channel ${channel}; columns ${locations.join(',')}`)
+ }
  const nonces = (await productDb.prepare('SELECT envelope FROM lky_versions').all()).results.map(row => JSON.parse(row.envelope).nonce)
  assert.equal(new Set(nonces).size, nonces.length)
  console.log('Leakage inspection: complete D1 table dump, encrypted archive, wire payloads and captured runtime logs contain no tested values, sensitive metadata or client private keys')

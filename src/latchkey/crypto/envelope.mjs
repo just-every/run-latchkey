@@ -2,7 +2,11 @@
 // signature verification only; no service path calls open(), derive() or seal().
 const utf8 = new TextEncoder();
 const text = new TextDecoder('utf-8', { fatal: true });
-export const encode = value => btoa(String.fromCharCode(...value)).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
+export function encode(value) {
+ let raw = '';
+ for (let offset = 0; offset < value.length; offset += 16384) raw += String.fromCharCode(...value.subarray(offset, offset + 16384));
+ return btoa(raw).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
+}
 export function decode(value, maximum = 1048576) {
  if (typeof value !== 'string' || value.length > Math.ceil(maximum * 4 / 3) || !/^[A-Za-z0-9_-]*$/.test(value)) throw Error('invalid_encoding');
  const raw = atob(value.replaceAll('-', '+').replaceAll('_', '/'));

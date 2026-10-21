@@ -1,3 +1,9 @@
+import { SubjectErasureError, subjectErasureAuthenticated, subjectItemReplayKnown, subjectVaultWriteAllowed, subjectRotationStatements } from './erasure/subject.mjs'
+import { subjectAdmission } from './erasure/admission.mjs'
+import { GeneratorPolicyError, generatorAuthenticated } from './generator/service.mjs'
+import { ItemErasureError, erasureAuthenticated, erasureKnown } from './erasure/index.mjs'
+import { RecordsError, portabilityAuthenticated } from './portability/service.mjs'
+import { SharingError, sharingAuthenticated, sharingPublic } from './sharing/index.mjs'
 import * as opaque from '@serenity-kit/opaque'
 import { bytes, digest, encode, id, publicKey, random, signingText, validateEnvelope, verify, verifyWrapped, type Context } from './crypto/envelope.mjs'
 import type { Bindings } from '../auth.server'
@@ -49,6 +55,8 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
   let input: Row; try { input = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(raw)) } catch { refuse('invalid_json') }
   if (!input! || typeof input !== 'object' || Array.isArray(input)) refuse('invalid_body')
   const route = url.pathname.slice('/api/latchkey/'.length)
+  const external = await sharingPublic(route, input, { db, env, now, limited })
+  if (external !== null) return response(external)
   await opaque.ready
   if (route === 'login/start') {
    exact(input, ['account', 'device', 'request'])
@@ -97,6 +105,10 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
    exact(input, [])
    const account = await first('SELECT id,tenant,generation,recipient_key,authority_key FROM lky_accounts WHERE operator_id=?', session.operator.id)
    return response(account ? { account: account.id, tenant: account.tenant, generation: account.generation, recipientKey: account.recipient_key, authorityKey: account.authority_key } : { account: null })
+  }
+  if (route === 'register/start' || route === 'register/finish') {
+   const installation = await first('SELECT id FROM lky_installation WHERE singleton=1');
+   if (installation) await subjectAdmission({ db, env, tenant: installation.id }, [['operator', session.operator.id], ['email', session.operator.email], ...(route === 'register/finish' ? [['account', input.account], ['device', input.device]] : [])] as [string, unknown][]);
   }
   if (route === 'register/start') {
    exact(input, ['request']); await limited(session.operator.id)
@@ -187,6 +199,26 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
    if (!changed[0].meta.changes) refuse('not_found', 404)
    return response({ revoked: machine })
   }
+  const subjectResult = grant.recovery === 0 ? await subjectErasureAuthenticated(route, input, { db, env, now, actor, device, tenant, session, fence, fenceArgs }) : null
+  if (subjectResult !== null) return response(subjectResult)
+  if (grant.recovery === 0) {
+   const context = { db, env, tenant };
+   const entries: [string, unknown][] = route === 'vault/create' ? [['vault', input.vault]] : route === 'sharing/group/create' ? [['group', input.group]] : route === 'machine/grant' ? [['machine', input.machine]] : [];
+   await subjectAdmission(context, entries);
+   if (['item/put','vault/share','machine/grant','sharing/grant','sharing/link/create','sharing/put'].includes(route)) {
+    if (input.vault) await subjectVaultWriteAllowed(context, input.vault);
+    if (input.share) { const share = await first('SELECT vault_id FROM lky_shares WHERE id=? AND tenant=?', input.share, tenant); if (share) await subjectVaultWriteAllowed(context, share.vault_id); }
+   }
+   if (route === 'item/put' && await first('SELECT 1 AS present FROM lky_subject_fences WHERE tenant=? LIMIT 1', tenant) && await subjectItemReplayKnown(context, input.vault, input.object)) refuse('item_erased', 409);
+  }
+  const generator = grant.recovery === 0 ? await generatorAuthenticated(route, input, { db, env, now, actor, device, tenant, session, fence, fenceArgs }) : null
+  if (generator !== null) return response(generator)
+  const erased = grant.recovery === 0 ? await erasureAuthenticated(route, input, { db, env, now, actor, device, tenant, session, fence, fenceArgs }) : null
+  if (erased !== null) return response(erased)
+  const portable = grant.recovery === 0 ? await portabilityAuthenticated(route, input, { db, env, now, actor, device, tenant, session, fence, fenceArgs }) : null
+  if (portable !== null) return response(portable)
+  const shared = grant.recovery === 0 ? await sharingAuthenticated(route, input, { db, env, now, actor, device, tenant, session, fence, fenceArgs }) : null
+  if (shared !== null) return response(shared)
   if (route === 'directory') {
    exact(input, ['account']); const recipient = await first('SELECT a.id,a.tenant,a.recipient_key,a.authority_key FROM lky_accounts a JOIN oa_operators o ON o.id=a.operator_id WHERE a.id=? AND a.tenant=? AND o.status=\'active\'', identifier(input.account), tenant)
    if (!recipient) refuse('not_found', 404)
@@ -244,9 +276,25 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
   const active = 'EXISTS(SELECT 1 FROM lky_vaults WHERE id=? AND mutation=?)'
   const mutation = id(), activeArgs = [vault.id, mutation]
   const change = (revision: unknown) => stmt(`UPDATE lky_vaults SET revision=revision+1,mutation=? WHERE id=? AND revision=? AND ${fence} RETURNING revision`, mutation, vault.id, integer(revision), ...fenceArgs)
+  if (route === 'item/authorize') {
+   exact(input, ['vault', 'object', 'action']); identifier(input.object)
+   const action = string(input.action)
+   if (['history', 'attachment', 'copy', 'reveal', 'fill'].includes(action)) has('read')
+   else if (action === 'restore') { has('read'); has('create'); has('edit') }
+   else if (action === 'template-author') { has('create'); if (vault.owner !== actor) refuse('permission_denied', 403) }
+   else refuse('invalid_action')
+   return response({ authorized: action })
+  }
+  if (route === 'item/read') {
+   exact(input, ['vault', 'object', 'history']); has('read'); const object = identifier(input.object)
+   if (typeof input.history !== 'boolean') refuse('invalid_input')
+   const versions = await all(input.history ? 'SELECT object_id,version,envelope FROM lky_versions WHERE vault_id=? AND object_id=? ORDER BY version' : 'SELECT object_id,version,envelope FROM lky_versions WHERE vault_id=? AND object_id=? ORDER BY version DESC LIMIT 1', vault.id, object)
+   if (!versions.length) refuse('not_found', 404)
+   return response({ vault: vault.id, tenant, epoch: vault.epoch, revision: vault.revision, owner: vault.owner, wrapped: JSON.parse(vault.wrapped_key), versions, erased: (await all('SELECT proof FROM lky_erased_items WHERE vault_id=?', vault.id)).map(row => JSON.parse(row.proof)), recipients: [] })
+  }
   if (route === 'vault/read' || route === 'vault/export') {
    exact(input, ['vault']); has(route === 'vault/read' ? 'read' : 'export')
-   return response({ vault: vault.id, tenant, epoch: vault.epoch, revision: vault.revision, owner: vault.owner, wrapped: JSON.parse(vault.wrapped_key), versions: await all('SELECT object_id,version,envelope FROM lky_versions WHERE vault_id=? ORDER BY object_id,version', vault.id), recipients: (JSON.parse(vault.rights) as string[]).includes('share') ? await all('SELECT r.account_id,r.rights,a.recipient_key,a.authority_key FROM lky_recipients r JOIN lky_accounts a ON a.id=r.account_id WHERE r.vault_id=?', vault.id) : [] })
+   return response({ vault: vault.id, tenant, epoch: vault.epoch, revision: vault.revision, owner: vault.owner, wrapped: JSON.parse(vault.wrapped_key), versions: await all('SELECT object_id,version,envelope FROM lky_versions WHERE vault_id=? ORDER BY object_id,version', vault.id), erased: (await all('SELECT proof FROM lky_erased_items WHERE vault_id=?', vault.id)).map(row => JSON.parse(row.proof)), recipients: (JSON.parse(vault.rights) as string[]).includes('share') ? await all('SELECT r.account_id,r.rights,a.recipient_key,a.authority_key FROM lky_recipients r JOIN lky_accounts a ON a.id=r.account_id WHERE r.vault_id=?', vault.id) : [] })
   }
   if (route === 'machine/grant') {
    exact(input, ['vault', 'object', 'machine', 'deviceKey', 'recipientKey', 'fingerprint', 'wrapped', 'tokenHash', 'expiresInSeconds']); has('read'); has('share')
@@ -267,11 +315,12 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
   }
   if (route === 'item/put') {
    exact(input, ['vault', 'object', 'version', 'revision', 'envelope']); const object = identifier(input.object), version = integer(input.version)
+   if (await erasureKnown({ db, tenant }, vault.id, object)) refuse('item_erased', 409)
    const latest = await first('SELECT MAX(version) AS version FROM lky_versions WHERE vault_id=? AND object_id=?', vault.id, object)
    has(latest?.version ? 'edit' : 'create')
    if (version !== (latest?.version ?? 0) + 1) refuse('version_conflict', 409)
    validateEnvelope(input.envelope, binding(tenant, vault.id, object, 'item', vault.epoch, version))
-   const result = await db.batch([change(input.revision), stmt(`INSERT INTO lky_versions SELECT ?,?,?,? WHERE ${active}`, vault.id, object, version, envString(input.envelope), ...activeArgs), event(actor, device, 'item_written', object, active, activeArgs)])
+   const result = await db.batch([change(input.revision), stmt(`INSERT INTO lky_versions SELECT ?,?,?,? WHERE ${active} AND NOT EXISTS(SELECT 1 FROM lky_erased_items WHERE vault_id=? AND object_id=?)`, vault.id, object, version, envString(input.envelope), ...activeArgs, vault.id, object), event(actor, device, 'item_written', object, active, activeArgs)])
    if (!result[0].meta.changes) refuse('version_conflict', 409)
    return response({ object, version, revision: input.revision + 1 }, 201)
   }
@@ -296,13 +345,13 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
    const next = vault.epoch + 1
    const updates = input.versions.map((value: Row) => { exact(value, ['object', 'version', 'envelope']); validateEnvelope(value.envelope, binding(tenant, vault.id, identifier(value.object), 'item', next, integer(value.version))); return stmt(`UPDATE lky_versions SET envelope=? WHERE vault_id=? AND object_id=? AND version=? AND ${active}`, envString(value.envelope), vault.id, value.object, value.version, ...activeArgs) })
    for (const value of input.recipients) { exact(value, ['account', 'wrapped']); await checkWrap(value.wrapped, vault.owner, binding(tenant, vault.id, identifier(value.account), 'vault-key', next)); updates.push(stmt(`UPDATE lky_recipients SET wrapped_key=? WHERE vault_id=? AND account_id=? AND ${active}`, envString(value.wrapped), vault.id, value.account, ...activeArgs)) }
-   const result = await db.batch([change(input.revision), stmt(`UPDATE lky_vaults SET epoch=? WHERE ${active}`, next, ...activeArgs), ...updates, stmt(`DELETE FROM lky_recipients WHERE vault_id=? AND account_id=? AND ${active}`, vault.id, removed ?? '', ...activeArgs), event(actor, device, 'vault_rotated', vault.id, active, activeArgs)])
+   const result = await db.batch([change(input.revision), stmt(`UPDATE lky_vaults SET epoch=? WHERE id=? AND ${active}`, next, vault.id, ...activeArgs), ...updates, ...subjectRotationStatements({ db, tenant }, vault.id, next), stmt(`DELETE FROM lky_recipients WHERE vault_id=? AND account_id=? AND ${active}`, vault.id, removed ?? '', ...activeArgs), event(actor, device, 'vault_rotated', vault.id, active, activeArgs)])
    if (!result[0].meta.changes) refuse('version_conflict', 409)
    return response({ vault: vault.id, epoch: next, residualExposure: 'Past plaintext and old backups cannot be recalled. Rotate provider credentials separately.' })
   }
   refuse('not_found', 404)
  } catch (error) {
-  if (error instanceof Refusal) return response({ error: error.code }, error.status)
+  if (error instanceof Refusal || error instanceof SharingError || error instanceof RecordsError || error instanceof ItemErasureError || error instanceof GeneratorPolicyError || error instanceof SubjectErasureError) return response({ error: error.code }, error.status)
   // Neither input, exception messages, cryptographic state nor SQL is logged.
   return response({ error: 'request_refused' }, 400)
  }
