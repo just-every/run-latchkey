@@ -1,5 +1,5 @@
 import * as opaque from '@serenity-kit/opaque';
-import { bytes, decode, digest, encode, id, itemKey, json, keypair, open, random, seal, sign, signingText, unlockKey, unwrapRecipient, wrapRecipient } from './crypto/envelope.mjs';
+import { bytes, decode, digest, encode, id, itemKey, json, keypair, open, random, seal, sign, signingText, unlockKey, unwrapRecipient, wrapRecipient, unwrapSigned, wrapSigned } from './crypto/envelope.mjs';
 
 const binding = (tenant, vault, object, purpose, epoch, version = 1) => ({ tenant, vault, object, purpose, epoch, version });
 export class ClientError extends Error { constructor(code, status = 0) { super(code); this.code = code; this.status = status; } }
@@ -38,12 +38,12 @@ export class VaultClient {
   const result = opaque.client.finishRegistration({ clientRegistrationState: started.clientRegistrationState, registrationResponse: registration.response, password, identifiers: { client: registration.account, server: registration.tenant }, keyStretching: 'memory-constrained' });
   requireValue(result.serverStaticPublicKey === registration.serverKey, 'server_key_changed');
   const profile = { schema: 1, origin: this.origin, account: registration.account, tenant: registration.tenant, device: id(), deviceSecret: encode(random()), serverKey: result.serverStaticPublicKey, generation: 1, seen: {}, trusted: {} };
-  const root = { recipient: await keypair('wrap'), recovery: await keypair('sign') }, signing = await keypair('sign');
-  profile.recipientKey = root.recipient.publicKey; profile.trusted[profile.account] = root.recipient.publicKey;
+  const root = { recipient: await keypair('wrap'), recovery: await keypair('sign'), authority: await keypair('sign') }, signing = await keypair('sign');
+  profile.recipientKey = root.recipient.publicKey; profile.authorityKey = root.authority.publicKey; profile.trusted[profile.account] = { recipientKey: profile.recipientKey, authorityKey: profile.authorityKey };
   const kit = { schema: 1, origin: this.origin, account: profile.account, tenant: profile.tenant, serverKey: profile.serverKey, recoverySecret: encode(random()), generation: 1 };
   const bundle = await seal(await unlockKey(result.exportKey, profile.deviceSecret, profile.account), bytes({ root, signing }), binding(profile.tenant, 'account', profile.device, 'device', 1));
   const recoveryWrap = await seal(await unlockKey(result.exportKey, kit.recoverySecret, profile.account), bytes({ root }), binding(profile.tenant, 'account', profile.account, 'recovery', 1));
-  const input = { account: profile.account, record: result.registrationRecord, recipientKey: profile.recipientKey, recoveryKey: root.recovery.publicKey, recoveryWrap, device: profile.device, deviceKey: signing.publicKey, bundle };
+  const input = { account: profile.account, record: result.registrationRecord, recipientKey: profile.recipientKey, authorityKey: profile.authorityKey, recoveryKey: root.recovery.publicKey, recoveryWrap, device: profile.device, deviceKey: signing.publicKey, bundle };
   if (beforeCommit) await beforeCommit({ profile, kit });
   await this.request('register/finish', { ...input, signature: await sign(signing.privateKey, JSON.stringify(input)) });
   return { profile, kit };
@@ -66,26 +66,39 @@ export class VaultClient {
   requireValue(admitted.generation === profile.generation, 'device_revoked');
   const key = await unlockKey(result.exportKey, profile.deviceSecret, profile.account);
   try { this.bundle = json(await open(key, admitted.bundle, binding(profile.tenant, 'account', profile.device, 'device', profile.generation))); } finally { key.fill(0); }
-  requireValue(this.bundle.root.recipient.publicKey === profile.recipientKey && admitted.recipientKey === profile.recipientKey && this.bundle.root.recovery.publicKey === admitted.recoveryKey, 'account_key_changed');
+  requireValue(this.bundle.root.recipient.publicKey === profile.recipientKey && admitted.recipientKey === profile.recipientKey && this.bundle.root.recovery.publicKey === admitted.recoveryKey && this.bundle.root.authority.publicKey === profile.authorityKey && admitted.authorityKey === profile.authorityKey, 'account_key_changed');
   this.profile = profile;
   return this;
  }
  call(route, input) { requireValue(this.bundle && this.profile, 'locked'); return this.request(route, input, this.bundle.signing.privateKey); }
  lock() { this.bundle = null; this.token = null; this.cookie = ''; this.profile = null; }
- identity() { requireValue(this.profile, 'locked'); return { account: this.profile.account, tenant: this.profile.tenant, recipientKey: this.profile.recipientKey, fingerprint: digest(this.profile.recipientKey) }; }
+ identity() { requireValue(this.profile, 'locked'); return { account: this.profile.account, tenant: this.profile.tenant, recipientKey: this.profile.recipientKey, authorityKey: this.profile.authorityKey, fingerprint: digest(JSON.stringify([this.profile.recipientKey, this.profile.authorityKey])) }; }
+ async pinAccount(account, fingerprint) {
+  const recipient = await this.call('directory', { account });
+  requireValue(recipient.fingerprint === fingerprint && await digest(JSON.stringify([recipient.publicKey, recipient.authorityKey])) === fingerprint, 'recipient_mismatch');
+  this.profile.trusted[account] = { recipientKey: recipient.publicKey, authorityKey: recipient.authorityKey };
+  return recipient;
+ }
+ wrap(value, recipient, binding) { return wrapSigned(value, recipient, binding, this.profile.account, this.bundle.root.authority.privateKey); }
  async createVault() {
   const vault = id(), key = random(), profile = this.profile;
   requireValue(profile, 'locked');
-  try { return await this.call('vault/create', { vault, wrapped: await wrapRecipient(key, profile.recipientKey, binding(profile.tenant, vault, profile.account, 'vault-key', 1)) }); } finally { key.fill(0); }
+  try { return await this.call('vault/create', { vault, wrapped: await this.wrap(key, profile.recipientKey, binding(profile.tenant, vault, profile.account, 'vault-key', 1)) }); } finally { key.fill(0); }
  }
  async snapshot(vault, mode = 'read') {
   const result = await this.call(`vault/${mode}`, { vault }), profile = this.profile;
   requireValue(result.vault === vault && result.tenant === profile.tenant, 'context_mismatch');
   const seen = profile.seen[vault];
   requireValue(!seen || result.epoch >= seen.epoch && result.revision >= seen.revision, 'server_rollback');
-  const key = await unwrapRecipient(result.wrapped, this.bundle.root.recipient.privateKey, binding(profile.tenant, vault, profile.account, 'vault-key', result.epoch));
+  const owner = profile.trusted[result.owner];
+  requireValue(owner?.authorityKey && (!seen?.owner || seen.owner === result.owner), 'recipient_confirmation_required');
+  const present = new Set(result.versions.map(row => `${row.object_id}:${row.version}`));
+  requireValue(!seen?.versions || Object.keys(seen.versions).every(version => present.has(version)), 'server_rollback');
+  const key = await unwrapSigned(result.wrapped, this.bundle.root.recipient.privateKey, owner.authorityKey, result.owner, binding(profile.tenant, vault, profile.account, 'vault-key', result.epoch));
   requireValue(key.length === 32, 'invalid_key');
-  profile.seen[vault] = { epoch: result.epoch, revision: result.revision };
+  const keyFingerprint = await digest(key);
+  requireValue(!seen || result.epoch !== seen.epoch || !seen.keyFingerprint || seen.keyFingerprint === keyFingerprint, 'server_rollback');
+  profile.seen[vault] = { ...seen, owner: result.owner, epoch: result.epoch, revision: result.revision, keyFingerprint };
   return { result, key };
  }
  async decodeVersions(snapshot) {
@@ -95,6 +108,12 @@ export class VaultClient {
    const derived = await itemKey(key, result.tenant, result.vault, row.object_id);
    try { versions.push({ object: row.object_id, version: row.version, value: json(await open(derived, JSON.parse(row.envelope), binding(result.tenant, result.vault, row.object_id, 'item', result.epoch, row.version))) }); } finally { derived.fill(0); }
   }
+  const seen = this.profile.seen[result.vault], known = { ...seen.versions };
+  for (const row of versions) {
+   const name = `${row.object}:${row.version}`, hash = await digest(bytes(row.value));
+   requireValue(!known[name] || known[name] === hash, 'server_rollback'); known[name] = hash;
+  }
+  seen.versions = known;
   return versions;
  }
  async readVault(vault) {
@@ -109,24 +128,25 @@ export class VaultClient {
   try {
    const envelope = await seal(derived, bytes(value), binding(result.tenant, vault, object, 'item', result.epoch, version));
    const written = await this.call('item/put', { vault, object, version, revision: result.revision, envelope });
-   this.profile.seen[vault] = { epoch: result.epoch, revision: written.revision };
+   const seen = this.profile.seen[vault];
+   this.profile.seen[vault] = { ...seen, epoch: result.epoch, revision: written.revision, versions: { ...seen.versions, [`${object}:${version}`]: await digest(bytes(value)) } };
    return written;
   } finally { key.fill(0); derived.fill(0); }
  }
  async share(vault, account, fingerprint, rights) {
-  const recipient = await this.call('directory', { account });
-  requireValue(recipient.fingerprint === fingerprint && await digest(recipient.publicKey) === fingerprint, 'recipient_mismatch');
+  const recipient = await this.pinAccount(account, fingerprint);
   const snapshot = await this.snapshot(vault);
   try {
-   const wrapped = await wrapRecipient(snapshot.key, recipient.publicKey, binding(this.profile.tenant, vault, account, 'vault-key', snapshot.result.epoch));
+   requireValue(snapshot.result.owner === this.profile.account, 'owner_signature_required');
+   const wrapped = await this.wrap(snapshot.key, recipient.publicKey, binding(this.profile.tenant, vault, account, 'vault-key', snapshot.result.epoch));
    const result = await this.call('vault/share', { vault, account, fingerprint, rights, wrapped, revision: snapshot.result.revision });
-   this.profile.trusted[account] = recipient.publicKey;
    return result;
   } finally { snapshot.key.fill(0); }
  }
  async rotate(vault, remove = null, confirmedKeys = {}) {
   const snapshot = await this.snapshot(vault), nextKey = random(), { result } = snapshot;
   try {
+   requireValue(result.owner === this.profile.account, 'owner_signature_required');
    const plain = await this.decodeVersions(snapshot), epoch = result.epoch + 1;
    const versions = [];
    for (const row of plain) {
@@ -135,12 +155,12 @@ export class VaultClient {
    }
    const recipients = [];
    for (const recipient of result.recipients.filter(row => row.account_id !== remove)) {
-    const pinned = this.profile.trusted[recipient.account_id] ?? confirmedKeys[recipient.account_id];
+    const pinned = this.profile.trusted[recipient.account_id]?.recipientKey ?? confirmedKeys[recipient.account_id];
     requireValue(pinned && pinned === recipient.recipient_key, 'recipient_confirmation_required');
-    recipients.push({ account: recipient.account_id, wrapped: await wrapRecipient(nextKey, pinned, binding(result.tenant, vault, recipient.account_id, 'vault-key', epoch)) });
+    recipients.push({ account: recipient.account_id, wrapped: await this.wrap(nextKey, pinned, binding(result.tenant, vault, recipient.account_id, 'vault-key', epoch)) });
    }
    const rotated = await this.call('vault/rotate', { vault, remove, revision: result.revision, versions, recipients });
-   this.profile.seen[vault] = { epoch, revision: result.revision + 1 };
+   this.profile.seen[vault] = { ...this.profile.seen[vault], epoch, revision: result.revision + 1, keyFingerprint: await digest(nextKey) };
    return rotated;
   } finally { snapshot.key.fill(0); nextKey.fill(0); }
  }
@@ -159,7 +179,8 @@ export class VaultClient {
  }
  async beginEnrollment(locator, password) {
   const { result, admitted } = await this.exchange(locator, password, 'enrollment');
-  const profile = { ...locator, device: id(), deviceSecret: encode(random()), generation: admitted.generation, seen: {}, trusted: { [locator.account]: admitted.recipientKey }, recipientKey: admitted.recipientKey };
+  requireValue(locator.recipientKey === admitted.recipientKey && locator.authorityKey === admitted.authorityKey, 'account_key_changed');
+  const profile = { ...locator, device: id(), deviceSecret: encode(random()), generation: admitted.generation, seen: {}, trusted: { [locator.account]: { recipientKey: admitted.recipientKey, authorityKey: admitted.authorityKey } }, recipientKey: admitted.recipientKey };
   const signing = await keypair('sign'), transfer = await keypair('wrap');
   const key = await unlockKey(result.exportKey, profile.deviceSecret, profile.account);
   try { profile.pending = await seal(key, bytes({ signing, transfer }), binding(profile.tenant, 'account', profile.device, 'pending', profile.generation)); } finally { key.fill(0); }
@@ -169,7 +190,7 @@ export class VaultClient {
  async approveEnrollment(device, fingerprint) {
   const pending = await this.call('enrollment/status', { device });
   requireValue(await digest(JSON.stringify([this.profile.account, device, pending.public_key, pending.transfer_key, this.profile.generation])) === fingerprint, 'enrollment_mismatch');
-  const wrapped = await wrapRecipient(bytes({ root: this.bundle.root }), pending.transfer_key, binding(this.profile.tenant, 'account', device, 'enrollment', this.profile.generation));
+  const wrapped = await this.wrap(bytes({ root: this.bundle.root }), pending.transfer_key, binding(this.profile.tenant, 'account', device, 'enrollment', this.profile.generation));
   return this.call('enrollment/approve', { device, fingerprint, wrapped });
  }
  async completeEnrollment(profile, password) {
@@ -180,8 +201,8 @@ export class VaultClient {
    const local = json(await open(key, profile.pending, binding(profile.tenant, 'account', profile.device, 'pending', profile.generation)));
    const pending = await this.request('enrollment/status', { device: profile.device }, local.signing.privateKey);
    requireValue(pending.approved_wrap, 'approval_pending');
-   const transferred = json(await unwrapRecipient(JSON.parse(pending.approved_wrap), local.transfer.privateKey, binding(profile.tenant, 'account', profile.device, 'enrollment', profile.generation)));
-   requireValue(transferred.root.recipient.publicKey === profile.recipientKey && transferred.root.recovery.publicKey === admitted.recoveryKey, 'account_key_changed');
+   const transferred = json(await unwrapSigned(JSON.parse(pending.approved_wrap), local.transfer.privateKey, profile.authorityKey, profile.account, binding(profile.tenant, 'account', profile.device, 'enrollment', profile.generation)));
+   requireValue(transferred.root.recipient.publicKey === profile.recipientKey && transferred.root.recovery.publicKey === admitted.recoveryKey && transferred.root.authority.publicKey === profile.authorityKey, 'account_key_changed');
    const bundle = await seal(key, bytes({ root: transferred.root, signing: local.signing }), binding(profile.tenant, 'account', profile.device, 'device', profile.generation));
    await this.request('enrollment/complete', { device: profile.device, bundle, signature: await sign(local.signing.privateKey, JSON.stringify([profile.device, bundle])) }, local.signing.privateKey);
    delete profile.pending;
@@ -195,9 +216,9 @@ export class VaultClient {
    requireValue(snapshot.result.versions.some(row => row.object_id === object), 'not_found');
    const key = await itemKey(snapshot.key, this.profile.tenant, vault, object);
    let wrapped;
-   try { wrapped = await wrapRecipient(key, identity.recipientKey, binding(this.profile.tenant, vault, identity.machine, `machine-key:${object}`, snapshot.result.epoch)); } finally { key.fill(0); }
+   try { wrapped = await this.wrap(key, identity.recipientKey, binding(this.profile.tenant, vault, identity.machine, `machine-key:${object}`, snapshot.result.epoch)); } finally { key.fill(0); }
    const result = await this.call('machine/grant', { vault, object, machine: identity.machine, deviceKey: identity.deviceKey, recipientKey: identity.recipientKey, fingerprint, wrapped, tokenHash: await digest(token), expiresInSeconds });
-   return { schema: 1, origin: this.origin, tenant: this.profile.tenant, vault, object, epoch: snapshot.result.epoch, machine: result.machine, token, expires: result.expires };
+   return { schema: 1, origin: this.origin, account: this.profile.account, authorityKey: this.profile.authorityKey, tenant: this.profile.tenant, vault, object, epoch: snapshot.result.epoch, machine: result.machine, token, expires: result.expires };
   } finally { snapshot.key.fill(0); }
  }
  async changePassword(password, { beforeCommit } = {}) {
@@ -207,7 +228,7 @@ export class VaultClient {
   const result = opaque.client.finishRegistration({ clientRegistrationState: started.clientRegistrationState, registrationResponse: registration.response, password, identifiers: { client: this.profile.account, server: this.profile.tenant }, keyStretching: 'memory-constrained' });
   requireValue(result.serverStaticPublicKey === registration.serverKey, 'server_key_changed');
   const profile = { ...this.profile, generation: this.profile.generation + 1, device: id(), deviceSecret: encode(random()), serverKey: result.serverStaticPublicKey };
-  const root = { recipient: this.bundle.root.recipient, recovery: await keypair('sign') }, signing = await keypair('sign');
+  const root = { recipient: this.bundle.root.recipient, authority: this.bundle.root.authority, recovery: await keypair('sign') }, signing = await keypair('sign');
   const kit = { schema: 1, origin: this.origin, account: profile.account, tenant: profile.tenant, serverKey: profile.serverKey, recoverySecret: encode(random()), generation: profile.generation };
   const bundle = await seal(await unlockKey(result.exportKey, profile.deviceSecret, profile.account), bytes({ root, signing }), binding(profile.tenant, 'account', profile.device, 'device', profile.generation));
   const recoveryWrap = await seal(await unlockKey(result.exportKey, kit.recoverySecret, profile.account), bytes({ root }), binding(profile.tenant, 'account', profile.account, 'recovery', profile.generation));
@@ -225,7 +246,7 @@ export class VaultClient {
   requireValue(root.recovery.publicKey === admitted.recoveryKey, 'kit_revoked');
   const oldRecovery = root.recovery.privateKey;
   root.recovery = await keypair('sign');
-  const profile = { schema: 1, origin: this.origin, account: kit.account, tenant: kit.tenant, serverKey: kit.serverKey, device: id(), deviceSecret: encode(random()), generation: kit.generation + 1, recipientKey: root.recipient.publicKey, trusted: { [kit.account]: root.recipient.publicKey }, seen: {} };
+  const profile = { schema: 1, origin: this.origin, account: kit.account, tenant: kit.tenant, serverKey: kit.serverKey, device: id(), deviceSecret: encode(random()), generation: kit.generation + 1, recipientKey: root.recipient.publicKey, authorityKey: root.authority.publicKey, trusted: { [kit.account]: { recipientKey: root.recipient.publicKey, authorityKey: root.authority.publicKey } }, seen: {} };
   const newKit = { ...kit, generation: profile.generation, recoverySecret: encode(random()) }, signing = await keypair('sign');
   const bundle = await seal(await unlockKey(result.exportKey, profile.deviceSecret, profile.account), bytes({ root, signing }), binding(profile.tenant, 'account', profile.device, 'device', profile.generation));
   const recoveryWrap = await seal(await unlockKey(result.exportKey, newKit.recoverySecret, profile.account), bytes({ root }), binding(profile.tenant, 'account', profile.account, 'recovery', profile.generation));

@@ -46,7 +46,7 @@ try {
   result = { device: recovered.profile.device, generation: recovered.profile.generation, kitWritten: true };
  } else if (command === 'enroll-start') {
   client = new VaultClient(input.origin);
-  const enrolled = await client.beginEnrollment({ schema: 1, origin: input.origin, account: input.account, tenant: input.tenant, serverKey: input.serverKey }, input.password);
+  const enrolled = await client.beginEnrollment({ schema: 1, origin: input.origin, account: input.account, tenant: input.tenant, serverKey: input.serverKey, recipientKey: input.recipientKey, authorityKey: input.authorityKey }, input.password);
   await writePrivate(input.profile, enrolled.profile);
   result = { device: enrolled.device, fingerprint: enrolled.fingerprint };
  } else if (command === 'enroll-complete') {
@@ -61,6 +61,7 @@ try {
    case 'vault-create': result = await client.createVault(); break;
    case 'put': result = await client.put(input.vault, input.value, input.object); break;
    case 'read': { const value = await client.readVault(input.vault); await writePrivate(input.output, value); result = { written: true, versions: value.versions.length }; break; }
+   case 'trust': result = await client.pinAccount(input.account, input.fingerprint); break;
    case 'share': result = await client.share(input.vault, input.account, input.fingerprint, input.rights); break;
    case 'rotate': result = await client.rotate(input.vault, input.remove ?? null, input.confirmedKeys ?? {}); break;
    case 'export': { const archive = await client.exportVault(input.vault, input.exportKey); await writePrivate(input.output, archive); result = { written: true }; break; }

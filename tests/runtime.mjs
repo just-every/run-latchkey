@@ -96,7 +96,7 @@ const post = (route, value, cookie = '') => dispatchProduct(productOrigin + rout
 const body = async response => { assert.ok(response.ok, `${response.status}: ${await response.clone().text()}`); return response.json() }
 const rejected = (promise, code) => assert.rejects(promise, error => error.message === code)
 const dump = async () => {
- const tables = (await productDb.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all()).results
+ const tables = (await productDb.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT GLOB '_cf_*' ORDER BY name").all()).results
  const result = {}
  for (const table of tables) result[table.name] = (await productDb.prepare(`SELECT * FROM "${table.name.replaceAll('"', '""')}"`).all()).results
  return result
@@ -140,9 +140,11 @@ try {
  const memberEnrollment = await member.register('synthetic-latchkey-10')
  await member.unlock(memberEnrollment.profile, 'synthetic-latchkey-10')
  await rejected(member.readVault(vault), 'not_found')
- const fingerprint = await digest(memberEnrollment.profile.recipientKey)
+ const fingerprint = await digest(JSON.stringify([memberEnrollment.profile.recipientKey, memberEnrollment.profile.authorityKey]))
  await rejected(owner.share(vault, memberEnrollment.profile.account, await digest(enrolled.profile.recipientKey), ['read']), 'recipient_mismatch')
  await owner.share(vault, memberEnrollment.profile.account, fingerprint, ['read'])
+ await rejected(member.readVault(vault), 'recipient_confirmation_required')
+ await member.pinAccount(enrolled.profile.account, await digest(JSON.stringify([enrolled.profile.recipientKey, enrolled.profile.authorityKey])))
  assert.deepEqual((await member.readVault(vault)).versions, read.versions)
  await rejected(member.put(vault, values[0]), 'permission_denied')
  await rejected(member.exportVault(vault, archiveKey), 'permission_denied')
@@ -159,6 +161,12 @@ try {
  console.log('Recipient lifecycle: fingerprint confirmation, exact read-only rights, removal, atomic rekey and retained history passed')
 
  // Simulate a malicious storage service, not a fake client or cryptosystem.
+ const originalWrap = await productDb.prepare('SELECT wrapped_key FROM lky_recipients WHERE vault_id=? AND account_id=?').bind(vault, enrolled.profile.account).first()
+ const counterfeit = { ...await cryptography.wrapRecipient(random(), enrolled.profile.recipientKey, { tenant: enrolled.profile.tenant, vault, object: enrolled.profile.account, purpose: 'vault-key', epoch: 2, version: 1 }), signer: enrolled.profile.account, signature: encode(random(64)) }
+ await productDb.prepare('UPDATE lky_recipients SET wrapped_key=? WHERE vault_id=? AND account_id=?').bind(JSON.stringify(counterfeit), vault, enrolled.profile.account).run()
+ await rejected(owner.readVault(vault), 'invalid_key_signature')
+ await rejected(owner.put(vault, { value: 'synthetic-latchkey-23' }), 'invalid_key_signature')
+ await productDb.prepare('UPDATE lky_recipients SET wrapped_key=? WHERE vault_id=? AND account_id=?').bind(originalWrap.wrapped_key, vault, enrolled.profile.account).run()
  const original = await productDb.prepare('SELECT envelope FROM lky_versions WHERE vault_id=? AND object_id=? AND version=1').bind(vault, objects[0]).first()
  const altered = JSON.parse(original.envelope), ciphertext = decode(altered.ciphertext)
  ciphertext[0] ^= 1; altered.ciphertext = encode(ciphertext)
@@ -273,7 +281,7 @@ try {
  // client API request/response payloads, and captured runtime error/log records.
  const serverState = JSON.stringify(await dump())
  const inspected = [serverState, JSON.stringify(archive), JSON.stringify(traces), JSON.stringify(runtimeLogs)]
- const privateValues = [runtimeKey, 'synthetic-latchkey-21', password, 'synthetic-latchkey-10', enrolled.profile.deviceSecret, enrolled.kit.recoverySecret, recovered.profile.deviceSecret, recovered.kit.recoverySecret, owner.bundle.root.recipient.privateKey, owner.bundle.root.recovery.privateKey, owner.bundle.signing.privateKey, archiveKey, ...values.flatMap(value => [value.title, value.value, value.custom.label, value.custom.secret, value.attachment.name, value.attachment.content])]
+ const privateValues = [runtimeKey, 'synthetic-latchkey-21', password, 'synthetic-latchkey-10', enrolled.profile.deviceSecret, enrolled.kit.recoverySecret, recovered.profile.deviceSecret, recovered.kit.recoverySecret, owner.bundle.root.recipient.privateKey, owner.bundle.root.recovery.privateKey, owner.bundle.root.authority.privateKey, owner.bundle.signing.privateKey, archiveKey, ...values.flatMap(value => [value.title, value.value, value.custom.label, value.custom.secret, value.attachment.name, value.attachment.content])]
  for (const secret of privateValues) for (let channel = 0; channel < inspected.length; channel++) assert.ok(!inspected[channel].includes(secret), `plaintext or private key in channel ${channel}`)
  const nonces = (await productDb.prepare('SELECT envelope FROM lky_versions').all()).results.map(row => JSON.parse(row.envelope).nonce)
  assert.equal(new Set(nonces).size, nonces.length)

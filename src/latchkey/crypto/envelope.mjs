@@ -88,3 +88,22 @@ export async function verify(publicValue, signature, value) {
  try { return await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, await publicKey(publicValue, 'sign'), decode(signature, 64), utf8.encode(value)); } catch { return false; }
 }
 export const signingText = (method, path, token, nonce, time, bodyHash) => JSON.stringify(['latchkey/v1', method, path, token, nonce, time, bodyHash]);
+// A recipient public key alone authenticates no sender. Pin the account's
+// separate signing key before accepting a wrapped vault key from storage.
+export const wrappedText = value => JSON.stringify(['latchkey/wrapped-key/v1', value.signer, value.publicKey, encode(context(value.envelope.context)), value.envelope.schema, value.envelope.algorithm, value.envelope.nonce, value.envelope.ciphertext]);
+export async function wrapSigned(value, recipient, binding, signer, privateValue) {
+ const wrapped = { ...await wrapRecipient(value, recipient, binding), signer };
+ return { ...wrapped, signature: await sign(privateValue, wrappedText(wrapped)) };
+}
+export async function verifyWrapped(value, authorityKey, signer, binding) {
+ try {
+  if (Object.keys(value).sort().join() !== ['publicKey', 'envelope', 'signer', 'signature'].sort().join() || value.signer !== signer) return false;
+  validateEnvelope(value.envelope, binding);
+  await publicKey(value.publicKey, 'wrap');
+  return await verify(authorityKey, value.signature, wrappedText(value));
+ } catch { return false; }
+}
+export async function unwrapSigned(value, privateValue, authorityKey, signer, binding) {
+ if (!await verifyWrapped(value, authorityKey, signer, binding)) throw Error('invalid_key_signature');
+ return unwrapRecipient(value, privateValue, binding);
+}

@@ -1,5 +1,5 @@
 import { VaultClient, ClientError } from './client.mjs';
-import { bytes, decode, derive, digest, encode, id, json, keypair, open, random, seal, unwrapRecipient } from './crypto/envelope.mjs';
+import { bytes, decode, derive, digest, encode, id, json, keypair, open, random, seal, unwrapSigned } from './crypto/envelope.mjs';
 function material(value) { const key = decode(value, 32); if (key.length !== 32) throw new ClientError('invalid_key'); return key; }
 const profileContext = machine => ({ tenant: 'local', vault: 'machine', object: machine, purpose: 'runtime-profile', epoch: 1, version: 1 });
 export class MachineClient {
@@ -21,7 +21,7 @@ export class MachineClient {
    if (result.tenant !== grant.tenant || result.vault !== grant.vault || result.object !== grant.object || result.epoch !== grant.epoch) throw new ClientError('context_mismatch');
    const itemContext = { tenant: result.tenant, vault: result.vault, object: result.object, purpose: 'item', epoch: result.epoch, version: result.version };
    const wrappedContext = { tenant: result.tenant, vault: result.vault, object: profile.machine, purpose: `machine-key:${result.object}`, epoch: result.epoch, version: 1 };
-   const itemKey = await unwrapRecipient(result.wrapped, local.recipient.privateKey, wrappedContext);
+   const itemKey = await unwrapSigned(result.wrapped, local.recipient.privateKey, grant.authorityKey, grant.account, wrappedContext);
    try { return json(await open(itemKey, result.envelope, itemContext)); } finally { itemKey.fill(0); }
   } finally { client.lock(); }
  }

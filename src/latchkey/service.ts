@@ -1,5 +1,5 @@
 import * as opaque from '@serenity-kit/opaque'
-import { bytes, digest, encode, id, publicKey, random, signingText, validateEnvelope, verify, type Context } from './crypto/envelope.mjs'
+import { bytes, digest, encode, id, publicKey, random, signingText, validateEnvelope, verify, verifyWrapped, type Context } from './crypto/envelope.mjs'
 import type { Bindings } from '../auth.server'
 import type { OperatorAuth, Session } from '../modules/operator-auth/index.mjs'
 
@@ -25,6 +25,10 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
  if (!url.pathname.startsWith('/api/latchkey/')) return null
  const db = env.DB, now = Date.now()
  const first = (sql: string, ...args: any[]) => db.prepare(sql).bind(...args).first<Row>()
+ const checkWrap = async (value: unknown, accountId: string, expected: Context) => {
+  const account = await first('SELECT authority_key FROM lky_accounts WHERE id=?', accountId)
+  if (!account || !await verifyWrapped(value, account.authority_key, accountId, expected)) refuse('invalid_key_signature', 403)
+ }
  const all = async (sql: string, ...args: any[]) => (await db.prepare(sql).bind(...args).all<Row>()).results
  const stmt = (sql: string, ...args: any[]) => db.prepare(sql).bind(...args)
  const event = (actor: string, device: string, action: string, object: string, guard = '1', args: any[] = []) => stmt(`INSERT INTO lky_events SELECT ?,?,?,?,?,? WHERE ${guard}`, id(), actor, device, action, object, now, ...args)
@@ -71,7 +75,7 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
    const token = encode(random()), expires = Math.min(now + 600000, completed.session.expiresAt)
    await db.batch([stmt('DELETE FROM lky_grants WHERE expires_at<?', now), stmt('DELETE FROM lky_nonces WHERE expires_at<?', now), stmt('INSERT INTO lky_grants VALUES(?,?,?,?,?,?,?)', await digest(token), account.id, exchange.device_id, completed.session.id, account.generation, expires, exchange.device_id === 'recovery' ? 1 : exchange.device_id === 'enrollment' ? 2 : 0), event(account.id, exchange.device_id, 'password_authenticated', account.id)])
    const device = ['recovery', 'enrollment'].includes(exchange.device_id) ? null : await first('SELECT bundle FROM lky_devices WHERE id=?', exchange.device_id)
-   return response({ token, expires, account: account.id, tenant: account.tenant, generation: account.generation, recipientKey: account.recipient_key, recoveryKey: account.recovery_key, bundle: device ? JSON.parse(device.bundle) : exchange.device_id === 'recovery' ? JSON.parse(account.recovery_wrap) : null }, 200, completed.cookie)
+   return response({ token, expires, account: account.id, tenant: account.tenant, generation: account.generation, recipientKey: account.recipient_key, authorityKey: account.authority_key, recoveryKey: account.recovery_key, bundle: device ? JSON.parse(device.bundle) : exchange.device_id === 'recovery' ? JSON.parse(account.recovery_wrap) : null }, 200, completed.cookie)
   }
   if (route === 'runtime/read') {
    exact(input, ['machine'])
@@ -91,8 +95,8 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
   if (!session) refuse('authentication_required', 401)
   if (route === 'account') {
    exact(input, [])
-   const account = await first('SELECT id,tenant,generation,recipient_key FROM lky_accounts WHERE operator_id=?', session.operator.id)
-   return response(account ? { account: account.id, tenant: account.tenant, generation: account.generation, recipientKey: account.recipient_key } : { account: null })
+   const account = await first('SELECT id,tenant,generation,recipient_key,authority_key FROM lky_accounts WHERE operator_id=?', session.operator.id)
+   return response(account ? { account: account.id, tenant: account.tenant, generation: account.generation, recipientKey: account.recipient_key, authorityKey: account.authority_key } : { account: null })
   }
   if (route === 'register/start') {
    exact(input, ['request']); await limited(session.operator.id)
@@ -105,23 +109,23 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
    return response({ account, tenant, response: registration.registrationResponse, serverKey: opaque.server.getPublicKey(setup) })
   }
   if (route === 'register/finish') {
-   exact(input, ['account', 'record', 'recipientKey', 'recoveryKey', 'recoveryWrap', 'device', 'deviceKey', 'bundle', 'signature'])
+   exact(input, ['account', 'record', 'recipientKey', 'authorityKey', 'recoveryKey', 'recoveryWrap', 'device', 'deviceKey', 'bundle', 'signature'])
    const account = identifier(input.account), device = identifier(input.device)
    const pending = await first('SELECT * FROM lky_registrations WHERE id=? AND operator_id=? AND session_id=? AND expires_at>?', account, session.operator.id, session.id, now)
    if (!pending) refuse('registration_expired', 409)
-   await publicKey(string(input.recipientKey), 'wrap'); await publicKey(string(input.recoveryKey), 'sign'); await publicKey(string(input.deviceKey), 'sign')
+   await publicKey(string(input.authorityKey), 'sign'); await publicKey(string(input.recipientKey), 'wrap'); await publicKey(string(input.recoveryKey), 'sign'); await publicKey(string(input.deviceKey), 'sign')
    validateEnvelope(input.bundle, binding(pending.tenant, 'account', device, 'device', 1)); validateEnvelope(input.recoveryWrap, binding(pending.tenant, 'account', account, 'recovery', 1))
    string(input.record)
    const { signature, ...signed } = input
    if (!await verify(input.deviceKey, string(signature), envString(signed))) refuse('invalid_signature', 403)
    await db.batch([
-    stmt('INSERT INTO lky_accounts SELECT ?,?,?,1,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM lky_registrations WHERE id=? AND expires_at>?)', account, session.operator.id, pending.tenant, pending.setup, input.record, input.recipientKey, input.recoveryKey, envString(input.recoveryWrap), id(), account, now),
+    stmt('INSERT INTO lky_accounts SELECT ?,?,?,1,?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM lky_registrations WHERE id=? AND expires_at>?)', account, session.operator.id, pending.tenant, pending.setup, input.record, input.recipientKey, input.recoveryKey, envString(input.recoveryWrap), id(), input.authorityKey, account, now),
     stmt('INSERT INTO lky_devices VALUES(?,?,?,?,1,NULL)', device, account, input.deviceKey, envString(input.bundle)), event(account, device, 'account_enrolled', account), stmt('DELETE FROM lky_registrations WHERE id=?', account),
    ])
    return response({ account, device }, 201)
   }
   const token = string(request.headers.get('x-latchkey-grant'), 100), hash = await digest(token)
-  const grant = await first('SELECT g.*,a.tenant,a.operator_id,a.recipient_key,a.recovery_key,d.public_key FROM lky_grants g JOIN lky_accounts a ON a.id=g.account_id LEFT JOIN lky_devices d ON d.id=g.device_id AND d.account_id=a.id AND d.generation=a.generation AND d.revoked_at IS NULL WHERE g.token_hash=? AND g.expires_at>? AND g.generation=a.generation AND g.session_id=? AND a.operator_id=?', hash, now, session.id, session.operator.id)
+  const grant = await first('SELECT g.*,a.tenant,a.operator_id,a.recipient_key,a.recovery_key,a.authority_key,d.public_key FROM lky_grants g JOIN lky_accounts a ON a.id=g.account_id LEFT JOIN lky_devices d ON d.id=g.device_id AND d.account_id=a.id AND d.generation=a.generation AND d.revoked_at IS NULL WHERE g.token_hash=? AND g.expires_at>? AND g.generation=a.generation AND g.session_id=? AND a.operator_id=?', hash, now, session.id, session.operator.id)
   if (!grant || !grant.recovery && !grant.public_key) refuse('authority_expired', 401)
   const nonce = identifier(request.headers.get('x-latchkey-nonce')), time = string(request.headers.get('x-latchkey-time'), 20)
   if (!/^\d+$/.test(time) || Math.abs(now - Number(time)) > 60000) refuse('request_expired', 401)
@@ -184,9 +188,9 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
    return response({ revoked: machine })
   }
   if (route === 'directory') {
-   exact(input, ['account']); const recipient = await first('SELECT a.id,a.tenant,a.recipient_key FROM lky_accounts a JOIN oa_operators o ON o.id=a.operator_id WHERE a.id=? AND a.tenant=? AND o.status=\'active\'', identifier(input.account), tenant)
+   exact(input, ['account']); const recipient = await first('SELECT a.id,a.tenant,a.recipient_key,a.authority_key FROM lky_accounts a JOIN oa_operators o ON o.id=a.operator_id WHERE a.id=? AND a.tenant=? AND o.status=\'active\'', identifier(input.account), tenant)
    if (!recipient) refuse('not_found', 404)
-   return response({ account: recipient.id, tenant, publicKey: recipient.recipient_key, fingerprint: await digest(recipient.recipient_key) })
+   return response({ account: recipient.id, tenant, publicKey: recipient.recipient_key, authorityKey: recipient.authority_key, fingerprint: await digest(envString([recipient.recipient_key, recipient.authority_key])) })
   }
   if (route === 'devices') { exact(input, []); return response(await all('SELECT id,public_key,generation,revoked_at FROM lky_devices WHERE account_id=?', actor)) }
   if (route === 'device/revoke') {
@@ -205,7 +209,7 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
    exact(input, ['device', 'fingerprint', 'wrapped']); const target = identifier(input.device)
    const pending = await first('SELECT * FROM lky_enrollments WHERE id=? AND account_id=? AND generation=? AND expires_at>? AND approved_wrap IS NULL AND consumed_at IS NULL', target, actor, grant.generation, now)
    if (!pending || input.fingerprint !== await digest(envString([actor, target, pending.public_key, pending.transfer_key, grant.generation]))) refuse('enrollment_mismatch', 409)
-   await publicKey(string(input.wrapped?.publicKey), 'wrap'); validateEnvelope(input.wrapped?.envelope, binding(tenant, 'account', target, 'enrollment', grant.generation))
+   await checkWrap(input.wrapped, actor, binding(tenant, 'account', target, 'enrollment', grant.generation))
    const result = await db.batch([stmt(`UPDATE lky_enrollments SET approved_wrap=?,approved_nonce=? WHERE id=? AND approved_wrap IS NULL AND consumed_at IS NULL AND expires_at>? AND generation=? AND ${fence}`, envString(input.wrapped), nonce, target, now, grant.generation, ...fenceArgs), event(actor, device, 'device_approved', target, 'EXISTS(SELECT 1 FROM lky_enrollments WHERE id=? AND approved_nonce=?)', [target, nonce])])
    if (!result[0].meta.changes) refuse('enrollment_mismatch', 409)
    return response({ approved: target })
@@ -227,7 +231,7 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
   if (route === 'audit') { exact(input, []); return response(await all('SELECT * FROM lky_events WHERE actor=? ORDER BY created_at,id LIMIT 1000', actor)) }
   if (route === 'vault/create') {
    exact(input, ['vault', 'wrapped']); const vault = identifier(input.vault)
-   await publicKey(string(input.wrapped?.publicKey), 'wrap'); validateEnvelope(input.wrapped?.envelope, binding(tenant, vault, actor, 'vault-key', 1))
+   await checkWrap(input.wrapped, actor, binding(tenant, vault, actor, 'vault-key', 1))
    await db.batch([stmt(`INSERT INTO lky_vaults SELECT ?,?,?,1,1,? WHERE ${fence}`, vault, tenant, actor, id(), ...fenceArgs), stmt('INSERT INTO lky_recipients VALUES(?,?,?,?)', vault, actor, envString(rightsList), envString(input.wrapped)), event(actor, device, 'vault_created', vault)])
    return response({ vault, epoch: 1, revision: 1 }, 201)
   }
@@ -242,7 +246,7 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
   const change = (revision: unknown) => stmt(`UPDATE lky_vaults SET revision=revision+1,mutation=? WHERE id=? AND revision=? AND ${fence} RETURNING revision`, mutation, vault.id, integer(revision), ...fenceArgs)
   if (route === 'vault/read' || route === 'vault/export') {
    exact(input, ['vault']); has(route === 'vault/read' ? 'read' : 'export')
-   return response({ vault: vault.id, tenant, epoch: vault.epoch, revision: vault.revision, owner: vault.owner, wrapped: JSON.parse(vault.wrapped_key), versions: await all('SELECT object_id,version,envelope FROM lky_versions WHERE vault_id=? ORDER BY object_id,version', vault.id), recipients: (JSON.parse(vault.rights) as string[]).includes('share') ? await all('SELECT r.account_id,r.rights,a.recipient_key FROM lky_recipients r JOIN lky_accounts a ON a.id=r.account_id WHERE r.vault_id=?', vault.id) : [] })
+   return response({ vault: vault.id, tenant, epoch: vault.epoch, revision: vault.revision, owner: vault.owner, wrapped: JSON.parse(vault.wrapped_key), versions: await all('SELECT object_id,version,envelope FROM lky_versions WHERE vault_id=? ORDER BY object_id,version', vault.id), recipients: (JSON.parse(vault.rights) as string[]).includes('share') ? await all('SELECT r.account_id,r.rights,a.recipient_key,a.authority_key FROM lky_recipients r JOIN lky_accounts a ON a.id=r.account_id WHERE r.vault_id=?', vault.id) : [] })
   }
   if (route === 'machine/grant') {
    exact(input, ['vault', 'object', 'machine', 'deviceKey', 'recipientKey', 'fingerprint', 'wrapped', 'tokenHash', 'expiresInSeconds']); has('read'); has('share')
@@ -252,7 +256,7 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
    await publicKey(string(input.deviceKey), 'sign'); await publicKey(string(input.recipientKey), 'wrap')
    if (input.fingerprint !== await digest(envString([machine, input.deviceKey, input.recipientKey]))) refuse('recipient_mismatch', 409)
    if (!/^[A-Za-z0-9_-]{43}$/.test(input.tokenHash)) refuse('invalid_token_hash')
-   await publicKey(string(input.wrapped?.publicKey), 'wrap'); validateEnvelope(input.wrapped?.envelope, binding(tenant, vault.id, machine, `machine-key:${object}`, vault.epoch))
+   await checkWrap(input.wrapped, actor, binding(tenant, vault.id, machine, `machine-key:${object}`, vault.epoch))
    const mutation = id(), expires = now + ttl * 1000
    const changed = await db.batch([
     stmt(`INSERT INTO lky_machines SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,NULL,? WHERE ${fence} AND EXISTS(SELECT 1 FROM lky_vaults WHERE id=? AND epoch=? AND revision=?)`, machine, input.tokenHash, actor, device, grant.generation, session.operator.version, vault.id, object, vault.epoch, input.deviceKey, input.recipientKey, envString(input.wrapped), expires, mutation, ...fenceArgs, vault.id, vault.epoch, vault.revision),
@@ -273,11 +277,11 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
   }
   if (route === 'vault/share') {
    exact(input, ['vault', 'revision', 'account', 'fingerprint', 'rights', 'wrapped']); has('share')
-   const recipientId = identifier(input.account), recipient = await first('SELECT a.recipient_key FROM lky_accounts a JOIN oa_operators o ON o.id=a.operator_id WHERE a.id=? AND a.tenant=? AND o.status=\'active\'', recipientId, tenant)
-   if (!recipient || input.fingerprint !== await digest(recipient.recipient_key)) refuse('recipient_mismatch', 409)
+   const recipientId = identifier(input.account), recipient = await first('SELECT a.recipient_key,a.authority_key FROM lky_accounts a JOIN oa_operators o ON o.id=a.operator_id WHERE a.id=? AND a.tenant=? AND o.status=\'active\'', recipientId, tenant)
+   if (!recipient || input.fingerprint !== await digest(envString([recipient.recipient_key, recipient.authority_key]))) refuse('recipient_mismatch', 409)
    if (recipientId === vault.owner) refuse('owner_rights_fixed', 403)
    if (rights(input.rights).some(right => !(JSON.parse(vault.rights) as string[]).includes(right))) refuse('permission_denied', 403)
-   await publicKey(string(input.wrapped?.publicKey), 'wrap'); validateEnvelope(input.wrapped?.envelope, binding(tenant, vault.id, recipientId, 'vault-key', vault.epoch))
+   await checkWrap(input.wrapped, vault.owner, binding(tenant, vault.id, recipientId, 'vault-key', vault.epoch))
    const result = await db.batch([change(input.revision), stmt(`INSERT INTO lky_recipients SELECT ?,?,?,? WHERE ${active} ON CONFLICT(vault_id,account_id) DO UPDATE SET rights=excluded.rights,wrapped_key=excluded.wrapped_key`, vault.id, recipientId, envString(rights(input.rights)), envString(input.wrapped), ...activeArgs), event(actor, device, 'vault_shared', vault.id, active, activeArgs)])
    if (!result[0].meta.changes) refuse('version_conflict', 409)
    return response({ shared: recipientId })
@@ -291,7 +295,7 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
    if (!Array.isArray(input.versions) || !Array.isArray(input.recipients) || envString(input.versions.map((x: Row) => [x.object, x.version]).sort()) !== envString(current.map(x => [x.object_id, x.version]).sort()) || envString(input.recipients.map((x: Row) => x.account).sort()) !== envString(recipients.filter(x => x.account_id !== removed).map(x => x.account_id).sort())) refuse('incomplete_rotation', 409)
    const next = vault.epoch + 1
    const updates = input.versions.map((value: Row) => { exact(value, ['object', 'version', 'envelope']); validateEnvelope(value.envelope, binding(tenant, vault.id, identifier(value.object), 'item', next, integer(value.version))); return stmt(`UPDATE lky_versions SET envelope=? WHERE vault_id=? AND object_id=? AND version=? AND ${active}`, envString(value.envelope), vault.id, value.object, value.version, ...activeArgs) })
-   for (const value of input.recipients) { exact(value, ['account', 'wrapped']); await publicKey(string(value.wrapped?.publicKey), 'wrap'); validateEnvelope(value.wrapped?.envelope, binding(tenant, vault.id, identifier(value.account), 'vault-key', next)); updates.push(stmt(`UPDATE lky_recipients SET wrapped_key=? WHERE vault_id=? AND account_id=? AND ${active}`, envString(value.wrapped), vault.id, value.account, ...activeArgs)) }
+   for (const value of input.recipients) { exact(value, ['account', 'wrapped']); await checkWrap(value.wrapped, vault.owner, binding(tenant, vault.id, identifier(value.account), 'vault-key', next)); updates.push(stmt(`UPDATE lky_recipients SET wrapped_key=? WHERE vault_id=? AND account_id=? AND ${active}`, envString(value.wrapped), vault.id, value.account, ...activeArgs)) }
    const result = await db.batch([change(input.revision), stmt(`UPDATE lky_vaults SET epoch=? WHERE ${active}`, next, ...activeArgs), ...updates, stmt(`DELETE FROM lky_recipients WHERE vault_id=? AND account_id=? AND ${active}`, vault.id, removed ?? '', ...activeArgs), event(actor, device, 'vault_rotated', vault.id, active, activeArgs)])
    if (!result[0].meta.changes) refuse('version_conflict', 409)
    return response({ vault: vault.id, epoch: next, residualExposure: 'Past plaintext and old backups cannot be recalled. Rotate provider credentials separately.' })

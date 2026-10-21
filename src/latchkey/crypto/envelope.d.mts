@@ -21,3 +21,8 @@ export function unwrapRecipient(wrapped: { publicKey: string; envelope: Envelope
 export function sign(privateValue: string, value: string): Promise<string>;
 export function verify(publicValue: string, signature: string, value: string): Promise<boolean>;
 export function signingText(method: string, path: string, token: string, nonce: string, time: string, bodyHash: string): string;
+export interface SignedWrap { publicKey: string; envelope: Envelope; signer: string; signature: string }
+export function wrappedText(value: Omit<SignedWrap, 'signature'>): string;
+export function wrapSigned(value: Uint8Array, recipient: string, binding: Context, signer: string, privateValue: string): Promise<SignedWrap>;
+export function verifyWrapped(value: unknown, authorityKey: string, signer: string, binding: Context): Promise<boolean>;
+export function unwrapSigned(value: SignedWrap, privateValue: string, authorityKey: string, signer: string, binding: Context): Promise<Uint8Array>;
