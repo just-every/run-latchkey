@@ -9,7 +9,7 @@ The password manager that changes passwords. Business password and secrets manag
 
 100% free, open source alternative to 1Password Business, Bitwarden, Keeper, LastPass Business.
 
-Latchkey is a new seed on the Base foundation. The Lobby, owner sign-in, the local runtime and a client-encrypted vault service with its command-line client exist ([docs](docs/first-vault.md)). The complete product is a build target: every product clause in [CONTRACT.md](CONTRACT.md) but one is **missing**, and LKY-001 is partial. [ACCEPTANCE.md](ACCEPTANCE.md) describes the intended journeys.
+Latchkey is a new seed on the Base foundation. The Lobby, owner sign-in, the local runtime and a client-encrypted vault service with its command-line client exist ([docs](docs/first-vault.md)). The complete product is a build target: every product clause in [CONTRACT.md](CONTRACT.md) but one is **missing**; LKY-001, the client-held vault foundation, is done. [ACCEPTANCE.md](ACCEPTANCE.md) describes the intended journeys.
 
 ## Run locally
 
