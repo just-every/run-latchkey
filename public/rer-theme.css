@@ -1,25 +1,22 @@
-/* This edition's declared theme. The installer, sign-in, confirmation, /setup
-   read these --rer-* tokens; the app serves this file and its fonts.
-   Buttons keep the colour chosen at setup (src/branding.json primaryColor)
-   because no --rer-accent is declared here; declare --rer-accent and
-   --rer-accent-text together to fix them instead. */
-@font-face {
-  font-family: Outfit;
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: swap;
-  src: url('/fonts/outfit/outfit-latin-wght-normal.woff2') format('woff2');
-}
+/* Latchkey's tokens, each value defined once (design desk, 20 and 21 Oct
+   2026): tangerine #fd6415 from the approved hero, true black and white, Geist
+   for headings and the wordmark, the system face for app text. The installed
+   Lobby, sign-in, confirmation and /setup read these --rer-* tokens as they
+   are: a white app with black ink and tangerine primary buttons with black
+   labels (7.0:1). The run site reads the same values and sets its own grounds
+   from them (src/site/styles/tokens.css). Faces are in /fonts/fonts.css. */
 :root {
-  --rer-font-body: Outfit, Arial, sans-serif;
-  --rer-font-heading: Outfit, Arial, sans-serif;
-  --rer-page: #f4f6f5;
+  --rer-page: #ffffff;
   --rer-surface: #ffffff;
-  --rer-text: #1b2724;
-  --rer-muted: #4a5a55;
-  --rer-border: #6b7c76;
-  --rer-focus: #1b2724;
-  --rer-link: #1f5f52;
-  --rer-radius: 12px;
+  --rer-text: #000000;
+  --rer-muted: #4d4d4d;
+  --rer-border: #767676;
+  --rer-focus: #000000;
+  --rer-accent: #fd6415;
+  --rer-accent-text: #000000;
+  --rer-link: #000000;
+  --rer-font-body: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --rer-font-heading: Geist, 'Helvetica Neue', Arial, sans-serif;
+  --rer-radius: 0px;
   --rer-logo: url('/brand/mark.svg');
 }

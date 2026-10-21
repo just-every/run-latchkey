@@ -24,7 +24,7 @@
       "commands": [
         "pnpm run build",
         "pnpm run test:runtime",
-        "pnpm exec rer build --site --no-queue"
+        "node --test tests/site/site.test.mjs"
       ]
     }
   ],

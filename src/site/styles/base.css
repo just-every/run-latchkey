@@ -1,0 +1,29 @@
+/* What every run site page shares: box sizing, the square white button, the
+   underlined text link, focus rings and the leaders' hairline. Page grounds
+   belong to the pages, so Base's own pages keep their structure. */
+*, *::before, *::after { box-sizing: border-box; }
+html:has(.landing), html:has(.docs) { background: var(--lk-black); -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body:has(.landing), body:has(.docs) { margin: 0; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+.run-button {
+  display: inline-flex; align-items: center; justify-content: center; gap: .38em;
+  min-height: 2.8em; padding: 0 1.3em; background: var(--lk-white); color: var(--lk-black);
+  font: 800 clamp(17px, 1.32vw, 28px)/1 var(--lk-sans); letter-spacing: -.01em; text-decoration: none; white-space: nowrap;
+}
+.run-button:hover { background: color-mix(in srgb, var(--lk-white) 88%, var(--lk-tangerine)); }
+.text-link {
+  color: inherit; font: 500 clamp(16px, 1.25vw, 26px)/1.2 var(--lk-sans);
+  text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: .22em; white-space: nowrap;
+}
+.text-link:hover { text-decoration-thickness: 3px; }
+
+[data-ground='tangerine'] :focus-visible { outline: 3px solid var(--lk-black); outline-offset: 4px; }
+[data-ground='black'] :focus-visible { outline: 3px solid var(--lk-tangerine); outline-offset: 4px; }
+
+/* Commands, IDs, dates and record segments never break inside. */
+.seg, .nowrap { white-space: nowrap; }
+
+svg.leaders { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+svg.leaders line { stroke: var(--lk-white); stroke-width: var(--lk-hairline); }
+svg.leaders circle { fill: var(--lk-white); }
+.leader-to { position: absolute; width: 0; height: 0; }

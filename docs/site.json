@@ -1,0 +1,28 @@
+{
+  "sections": [
+    {
+      "title": "Start here",
+      "pages": [
+        { "slug": "getting-started", "title": "Getting started", "file": "getting-started.md", "summary": "Start Latchkey on your own computer in two lines, sign in as the owner and finish setup, and see what this release does." }
+      ]
+    },
+    {
+      "title": "Your vault",
+      "pages": [
+        { "slug": "first-vault", "title": "Your first vault", "file": "first-vault.md", "summary": "Register the command-line client, create a client-encrypted vault, store an item and read it back." },
+        { "slug": "sharing", "title": "Share a vault, remove someone", "file": "sharing.md", "summary": "Compare fingerprints, share a vault with separate rights for each person, and change its keys when someone leaves." },
+        { "slug": "devices-and-recovery", "title": "Devices, recovery and passwords", "file": "devices-and-recovery.md", "summary": "Approve a new device from one you trust, revoke a lost one, recover with your kit and change your password." },
+        { "slug": "machine-runtimes", "title": "Give a machine one secret", "file": "machine-runtimes.md", "summary": "Let a server or deploy job read one item for up to an hour without holding your account or vault keys." },
+        { "slug": "command-reference", "title": "Command reference", "file": "vault-cli.md", "summary": "Every command of the vault client, its input fields and what it writes." }
+      ]
+    },
+    {
+      "title": "Keep it safe",
+      "pages": [
+        { "slug": "backup-and-restore", "title": "Back up and restore", "file": "backup-and-restore.md", "summary": "Back up the whole installation with rer, restore it into an empty one, and keep a vault export only you can open." },
+        { "slug": "security-design", "title": "Security design", "file": "security/protocol.md", "summary": "The keys, the envelope format, request authority, devices and recovery, and the machine boundary, as the code implements them today." },
+        { "slug": "threat-model", "title": "Threat model", "file": "security/threat-model.md", "summary": "What each boundary protects against today, its limits, and the independent review still to come." }
+      ]
+    }
+  ]
+}

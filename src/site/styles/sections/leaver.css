@@ -1,0 +1,11 @@
+/* 04: the record flush right on the bottom baseline; the leader runs from the
+   heading's full stop to it. The phone drops the leader. */
+.leaver { --measure: 19.1em; }
+.leaver-record { position: relative; align-self: flex-end; text-align: right; }
+.leaver-record .record-line { display: block; }
+.leaver-record .leader-to { top: -.62em; right: 6.4em; }
+
+@media (max-width: 760px) {
+  .leaver svg.leaders, .leaver .leader-to { display: none; }
+  .leaver-record { align-self: flex-start; text-align: left; }
+}

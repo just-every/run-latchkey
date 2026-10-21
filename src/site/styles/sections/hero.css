@@ -1,0 +1,74 @@
+/* 01, the approved hero C. The headline is the picture: four forced lines of
+   the heavy grotesk sized to the fold (the plate's proportions at 1536 x 1024:
+   line one's caps 10.7% down, the black band the bottom 12.5%), cropped by the
+   right edge when the fold is as tall as the plate. The four annotations sit
+   in the headline's gaps at positions measured in the headline's own size, so
+   they hold their letters at every width; the leaders script joins each one to
+   its letter. Their size follows the headline's (19 px at 1440 x 900). Fix 2:
+   at 19 px or more they are bold and white (3.0:1 large text); smaller, black
+   (7.0:1). */
+.landing .hero {
+  --F: min(14.35vw, 21.8vh);
+  --note: clamp(12px, .0975 * var(--F), 26px);
+  position: relative; display: flex; flex-direction: column; min-height: max(100vh, 620px); padding: 0; overflow: clip;
+  background: var(--lk-tangerine); color: var(--lk-black);
+}
+.landing .hero .site-header { position: absolute; top: 0; left: 0; right: 0; }
+.hero-poster { position: relative; flex: 1 0 auto; padding: calc(10.7vh - .065 * var(--F)) 0 calc(.26 * var(--F)) 1.53vw; }
+.hero-title { margin: 0; font: 900 var(--F)/.83 var(--lk-sans); letter-spacing: -.012em; word-spacing: .05em; white-space: nowrap; }
+.hero-line { display: block; }
+
+.hero-notes { position: absolute; top: calc(10.7vh - .065 * var(--F)); left: 1.53vw; right: 2.36vw; margin: 0; padding: 0; list-style: none; }
+.hero-note {
+  position: absolute; margin: 0; font: 700 var(--note)/1.15 var(--lk-mono); letter-spacing: 0; color: var(--lk-black);
+}
+.hero-note .leader-to { left: -.85em; top: .58em; }
+/* Positions in the headline's size F, from the headline's top-left; line k's baseline sits at .775F + (k - 1) x .83F. */
+/* The first sits above line one and grows upward when it wraps; the second and third wrap inside the margin. */
+.hero-note.posted { left: calc(2.86 * var(--F)); right: 0; bottom: 0; }
+.hero-note.replaced { left: calc(3.68 * var(--F)); right: 0; top: calc(1.64 * var(--F)); }
+.hero-note.revoked { left: calc(4.62 * var(--F)); right: 0; top: calc(2.25 * var(--F) - 1.15 * var(--note)); }
+.hero-note.counted { left: calc(2.8 * var(--F)); top: calc(3.335 * var(--F)); white-space: nowrap; }
+/* --note reaches 19 px where F reaches 195 px: 14.35vw and 21.8vh both at least that. */
+@media (min-width: 1359px) and (min-height: 895px) { .hero-note { color: var(--lk-white); } }
+
+.hero-band {
+  display: flex; align-items: center; gap: 12px clamp(24px, 3.6vw, 80px); min-height: 12.5vh;
+  padding: 1.4vh 2.36vw 1.4vh 2.22vw; background: var(--lk-black); color: var(--lk-white);
+  font: 400 clamp(14px, 1.112vw, 22px)/1.42 var(--lk-sans); letter-spacing: -.005em;
+}
+.hero-sub { flex: 0 1 34em; min-width: 0; margin: 0; }
+.hero-alt { flex: none; max-width: 17.6em; margin: 0; }
+.hero-alt b { font-weight: 800; }
+.hero-actions { flex: none; display: flex; align-items: center; gap: clamp(20px, 2.1vw, 40px); margin-left: auto; }
+.hero-actions .run-button { min-height: 2.8em; font-size: clamp(16px, 1.25vw, 26px); }
+.hero-actions .text-link { font-size: 1em; }
+
+/* A portrait screen cannot fill its fold with a poster sized to its width: the band follows the poster instead. */
+@media (min-width: 761px) and (max-aspect-ratio: 5/4) { .landing .hero { min-height: 0; } }
+@media (max-width: 1180px) and (min-width: 761px) {
+  .hero-band { flex-wrap: wrap; padding-block: 18px; }
+  .hero-sub { flex-basis: 55%; }
+  .hero-actions { margin-left: 0; flex-basis: 100%; }
+}
+
+/* 390: the desk's fix 1. The headline flows on five or six lines, the four
+   annotations become one stacked list in black with the leaders dropped, then
+   the band stacks: the promise, the alternative line, a full-width Run button
+   and the two links. */
+@media (max-width: 760px) {
+  .landing .hero { min-height: 0; }
+  .landing .hero .site-header { position: relative; }
+  .hero-poster { padding: 12px 24px 20px; }
+  .hero-title { font-size: clamp(44px, 13.85vw, 66px); line-height: .9; letter-spacing: -.025em; white-space: normal; }
+  .hero-line { display: inline; }
+  .hero-notes { position: static; display: grid; gap: 6px; margin-top: 14px; }
+  .landing .hero .hero-note { position: relative; inset: auto; padding-left: 16px; font: 500 15px/1.3 var(--lk-mono); white-space: normal; }
+  .hero-note::before { content: ''; position: absolute; left: 0; top: .46em; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .landing .hero .leader-to, .landing .hero svg.leaders { display: none; }
+  .hero-band { flex-direction: column; align-items: stretch; gap: 10px; padding: 18px 24px 28px; font-size: 15px; line-height: 1.4; }
+  .hero-sub, .hero-alt { flex: none; }
+  .hero-actions { flex-wrap: wrap; justify-content: flex-start; gap: 16px 28px; margin: 2px 0 0; }
+  .hero-actions .run-button { flex: 1 0 100%; min-height: 52px; font-size: 18px; }
+  .hero-actions .text-link { font-size: 16px; }
+}

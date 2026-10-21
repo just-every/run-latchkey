@@ -1,6 +1,6 @@
 # Vault client foundation
 
-Use this checkout's Node 22.20.0 and pinned dependencies. Start an installation with `rer dev`, or use an owner's configured HTTPS installation. The application UI is still a foundation; the functioning product door in this revision is the CLI/API described here. [Protocol](security/protocol.md) and [threat model](security/threat-model.md) describe its limits.
+Use this checkout's Node 22.20.0 and pinned dependencies. Register against an installation whose mail is set up: `register` consumes the token from its sign-in or invitation email, and a copy started with `rer dev` sends no mail. The application UI is still a foundation; the functioning product door in this revision is the CLI/API described here. [Protocol](security/protocol.md) and [threat model](security/threat-model.md) describe its limits.
 
 Run `node scripts/latchkey.mjs COMMAND`. Every command reads **one JSON object from stdin**. Supply sensitive input through a trusted local process or a private input file; do not put passwords, tokens, runtime/export keys or item values in command arguments, shell history or environment variables. The CLI never searches for credentials or a browser profile. It never emits item values or private factors on stdout. Values/archives/profile/kit/grant outputs use explicitly chosen **new** mode-0600 files; existing output paths refuse. Profiles are atomically replaced only for local checkpoint updates.
 
@@ -42,7 +42,7 @@ Every row below also needs `profile` and `password`. The service checks current 
 | `share` | `vault`, recipient `account`, verified `fingerprint`, `rights` array | Owner signs a recipient-specific wrapped vault key; rights are independent `read`, `create`, `edit`, `export`, `share`, `rotate` checks at implemented doors |
 | `rotate` | `vault`, optional removed account `remove`, optional `confirmedKeys` mapping account to verified recipient public key | Owner rotates keys and all retained versions atomically; excludes removed member; existing recipient pins are required |
 | `export` | `vault`, independent 32-byte base64url `exportKey`, new `output` path | Client-encrypted portable version archive; never includes active authority |
-| `audit` | None | Attributed secret-free account/device/key/item event facts, up to the latest 1,000 |
+| `audit` | None | Attributed secret-free account/device/key/item event facts, up to 1,000 |
 
 A sharing recipient must first `trust` the sharing owner's fingerprint before reading the vault. The current distribution protocol requires owner-signed wraps; delegated manager certificates and the complete LKY-005 atomic-rights product are not delivered here. Wrong fingerprints, stale writes, tampered envelopes/key wraps, missing known history, expired grants, removed recipients and revoked devices refuse.
 

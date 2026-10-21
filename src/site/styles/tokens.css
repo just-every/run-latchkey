@@ -1,0 +1,21 @@
+/* The run site's names for Latchkey's tokens. Every value is read from
+   public/rer-theme.css, linked before this sheet, so tangerine, black, white
+   and the faces are each defined once. The sizes are the desk's 1440 grid
+   (120 px gutters, 30 px sentences 40 px under the heading, 32 px proofs,
+   heading top 168 px and proof baseline 120 px from the screen edges at 1440 x
+   900; headings 96 px, the plates' measured size in this face, BUILT.md)
+   scaled to the viewport, and the desk's 390 grid at their floors. */
+:root {
+  --lk-tangerine: var(--rer-accent);
+  --lk-black: var(--rer-text);
+  --lk-white: var(--rer-surface);
+  --lk-sans: var(--rer-font-heading);
+  --lk-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --lk-gutter: clamp(24px, 8.334vw, 220px);
+  --lk-title: clamp(46px, 6.667vw, 160px);
+  --lk-line: clamp(18px, 2.084vw, 46px);
+  --lk-proof: clamp(15px, 2.084vw, 46px);
+  --lk-top: clamp(64px, 18.67vh, 270px);
+  --lk-bottom: clamp(56px, 13.34vh, 190px);
+  --lk-hairline: 2px;
+}

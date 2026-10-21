@@ -1,0 +1,17 @@
+/* 05: one vault item in the right half, three rows divided by hairlines, no box. */
+.bank { --measure: 24.5em; }
+.bank .screen-title { color: var(--lk-tangerine); }
+.vault-item { align-self: flex-end; width: min(44.5vw, 900px); }
+.vault-title { padding-bottom: .3em; font: 800 clamp(22px, 2.36vw, 48px)/1.1 var(--lk-sans); letter-spacing: -.02em; }
+.vault-row { padding-block: .5em .38em; border-top: var(--lk-hairline) solid var(--lk-white); font-size: clamp(16px, 1.95vw, 40px); line-height: 1.25; }
+.vault-row:not(.vault-use) span:first-child { margin-right: .3em; }
+.vault-bullets { letter-spacing: .02em; }
+.vault-use { font-size: clamp(15px, 1.25vw, 26px); padding-block: .75em 0; }
+
+@media (max-width: 760px) {
+  .vault-item { align-self: stretch; width: auto; }
+  .vault-title { font-size: 21px; }
+  .vault-row { font-size: 16px; }
+  .vault-use { font-size: 15px; }
+  .vault-bullets { letter-spacing: 0; }
+}

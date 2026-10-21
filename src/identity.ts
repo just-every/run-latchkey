@@ -1,6 +1,6 @@
 // This edition's identity: what its installed Lobby and its run site say.
-// The name and colour are the ones setup saves in src/branding.json; replace
-// the purpose and tagline with the product's own when it has one.
+// The name and colour are the ones setup saves in src/branding.json; the
+// tagline is the approved hero's headline.
 import type { EditionIdentity } from './base/identity'
 import branding from './branding.json'
 import site from '../deploy-site.json'
@@ -9,7 +9,7 @@ export const identity: EditionIdentity = {
   product: branding.name,
   deployment: branding.name,
   purpose: '{deployment}’s business passwords and secrets.',
-  tagline: 'Business password and secrets management.',
+  tagline: 'The password manager that changes passwords.',
   signInPath: '/signin',
   // The run site `rer deploy --site` publishes (deploy-site.json).
   runSite: `https://${site.domain}`,

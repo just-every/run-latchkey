@@ -1,0 +1,12 @@
+/* 02: the log on the bottom baseline, its first line the page's one reversed slug. */
+.leak { --measure: 26.4em; }
+.log li { width: fit-content; }
+.log li + li { margin-top: .32em; }
+.log-slug { margin-left: -.26em; padding: 0 .26em; background: var(--lk-white); color: var(--lk-black); }
+.screen[data-ground='tangerine'] .log-slug { color: var(--lk-black); }
+
+@media (max-width: 760px) {
+  .log li + li { margin-top: 14px; }
+  .log-time { display: block; }
+  .log-slug { padding: 4px .3em 5px; }
+}

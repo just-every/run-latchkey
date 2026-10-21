@@ -1,0 +1,29 @@
+/* The frame every screen below the hero shares: one viewport on a flat
+   ground, the heading's top 168 px down, the sentence 40 px under it, and the
+   proof on the shared baseline 120 px above the bottom (at 1440 x 900). */
+.landing { display: block; }
+.screen {
+  position: relative; display: flex; flex-direction: column; min-height: max(100vh, 760px); overflow: clip;
+  padding: var(--lk-top) var(--lk-gutter) var(--lk-bottom);
+}
+.screen[data-ground='tangerine'] { background: var(--lk-tangerine); color: var(--lk-black); }
+.screen[data-ground='black'] { background: var(--lk-black); color: var(--lk-white); }
+.screen-title {
+  margin: 0; font: 900 var(--lk-title)/.92 var(--lk-sans);
+  letter-spacing: -.035em; word-spacing: .065em; text-wrap: balance;
+}
+.screen-line { margin: clamp(20px, 2.78vw, 60px) 0 0; max-width: var(--measure, 26.5em); font: 400 var(--lk-line)/1.35 var(--lk-sans); letter-spacing: -.012em; text-wrap: pretty; }
+.screen-proof { margin: auto 0 0; padding: clamp(28px, 4.5vh, 64px) 0 0; list-style: none; font: 400 var(--lk-proof)/1.5 var(--lk-mono); }
+.screen-proof p { margin: 0; }
+/* On tangerine, white is only for text of 24 px and more (3.0:1); smaller lines are black (7.0:1). */
+.screen[data-ground='tangerine'] .screen-proof { color: var(--lk-white); }
+
+@media (max-width: 1079px) {
+  .screen[data-ground='tangerine'] .screen-proof { color: var(--lk-black); }
+}
+@media (max-width: 760px) {
+  .screen { min-height: max(100svh, 640px); padding: 64px 24px 56px; }
+  .screen-title { --lk-title: clamp(46px, 13.34vw, 60px); }
+  .screen-line { margin-top: 28px; }
+  br.desk { display: none; }
+}

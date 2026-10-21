@@ -1,0 +1,24 @@
+/* 03, the interlude: the dead key edge to edge across the middle, struck by
+   one thick rule, with one leader down to the line that says it is dead. */
+.dead-key { --key: clamp(72px, 16.32vw, 340px); align-items: center; justify-content: center; padding: 0 3.6vw; text-align: center; }
+.dead-string { margin: 0; color: var(--lk-tangerine); font: 800 var(--key)/1.32 var(--lk-mono); letter-spacing: 0; white-space: nowrap; }
+/* The strike runs past the letters, as drawn: the struck string carries that run as its own padding. */
+.dead-string s { position: relative; display: inline-block; padding-inline: .14em; text-decoration: none; }
+.dead-string s span { position: relative; }
+.dead-string s::after { content: ''; position: absolute; left: 0; right: 0; top: .66em; height: .066em; background: currentColor; }
+.dead-drop { position: relative; display: block; width: var(--lk-hairline); height: calc(var(--key) * .9); margin-top: calc(var(--key) * -.63); background: var(--lk-white); }
+.dead-drop::before, .dead-drop::after { content: ''; position: absolute; left: 50%; width: 8px; height: 8px; margin-left: -4px; border-radius: 50%; background: var(--lk-white); }
+.dead-drop::before { top: -4px; }
+.dead-drop::after { bottom: -4px; }
+.dead-line { margin: calc(var(--key) * .09) 0 0; font: 400 clamp(15px, 2.085vw, 44px)/1.4 var(--lk-mono); }
+
+@media (max-width: 760px) {
+  .dead-key { --key: clamp(56px, 18.5vw, 96px); padding: 0 24px; }
+  .dead-string { white-space: normal; }
+  .dead-string s { display: block; padding-inline: 0; }
+  .dead-string s::after { display: none; }
+  .dead-string s span { display: block; width: fit-content; margin-inline: auto; padding-inline: .12em; }
+  .dead-string s span::after { content: ''; position: absolute; left: 0; right: 0; top: .66em; height: .07em; background: currentColor; }
+  .dead-drop { height: calc(var(--key) * 1.2); margin-top: calc(var(--key) * -.63); }
+  .dead-line { margin-top: 18px; max-width: 18em; }
+}

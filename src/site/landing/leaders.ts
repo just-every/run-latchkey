@@ -1,0 +1,7 @@
+// The leaders: hairlines with a dot at each end, from a letter of a heading to
+// the record it explains. Each screen marked data-leaders holds an empty
+// svg.leaders; this script draws a line from every [data-leader-from] to the
+// [data-leader-to] of the same name, at the points their data-at fractions name
+// inside each element's first box, and redraws on resize and once fonts load.
+// An anchor that is not rendered (display: none at a phone width) draws nothing.
+export const LEADERS_SCRIPT = `(()=>{const draw=()=>{for(const s of document.querySelectorAll('[data-leaders]')){const svg=s.querySelector('svg.leaders');if(!svg)continue;const b=s.getBoundingClientRect();const at=e=>{const r=e.getClientRects()[0];if(!r)return null;const[f,g]=(e.dataset.at||'0 0').split(' ').map(Number);return[r.left-b.left+r.width*f,r.top-b.top+r.height*g]};let h='';for(const a of s.querySelectorAll('[data-leader-from]')){const z=s.querySelector('[data-leader-to="'+a.dataset.leaderFrom+'"]');const p=at(a),q=z&&getComputedStyle(z).display!=='none'?at(z):null;if(!p||!q)continue;h+='<line x1="'+p[0]+'" y1="'+p[1]+'" x2="'+q[0]+'" y2="'+q[1]+'"/><circle cx="'+p[0]+'" cy="'+p[1]+'" r="4"/><circle cx="'+q[0]+'" cy="'+q[1]+'" r="4"/>'}svg.setAttribute('viewBox','0 0 '+b.width+' '+b.height);svg.innerHTML=h}};let f=0;const q=()=>{cancelAnimationFrame(f);f=requestAnimationFrame(draw)};addEventListener('resize',q);if(document.fonts)document.fonts.ready.then(q);q()})()`

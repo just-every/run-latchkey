@@ -1,0 +1,88 @@
+/* Base's shared Run, contract and not-found pages (src/base, unchanged)
+   dressed in the site's chrome: the header strip of the hero, flush-left heavy
+   headings, square controls, hairlines instead of cards' shadows. Run and
+   not-found sit on tangerine with the hero's black band as their floor;
+   contract sits on black like the proof screens. */
+body.lk-base {
+  --rer-font-body: var(--lk-sans);
+  --rer-font-mono: var(--lk-mono);
+  --rer-wordmark-weight: 900;
+  --rer-wordmark-tracking: -.025em;
+  --rer-button-radius: 0;
+  background: var(--rer-page); -webkit-font-smoothing: antialiased; font-family: var(--lk-sans);
+}
+body.lk-base[data-ground='tangerine'] {
+  --rer-page: var(--lk-tangerine); --rer-text: var(--lk-black); --rer-muted: var(--lk-black); --rer-border: var(--lk-black);
+  --rer-focus: var(--lk-black); --rer-link: var(--lk-black); --rer-accent: var(--lk-black); --rer-accent-text: var(--lk-tangerine);
+  --rer-code-background: var(--lk-black); --rer-code-text: var(--lk-white);
+}
+body.lk-base[data-ground='black'] {
+  --rer-page: var(--lk-black); --rer-surface: var(--lk-black); --rer-text: var(--lk-white);
+  --rer-muted: color-mix(in srgb, var(--lk-white) 72%, var(--lk-black)); --rer-border: var(--lk-white);
+  --rer-focus: var(--lk-tangerine); --rer-link: var(--lk-white); --rer-accent: var(--lk-tangerine); --rer-accent-text: var(--lk-black);
+  --rer-done: var(--lk-tangerine); --rer-on-done: var(--lk-black); --rer-done-ink: var(--lk-tangerine);
+  --rer-partial: var(--lk-white); --rer-on-partial: var(--lk-black); --rer-partial-ink: var(--lk-white);
+  --rer-missing: color-mix(in srgb, var(--lk-white) 26%, var(--lk-black)); --rer-on-missing: var(--lk-white);
+  --rer-missing-ink: color-mix(in srgb, var(--lk-white) 66%, var(--lk-black));
+}
+body.lk-base .bar { max-width: none; padding: clamp(14px, 1.53vw, 30px) clamp(16px, 2.36vw, 46px) 0 clamp(16px, 2.15vw, 42px); }
+body.lk-base .bar .brand { gap: .66em; font-size: clamp(24px, 2.36vw, 46px); font-weight: 900; }
+body.lk-base .bar .brand img { width: auto; height: 1.15em; }
+body.lk-base .bar nav { gap: clamp(22px, 2.5vw, 48px); font: 800 clamp(16px, 1.3vw, 25px)/1 var(--lk-sans); }
+body.lk-base .bar nav a:hover, body.lk-base .bar nav a[aria-current='page'] { text-decoration: underline; text-decoration-thickness: 3px; text-underline-offset: .3em; }
+
+/* Run and not-found: the heading flush left at the gutter, the two steps side by side on hairlines. */
+body.lk-run main, body.lk-not-found main { max-width: none; padding: 0 var(--lk-gutter) calc(var(--art) + 48px); text-align: left; }
+body.lk-run .intro { padding-top: clamp(40px, 9.5vh, 140px); text-align: left; }
+body.lk-run .intro h1, body.lk-not-found .hero h1 { max-width: 9.4em; font: 900 clamp(44px, 6.67vw, 150px)/.92 var(--lk-sans); letter-spacing: -.035em; word-spacing: .07em; }
+body.lk-run .intro .sub, body.lk-not-found .hero .sub { max-width: 34em; margin: .85em 0 0; font-size: clamp(18px, 1.67vw, 32px); line-height: 1.35; }
+body.lk-run .steps { max-width: none; margin: clamp(32px, 6.5vh, 90px) 0 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px clamp(32px, 3.4vw, 64px); }
+body.lk-run .step { display: block; padding: 22px 0 0; border: 0; border-top: var(--lk-hairline) solid var(--lk-black); border-radius: 0; background: none; box-shadow: none; backdrop-filter: none; }
+body.lk-run .num { position: static; display: inline-grid; width: 46px; height: 46px; border-radius: 0; font: 800 22px/1 var(--lk-mono); }
+body.lk-run .step h2 { margin: 16px 0 0; font: 900 clamp(24px, 2.1vw, 40px)/1.1 var(--lk-sans); letter-spacing: -.025em; word-spacing: .05em; }
+body.lk-run .code { margin-top: 16px; border-radius: 0; }
+body.lk-run .code pre { overflow-wrap: normal; word-break: normal; }
+@container (max-width: 480px) { body.lk-run .code pre { padding-inline: 10px; font-size: 12.5px; } }
+body.lk-run .copy { border-radius: 0; border: 1.5px solid currentColor; font: 600 13.5px/1 var(--lk-mono); }
+body.lk-run .body > p { font-size: 17px; line-height: 1.5; }
+body.lk-run .body > p.alt { font-size: 16px; }
+body.lk-run .facts { margin-top: 44px; text-align: left; font-size: 15px; }
+body.lk-not-found .hero { align-items: flex-start; padding-top: clamp(64px, 16vh, 220px); }
+body.lk-not-found .actions { justify-content: flex-start; }
+body.lk-not-found .link { font-size: 19px; }
+
+/* Contract: Base's composition on black; cards become hairline frames. */
+body.lk-contract main { max-width: none; padding: 0 var(--lk-gutter); }
+body.lk-contract .bar { max-width: none; }
+body.lk-contract .bar::after { left: 0; right: 0; background: color-mix(in srgb, var(--lk-white) 30%, var(--lk-black)); }
+body.lk-contract .eyebrow { color: var(--lk-tangerine); font: 700 13px/1.3 var(--lk-mono); letter-spacing: .08em; }
+body.lk-contract main h1 { margin-top: 10px; color: var(--lk-white); font: 900 clamp(40px, 4.45vw, 76px)/.98 var(--lk-sans); letter-spacing: -.035em; word-spacing: .07em; }
+body.lk-contract .card { border-radius: 0; box-shadow: none; border-color: color-mix(in srgb, var(--lk-white) 36%, var(--lk-black)); }
+body.lk-contract .card h2 { word-spacing: .04em; }
+body.lk-contract .big { font-weight: 900; }
+body.lk-contract .meter, body.lk-contract .mini { border-radius: 0; background: color-mix(in srgb, var(--lk-white) 12%, var(--lk-black)); }
+body.lk-contract .search input, body.lk-contract .chips button, body.lk-contract .clear { border-radius: 0; }
+body.lk-contract .search input, body.lk-contract .chips button:not([aria-pressed='true']), body.lk-contract .clear { background: var(--lk-black); }
+body.lk-contract .group th { background: color-mix(in srgb, var(--lk-white) 9%, var(--lk-black)); }
+body.lk-contract .area-row { border-radius: 0; }
+
+/* The site's wider gutters leave the contract's kind card narrower than Base planned for: keep Base's tablet
+   wrapping of its two count lines up to 1500 px, and give the area names more room on a phone. */
+@media (min-width: 761px) and (max-width: 1500px) {
+  body.lk-contract .split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  body.lk-contract .split .line { white-space: normal; }
+  body.lk-contract .split .line > span:not(.sep) { display: inline-block; }
+}
+@media (max-width: 900px) {
+  body.lk-run .steps { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  body.lk-base .bar { padding: 16px 16px 0 24px; }
+  body.lk-base .bar .brand { font-size: 24px; }
+  body.lk-base .bar nav { gap: 20px; font-size: 16px; }
+  body.lk-run main, body.lk-not-found main { padding: 0 24px calc(var(--art) + 40px); }
+  body.lk-run .num { width: 38px; height: 38px; font-size: 18px; }
+  body.lk-run .step h2 { margin: 12px 0 0; min-height: 0; }
+  body.lk-contract main { padding: 0 24px; }
+  body.lk-contract .area-row { grid-template-columns: 1fr 22px 22px 22px 64px; }
+}

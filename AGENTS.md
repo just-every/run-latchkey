@@ -8,7 +8,7 @@ Without rer on PATH, use `npx -y @runeditrun/rer cli install` or `curl -fsSL htt
 
 ## Development
 
-Read CONTRACT.md, ACCEPTANCE.md, RUN-LOCALLY.md and SOURCE.md. This is a new seed. Every product target is missing; the foundation is not a password manager. Design and product build rounds follow later. Keep Base's default theme and shared Lobby until the style process chooses the product's look. Never add mock application data or fake features.
+Read CONTRACT.md, ACCEPTANCE.md, RUN-LOCALLY.md and SOURCE.md. This is a new seed. Every product target is missing; the foundation is not a password manager. Design and product build rounds follow later. Keep the shared Lobby. The look is Latchkey's own (design desk, 21 Oct 2026): tokens in public/rer-theme.css, the mark in public/brand/, the run site in src/site. Never add mock application data or fake features.
 
 For a real owner installation, use `rer install`, `rer setup --owner-email you@example.com`, then `rer dev`, or enter the mailbox through setup's prompt. Open RER_OPEN on this computer; native first-run setup is `/setup`. Local mail is silently suppressed. Keep private settings, sessions and credentials out of output and Git.
 
@@ -16,7 +16,7 @@ Use this checkout's exact published @runeditrun/rer 0.2.74. No vendored CLI copy
 
 Use `rer check`, `pnpm run typecheck` and the foundation's own touched tests locally. CI Verify is the full wall. Keep tests small and through public doors; do not add tests for scaffold copy or UI text. No tests at build or deploy time. No private research, logs or evidence in this public repo.
 
-The installed `/` is the shared Lobby. `rer build --site` builds the separate static run site, including `/run` and `/contract`. Run site deploys independently of Verify and is gated by RUN_SITE_DEPLOY. Only the owner/orchestrator supplies provider credentials.
+The installed `/` is the shared Lobby. `rer build --site` builds the separate static run site, including `/run`, `/docs` (from `docs/`) and `/contract`. Run site deploys independently of Verify and is gated by RUN_SITE_DEPLOY. Only the owner/orchestrator supplies provider credentials.
 
 Use `rer describe` for effects, `rer doctor` for prerequisites, `rer verify` for trusted full verification, `rer reset --yes` only for an authorized local reset, and `rer deploy` for an authorized owner-account deployment. Stop owned servers before building. `rer export --output exports/installation.rer` and `rer import --input exports/installation.rer --yes` are installation backup/restore; restore needs an empty destination and has no reviewed-import plan or Undo. No product import screen exists yet.
 

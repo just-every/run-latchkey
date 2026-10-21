@@ -1,5 +1,4 @@
 import { HeadContent, Outlet, Scripts, createRootRoute } from '@tanstack/react-router'
-import { fontLinks } from '../base/font-head'
 import { pageStyle } from '../base/page-style'
 import { introCss, introGuardScript } from '../base/hydration/intro-guard'
 
@@ -7,10 +6,11 @@ import { introCss, introGuardScript } from '../base/hydration/intro-guard'
 // root chrome sits in a HydrationUnit. Never set shellComponent, wrapInSuspense
 // or pendingComponent on this root route.
 export const Route = createRootRoute({
-  head: () => ({ meta: [{ charSet: 'utf-8' }, { name: 'viewport', content: 'width=device-width, initial-scale=1' }], title: 'Foundation' }),
+  head: () => ({ meta: [{ charSet: 'utf-8' }, { name: 'viewport', content: 'width=device-width, initial-scale=1' }], title: 'Latchkey' }),
   notFoundComponent: () => <h1>Not found</h1>,
   component: () => <html lang="en"><head>
-    {fontLinks.map(link => <link key={link.href} {...link} />)}
+    <link rel="preload" href="/fonts/geist/geist-latin-wght.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+    <link rel="stylesheet" href="/fonts/fonts.css" />
     <link rel="stylesheet" href="/rer-theme.css" />
     <HeadContent />
     <script dangerouslySetInnerHTML={{ __html: introGuardScript }} />
