@@ -2,7 +2,7 @@
 
 Target edition: **20 October 2026**. Latchkey is the complete business password and secrets manager a US company buys instead of 1Password Business, Bitwarden, Keeper or LastPass Business, with the collaboration, privacy and developer depth buyers seek from Passbolt, Proton Pass for Business and Infisical. Dashlane Omnix, NordPass Business and Psono are included in the switching destination. It keeps employee logins, TOTP and passkeys, shared privileged credentials and machine secrets encrypted, usable on every device and accountable through grant, use, offboarding and verified rotation.
 
-This is a build target, not a claim of shipped capability. No repository or code was available for judgment when the draft was written. All clauses are missing, including the original desk IDs LKY-001–030, which retain their meaning and numbering. Difficulty in encryption, provider apps, native clients, controlled browsers, certification or migration is engineering work in the named clauses, not a scope reduction. Naming and the friendly latchkey mark remain as specified by the desk; this document changes no brand, UI or homepage.
+This is a build target, not a claim of shipped capability. No repository or code was available for judgment when the draft was written. The Status table records the client-held CLI/API foundation for LKY-001 as partial; the remaining clauses are missing. The original desk IDs LKY-001–030 retain their meaning and numbering. Difficulty in encryption, provider apps, native clients, controlled browsers, certification or migration is engineering work in the named clauses, not a scope reduction. Naming and the friendly latchkey mark remain as specified by the desk; this document changes no brand, UI or homepage.
 
 ## Product target
 
@@ -600,13 +600,13 @@ Open boundaries remain explicit: unreachable default-policy caches and already e
 
 ## Status
 
-Judged from the code and tests at commit `f76451a07b0bf4d4dcb9dbd5aa5d6d6ec96944f1` (20 October 2026).
+Judged from the implemented public doors and cited passing journeys (21 October 2026). LKY-001 is a client-held CLI/API foundation, not independent cryptographic assurance or a completed password manager.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 0 | 0 | 0 | 0 |
-| Target and push further | 0 | 0 | 75 | 75 |
-| All | 0 | 0 | 75 | 75 |
+| Target and push further | 0 | 1 | 74 | 75 |
+| All | 0 | 1 | 74 | 75 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -619,7 +619,7 @@ Judged from the code and tests at commit `f76451a07b0bf4d4dcb9dbd5aa5d6d6ec96944
 | `LKY-056` | Recover the vault service without losing the keys | target | missing |  | No implementation or public-door acceptance evidence exists for recover the vault service without losing the keys. |
 | `LKY-074` | Defined managed edition and published USD buying terms | target | missing |  | No implementation or public-door acceptance evidence exists for defined managed edition and published usd buying terms. Owner must choose the actual USD rates, commercial operator and BAA signer; no price or legal entity is invented. |
 | `LKY-075` | Agent fleet control, budgets and global pause | target | missing |  | No implementation or public-door acceptance evidence exists for agent fleet control, budgets and global pause. |
-| `LKY-001` | Zero-knowledge vault and published security design | target | missing |  | No implementation or public-door acceptance evidence exists for zero-knowledge vault and published security design. |
+| `LKY-001` | Zero-knowledge vault and published security design | target | partial | [tests/runtime.mjs](tests/runtime.mjs): Vault envelopes and Shipped CLI (signup/create/edit/export and encrypted payload classes); Recipient lifecycle (pinned sharing/removal/rekey); Device/account lifecycle and Password lifecycle (enrollment/recovery/rotation); Machine-runtime custody (selected-item runtime); Records backup and Leakage inspection (database/backup/wire/log secret absence); Tamper and authority and Tenant isolation (authenticated context/ciphertext/key-wrap refusal and cross-tenant keys). [docs/security/protocol.md](docs/security/protocol.md) and [docs/security/threat-model.md](docs/security/threat-model.md) publish the design and trust boundaries. | Independent Latchkey cryptographic review and finding dispositions remain pending evidence, not an account blocker. Generic CLI/API payload encryption does not prove every native/typed item door under LKY-002/003; full account-root replacement, SSO/MFA/admin recovery, trusted-broker/update and whole-product destination-restore/erasure journeys remain unproved under LKY-004/008/009/030/032/033/034/051/057. |
 | `LKY-002` | Complete item types, generator and history | target | missing |  | No implementation or public-door acceptance evidence exists for complete item types, generator and history. |
 | `LKY-003` | Everyday apps, autofill and passkeys | target | missing |  | No implementation or public-door acceptance evidence exists for everyday apps, autofill and passkeys. |
 | `LKY-004` | Unlock and device security | target | missing |  | No implementation or public-door acceptance evidence exists for unlock and device security. |
