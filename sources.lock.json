@@ -431,7 +431,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "8b701d45c79bcb1f0cef69cdf76d5f7264f104c6fd1eb60bc650ae0b4d63e0d8",
+      "sha256": "8182527b6ffdf526b4a6577c4f774be191e50a67eac225dfb95a2c0769ff89b4",
       "executable": false
     },
     "AGENTS.md": {
@@ -447,7 +447,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "11f9f091efe07f7a8a9e0aa11728329199a7c06dee9bb786e280db9d7c5f9c81",
+      "sha256": "6d0e5aa3f32919d3d0f53d3db1f42192b16b228c074296ddbe57b1f60e02e5b8",
       "executable": false
     },
     "deploy-site.json": {
@@ -483,7 +483,7 @@
       "executable": false
     },
     "docs/security/threat-model.md": {
-      "sha256": "ec68a5c96c0d4013410bc7deadba70f5e6dc60a7fee5ed7133b29f0dcf5aad83",
+      "sha256": "08c2f1c2a488d1edb73600925e325484fe8a71367a3775abb92d20b79af50d41",
       "executable": false
     },
     "docs/sharing.md": {
