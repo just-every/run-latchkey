@@ -604,7 +604,7 @@ Open boundaries remain explicit: unreachable default-policy caches and already e
 
 ## Status
 
-Existing-door evidence rerun for the ct split (22 October 2026). LKY-001 is a client-held CLI/API foundation, not independent cryptographic assurance or a completed password manager.
+Judged from the code and tests at commit `d4ae5f2923bbba7aadbfe46584ae3085d2969fe4` (22 October 2026). LKY-001 is a client-held CLI/API foundation, not independent cryptographic assurance or a completed password manager.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
