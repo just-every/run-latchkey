@@ -79,14 +79,15 @@ const product = new Miniflare(convertV4MiniflareOptions({
   return new Response(null, { status: 202, headers: { 'x-message-id': 'synthetic-latchkey-7' } })
  },
 }))
+const dispatchProduct = async (url, init) => (await product.getWorker()).fetch(url, init)
 let productDb
 const fetchProduct = async (url, init) => {
  init = { ...init, headers: { ...init.headers, host: new URL(url).host } }
- const result = await product.dispatchFetch(url, init)
+ const result = await dispatchProduct(url, init)
  traces.push({ url, request: init, status: result.status, response: await result.clone().text() })
  return result
 }
-const post = (route, value, cookie = '') => product.dispatchFetch(productOrigin + route, { method: 'POST', headers: { host: new URL(productOrigin).host, origin: productOrigin, 'content-type': 'application/json', cookie }, body: JSON.stringify(value), redirect: 'manual' })
+const post = (route, value, cookie = '') => dispatchProduct(productOrigin + route, { method: 'POST', headers: { host: new URL(productOrigin).host, origin: productOrigin, 'content-type': 'application/json', cookie }, body: JSON.stringify(value), redirect: 'manual' })
 const body = async response => { assert.ok(response.ok, `${response.status}: ${await response.clone().text()}`); return response.json() }
 const rejected = (promise, code) => assert.rejects(promise, error => error.message === code)
 const dump = async () => {
@@ -167,13 +168,13 @@ try {
  await rejected(owner.call('item/put', { vault, object: id(), version: 1, revision, envelope: invalid }), 'request_refused')
  assert.equal((await owner.call('vault/read', { vault })).revision, revision)
  const replay = traces.at(-1)
- assert.equal((await product.dispatchFetch(replay.url, replay.request)).status, 409)
+ assert.equal((await dispatchProduct(replay.url, replay.request)).status, 409)
  const stalePath = '/api/latchkey/vaults', staleBody = '{}', staleNonce = id(), staleTime = String(Date.now() - 120000)
- const stale = await product.dispatchFetch(productOrigin + stalePath, { method: 'POST', headers: { host: new URL(productOrigin).host, origin: productOrigin, 'content-type': 'application/json', cookie: owner.cookie, 'x-latchkey-grant': owner.token, 'x-latchkey-nonce': staleNonce, 'x-latchkey-time': staleTime, 'x-latchkey-signature': await sign(owner.bundle.signing.privateKey, signingText('POST', stalePath, owner.token, staleNonce, staleTime, await digest(staleBody))) }, body: staleBody })
+ const stale = await dispatchProduct(productOrigin + stalePath, { method: 'POST', headers: { host: new URL(productOrigin).host, origin: productOrigin, 'content-type': 'application/json', cookie: owner.cookie, 'x-latchkey-grant': owner.token, 'x-latchkey-nonce': staleNonce, 'x-latchkey-time': staleTime, 'x-latchkey-signature': await sign(owner.bundle.signing.privateKey, signingText('POST', stalePath, owner.token, staleNonce, staleTime, await digest(staleBody))) }, body: staleBody })
  assert.equal(stale.status, 401)
  const signed = traces.at(-1).request
- assert.equal((await product.dispatchFetch(replay.url, { ...signed, body: JSON.stringify({ vault: id() }) })).status, 403)
- const crossOrigin = await product.dispatchFetch(productOrigin + '/api/latchkey/account', { method: 'POST', headers: { host: new URL(productOrigin).host, origin: 'https://synthetic-latchkey-12.test', 'content-type': 'application/json', cookie: owner.cookie }, body: '{}' })
+ assert.equal((await dispatchProduct(replay.url, { ...signed, body: JSON.stringify({ vault: id() }) })).status, 403)
+ const crossOrigin = await dispatchProduct(productOrigin + '/api/latchkey/account', { method: 'POST', headers: { host: new URL(productOrigin).host, origin: 'https://synthetic-latchkey-12.test', 'content-type': 'application/json', cookie: owner.cookie }, body: '{}' })
  assert.equal(crossOrigin.status, 403)
  await rejected(new VaultClient(productOrigin, { fetcher: fetchProduct }).unlock(enrolled.profile, 'synthetic-latchkey-13'), 'authentication_failed')
  const untrusted = new VaultClient(productOrigin, { cookie: owner.cookie, fetcher: fetchProduct })
@@ -246,9 +247,9 @@ try {
  try {
   const otherDb = await otherProduct.getD1Database('DB')
   for (const migration of (await readdir('migrations/core')).filter(name => name.endsWith('.sql')).sort()) await otherDb.batch(unstable_splitSqlQuery(await readFile(join('migrations/core', migration), 'utf8')).map(sql => otherDb.prepare(sql)))
-  const boot = await otherProduct.dispatchFetch(otherOrigin + '/auth/bootstrap', { method: 'POST', headers: { host: new URL(otherOrigin).host, origin: otherOrigin, 'content-type': 'application/json' }, body: JSON.stringify({ token: bindings.SETUP_TOKEN, displayName: 'Synthetic other owner' }) })
+  const boot = await (await otherProduct.getWorker()).fetch(otherOrigin + '/auth/bootstrap', { method: 'POST', headers: { host: new URL(otherOrigin).host, origin: otherOrigin, 'content-type': 'application/json' }, body: JSON.stringify({ token: bindings.SETUP_TOKEN, displayName: 'Synthetic other owner' }) })
   assert.equal(boot.status, 303)
-  const other = new VaultClient(otherOrigin, { cookie: boot.headers.get('set-cookie').split(';')[0], fetcher: (url, init) => otherProduct.dispatchFetch(url, { ...init, headers: { ...init.headers, host: new URL(url).host } }) })
+  const other = new VaultClient(otherOrigin, { cookie: boot.headers.get('set-cookie').split(';')[0], fetcher: async (url, init) => (await otherProduct.getWorker()).fetch(url, { ...init, headers: { ...init.headers, host: new URL(url).host } }) })
   const otherAccount = await other.register('synthetic-latchkey-20')
   await other.unlock(otherAccount.profile, 'synthetic-latchkey-20')
   assert.notEqual(otherAccount.profile.tenant, recovered.profile.tenant)
