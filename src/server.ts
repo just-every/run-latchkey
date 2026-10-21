@@ -29,7 +29,7 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (asset) return asset
     const auth = await authResponse(request, env)
     if (auth) return auth
-    const vault = await latchkeyResponse(request, runtimeBindings(env), operatorAuth(runtimeBindings(env)))
+    const vault = new URL(request.url).pathname.startsWith('/api/latchkey/') ? await latchkeyResponse(request, runtimeBindings(env), operatorAuth(runtimeBindings(env))) : null
     if (vault) return vault
     // The installed variant: the Lobby at / and the public claim state it reads.
     // Local dev serves the saved origin's data at its own port (RER_DEV_ORIGIN).
