@@ -1211,7 +1211,7 @@
       "executable": false
     },
     "src/latchkey/evidence/README.md": {
-      "sha256": "9bdcfd67814b4b7470ed438ba23e4f3ce97c626f7cc6e671a35eca156999db7f",
+      "sha256": "e35e9ec35c2134cbecd7ba2a78b0ab255db24dfa6dc8498b1c2f80d6cb15a887",
       "executable": false
     },
     "src/latchkey/evidence/service.d.mts": {
@@ -2551,7 +2551,7 @@
       "executable": false
     },
     "tests/browser/reviews.mjs": {
-      "sha256": "dd01ffa173e60aab82081945bcd892e4103605656430373f50f1c40446dd375f",
+      "sha256": "e66606423141052039e9fad604708a5579609f44944c7e1d1b0e3e4c54b1252e",
       "executable": false
     },
     "tests/browser/runtime-consumers.mjs": {
