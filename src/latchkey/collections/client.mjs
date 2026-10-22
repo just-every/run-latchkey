@@ -60,7 +60,7 @@ export class OrganizationClient {
   const lifecycle = await this.client.call('lifecycle/list', { vault });
   fail(Array.isArray(lifecycle.items) && lifecycle.vault?.id === vault, 'invalid_lifecycle');
   fail(lifecycle.items.every(entry => typeof entry.object === 'string' && states.includes(entry.state)), 'invalid_lifecycle');
-  return { records: latest(snapshot.versions), lifecycle: lifecycle.items, vault: lifecycle.vault };
+  return { records: latest(snapshot.versions), lifecycle: lifecycle.items, vault: {...lifecycle.vault,revision:snapshot.revision} };
  }
  async search(vault, criteria = {}) {
   const validated = criteriaValue(criteria), loaded = await this.load(vault);
@@ -95,6 +95,6 @@ export class OrganizationClient {
    ancestor = row.value.parent;
    fail(ancestor === null || typeof ancestor === 'string', 'invalid_collection_parent');
   }
-  return this.client.put(vault, { schema: 'latchkey/collection/v1', name: title.trim(), parent, items: [...items] }, target, current?.version);
+  return this.client.put(vault, { schema: 'latchkey/collection/v1', name: title.trim(), parent, items: [...items] }, target, current?.version,loaded.vault.revision);
  }
 }

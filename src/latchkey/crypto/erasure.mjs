@@ -1,3 +1,4 @@
+import { validDeletionConsent } from './lifecycle.mjs';
 import { verify } from './envelope.mjs';
 const fields=['schema','purpose','tenant','vault','object','owner','revision'];
 export function erasureText(statement) {
@@ -6,6 +7,7 @@ export function erasureText(statement) {
  return JSON.stringify(fields.map(field=>statement[field]));
 }
 export async function validErasureProof(proof,expected,authorityKey) {
+ if(proof?.statement?.purpose==='trash-item')return validDeletionConsent(proof,expected,authorityKey);
  try {
   const s=proof.statement,text=erasureText(s);
   return typeof proof.signature==='string'&&Object.keys(proof).sort().join()==='signature,statement'

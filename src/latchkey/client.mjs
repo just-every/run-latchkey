@@ -1,3 +1,4 @@
+import { capabilityText,policyText } from './crypto/lifecycle.mjs';
 import { erasureText, validErasureProof } from './crypto/erasure.mjs';
 import * as opaque from '@serenity-kit/opaque';
 import { bytes, decode, digest, encode, id, itemKey, json, keypair, open, random, seal, sign, signingText, unlockKey, unwrapRecipient, wrapRecipient, unwrapSigned, wrapSigned } from './crypto/envelope.mjs';
@@ -86,10 +87,12 @@ export class VaultClient {
   return recipient;
  }
  wrap(value, recipient, binding) { return wrapSigned(value, recipient, binding, this.profile.account, this.bundle.root.authority.privateKey); }
- async createVault() {
+ async createVault({kind = 'company'} = {}) {
   const vault = id(), key = random(), profile = this.profile;
   requireValue(profile, 'locked');
-  try { return await this.call('vault/create', { vault, wrapped: await this.wrap(key, profile.recipientKey, binding(profile.tenant, vault, profile.account, 'vault-key', 1)) }); } finally { key.fill(0); }
+  const statement = {schema:1,purpose:'trash-retention',tenant:profile.tenant,vault,owner:profile.account,days:30};
+  const policy = {statement,signature:await sign(this.bundle.root.authority.privateKey,policyText(statement))};
+  try { return await this.call('vault/create', { vault,kind,policy, wrapped: await this.wrap(key, profile.recipientKey, binding(profile.tenant, vault, profile.account, 'vault-key', 1)) }); } finally { key.fill(0); }
  }
  async snapshot(vault, mode = 'read', selection) {
   const result = await this.call(selection ? 'item/read' : `vault/${mode}`, selection ? { vault, ...selection } : { vault }), profile = this.profile;
@@ -152,10 +155,11 @@ export class VaultClient {
   const snapshot = await this.snapshot(vault, 'read', { object, history });
   try { return { vault, epoch: snapshot.result.epoch, revision: snapshot.result.revision, versions: await this.decodeVersions(snapshot) }; } finally { snapshot.key.fill(0); }
  }
- async put(vault, value, object = id(), expectedVersion) {
+ async put(vault, value, object = id(), expectedVersion, expectedRevision) {
   requireValue(!this.profile?.seen[vault]?.erased?.[object], 'item_erased');
   const snapshot = await this.snapshot(vault);
   const { key, result } = snapshot;
+  if(expectedRevision != null && result.revision !== expectedRevision){key.fill(0);throw new ClientError('version_conflict',409)}
   const version = Math.max(0, ...result.versions.filter(row => row.object_id === object).map(row => row.version)) + 1;
   if (expectedVersion != null && version - 1 !== expectedVersion) { key.fill(0); throw new ClientError('version_conflict', 409); }
   const derived = await itemKey(key, result.tenant, vault, object);
@@ -173,7 +177,9 @@ export class VaultClient {
   try {
    requireValue(snapshot.result.owner === this.profile.account, 'owner_signature_required');
    const wrapped = await this.wrap(snapshot.key, recipient.publicKey, binding(this.profile.tenant, vault, account, 'vault-key', snapshot.result.epoch));
-   const result = await this.call('vault/share', { vault, account, fingerprint, rights, wrapped, revision: snapshot.result.revision });
+   const statement={schema:1,purpose:'vault-rights',tenant:this.profile.tenant,vault,owner:this.profile.account,account,authorityKey:recipient.authorityKey,rights,epoch:snapshot.result.epoch,generation:recipient.generation};
+   const capability={statement,signature:await sign(this.bundle.root.authority.privateKey,capabilityText(statement))};
+   const result = await this.call('vault/share', { vault, account, fingerprint, rights, wrapped, capability, revision: snapshot.result.revision });
    return result;
   } finally { snapshot.key.fill(0); }
  }
@@ -191,7 +197,9 @@ export class VaultClient {
    for (const recipient of result.recipients.filter(row => row.account_id !== remove)) {
     const pinned = this.profile.trusted[recipient.account_id]?.recipientKey ?? confirmedKeys[recipient.account_id];
     requireValue(pinned && pinned === recipient.recipient_key, 'recipient_confirmation_required');
-    recipients.push({ account: recipient.account_id, wrapped: await this.wrap(nextKey, pinned, binding(result.tenant, vault, recipient.account_id, 'vault-key', epoch)) });
+    const statement={schema:1,purpose:'vault-rights',tenant:result.tenant,vault,owner:this.profile.account,account:recipient.account_id,authorityKey:recipient.authority_key,rights:JSON.parse(recipient.rights),epoch,generation:recipient.generation};
+    const capability={statement,signature:await sign(this.bundle.root.authority.privateKey,capabilityText(statement))};
+    recipients.push({ account: recipient.account_id,capability, wrapped: await this.wrap(nextKey, pinned, binding(result.tenant, vault, recipient.account_id, 'vault-key', epoch)) });
    }
    const rotated = await this.call('vault/rotate', { vault, remove, revision: result.revision, versions, recipients });
    this.profile.seen[vault] = { ...this.profile.seen[vault], epoch, revision: result.revision + 1, keyFingerprint: await digest(nextKey) };

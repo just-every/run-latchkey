@@ -3,7 +3,7 @@ import { digest, id, verifyWrapped } from '../crypto/envelope.mjs';
 import { RecordsError, requireRecords as need, rewrapBinding, rewrapPlanHash, verifyDestinationRewrap } from './common.mjs';
 import { importedArchive } from './import-proof.mjs';
 export { RecordsError } from './common.mjs';
-export const restoreOwnerRights = Object.freeze(['read', 'create', 'edit', 'export', 'share', 'rotate']);
+export const restoreOwnerRights = Object.freeze(['read', 'create', 'edit', 'export', 'share', 'rotate','delete','restore']);
 const exact = (value, fields) => need(value && typeof value === 'object' && Object.keys(value).sort().join() === [...fields].sort().join(), 'invalid_fields');
 const uuid = value => { need(typeof value === 'string' && /^[0-9a-f-]{36}$/.test(value), 'invalid_restore'); return value; };
 const named = value => typeof value === 'string' && value.trim().length > 0 && value.length <= 500;

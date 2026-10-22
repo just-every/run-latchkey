@@ -1,3 +1,4 @@
+import { validDeletionConsent } from '../crypto/lifecycle.mjs';
 import { createPortability, excludedTable } from '@runeditrun/rer/modules/portability';
 import archivePolicy from '../../../scripts/latchkey/archive-policy.mjs';
 import { validErasureProof } from '../crypto/erasure.mjs';
@@ -15,7 +16,7 @@ async function owned(ctx, vault) {
  need(row, 'not_found', 404); return row;
 }
 async function known(ctx, vault, object) { return access(ctx).first('SELECT * FROM lky_erased_items WHERE tenant=? AND vault_id=? AND object_id=?', ctx.tenant, vault, object); }
-async function erase(input, ctx) {
+async function erase(input, ctx, retention = null) {
  need(input && Object.keys(input).every(key => ['vault','object','confirmed','revision','proof'].includes(key)), 'invalid_fields');
  const vaultId = uuid(input.vault), object = uuid(input.object);
  need(input.confirmed === true, 'erasure_confirmation_required');
@@ -24,7 +25,7 @@ async function erase(input, ctx) {
  if (already) return receipt(already);
  need(vault.revision === input.revision, 'version_conflict', 409);
  const authority = await access(ctx).first('SELECT authority_key FROM lky_accounts WHERE id=?', ctx.actor);
- need(await validErasureProof(input.proof, { tenant: ctx.tenant, vault: vaultId, object, owner: ctx.actor, revision: input.revision }, authority.authority_key), 'invalid_erasure_proof', 403);
+ need(retention ? await validDeletionConsent(input.proof,{tenant:ctx.tenant,vault:vaultId,object,owner:ctx.actor},authority.authority_key) : await validErasureProof(input.proof, { tenant: ctx.tenant, vault: vaultId, object, owner: ctx.actor, revision: input.revision }, authority.authority_key), 'invalid_erasure_proof', 403);
  const entries = await inventory(ctx, vaultId, object);
  need(entries[0].rows.length > 0, 'not_found', 404);
  const portability = await createPortability({ db: ctx.db, policy: archivePolicy });
@@ -54,7 +55,7 @@ async function erase(input, ctx) {
    stmt('UPDATE lky_vaults SET revision=revision+1,mutation=? WHERE id=?', operation, vaultId),
    ...journal, ...transfers,
    stmt('INSERT INTO lky_erased_items(vault_id,object_id,tenant,receipt_id,erased_by,erased_device,erased_at,revision,counts,proof) VALUES(?,?,?,?,?,?,?,?,?,?)', vaultId, object, ctx.tenant, operation, ctx.actor, ctx.device, ctx.now, input.revision + 1, JSON.stringify(counts), JSON.stringify(input.proof)),
-   event(object), stmt('DELETE FROM lky_erasure_guard'),
+   ...(retention?[stmt("UPDATE lky_events SET actor='retention-policy',device='scheduled',object_id=? WHERE object_id=?",operation,object),stmt("INSERT INTO lky_events VALUES(?,?,?,?,?,?)",id(),'retention-policy','scheduled','item_retention_erased',operation,ctx.now)]:[event(object)]), stmt('DELETE FROM lky_erasure_guard'),
   ]);
  } catch {
   // A lost acknowledgement can safely return the original durable result;
@@ -75,3 +76,5 @@ export async function erasureAuthenticated(route, input, ctx) {
  }
  return null;
 }
+
+export async function eraseRetainedItem(row,ctx){const proof=JSON.parse(row.proof);need(row.state==='trash'&&row.retention_active===1&&row.expires_at<=ctx.now,'invalid_retention_state',409);need(proof.statement.nonce===row.nonce&&proof.statement.expiresAt===row.expires_at,'invalid_erasure_proof',403);return erase({vault:row.vault_id,object:row.object_id,confirmed:true,revision:row.revision,proof},ctx,row)}

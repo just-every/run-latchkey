@@ -1,3 +1,4 @@
+import {expireTrash} from './latchkey/lifecycle/scheduled.mjs'
 import { runReviewSchedule } from './latchkey/reviews/scheduled.mjs'
 import { latchkeyResponse } from './latchkey/service'
 import { withDemo } from './modules/demo/index.mjs'
@@ -25,7 +26,7 @@ function noTransform(response: Response): Response {
 }
 
 export default withDemo<Bindings, ExportedHandler<Bindings>>({
-  async scheduled(controller, env) { await runReviewSchedule(env.DB, controller.scheduledTime) },
+  async scheduled(controller, env) { await expireTrash(env.DB,controller.scheduledTime,env); await runReviewSchedule(env.DB, controller.scheduledTime) },
   async fetch(request, env, execution) {
     const asset = await staticAssetResponse(request, env)
     if (asset) return asset

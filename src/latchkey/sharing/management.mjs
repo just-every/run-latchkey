@@ -1,3 +1,4 @@
+import {activeItem} from '../lifecycle/common.mjs';
 import { digest, id, verifyWrapped } from '../crypto/envelope.mjs';
 import { access, binding, exact, integer, need, policy, sourceGuard, sourceVault, times, uuid } from './common.mjs';
 
@@ -60,7 +61,7 @@ export async function management(route, input, ctx) {
    const objects = new Set();
    if (input.scope === 'vault') need(recipient.items.length === current.length, 'incomplete_share', 409);
    for (const item of recipient.items) {
-    exact(item, ['object', 'version', 'wrapped']); const object = uuid(item.object); integer(item.version);
+    exact(item, ['object', 'version', 'wrapped']); const object = uuid(item.object); integer(item.version);await activeItem(ctx,vault.id,object);
     need(!objects.has(object) && current.some(row => row.object_id === object && row.version === item.version), 'version_conflict', 409); objects.add(object);
     need(await verifyWrapped(item.wrapped, vault.authority_key, actor, binding(tenant, vault.id, share, `share-key:${object}:${account}`, vault.epoch, item.version)), 'invalid_key_signature', 403);
     rows.push([share, account, target.generation, object, item.version, JSON.stringify(item.wrapped)]);

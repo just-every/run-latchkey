@@ -4,7 +4,7 @@ import { access, disclosure, email, exact, hashString, need, sourceLive, uuid } 
 
 // Every fetch of ciphertext is an actual, counted POST. No durable download
 // capability or object-store URL survives revocation.
-const available = `l.revoked_at IS NULL AND l.starts_at<=? AND l.expires_at>? AND l.views<l.max_views AND ${sourceLive('l')} AND EXISTS(SELECT 1 FROM lky_versions x WHERE x.vault_id=l.vault_id AND x.object_id=l.object_id AND x.version=l.source_version) AND EXISTS(SELECT 1 FROM lky_sharing_policy p WHERE p.tenant=l.tenant AND p.external_enabled=1 AND l.expires_at-l.created_at<=p.max_days*86400000 AND EXISTS(SELECT 1 FROM json_each(p.domains) WHERE value=substr(l.recipient_email,instr(l.recipient_email,'@')+1)))`;
+const available = `NOT EXISTS(SELECT 1 FROM lky_lifecycle lc WHERE lc.vault_id=l.vault_id AND lc.object_id=l.object_id AND lc.state<>'active') AND l.revoked_at IS NULL AND l.starts_at<=? AND l.expires_at>? AND l.views<l.max_views AND ${sourceLive('l')} AND EXISTS(SELECT 1 FROM lky_versions x WHERE x.vault_id=l.vault_id AND x.object_id=l.object_id AND x.version=l.source_version) AND EXISTS(SELECT 1 FROM lky_sharing_policy p WHERE p.tenant=l.tenant AND p.external_enabled=1 AND l.expires_at-l.created_at<=p.max_days*86400000 AND EXISTS(SELECT 1 FROM json_each(p.domains) WHERE value=substr(l.recipient_email,instr(l.recipient_email,'@')+1)))`;
 export async function sharingPublic(route, input, ctx) {
  if (!['sharing/link/preview', 'sharing/link/challenge', 'sharing/link/open'].includes(route)) return null;
  const { first, stmt, event } = access(ctx), { now, db, env } = ctx;

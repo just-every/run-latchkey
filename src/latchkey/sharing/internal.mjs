@@ -1,7 +1,7 @@
 import { id, validateEnvelope } from '../crypto/envelope.mjs';
 import { access, binding, disclosure, exact, integer, memberLive, need, sourceLive, uuid } from './common.mjs';
 
-const live = `s.revoked_at IS NULL AND s.approved_at IS NOT NULL AND s.starts_at<=? AND s.expires_at>? AND s.epoch=v.epoch AND a.generation=k.recipient_generation AND ${memberLive()} AND ${sourceLive('s')} AND NOT EXISTS(SELECT 1 FROM json_each(s.rights) granted WHERE NOT EXISTS(SELECT 1 FROM lky_recipients source,json_each(source.rights) current WHERE source.vault_id=s.vault_id AND source.account_id=s.source_account AND current.value=granted.value))`;
+const live = `NOT EXISTS(SELECT 1 FROM lky_lifecycle lc WHERE lc.vault_id=s.vault_id AND lc.object_id=k.object_id AND lc.state<>'active') AND s.revoked_at IS NULL AND s.approved_at IS NOT NULL AND s.starts_at<=? AND s.expires_at>? AND s.epoch=v.epoch AND a.generation=k.recipient_generation AND ${memberLive()} AND ${sourceLive('s')} AND NOT EXISTS(SELECT 1 FROM json_each(s.rights) granted WHERE NOT EXISTS(SELECT 1 FROM lky_recipients source,json_each(source.rights) current WHERE source.vault_id=s.vault_id AND source.account_id=s.source_account AND current.value=granted.value))`;
 const join = `FROM lky_shares s JOIN lky_share_keys k ON k.share_id=s.id JOIN lky_accounts a ON a.id=k.account_id JOIN lky_vaults v ON v.id=s.vault_id JOIN lky_versions x ON x.vault_id=s.vault_id AND x.object_id=k.object_id AND x.version=k.version`;
 export async function internal(route, input, ctx) {
  const { first, all, stmt, event } = access(ctx), { now, actor, tenant, db, fence, fenceArgs } = ctx;

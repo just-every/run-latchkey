@@ -1,9 +1,11 @@
+import {activeItem} from '../lifecycle/common.mjs';
 import { id, validateEnvelope } from '../crypto/envelope.mjs';
 import { access, binding, domainAllowed, email, exact, hashString, integer, need, policy, sourceGuard, sourceVault, times, uuid } from './common.mjs';
 
 export async function links(route, input, ctx) {
  const { first, all, stmt, event } = access(ctx), { db, now, tenant, actor, fence, fenceArgs } = ctx;
  if (route === 'sharing/link/create') {
+  await activeItem(ctx,uuid(input.vault),uuid(input.object));
   exact(input, ['link', 'vault', 'object', 'sourceVersion', 'verifierHash', 'passwordSalt', 'passwordRequired', 'recipient', 'envelope', 'startsAt', 'expiresAt', 'maxViews']);
   const vault = await sourceVault(ctx, input.vault), link = uuid(input.link), object = uuid(input.object), recipient = email(input.recipient);
   const rules = await policy(ctx); need(domainAllowed(rules, recipient), 'external_sharing_blocked', 403);

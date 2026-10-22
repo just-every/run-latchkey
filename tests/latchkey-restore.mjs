@@ -10,7 +10,7 @@ import { digest } from '../src/latchkey/crypto/envelope.mjs';
 
 const identity = client => ({ account: client.profile.account, tenant: client.profile.tenant, recipientKey: client.profile.recipientKey, authorityKey: client.profile.authorityKey });
 const fingerprint = value => digest(JSON.stringify([value.recipientKey, value.authorityKey]));
-const ownerRights = ['read', 'create', 'edit', 'export', 'share', 'rotate'];
+const ownerRights = ['read', 'create', 'edit', 'export', 'share', 'rotate','delete','restore'];
 const refused = promise => assert.rejects(promise, error => typeof error.code === 'string' && error.status >= 400);
 
 export async function exerciseRecordsRestore({ archive, sourceClient, destinationClient, wrongPersonClient, expectedVersions }) {

@@ -37,6 +37,15 @@
         "node tests/browser/reviews.mjs",
         "node --test tests/latchkey-records.test.mjs tests/latchkey-local-records.test.mjs"
       ]
+    },
+    {
+      "name": "organization-browser",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "pnpm run build",
+        "node tests/browser/organization.mjs"
+      ]
     }
   ],
   "nightly": []
