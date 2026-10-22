@@ -91,7 +91,7 @@ export function ReviewsPanel({ client, vault, run }: any) {
   <div className="actions"><button disabled={busy || loading} onClick={() => void act(null, 'Access reviews refreshed.')}>Refresh reviews</button></div>
   {stale && <p className="notice" role="alert">The last action could not be verified. Refresh to inspect current campaign and grant state before trying another change.</p>}
   {!loading && !error && campaigns.length === 0 && <div className="empty"><h2>No access reviews</h2><p>{owner ? 'Schedule the first review for this vault.' : 'The vault owner has not scheduled a review.'}</p></div>}
-  {campaigns.length > 0 && <label>Campaign<select className="vault-select" disabled={busy || loading} value={selected} onChange={event => void chooseCampaign(event.target.value)}>{campaigns.map(row => <option key={row.id} value={row.id}>{row.id} · {row.phase} · due {when(row.due_at)}</option>)}</select></label>}
+  {campaigns.length > 0 && <label>Campaign<select aria-label="Campaign" className="vault-select" disabled={busy || loading} value={selected} onChange={event => void chooseCampaign(event.target.value)}>{campaigns.map(row => <option key={row.id} value={row.id}>{row.id} · {row.phase} · due {when(row.due_at)}</option>)}</select></label>}
   {!loading && vaultOwner === account && <details className="tool-box"><summary>Schedule an owner-led review</summary><form onSubmit={event => {
    event.preventDefault();
    void act(async () => { const created = await client.call('reviews/create', { vault, reviewer, scheduleAt: scheduleAt ? new Date(scheduleAt).getTime() : Date.now(), dueAt: new Date(dueAt).getTime(), period: period.trim() }); setPeriod(''); setScheduleAt(''); setDueAt(''); return { selectedReview: created.id }; }, 'Review campaign scheduled.');
