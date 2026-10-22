@@ -1,7 +1,7 @@
 import { unwrapSigned } from '../crypto/envelope.mjs';
 import { canonicalJson } from '@runeditrun/rer/modules/portability';
 import { requireRecords as need, rewrapBinding, verifyDestinationRewrap } from './common.mjs';
-const ownerRights = ['read', 'create', 'edit', 'export', 'share', 'rotate'];
+const ownerRights = ['read', 'create', 'edit', 'export', 'share', 'rotate','delete','restore'];
 export class PortabilityClient {
  constructor(client) { this.client = client; }
  async prepare({ plan, approval, sourceFingerprint, destinationFingerprint }) {

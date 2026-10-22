@@ -1171,7 +1171,7 @@
       "executable": false
     },
     "src/latchkey/portability/client.mjs": {
-      "sha256": "0bc2dbae3214b6163528539a9ef2531e54380e255b409fcd9880017bc1a2a46f",
+      "sha256": "d60fe2c62a8fb96037ec77a1ee2d777f682f8d3b81293dbf13e17a788385784a",
       "executable": false
     },
     "src/latchkey/portability/common.mjs": {
