@@ -20,7 +20,7 @@ import { Tabs } from './tabs';
 import { SharingPanel } from '../sharing/ui';
 import { vaultCss } from './styles';
 import { OwnerTrust } from './owner-trust';
-import { Lockup } from '../../site/shell/Lockup';
+import { marks } from '../../site/shell/Lockup';
 
 export function VaultScreen() {
  const [client, setClient] = useState<any>(null), [vaults, setVaults] = useState<any[]>([]), [vault, setVault] = useState(''), [records, setRecords] = useState<ItemRecord[]>([]), [selected, setSelected] = useState('');
@@ -87,7 +87,7 @@ export function VaultScreen() {
  const show = (next: string, toggle = false) => { setPanel(toggle && panel === next ? '' : next); setCreate(false); if (menu.current) menu.current.open = false; };
  const editor = (panel === 'new' || panel === 'edit' && row) && <ItemEditor key={panel === 'new' ? `new:${vault}` : `${row!.object}:${row!.version}`} row={panel === 'edit' ? row : undefined} client={client} typed={typed} vault={vault} vaultKind={current?.kind ?? 'company'} templates={templates} run={run} busy={pending > 0} onSave={save} onCancel={() => setPanel('')}/>;
  return <div className="lk"><style>{vaultCss}</style><a className="skip" href="#vault-main">Skip to vault</a>
- <header className="topbar"><Lockup ground="white" href="/app/vault"/>
+ <header className="topbar"><a className="lockup" href="/app/vault"><img className="lockup-mark" src={marks.white} alt="" width={248} height={100}/><span className="lockup-word" data-rer-name>Latchkey</span></a>
   {client ? <>{vaultView && vault && <label className="search"><Icon name="search"/><input ref={search} type="search" aria-label="Search vault" placeholder="Search vault…" value={query} maxLength={500} onChange={e => setQuery(e.target.value)}/><kbd>⌘ K</kbd></label>}
    <Tabs tabs={tabs} current={tabs.find(([name]) => name ? panel === name : vaultView)?.[1]} onPick={show}/>
    <details className="menu" ref={menu}><summary>More</summary><div className="menu-list">

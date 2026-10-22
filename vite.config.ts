@@ -19,4 +19,7 @@ const serve = { main: './src/server.dev.ts', vars: { ...local('RER_DEV_ORIGIN'),
 // key, installer state), export archives, settings or local data.
 const server = { fs: { allow: ['src', 'public', 'node_modules', 'deploy-site.json', 'scripts/latchkey/archive-policy.mjs', 'clients/shared'], deny: ['**/.rer/**', '**/.seed/**', '**/exports/**', '**/*.rer'] } }
 
-export default defineConfig(({ command, isPreview }) => ({ server, plugins: [opaqueWorker(),seedIcons(),demoSockets(), cloudflare({ inspectorPort: false, viteEnvironment: { name: 'ssr' }, persistState: { path: process.env.RER_STATE_DIR ?? '.wrangler/state' }, ...(command === 'serve' && !isPreview ? { config: serve } : process.env.RER_DEV_ORIGIN ? { config: { vars: local('RER_DEV_ORIGIN') } } : {}) }), tanstackStart(), react(), excludeLocalVariables(), archiveOutputGuard()] }))
+// Keep OPAQUE's server import in the transform pipeline that supplies compiled WASM.
+const environments = { ssr: { optimizeDeps: { exclude: ['@serenity-kit/opaque'] } } }
+
+export default defineConfig(({ command, isPreview }) => ({ server, environments, plugins: [demoSockets(),opaqueWorker(),seedIcons(), cloudflare({ inspectorPort: false, viteEnvironment: { name: 'ssr' }, persistState: { path: process.env.RER_STATE_DIR ?? '.wrangler/state' }, ...(command === 'serve' && !isPreview ? { config: serve } : process.env.RER_DEV_ORIGIN ? { config: { vars: local('RER_DEV_ORIGIN') } } : {}) }), tanstackStart(), react(), excludeLocalVariables(), archiveOutputGuard()] }))

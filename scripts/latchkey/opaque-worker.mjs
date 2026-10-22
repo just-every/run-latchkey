@@ -17,7 +17,7 @@ export function opaqueWorker() {
  return {
   name: 'latchkey-opaque-worker', enforce: 'pre',
   transform(code, file) {
-   if (!file.replaceAll('\\', '/').endsWith('/@serenity-kit/opaque/esm/index.js') || this.environment?.name !== 'ssr') return;
+   if (!file.replaceAll('\\', '/').split('?')[0].endsWith('/@serenity-kit/opaque/esm/index.js') || this.environment?.name !== 'ssr') return;
    const start = code.indexOf('/* @ts-self-types=');
    if (start < 0 || !code.includes('module_or_path: wasmData()')) throw Error('Pinned OPAQUE initialization changed');
    return { code: `import opaqueModule from ${JSON.stringify(modulePath)};\n` + code.slice(start).replace('module_or_path: wasmData()', 'module_or_path: opaqueModule'), map: null };

@@ -410,6 +410,10 @@
     }
   ],
   "files": {
+    ".github/workflows/run-demo.yml": {
+      "sha256": "41365ec7c002e9451166313b085f9e64ed2e3ea002c27f3d5ead845bc9c302b2",
+      "executable": false
+    },
     ".github/workflows/run-site.yml": {
       "sha256": "1466e0cc78eeee30a85f1602c0b4bbb74f053fc9f1aa723635c5f0fc5a0f19b0",
       "executable": false
@@ -435,7 +439,11 @@
       "executable": false
     },
     "AGENTS.md": {
-      "sha256": "aff109485bf3d4e761f6b140ff94b4a7ef236d467206db596d03c158cf1d367c",
+      "sha256": "45980b37fe1ff819a419930976938968105ea5a4131c36c4b45ddf482886f7df",
+      "executable": false
+    },
+    "base-copies.json": {
+      "sha256": "ffaeea3ab239a3c0c6a8891ebefba0855bee8c56237ad943c200d66c02eefeb1",
       "executable": false
     },
     "CLAUDE.md": {
@@ -456,6 +464,10 @@
     },
     "CONTRACT.md": {
       "sha256": "8bfcfaa9b1f36ec0030a43123f92e22dc3476a0a8a61806519902eabd7be3801",
+      "executable": false
+    },
+    "deploy-demo.json": {
+      "sha256": "aae8308542c5ce369eecd531973b550c97c0b08e3ad7cd486579dc92cfb74cbd",
       "executable": false
     },
     "deploy-site.json": {
@@ -655,7 +667,7 @@
       "executable": false
     },
     "package.json": {
-      "sha256": "02bc21bc6903d8f0a57028f640568c4b87c2779e86d2cea7e62c2745d1152440",
+      "sha256": "fb8ccec56f27dd83b386015fa8cd852a4589177944c75ca65a1105be86878572",
       "executable": false
     },
     "packages/runtime/client.d.mts": {
@@ -711,7 +723,7 @@
       "executable": false
     },
     "pnpm-lock.yaml": {
-      "sha256": "39b411cc244947fc4c967ab4cfd3caf31c5784392adcc9c3d6f3b4f4ce5a0644",
+      "sha256": "a5f68a6e901f326e8712bf79c8fa9edf286dad81c3f00600cef66b3c1f93c015",
       "executable": false
     },
     "public/apple-touch-icon.png": {
@@ -795,7 +807,7 @@
       "executable": false
     },
     "README.md": {
-      "sha256": "fd2dc283da2f17386700cb42225000e540d0e51f07fd3ea44176b167040c037b",
+      "sha256": "429cad7f4ed792d3d55e62b4f1d15244f6479fc9af90be737c8e89d2c5bb1884",
       "executable": false
     },
     "rer-setup.json": {
@@ -879,7 +891,7 @@
       "executable": false
     },
     "scripts/latchkey/opaque-worker.mjs": {
-      "sha256": "1feea3d0a9965caf92ffee50edea9bc42ecb14c05871c9053cc38fdfb976e8c3",
+      "sha256": "de231155bcdce7aebc2b05c62fc18172b868a72d2f24ff079e4f9723a5f2c2e4",
       "executable": false
     },
     "scripts/latchkey/records-commands.mjs": {
@@ -931,7 +943,7 @@
       "executable": false
     },
     "src/auth.server.ts": {
-      "sha256": "bd731ef2001b45931d44d1ecf59472cb3369c2184e98b15cf8d481718efa2709",
+      "sha256": "b136b93ebec06b8c1bceb16372b3fc9626ce2682dbfdee50c473fd7c66014f71",
       "executable": false
     },
     "src/base/actor.ts": {
@@ -1048,6 +1060,10 @@
     },
     "src/client.tsx": {
       "sha256": "4fee14f6b63bceec0df77131ffd959fc4d02e3c501982a1f4b5b30c96c1d936a",
+      "executable": false
+    },
+    "src/demo.ts": {
+      "sha256": "08d1689fb0b504d11bd14040fa7ab925ad5e684986ec5b86df70d99a8081f233",
       "executable": false
     },
     "src/dev-personas.ts": {
@@ -1735,7 +1751,7 @@
       "executable": false
     },
     "src/latchkey/ui/vault.tsx": {
-      "sha256": "702268dc69644b1e1751a92f805b921c19902ac21c306e2b0469e3439db18c24",
+      "sha256": "54058092500fb9744ab105d457573da45508b9c5a449c0a344d65b232ff3496f",
       "executable": false
     },
     "src/mail.server.d.mts": {
@@ -2619,7 +2635,7 @@
       "executable": false
     },
     "src/server.ts": {
-      "sha256": "8b116b0d69e829df146e1563db52cbc1407036c0874a0892491631eff3b9a691",
+      "sha256": "4de71806874f9099871fd4495cd8d6f99a5d7658f9db956ba36c73d822f307a3",
       "executable": false
     },
     "src/site/base-pages.ts": {
@@ -2846,6 +2862,10 @@
       "sha256": "9fc53634703609263b28c14263fdf52098edc475c3860691db95d6d606b89bad",
       "executable": false
     },
+    "tests/demo-owner-claim.test.mjs": {
+      "sha256": "0bd953a26ddeafe6184679e2d6c00801d81768e2d28351091028ab15ef70a70e",
+      "executable": false
+    },
     "tests/incremental-typecheck.test.mjs": {
       "sha256": "a11d6b89e7219137540c7052683c5f4d9ba7ddf16f66d34c1f56ae34029c0a95",
       "executable": false
@@ -2903,7 +2923,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "7b68978e629ae210008000f19e1d9dabb70f80b26d971d4e580ee9c5488e0979",
+      "sha256": "92da7ecac3755ea615a733801927f72c6c766ae41020ddbd79906d2c3cc2909f",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
@@ -2911,7 +2931,7 @@
       "executable": false
     },
     "vite.config.ts": {
-      "sha256": "08fecede95b941d14b7291f42de731a78ff4710653faa0e88690f8b472bfff9d",
+      "sha256": "7530cb3000db0144fa27fd74d408e491d0a5761cdb4c2c559270cdf44a20f61f",
       "executable": false
     },
     "vite.site.config.ts": {
