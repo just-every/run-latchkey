@@ -1,3 +1,4 @@
+import {storeSigningKey,loadSigningKey} from './signing-custody.mjs';
 import { decode, id } from '../crypto/envelope.mjs';
 import { canonicalJson } from '../reviews/common.mjs';
 import { access, exact, human, need, transact, uuid } from './common.mjs';
@@ -42,7 +43,7 @@ async function dispatch(ctx, row, delivery) {
  await transact(ctx,[stmt("UPDATE lky_webhook_deliveries SET phase='dispatching',attempts=attempts+1,lease_until=?,updated_at=? WHERE id=?",ctx.now+60000,ctx.now,delivery.id),stmt("INSERT INTO lky_webhook_attempts VALUES(?,?,?,?,NULL,NULL,'pending')",attempt,delivery.id,row.revision,ctx.now),event('security_webhook_dispatch_authorized',delivery.id)],gate,[row.id,row.revision,delivery.id,ctx.now]);
  let status = null, phase = 'backlog';
  try {
-  const timestamp = String(Math.floor(ctx.now/1000)), signature = await signWebhook(row.secret,delivery.event_id,timestamp,delivery.payload);
+  const timestamp = String(Math.floor(ctx.now/1000)), signature = await signWebhook(await loadSigningKey(ctx,row),delivery.event_id,timestamp,delivery.payload);
   // Recheck immediately before egress, including deployment allowlist changes.
   need(await first(`SELECT 1 AS allowed FROM lky_webhook_subscriptions s WHERE s.id=? AND s.revision=? AND s.active=1 AND ${live}`,row.id,row.revision),'webhook_authorization_revoked',403);
   const response = await (ctx.fetcher ?? fetch)(endpoint(row.endpoint,ctx.env),{method:'POST',redirect:'error',credentials:'omit',referrerPolicy:'no-referrer',signal:AbortSignal.timeout(15000),headers:{'content-type':'application/json','webhook-id':delivery.event_id,'webhook-timestamp':timestamp,'webhook-signature':signature},body:delivery.payload});
@@ -63,7 +64,7 @@ export async function webhooksAuthenticated(route,input,ctx) {
   const url = endpoint(input.endpoint,ctx.env);keyBytes(input.secret).fill(0);
   need(Array.isArray(input.events) && input.events.length > 0 && new Set(input.events).size === input.events.length && input.events.every(value => securityEvents.includes(value)),'invalid_event_scope');
   const account = await first('SELECT generation FROM lky_accounts WHERE id=?',ctx.actor), subscription = id();
-  await transact(ctx,[stmt('INSERT INTO lky_webhook_subscriptions VALUES(?,?,?,?,?,?,?,?,?,1,1,?)',subscription,ctx.tenant,ctx.actor,url,canonicalJson([...input.events].sort()),input.secret,ctx.device,account.generation,ctx.session.operator.version,ctx.now),event('security_webhook_subscribed',subscription)]);
+  await transact(ctx,[stmt('INSERT INTO lky_webhook_subscriptions VALUES(?,?,?,?,?,?,?,?,?,1,1,?)',subscription,ctx.tenant,ctx.actor,url,canonicalJson([...input.events].sort()),await storeSigningKey(ctx,subscription,1,input.secret),ctx.device,account.generation,ctx.session.operator.version,ctx.now),event('security_webhook_subscribed',subscription)]);
   return output(await subscriptionRow(subscription));
  }
  async function subscriptionRow(value) { return subscription(ctx,value); }
@@ -73,7 +74,7 @@ export async function webhooksAuthenticated(route,input,ctx) {
  if (route === 'webhook/revoke' || route === 'webhook/rotate') {
   exact(input,route === 'webhook/rotate'?['subscription','revision','secret','confirmed']:['subscription','revision']);
   if (route === 'webhook/rotate') { need(input.confirmed === true,'webhook_consent_required',403);keyBytes(input.secret).fill(0);need(row.active,'webhook_authorization_revoked',403); }
-  await transact(ctx,[route === 'webhook/rotate'?stmt('UPDATE lky_webhook_subscriptions SET secret=?,revision=revision+1 WHERE id=?',input.secret,row.id):stmt("UPDATE lky_webhook_subscriptions SET active=0,secret='',revision=revision+1 WHERE id=?",row.id),event(route === 'webhook/rotate'?'security_webhook_key_rotated':'security_webhook_revoked',row.id)],'EXISTS(SELECT 1 FROM lky_webhook_subscriptions WHERE id=? AND revision=?)',[row.id,row.revision]);
+  await transact(ctx,[route === 'webhook/rotate'?stmt('UPDATE lky_webhook_subscriptions SET secret=?,revision=revision+1 WHERE id=?',await storeSigningKey(ctx,row.id,row.revision+1,input.secret),row.id):stmt("UPDATE lky_webhook_subscriptions SET active=0,secret='',revision=revision+1 WHERE id=?",row.id),event(route === 'webhook/rotate'?'security_webhook_key_rotated':'security_webhook_revoked',row.id)],'EXISTS(SELECT 1 FROM lky_webhook_subscriptions WHERE id=? AND revision=?)',[row.id,row.revision]);
   return output(await subscription(ctx,row.id));
  }
  need(row.active,'webhook_authorization_revoked',403);

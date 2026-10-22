@@ -1047,7 +1047,11 @@
       "executable": false
     },
     "src/latchkey/automation/README.md": {
-      "sha256": "28f160604cb5c2e9050cbbb02dc9c2aa9f03adf3459e27e8ed53f978b2d98fd7",
+      "sha256": "273f21bec385bc3bdef081a181f7c4c6e6f08c5eb772b69690930a2d81a37b85",
+      "executable": false
+    },
+    "src/latchkey/automation/signing-custody.mjs": {
+      "sha256": "91a07e53a1505a7ebac2d861157ce17e7ca9d1b52cd9488653af3aa46db221a6",
       "executable": false
     },
     "src/latchkey/automation/ui.tsx": {
@@ -1055,7 +1059,7 @@
       "executable": false
     },
     "src/latchkey/automation/webhooks.mjs": {
-      "sha256": "4f6eed9d4debd304d0025cf9c627cc61e668c6f23eb87cde54144b334b508a5e",
+      "sha256": "75b22dd9d32325b23b0dda35bbfff7d5e7846e232e2c509b747f76d006409520",
       "executable": false
     },
     "src/latchkey/client.mjs": {
