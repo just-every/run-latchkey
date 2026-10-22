@@ -31,6 +31,7 @@ export interface Bindings {
  RER_INSTALLATION_ID?: string
  RER_MANAGEMENT_ORIGIN?: string
  OWNER_EMAIL: string
+ LATCHKEY_WEBHOOK_ORIGINS?: string
  LATCHKEY_ERASURE_SECRET?: string
  SESSION_SECRET: string
  SETUP_TOKEN?: string

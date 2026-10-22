@@ -38,6 +38,11 @@ export async function subjectPlan(ctx, subject) {
  await select('lky_lifecycle',`vault_id IN (${own})`,ownArgs);
  await select('lky_lifecycle',`vault_id NOT IN (${own}) AND instr(proof,?)>0`,[...ownArgs,accountId],'redact',row=>({...row,proof:null,retention_active:0}));
  await select('lky_bulk_operations',`actor=? OR instr(plan,?)>0`,[accountId,accountId]);
+ const credentials=await select('lky_mcp_credentials',`owner=? OR vault_id IN (${own})`,[accountId,...ownArgs]);
+ await select('lky_mcp_requests',`owner=? OR account_id=? OR credential_id IN(SELECT value FROM json_each(?))`,[accountId,accountId,JSON.stringify(credentials.map(r=>r.id))]);
+ const subscriptions=await select('lky_webhook_subscriptions','owner=?',[accountId]);const subscriptionIds=JSON.stringify(subscriptions.map(r=>r.id));
+ const deliveries=await select('lky_webhook_deliveries','subscription_id IN(SELECT value FROM json_each(?))',[subscriptionIds]);
+ await select('lky_webhook_attempts','delivery_id IN(SELECT value FROM json_each(?))',[JSON.stringify(deliveries.map(r=>r.id))]);
  const projects=await select('lky_projects',`owner=? OR vault_id IN (${own})`,[accountId,...ownArgs]);const projectIds=JSON.stringify(projects.map(r=>r.id));
  const envs=await select('lky_project_environments','project_id IN(SELECT value FROM json_each(?))',[projectIds]);
  await select('lky_project_resources',`vault_id IN (${own}) OR environment_id IN(SELECT value FROM json_each(?))`,[...ownArgs,JSON.stringify(envs.map(r=>r.id))]);

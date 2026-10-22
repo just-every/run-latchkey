@@ -79,6 +79,10 @@ try {
   profile = await readPrivate(input.profile); client = new VaultClient(profile.origin);
   await client.unlock(profile, input.password);
   switch (command) {
+   case 'api': {const {apiCommand}=await import('../src/latchkey/api/client.mjs');result=await apiCommand(client,input.api);break;}
+   case 'project-create': {const {ProjectClient}=await import('../src/latchkey/projects/client.mjs');result=await new ProjectClient(client).create({name:input.name,vault:input.vault});break;}
+   case 'project-environment': {const {ProjectClient}=await import('../src/latchkey/projects/client.mjs');result=await new ProjectClient(client).createEnvironment(input.project,input.environment);break;}
+   case 'project-set': {const {ProjectClient}=await import('../src/latchkey/projects/client.mjs');result=await new ProjectClient(client).set(input.environment,input.path,input.value,{expectedVersion:input.expectedVersion});break;}
    case 'identity': result = { ...client.identity(), fingerprint: await client.identity().fingerprint, serverKey: profile.serverKey }; break;
    case 'vault-create': result = await client.createVault(); break;
    case 'put': result = await client.put(input.vault, input.value, input.object); break;

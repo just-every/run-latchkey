@@ -1,3 +1,5 @@
+import {apiRequest,apiAuthenticated,rateApi,ApiError,type ApiMetadata} from './api/http.mjs'
+import {automationAuthenticated,automationPublic,AutomationError} from './automation/index.mjs'
 import {projectsAuthenticated} from './projects/service.mjs'
 import {runtimeAuthenticated,runtimePublic,RuntimeError} from './runtime/service.mjs'
 import {bulkAuthenticated,BulkError} from './collections/bulk-service.mjs'
@@ -34,9 +36,10 @@ const response = (value: unknown, status = 200, cookie?: string) => Response.jso
 const binding = (tenant: string, vault: string, object: string, purpose: string, epoch: number, version = 1): Context => ({ tenant, vault, object, purpose, epoch, version })
 const envString = (value: unknown) => JSON.stringify(value)
 
-export async function latchkeyResponse(request: Request, env: Bindings, auth: OperatorAuth): Promise<Response | null> {
+export async function latchkeyResponse(request: Request, env: Bindings, auth: OperatorAuth, meta?: ApiMetadata): Promise<Response | null> {
  const url = new URL(request.url)
  if (!url.pathname.startsWith('/api/latchkey/')) return null
+ if(!meta&&url.pathname.startsWith('/api/latchkey/v1/'))return apiRequest(request,(wire,metadata)=>latchkeyResponse(wire,env,auth,metadata) as Promise<Response>)
  const db = env.DB, now = Date.now()
  const first = (sql: string, ...args: any[]) => db.prepare(sql).bind(...args).first<Row>()
  const checkWrap = async (value: unknown, accountId: string, expected: Context) => {
@@ -52,17 +55,23 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
   if (!result || result.count > 20) refuse('rate_limited', 429)
  }
  try {
-  if (request.method !== 'POST') return response({ error: 'method_not_allowed' }, 405)
-  if (url.origin !== env.AUTH_ORIGIN || url.search || request.headers.get('origin') !== env.AUTH_ORIGIN || request.headers.get('sec-fetch-site') === 'cross-site' || request.headers.has('host') && request.headers.get('host')?.toLowerCase() !== url.host.toLowerCase()) refuse('invalid_origin', 403)
-  if (request.headers.get('content-type') !== 'application/json') refuse('invalid_content_type')
+  if (!meta && request.method !== 'POST') return response({ error: 'method_not_allowed' }, 405)
+  if (url.origin !== env.AUTH_ORIGIN || !meta&&url.search || request.headers.get('origin') !== env.AUTH_ORIGIN || request.headers.get('sec-fetch-site') === 'cross-site' || request.headers.has('host') && request.headers.get('host')?.toLowerCase() !== url.host.toLowerCase()) refuse('invalid_origin', 403)
+  if (!meta&&request.headers.get('content-type') !== 'application/json') refuse('invalid_content_type')
   // Bound the stream as well as Content-Length. Failed bodies are never echoed.
-  const reader = request.body?.getReader(); if (!reader) refuse('invalid_body')
-  let size = 0; const chunks: Uint8Array[] = []
-  while (true) { const part = await reader.read(); if (part.done) break; size += part.value.length; if (size > 1500000) { await reader.cancel(); refuse('body_too_large', 413) } chunks.push(part.value) }
-  const raw = new Uint8Array(size); let offset = 0; for (const chunk of chunks) { raw.set(chunk, offset); offset += chunk.length }
-  let input: Row; try { input = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(raw)) } catch { refuse('invalid_json') }
-  if (!input! || typeof input !== 'object' || Array.isArray(input)) refuse('invalid_body')
-  const route = url.pathname.slice('/api/latchkey/'.length)
+  let raw:Uint8Array,input:Row;
+  if(meta){raw=meta.raw;input=meta.input}
+  else{
+   const reader = request.body?.getReader(); if (!reader) refuse('invalid_body')
+   let size=0;const chunks:Uint8Array[]=[];
+   while(true){const part=await reader.read();if(part.done)break;size+=part.value.length;if(size>1500000){await reader.cancel();refuse('body_too_large',413)}chunks.push(part.value)}
+   raw=new Uint8Array(size);let offset=0;for(const chunk of chunks){raw.set(chunk,offset);offset+=chunk.length}
+   try{input=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(raw))}catch{refuse('invalid_json')}
+  }
+  if(!input!||typeof input!=='object'||Array.isArray(input))refuse('invalid_body')
+  const route=meta?.route??url.pathname.slice('/api/latchkey/'.length)
+  const automated=await automationPublic(route,input,{db,env,now,request,raw})
+  if(automated!==null)return automated instanceof Response?automated:response(automated)
   const machineResult=await runtimePublic(route,input,{db,now,request,raw})
   if(machineResult!==null)return response(machineResult)
   const external = await sharingPublic(route, input, { db, env, now, limited })
@@ -103,7 +112,7 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
    await activeItem({db},machine.vault_id,machine.object_id)
    const nonce = identifier(request.headers.get('x-latchkey-nonce')), time = string(request.headers.get('x-latchkey-time'), 20)
    if (!/^\d+$/.test(time) || Math.abs(now - Number(time)) > 60000) refuse('request_expired', 401)
-   if (!await verify(machine.public_key, string(request.headers.get('x-latchkey-signature')), signingText('POST', url.pathname, string(request.headers.get('x-latchkey-grant'), 100), nonce, time, await digest(raw)))) refuse('invalid_signature', 403)
+   if (!await verify(machine.public_key, string(request.headers.get('x-latchkey-signature')), signingText(meta?.signatureMethod??'POST', meta?.signaturePath??url.pathname, string(request.headers.get('x-latchkey-grant'), 100), nonce, time, await digest(raw)))) refuse('invalid_signature', 403)
    if (!await first('INSERT INTO lky_nonces VALUES(?,?,?) ON CONFLICT DO NOTHING RETURNING nonce', hash, nonce, machine.expires_at)) refuse('request_replayed', 409)
    const value = await first('SELECT version,envelope FROM lky_versions WHERE vault_id=? AND object_id=? ORDER BY version DESC LIMIT 1', machine.vault_id, machine.object_id)
    if (!value) refuse('not_found', 404)
@@ -156,7 +165,7 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
   if (grant.recovery === 2 && !enrollmentRoutes.includes(route)) refuse('enrollment_only', 403)
   const pendingKey = grant.recovery === 2 && route !== 'enrollment/request' ? await first('SELECT public_key FROM lky_enrollments WHERE id=? AND account_id=? AND generation=?', identifier(input.device), grant.account_id, grant.generation) : null
   const signatureKey = grant.recovery === 1 ? grant.recovery_key : grant.recovery === 2 ? route === 'enrollment/request' ? input.deviceKey : pendingKey?.public_key : grant.public_key
-  if (!await verify(signatureKey, string(request.headers.get('x-latchkey-signature')), signingText('POST', url.pathname, token, nonce, time, await digest(raw)))) refuse('invalid_signature', 403)
+  if (!await verify(signatureKey, string(request.headers.get('x-latchkey-signature')), signingText(meta?.signatureMethod??'POST', meta?.signaturePath??url.pathname, token, nonce, time, await digest(raw)))) refuse('invalid_signature', 403)
   const inserted = await first('INSERT INTO lky_nonces VALUES(?,?,?) ON CONFLICT DO NOTHING RETURNING nonce', hash, nonce, grant.expires_at)
   if (!inserted) refuse('request_replayed', 409)
   const actor = grant.account_id as string, device = grant.device_id as string, tenant = grant.tenant as string
@@ -222,6 +231,12 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
    }
    if (route === 'item/put' && await first('SELECT 1 AS present FROM lky_subject_fences WHERE tenant=? LIMIT 1', tenant) && await subjectItemReplayKnown(context, input.vault, input.object)) refuse('item_erased', 409);
   }
+  const ctx={db,env,now,actor,device,tenant,session,fence,fenceArgs,auth,request}
+  if(meta)await rateApi(ctx)
+  const apiResult=grant.recovery===0?await apiAuthenticated(route,input,ctx):null
+  if(apiResult!==null)return response(apiResult)
+  const automationResult=grant.recovery===0?await automationAuthenticated(route,input,ctx):null
+  if(automationResult!==null)return response(automationResult)
   const projectResult=grant.recovery===0?await projectsAuthenticated(route,input,{db,now,actor,device,tenant,fence,fenceArgs}):null
   if(projectResult!==null)return response(projectResult)
   const runtimeResult=grant.recovery===0?await runtimeAuthenticated(route,input,{db,now,actor,device,tenant,fence,fenceArgs}):null
@@ -384,7 +399,7 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
   }
   refuse('not_found', 404)
  } catch (error) {
-  if (error instanceof RuntimeError || error instanceof BulkError || error instanceof LifecycleError || error instanceof ReviewError || error instanceof Refusal || error instanceof SharingError || error instanceof RecordsError || error instanceof ItemErasureError || error instanceof GeneratorPolicyError || error instanceof SubjectErasureError) return response({ error: error.code }, error.status)
+  if (error instanceof ApiError || error instanceof AutomationError || error instanceof RuntimeError || error instanceof BulkError || error instanceof LifecycleError || error instanceof ReviewError || error instanceof Refusal || error instanceof SharingError || error instanceof RecordsError || error instanceof ItemErasureError || error instanceof GeneratorPolicyError || error instanceof SubjectErasureError) return response({ error: error.code }, error.status)
   // Neither input, exception messages, cryptographic state nor SQL is logged.
   return response({ error: 'request_refused' }, 400)
  }

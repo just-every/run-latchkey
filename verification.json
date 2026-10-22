@@ -55,6 +55,15 @@
         "pnpm run build",
         "node tests/browser/projects.mjs"
       ]
+    },
+    {
+      "name": "administration-browser",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "pnpm run build",
+        "perl -e 'setpgrp(0,0); exec @ARGV' -- node tests/browser/automation.mjs"
+      ]
     }
   ],
   "nightly": []
