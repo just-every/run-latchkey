@@ -2191,7 +2191,7 @@
       "executable": false
     },
     "tests/browser/reviews.mjs": {
-      "sha256": "92bc4912fc2afb685621612ed96a426718375cb6d08715c41a2600df00a76c2b",
+      "sha256": "50884be9c9197046c46d17f875cf82c9af3c1d9b2e688b54eaa3d9d185328425",
       "executable": false
     },
     "tests/browser/sharing.mjs": {
@@ -2208,6 +2208,10 @@
     },
     "tests/latchkey-erasure.mjs": {
       "sha256": "c3cd5eb58d567493354e5bd7109a7259e89e0ef7581c453e16194b2f0b3fe0d2",
+      "executable": false
+    },
+    "tests/latchkey-evidence.mjs": {
+      "sha256": "3a6da3d6b52e5900f141dcb9464adfaddae696bb6399f962c79350bfa7077fbd",
       "executable": false
     },
     "tests/latchkey-generator-policy.mjs": {
