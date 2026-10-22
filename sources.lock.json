@@ -779,7 +779,7 @@
       "executable": false
     },
     "scripts/latchkey.mjs": {
-      "sha256": "6fd8e95cb7b8ec2b7f265dc0e3bfa7408669c609481cdfa9c3e7dab27db54b05",
+      "sha256": "56d98b55356b5dafe39a39ccec31f6243114cdf41e2d0ad23db46b05533ae3fc",
       "executable": false
     },
     "scripts/latchkey/archive-policy.mjs": {
@@ -2511,7 +2511,7 @@
       "executable": false
     },
     "tests/browser/automation.mjs": {
-      "sha256": "2e653fcd2557107e89a10f1522f0d8c4e3c6fb89fa23aa1f7fb39b7ac2d32db3",
+      "sha256": "10d83f9a2ee48beaab8e704382fab2f10cec1c8354d5345446740a251e174dd7",
       "executable": false
     },
     "tests/browser/fixture.mjs": {
@@ -2571,7 +2571,7 @@
       "executable": false
     },
     "tests/latchkey-restore.mjs": {
-      "sha256": "83b0baf0afc2a638f938426e287109808f87e33f59f525095342e86059870abd",
+      "sha256": "d65411881d3a1cd85d938525cbf231e4861c5a5cc8863f2624ecffd17c3b3355",
       "executable": false
     },
     "tests/latchkey-sharing.mjs": {

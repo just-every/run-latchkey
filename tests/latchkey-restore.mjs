@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { planDestinationRewrap, approveDestinationRewrap } from '../src/latchkey/portability/rewrap.mjs';
 import { PortabilityClient } from '../src/latchkey/portability/client.mjs';
+import { ApiClient } from '../src/latchkey/api/client.mjs';
 import { digest } from '../src/latchkey/crypto/envelope.mjs';
 
 const identity = client => ({ account: client.profile.account, tenant: client.profile.tenant, recipientKey: client.profile.recipientKey, authorityKey: client.profile.authorityKey });
@@ -26,7 +27,16 @@ export async function exerciseRecordsRestore({ archive, sourceClient, destinatio
   // Merely recovering/enrolling an installation owner grants no values.
   for (const vault of plan.vaults) await refused(destinationClient.readVault(vault.vault));
   const approval = await approveDestinationRewrap({ input, plan, approvedPlanHash: planHash, client: sourceClient, purpose: 'synthetic-latchkey-55', expiresAt: Date.now() + 300000 });
-  const preparedInput = { plan, approval, sourceFingerprint, destinationFingerprint }, portability = new PortabilityClient(destinationClient);
+  // Restore through the published REST aliases while preserving the real
+  // destination-side cryptographic preparation and activation client.
+  const api = new ApiClient(destinationClient), transport = Object.create(destinationClient);
+  transport.call = (route, input) => {
+   if (route === 'archive/prepare') return api.prepareImport(input);
+   if (route === 'archive/status') return api.operation(input.restore);
+   if (route === 'archive/activate') { const { restore, ...body } = input; return api.activateImport(restore, body); }
+   return destinationClient.call(route, input);
+  };
+  const preparedInput = { plan, approval, sourceFingerprint, destinationFingerprint }, portability = new PortabilityClient(transport);
   const tampered = structuredClone(preparedInput); tampered.plan.contentHash = '0'.repeat(64);
   await refused(destinationClient.call('archive/prepare', tampered));
   const prepared = await portability.prepare(preparedInput);

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Secrets and values enter on stdin, never argv or environment. The caller
 // explicitly selects local files; no ambient credential file is discovered.
+import { ApiError } from '../src/latchkey/api/catalogue.mjs';
 import { SharingError } from '../src/latchkey/sharing/index.mjs';
 import { sharingCommands, runSharingCommand } from './latchkey/sharing-commands.mjs';
 import { ItemError } from '../src/latchkey/items/fields.mjs';
@@ -110,6 +111,6 @@ try {
  process.stdout.write(JSON.stringify(result) + '\n');
 } catch (error) {
  // Never print stack, stdin, crypto exceptions, file contents or provider errors.
- process.stderr.write(JSON.stringify({ error: error instanceof ClientError || error instanceof ItemError || error instanceof RecordsError || error instanceof SharingError ? error.code : 'client_failed' }) + '\n');
+ process.stderr.write(JSON.stringify({ error: error instanceof ApiError || error instanceof ClientError || error instanceof ItemError || error instanceof RecordsError || error instanceof SharingError ? error.code : 'client_failed' }) + '\n');
  process.exitCode = 1;
 }
