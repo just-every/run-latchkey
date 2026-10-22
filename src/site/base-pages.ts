@@ -1,13 +1,11 @@
 import { escape } from '../base/run-site'
 import run from './run.json'
-import type { Ground } from './shell/Lockup'
+import { marks, type Ground } from './shell/Lockup'
 
 // Base's shared Run, contract and not-found pages (src/base, copied unchanged)
 // wearing the run site's chrome: the compiled site stylesheet after Base's own
 // style, the page's ground on <body>, and the mark drawn for that ground (on
 // tangerine the last tooth turns white; on black the key does).
-
-const marks: Record<Ground, string> = { tangerine: '/brand/mark-on-tangerine.svg', black: '/brand/mark-on-black.svg' }
 
 // The installer line keeps its address and "| sh" together, so a narrow screen never starts a line with the pipe.
 const installer = 'https://runeditrun.com/install.sh | sh'

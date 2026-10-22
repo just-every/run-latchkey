@@ -9,6 +9,6 @@ export function EraseItem({client,vault,row,run,onErased}:{client:any;vault:stri
  <form onSubmit={event=>{event.preventDefault();void run(async()=>{await client.eraseItem(vault,row.object,{confirmed:true});setConfirmed(false);setTitle('');setReview(false);await onErased()})}}>
  <label>Type the item title to confirm<input required value={title} onChange={event=>setTitle(event.target.value)}/></label>
  <label className="check"><input type="checkbox" checked={confirmed} onChange={event=>setConfirmed(event.target.checked)}/>I understand that all retained versions and current sharing copies will be erased</label>
- <button type="submit" disabled={!confirmed||title!==row.value.title}>Erase item permanently</button>
+ <button className="danger" type="submit" disabled={!confirmed||title!==row.value.title}>Erase item permanently</button>
  </form></details></section>;
 }
