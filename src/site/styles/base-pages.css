@@ -34,21 +34,21 @@ body.lk-base .bar nav a:hover, body.lk-base .bar nav a[aria-current='page'] { te
 /* Run and not-found: the heading flush left at the gutter, the two steps side by side on hairlines. */
 body.lk-run main, body.lk-not-found main { max-width: none; padding: 0 var(--lk-gutter) calc(var(--art) + 48px); text-align: left; }
 body.lk-run .intro { padding-top: clamp(40px, 9.5vh, 140px); text-align: left; }
-body.lk-run .intro h1, body.lk-not-found .hero h1 { max-width: 9.4em; font: 900 clamp(44px, 6.67vw, 150px)/.92 var(--lk-sans); letter-spacing: -.035em; word-spacing: .07em; }
+body.lk-run .intro h1, body.lk-not-found .hero h1 { max-width: 9.4em; font: 900 clamp(44px, 6.67vw, 150px)/.92 var(--lk-sans); letter-spacing: -.035em; word-spacing: .07em; text-wrap: balance; }
 body.lk-run .intro .sub, body.lk-not-found .hero .sub { max-width: 34em; margin: .85em 0 0; font-size: clamp(18px, 1.67vw, 32px); line-height: 1.35; }
 body.lk-run .steps { max-width: none; margin: clamp(32px, 6.5vh, 90px) 0 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px clamp(32px, 3.4vw, 64px); }
 body.lk-run .step { display: block; padding: 22px 0 0; border: 0; border-top: var(--lk-hairline) solid var(--lk-black); border-radius: 0; background: none; box-shadow: none; backdrop-filter: none; }
 body.lk-run .num { position: static; display: inline-grid; width: 46px; height: 46px; border-radius: 0; font: 800 22px/1 var(--lk-mono); }
-body.lk-run .step h2 { margin: 16px 0 0; font: 900 clamp(24px, 2.1vw, 40px)/1.1 var(--lk-sans); letter-spacing: -.025em; word-spacing: .05em; }
+body.lk-run .step h2 { margin: 16px 0 0; font: 900 clamp(24px, 2.1vw, 40px)/1.1 var(--lk-sans); letter-spacing: -.025em; word-spacing: .05em; text-wrap: balance; }
 body.lk-run .code { margin-top: 16px; border-radius: 0; }
 body.lk-run .code pre { overflow-wrap: normal; word-break: normal; }
 @container (max-width: 480px) { body.lk-run .code pre { padding-inline: 10px; font-size: 12.5px; } }
 body.lk-run .copy { border-radius: 0; border: 1.5px solid currentColor; font: 600 13.5px/1 var(--lk-mono); }
-body.lk-run .body > p { font-size: 17px; line-height: 1.5; }
+body.lk-run .body > p { font-size: 17px; line-height: 1.5; text-wrap: pretty; }
 /* An inline command never breaks inside. */
 body.lk-run .note code { white-space: nowrap; }
 body.lk-run .body > p.alt { font-size: 16px; }
-body.lk-run .facts { margin-top: 44px; text-align: left; font-size: 15px; }
+body.lk-run .facts { margin-top: 44px; text-align: left; font-size: 15px; text-wrap: pretty; }
 /* The licence stays whole; on a phone it takes its own line instead of a stranded separator. */
 body.lk-run .facts .lk-licence { white-space: nowrap; }
 body.lk-not-found .hero { align-items: flex-start; padding-top: clamp(64px, 16vh, 220px); }

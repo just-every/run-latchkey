@@ -35,6 +35,7 @@
 .docs-body > :first-child { margin-top: 0; }
 .docs-body h2 { margin: 56px 0 14px; color: var(--lk-white); font: 900 34px/1.1 var(--lk-sans); letter-spacing: -.03em; word-spacing: .08em; }
 .docs-body h3 { margin: 36px 0 10px; color: var(--lk-white); font: 800 23px/1.2 var(--lk-sans); letter-spacing: -.02em; word-spacing: .06em; }
+.docs-body h2, .docs-body h3 { text-wrap: balance; }
 .docs-body p, .docs-body ul, .docs-body ol { margin: 0 0 18px; }
 .docs-body p, .docs-body li { text-wrap: pretty; }
 .docs-body ul, .docs-body ol { padding-left: 26px; }
@@ -67,7 +68,7 @@
 .docs-pager a { display: grid; gap: 6px; padding-top: 14px; border-top: var(--lk-hairline) solid var(--lk-white); text-decoration: none; }
 .docs-pager-next { text-align: right; }
 .docs-pager-label { color: var(--lk-tangerine); font: 700 12.5px/1.3 var(--lk-mono); letter-spacing: .08em; text-transform: uppercase; }
-.docs-pager-title { color: var(--lk-white); font: 800 21px/1.25 var(--lk-sans); letter-spacing: -.015em; word-spacing: .06em; }
+.docs-pager-title { color: var(--lk-white); font: 800 21px/1.25 var(--lk-sans); letter-spacing: -.015em; word-spacing: .06em; text-wrap: balance; }
 .docs-pager a:hover .docs-pager-title { text-decoration: underline; text-decoration-color: var(--lk-tangerine); }
 
 .docs-toc { position: sticky; top: 28px; font-size: 14.5px; line-height: 1.35; }
@@ -84,8 +85,8 @@
   padding: 16px 0 18px; border-bottom: 1px solid var(--docs-rule); text-decoration: none;
 }
 .docs-home-section li:first-child a { border-top: var(--lk-hairline) solid var(--lk-white); }
-.docs-home-page { color: var(--lk-white); font: 800 clamp(20px, 1.67vw, 28px)/1.2 var(--lk-sans); letter-spacing: -.02em; word-spacing: .06em; }
-.docs-home-summary { color: var(--docs-quiet); font-size: 17px; line-height: 1.5; }
+.docs-home-page { color: var(--lk-white); font: 800 clamp(20px, 1.67vw, 28px)/1.2 var(--lk-sans); letter-spacing: -.02em; word-spacing: .06em; text-wrap: balance; }
+.docs-home-summary { color: var(--docs-quiet); font-size: 17px; line-height: 1.5; text-wrap: pretty; }
 .docs-home-section a:hover .docs-home-page { text-decoration: underline; text-decoration-color: var(--lk-tangerine); text-underline-offset: .2em; }
 
 @media (max-width: 1180px) {

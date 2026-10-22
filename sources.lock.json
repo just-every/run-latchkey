@@ -2731,7 +2731,7 @@
       "executable": false
     },
     "src/site/styles/base-pages.css": {
-      "sha256": "db36a8bce3a7dd3a6d1e338c7986c6161993393b3eb373e1ea1902cd591416ca",
+      "sha256": "3ce0b47a24cc6fb94fe8b16b61bb80620581c3bc33667286ce304afec258e927",
       "executable": false
     },
     "src/site/styles/base.css": {
@@ -2743,7 +2743,7 @@
       "executable": false
     },
     "src/site/styles/docs.css": {
-      "sha256": "0a20e8fcd6fcf2477019ff3a666f7f317ab84f417514f7585121948048c77a1c",
+      "sha256": "e2f6ea7357a56fd125092d93fe26d6d9c0fd358a354612687ee8a439b8891220",
       "executable": false
     },
     "src/site/styles/index.css": {
