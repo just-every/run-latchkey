@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Secrets and values enter on stdin, never argv or environment. The caller
 // explicitly selects local files; no ambient credential file is discovered.
+import { AccountSwitcher } from '../src/latchkey/accounts/client.mjs';
 import { ApiError } from '../src/latchkey/api/catalogue.mjs';
 import { SharingError } from '../src/latchkey/sharing/index.mjs';
 import { sharingCommands, runSharingCommand } from './latchkey/sharing-commands.mjs';
@@ -28,11 +29,34 @@ async function writePrivate(path, value, replace = false) {
  try { await handle.writeFile(JSON.stringify(value) + '\n'); await handle.sync(); } finally { await handle.close(); }
  if (replace) { try { await rename(target, path); } catch (error) { await unlink(target); throw error; } }
 }
+let linkedAccounts = null, releaseRegistry = async () => {};
+async function accountRegistry(input) {
+ if (!input.accountRegistry || typeof input.accountRegistry !== 'string') throw new ClientError('account_registry_required');
+ const path = input.accountRegistry + '.lock'; let handle;
+ try { handle = await open(path, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600); }
+ catch (error) { if (error.code === 'EEXIST') throw new ClientError('account_registry_busy'); throw error; }
+ releaseRegistry = async () => { await handle.close(); await unlink(path); };
+ linkedAccounts = await AccountSwitcher.decrypt(await readPrivate(input.accountRegistry),input.registryKey);
+ return linkedAccounts;
+}
 try {
  let raw = ''; for await (const chunk of process.stdin) { raw += chunk; if (Buffer.byteLength(raw) > 1500000) throw new ClientError('input_too_large'); }
  const input = JSON.parse(raw), command = process.argv[2];
  let client, profile, result;
- if(command==='run'){
+ if(command==='accounts-create'){
+  if (!Array.isArray(input.links) || !input.links.length || input.links.length > 20) throw new ClientError('invalid_account_links');
+  linkedAccounts = new AccountSwitcher();
+  for (const link of input.links) await linkedAccounts.link({name:link.name,kind:link.kind,profile:await readPrivate(link.profile)},link.password,{confirmed:input.confirmed === true});
+  await writePrivate(input.accountRegistry,await linkedAccounts.encrypt(input.registryKey)); result = {created:true,accounts:linkedAccounts.list()};
+ } else if(command==='accounts-list'){
+  result = (await accountRegistry(input)).list();
+ } else if(command==='accounts-unlink'){
+  const accounts=await accountRegistry(input); result={unlinked:true,accounts:accounts.unlink(input.accountName,{confirmed:input.confirmed === true})};
+  await writePrivate(input.accountRegistry,await accounts.encrypt(input.registryKey),true);
+ } else if(command==='accounts-link'){
+  const accounts=await accountRegistry(input); await accounts.link({name:input.name,kind:input.kind,profile:await readPrivate(input.profile)},input.password,{confirmed:input.confirmed === true});
+  await writePrivate(input.accountRegistry,await accounts.encrypt(input.registryKey),true); result={linked:true,accounts:accounts.list()};
+ } else if(command==='run'){
   const {runConsumer}=await import('./latchkey/run-command.mjs');result=await runConsumer(input,process.argv.slice(3));process.exitCode=result.exitCode;
  } else if (command === 'records-restore') {
   const { restoreLocalRecords } = await import('./latchkey/records-local.mjs');
@@ -77,8 +101,10 @@ try {
   profile = await client.completeEnrollment(profile, input.password);
   await writePrivate(input.profile, profile, true); result = { device: profile.device, enrolled: true };
  } else {
-  profile = await readPrivate(input.profile); client = new VaultClient(profile.origin);
-  await client.unlock(profile, input.password);
+  if (input.accountRegistry) {
+   if (!['identity','vault-create','put','read','export','item-save','item-search','item-history','item-field','item-attachment','api','audit','devices'].includes(command)) throw new ClientError('account_registry_command_unsupported');
+   const accounts = await accountRegistry(input); client = await accounts.switch(input.accountName,input.password); profile = client.profile; }
+  else { profile = await readPrivate(input.profile); client = new VaultClient(profile.origin); await client.unlock(profile, input.password); }
   switch (command) {
    case 'api': {const {apiCommand}=await import('../src/latchkey/api/client.mjs');result=await apiCommand(client,input.api);break;}
    case 'project-create': {const {ProjectClient}=await import('../src/latchkey/projects/client.mjs');result=await new ProjectClient(client).create({name:input.name,vault:input.vault});break;}
@@ -105,7 +131,8 @@ try {
    case 'audit': result = await client.call('audit', {}); break;
    default: if (command === 'records-rewrap-approve') { const value = await recordsCommand(command, input, { client }); await writePrivate(input.output, value); result = { written: true }; } else if (sharingCommands.includes(command)) result = await runSharingCommand(command, input, { client, writePrivate }); else if (itemCommands.includes(command)) result = await runItemCommand(command, input, { client, readPrivate, writePrivate }); else throw new ClientError('unknown_command');
   }
-  await writePrivate(input.profile, profile, true);
+  if (linkedAccounts) await writePrivate(input.accountRegistry,await linkedAccounts.encrypt(input.registryKey),true);
+  else await writePrivate(input.profile, profile, true);
  }
  client?.lock();
  process.stdout.write(JSON.stringify(result) + '\n');
@@ -113,4 +140,7 @@ try {
  // Never print stack, stdin, crypto exceptions, file contents or provider errors.
  process.stderr.write(JSON.stringify({ error: error instanceof ApiError || error instanceof ClientError || error instanceof ItemError || error instanceof RecordsError || error instanceof SharingError ? error.code : 'client_failed' }) + '\n');
  process.exitCode = 1;
+} finally {
+ linkedAccounts?.lock();
+ await releaseRegistry();
 }

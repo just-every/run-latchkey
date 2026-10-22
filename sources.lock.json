@@ -431,7 +431,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "f8a46cf37a5533b80577d4e050b80576104f98c61207c11b70b62c1434b0a310",
+      "sha256": "415b7e8957fa56ca55424116099495478afecd4ca66789fde6f0895d22dfe70a",
       "executable": false
     },
     "AGENTS.md": {
@@ -455,7 +455,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "ab4b5755dc6d7937dd8e58dc2afb36c110cbfe772b03eeb1f0bd003145ddd24e",
+      "sha256": "7b68c8483261c991df38c21653b721bae1ae322140d6ed2231eb3f80d0174fe5",
       "executable": false
     },
     "deploy-site.json": {
@@ -464,6 +464,10 @@
     },
     "deploy.json": {
       "sha256": "f561f2553e59cf2420a2f8971090415b6aceaff0236bce2a6b24c4f375cd3afa",
+      "executable": false
+    },
+    "docs/accounts.md": {
+      "sha256": "020630b8e84cae885ed1e10b80c6e8589b3e9266315a81a07ef5dfd89ae2f633",
       "executable": false
     },
     "docs/backup-and-restore.md": {
@@ -859,7 +863,7 @@
       "executable": false
     },
     "scripts/latchkey.mjs": {
-      "sha256": "56d98b55356b5dafe39a39ccec31f6243114cdf41e2d0ad23db46b05533ae3fc",
+      "sha256": "6fa53223aeec10ab758094af6d05ac471c659588e579d800f920d6c7d10ad84a",
       "executable": false
     },
     "scripts/latchkey/archive-policy.mjs": {
@@ -1058,6 +1062,10 @@
       "sha256": "348e190838212690362762030990503c775da43bd7f46b2943c7f565205683a3",
       "executable": false
     },
+    "src/latchkey/accounts/client.mjs": {
+      "sha256": "f7e3969e6b7c984a915a8b70b4769953612e5110c20fdb09defe5ee39bdcddce",
+      "executable": false
+    },
     "src/latchkey/api/catalogue.d.mts": {
       "sha256": "091a686f5011f112e4dbeb89bccf0f247723efbb9405ec7482dcd4b2afe0294f",
       "executable": false
@@ -1151,11 +1159,11 @@
       "executable": false
     },
     "src/latchkey/collections/bulk-client.d.mts": {
-      "sha256": "ee54a4c77aed8068cc4b3cddf418d04b74a52af337c8cf28fa49e91296aae0f3",
+      "sha256": "9deb81ee8e572dcbf92d75475dc88df03d34072dc17c199e1114fe3198976554",
       "executable": false
     },
     "src/latchkey/collections/bulk-client.mjs": {
-      "sha256": "35522ff82627cd2412f2d34567bbc9c155976e5248cbe273a9cac30c1ca445a7",
+      "sha256": "1dadd9ac270b1b964951a3af84bd0acabd84c95c5a5198f084a59bbc7bfb8016",
       "executable": false
     },
     "src/latchkey/collections/bulk-service.d.mts": {
@@ -1163,7 +1171,7 @@
       "executable": false
     },
     "src/latchkey/collections/bulk-service.mjs": {
-      "sha256": "a6e49bd33372af74c9fdcd4805931f147ea904239004b283ceb8b27d5fd39ba2",
+      "sha256": "b1d1352e2bf92ca6714e427de34fa4bcc85a9169b3e5011bd12cfe2991ef6405",
       "executable": false
     },
     "src/latchkey/collections/client.d.mts": {
@@ -1175,7 +1183,7 @@
       "executable": false
     },
     "src/latchkey/collections/ui.tsx": {
-      "sha256": "ed755a03dd3f4dd830dbe7aca9700a8a57fdc1d7d672cfc135f8a2925ece9f80",
+      "sha256": "30c27fd9a5f1f5b0a0a0df10b38e363eb9dd9d797ff503cb9f4c21f3585c8772",
       "executable": false
     },
     "src/latchkey/crypto/envelope.d.mts": {
@@ -1651,7 +1659,7 @@
       "executable": false
     },
     "src/latchkey/ui/editor.tsx": {
-      "sha256": "a4e68327fef042f74156611e4290dcb0764d9d5b3aaf1ebb0ddae6825e9b17eb",
+      "sha256": "6d2f5eba004ec2ea83ef3c857757d4cde9eb7b777c2c9ad45ed00afd63175a92",
       "executable": false
     },
     "src/latchkey/ui/erase.tsx": {
@@ -1715,7 +1723,7 @@
       "executable": false
     },
     "src/latchkey/ui/vault.tsx": {
-      "sha256": "991c6837660835c11e9707e414d95fd9b68159d85a2c11734902582e83edb649",
+      "sha256": "9c924b6f91a815b9207eb63e2ff5ddebebb0a0c69a3721091bf33d934af91f4f",
       "executable": false
     },
     "src/mail.server.d.mts": {
@@ -2803,7 +2811,7 @@
       "executable": false
     },
     "tests/browser/organization.mjs": {
-      "sha256": "dfbbbe09724b11fe2b80136e13f75efa91763f12bfb91ebc4d8a4c95d653b909",
+      "sha256": "f2e0c3f85f222fe096c1adeabde0c0b07b782baad5eafff6ad6f300af3343dde",
       "executable": false
     },
     "tests/browser/projects.mjs": {

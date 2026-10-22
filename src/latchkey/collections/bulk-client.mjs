@@ -50,8 +50,10 @@ export class BulkClient {
     if (plan.action === 'move') {
      need(canonicalJson(records.map(row => row.version).sort((a, b) => a - b)) === canonicalJson(selected.versions), 'bulk_plan_changed');
      for (const row of records) {
-      writes.push(await this.encrypt(snapshots.get(destination), row.object, row.version, row.value));
-      remembered.push({ vault: destination, object: row.object, version: row.version, hash: await digest(bytes(row.value)) });
+      const transferred = plan.ownershipTransfers?.some(entry => entry.vault === selected.vault && entry.object === selected.object);
+      const value = transferred ? { ...row.value, ownership: 'company' } : row.value;
+      writes.push(await this.encrypt(snapshots.get(destination), row.object, row.version, value));
+      remembered.push({ vault: destination, object: row.object, version: row.version, hash: await digest(bytes(value)) });
      }
     } else {
      need(Array.isArray(current.value.tags), 'invalid_item_tags');
@@ -73,15 +75,16 @@ export class BulkClient {
    for (const row of remembered.filter(row => row.vault === vault.id)) seen.versions[`${row.object}:${row.version}`] = row.hash;
   }
  }
- async commit(preview, { confirmed = false } = {}) {
+ async commit(preview, { confirmed = false, ownershipConfirmed = false } = {}) {
   need(confirmed === true, 'bulk_confirmation_required');
   const { planHash, tags, ...plan } = preview;
   need(plan.schema === 'latchkey/bulk-plan/v1' && await hash(plan) === planHash, 'bulk_plan_changed');
   need(plan.selection.every(row => row.allowed), 'bulk_selection_denied');
+  need(!plan.ownershipTransfers?.length || ownershipConfirmed === true, 'ownership_confirmation_required');
   const normalized = plan.action === 'tag' ? normalizeTags(tags) : [];
   need(plan.tagsHash === await hash(normalized), 'bulk_tags_changed');
   const prepared = await this.prepare(plan, normalized);
-  const result = await this.client.call('bulk/commit', { plan, planHash, confirmed: true, writes: prepared.writes });
+  const result = await this.client.call('bulk/commit', { plan, planHash, confirmed: true, writes: prepared.writes, ownershipApproval: ownershipConfirmed === true ? planHash : null });
   need(result.operation === plan.operation, 'invalid_bulk_result');
   this.remember(plan, prepared.remembered);
   return result;

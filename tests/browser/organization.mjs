@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
-import {mkdir} from 'node:fs/promises';
-import {join} from 'node:path';
+import {mkdir,mkdtemp,readFile,writeFile,readdir,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {spawn} from 'node:child_process';
+import {join,resolve} from 'node:path';
+import {AccountSwitcher} from '../../src/latchkey/accounts/client.mjs';
+import {ApiClient} from '../../src/latchkey/api/client.mjs';
 import {expect} from '@playwright/test';
 import {vaultFixture} from './fixture.mjs';
 import {VaultClient} from '../../src/latchkey/client.mjs';
@@ -10,14 +14,102 @@ import {BulkClient} from '../../src/latchkey/collections/bulk-client.mjs';
 import {LifecycleClient} from '../../src/latchkey/lifecycle/client.mjs';
 import {MachineClient} from '../../src/latchkey/machine.mjs';
 import {SharingClient,PublicLinkClient} from '../../src/latchkey/sharing/client.mjs';
+import {canonicalJson} from '@runeditrun/rer/modules/portability';
+import {createAttachment} from '../../src/latchkey/items/attachments.mjs';
 import {createItem} from '../../src/latchkey/items/types.mjs';
-import {id,encode,random} from '../../src/latchkey/crypto/envelope.mjs';
+import {id,encode,random,digest} from '../../src/latchkey/crypto/envelope.mjs';
 const output=process.env.LATCHKEY_SCREENSHOTS,scale=process.argv.includes('--scale');
 if(output)await mkdir(output,{recursive:true});
 const refused=(promise,code)=>assert.rejects(promise,error=>error.code===code);
 async function enroll(f,n,name,role='member'){
  const response=await f.context.request.post(f.origin+'/auth/invite',{headers:{origin:f.origin},data:{email:`synthetic-latchkey-${n}@example.test`,displayName:name,role}});assert.equal(response.status(),202);
  const token=new URL(f.mail.at(-1).content.find(c=>c.type==='text/plain').value.match(/https:\/\/[^\s<>]+/)[0]).searchParams.get('token');const client=new VaultClient(f.origin,{fetcher:f.fetcher});await client.confirmIdentity(token);const e=await client.register(`synthetic-latchkey-${n+1}`);await client.unlock(e.profile,`synthetic-latchkey-${n+1}`);return client;
+}
+export async function accountSeparationJourney(work){
+ const home=await vaultFixture(),directory=await mkdtemp(join(tmpdir(),'latchkey-linked-accounts-'));
+ const person=await enroll(work,7000,'Company member with independent family'),key=encode(random());
+ const workProfile=structuredClone(person.profile),familyProfile=structuredClone(home.owner.profile);
+ try{
+  const workVault=(await work.owner.createVault()).vault,familyVault=(await home.owner.createVault({kind:'family'})).vault;
+  await work.owner.share(workVault,person.profile.account,await person.identity().fingerprint,['read','create','edit','export']);await person.pinAccount(work.owner.profile.account,await work.owner.identity().fingerprint);
+  const companyObject=(await person.put(workVault,createItem('login',{title:'Company-owned service',values:{password:'synthetic-latchkey-7020'}}))).object;
+  const familyObject=(await home.owner.put(familyVault,createItem('login',{title:'Independent family service',ownership:'personal',values:{password:'synthetic-latchkey-7021'}}))).object;
+  const clients=new AccountSwitcher([],{clientFor:profile=>new VaultClient(profile.origin,{fetcher:profile.origin===work.origin?work.fetcher:home.fetcher})});
+  await refused(clients.link({name:'Work',kind:'work',profile:person.profile},'synthetic-latchkey-7001'),'account_link_confirmation_required');
+  await clients.link({name:'Work',kind:'work',profile:person.profile},'synthetic-latchkey-7001',{confirmed:true});
+  await refused(clients.link({name:'Pretend independent family',kind:'family',profile:work.owner.profile},work.password,{confirmed:true}),'independent_account_required');
+  await clients.link({name:'Family',kind:'family',profile:familyProfile},home.password,{confirmed:true});
+  const activeWork=await clients.switch('Work','synthetic-latchkey-7001');assert.equal((await activeWork.readItem(workVault,companyObject)).versions[0].value.fields[0].value,'synthetic-latchkey-7020');
+  const activeHome=await clients.switch('Family',home.password);assert.throws(()=>activeWork.call('vaults',{}),error=>error.code==='locked');await refused(activeHome.readVault(workVault),'not_found');assert.equal((await activeHome.readItem(familyVault,familyObject)).versions[0].value.fields[0].value,'synthetic-latchkey-7021');
+  await refused(clients.switch('Work','synthetic-latchkey-wrong'),'authentication_failed');assert.equal(clients.active,null);assert.throws(()=>activeHome.call('vaults',{}),error=>error.code==='locked');
+  clients.lock();
+  const workPath=join(directory,'work.json'),familyPath=join(directory,'family.json'),registry=join(directory,'accounts.json'),ca=join(directory,'certs.pem');
+  await writeFile(workPath,JSON.stringify(person.profile),{mode:0o600});await writeFile(familyPath,JSON.stringify(home.owner.profile),{mode:0o600});await writeFile(ca,(await readFile(work.caFile,'utf8'))+(await readFile(home.caFile,'utf8')));
+  const resolvePath=resolve('scripts/latchkey.mjs');
+  const run=async(command,input,expectedCode=0)=>{const child=spawn(process.execPath,[resolvePath,command],{env:{...process.env,NODE_EXTRA_CA_CERTS:ca},stdio:['pipe','pipe','pipe']});let out='',err='';child.stdout.on('data',value=>out+=value);child.stderr.on('data',value=>err+=value);child.stdin.end(JSON.stringify(input));const code=await new Promise((resolve,reject)=>{child.once('error',reject);child.once('close',resolve)});assert.equal(code,expectedCode,err);for(const secret of['synthetic-latchkey-7020','synthetic-latchkey-7021','synthetic-latchkey-7001',home.password,key,workProfile.deviceSecret,familyProfile.deviceSecret,person.bundle.root.recipient.privateKey,home.owner.bundle.root.recipient.privateKey])assert.ok(!out.includes(secret)&&!err.includes(secret),'CLI output must not disclose private account material');return{out,err,value:JSON.parse(expectedCode?err:out)}};
+  const created=await run('accounts-create',{confirmed:true,accountRegistry:registry,registryKey:key,links:[{name:'Work',kind:'work',profile:workPath,password:'synthetic-latchkey-7001'}]});assert.equal(created.value.accounts.length,1);
+  const link={accountRegistry:registry,registryKey:key,name:'Family',kind:'family',profile:familyPath,password:home.password};assert.equal((await run('accounts-link',link,1)).value.error,'account_link_confirmation_required');assert.deepEqual((await run('accounts-link',{...link,confirmed:true})).value.accounts.map(row=>row.kind),['work','family']);
+  const encrypted=await readFile(registry,'utf8');for(const value of[workProfile.deviceSecret,familyProfile.deviceSecret,person.bundle.root.recipient.privateKey,home.owner.bundle.root.recipient.privateKey,'synthetic-latchkey-7021',key])assert.ok(!encrypted.includes(value));
+  const common={accountRegistry:registry,registryKey:key},output=join(directory,'family-search.json');
+  await run('item-search',{...common,accountName:'Family',password:home.password,vault:familyVault,query:'Independent family service',output});assert.equal(JSON.parse(await readFile(output,'utf8'))[0].object,familyObject);
+  assert.equal((await run('item-search',{...common,accountName:'Work',password:'synthetic-latchkey-7001',vault:familyVault,query:'Independent family service',output:join(directory,'denied.json')},1)).value.error,'not_found');
+  const archive=join(directory,'family-archive.json'),exportKey=encode(random());await run('export',{...common,accountName:'Family',password:home.password,vault:familyVault,exportKey,output:archive});assert.equal((await VaultClient.openExport(JSON.parse(await readFile(archive,'utf8')),exportKey)).versions[0].value.fields[0].value,'synthetic-latchkey-7021');
+  const before=await readFile(registry,'utf8');assert.equal((await run('accounts-list',{...common,registryKey:encode(random())},1)).value.error,'client_failed');assert.equal(await readFile(registry,'utf8'),before);
+  assert.equal((await run('accounts-list',{...common})).value.length,2);
+  await writeFile(registry+'.lock','synthetic-latchkey-7030',{mode:0o600});try{assert.equal((await run('accounts-list',common,1)).value.error,'account_registry_busy');assert.equal(await readFile(registry,'utf8'),before);assert.equal(await readFile(registry+'.lock','utf8'),'synthetic-latchkey-7030')}finally{await rm(registry+'.lock')}
+  await refused(new OrganizationClient(work.owner).search(familyVault,{query:'Independent family service'}),'not_found');await refused(work.owner.exportVault(familyVault,encode(random())),'not_found');
+  const corporateSession=new VaultClient(home.origin,{cookie:work.owner.cookie,fetcher:home.fetcher});await refused(corporateSession.request('account',{}),'authentication_required');
+  const foreign=new VaultClient(home.origin,{fetcher:home.fetcher});await refused(foreign.recover({...work.enrolled.kit,origin:home.origin},work.password),'authentication_failed');
+  // Actual public administration suspension ends company authority only.
+  const people=(await new ApiClient(work.owner).users({limit:100})).data,operator=people.find(row=>row.email==='synthetic-latchkey-7000@example.test');assert.ok(operator);await new ApiClient(work.owner).setUserStatus(operator.id,'inactive');
+  await assert.rejects(person.readVault(workVault),error=>error.status===401);assert.equal((await work.owner.readItem(workVault,companyObject)).versions[0].value.fields[0].value,'synthetic-latchkey-7020');
+  assert.equal((await run('identity',{...common,accountName:'Work',password:'synthetic-latchkey-7001'},1)).value.error,'authentication_failed');
+  const survivor=join(directory,'after-offboarding.json');await run('item-search',{...common,accountName:'Family',password:home.password,vault:familyVault,query:'Independent family service',output:survivor});assert.equal(JSON.parse(await readFile(survivor,'utf8'))[0].object,familyObject);
+  const afterArchive=join(directory,'after-offboarding-archive.json');await run('export',{...common,accountName:'Family',password:home.password,vault:familyVault,exportKey,output:afterArchive});assert.equal((await VaultClient.openExport(JSON.parse(await readFile(afterArchive,'utf8')),exportKey)).versions[0].value.fields[0].value,'synthetic-latchkey-7021');
+  assert.equal((await run('accounts-unlink',{...common,accountName:'Work'},1)).value.error,'account_unlink_confirmation_required');assert.equal((await run('accounts-unlink',{...common,accountName:'Work',confirmed:true})).value.accounts[0].name,'Family');assert.equal((await run('identity',{...common,accountName:'Family',password:home.password})).value.account,familyProfile.account);
+  assert.deepEqual((await readdir(directory)).filter(name=>name.endsWith('.lock')),[]);
+  assert.ok(!JSON.stringify(await work.owner.call('audit',{})).includes(familyProfile.account));
+  for(const fixture of[work,home]){const names=(await fixture.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'lky_%'").all()).results;for(const {name} of names){assert.ok(/^lky_[a-z_]+$/.test(name));const stored=JSON.stringify((await fixture.db.prepare('SELECT * FROM '+name).all()).results);for(const value of['synthetic-latchkey-7020','synthetic-latchkey-7021','synthetic-latchkey-7001',home.password,key,workProfile.deviceSecret,familyProfile.deviceSecret,person.bundle.root.recipient.privateKey,home.owner.bundle.root.recipient.privateKey])assert.ok(!stored.includes(value),'server storage must not disclose client plaintext')}}
+  console.log('Account separation: real CLI encrypted profile registry, lock-before-switch, cross-account search/export refusal and independent family survival after company suspension passed');
+ }finally{person.lock();await home.close();await rm(directory,{recursive:true,force:true})}
+}
+export async function ownershipJourney(f,width){
+ const owner=f.owner,person=await enroll(f,6000,'Family item owner'),admin=await enroll(f,6010,'Company administrator','admin');
+ const family=(await person.createVault({kind:'family'})).vault,work=(await owner.createVault()).vault;
+ const title='Family account selected for work',secret='synthetic-latchkey-6020',privateTitle='Unselected family document';
+ const attachment=await createAttachment('synthetic-latchkey-6021.txt',new TextEncoder().encode('synthetic-latchkey-6022'),'text/plain');
+ const object=(await person.put(family,createItem('login',{title,ownership:'personal',values:{username:'synthetic-latchkey-6023@example.test',password:secret},attachments:[attachment]}))).object;
+ await person.put(family,createItem('login',{title,ownership:'personal',values:{password:secret+'-updated'},attachments:[attachment]}),object,1);
+ const kept=(await person.put(family,createItem('secure-note',{title:privateTitle,ownership:'personal',values:{note:'synthetic-latchkey-6024'}}))).object;
+ for(const client of[owner,admin]){await refused(client.readVault(family),'not_found');await refused(client.exportVault(family,encode(random())),'not_found');await refused(new OrganizationClient(client).search(family,{query:privateTitle}),'not_found')}
+ await owner.share(work,person.profile.account,await person.identity().fingerprint,['read','create']);await person.pinAccount(owner.profile.account,await owner.identity().fingerprint);
+ const bulk=new BulkClient(person),selection=[{vault:family,object}],preview=await bulk.preview({selection,action:'move',destination:work,tags:[]});
+ assert.deepEqual(preview.ownershipTransfers,[{vault:family,object,sourceOwner:person.profile.account,destinationOwner:owner.profile.account}]);
+ await refused(bulk.commit(preview,{confirmed:true}),'ownership_confirmation_required');
+ const {planHash,tags,...plan}=preview,prepared=await bulk.prepare(plan);
+ await refused(person.call('bulk/commit',{plan,planHash,confirmed:true,writes:prepared.writes}),'ownership_confirmation_required');
+ await refused(person.call('bulk/commit',{plan,planHash,confirmed:true,writes:prepared.writes,ownershipApproval:'another-plan'}),'ownership_confirmation_required');
+ const hidden={...plan,ownershipTransfers:[]},hiddenHash=await digest(canonicalJson(hidden));
+ await refused(person.call('bulk/commit',{plan:hidden,planHash:hiddenHash,confirmed:true,writes:prepared.writes}),'bulk_plan_changed');
+ assert.equal((await owner.readVault(work)).versions.some(row=>row.object===object),false);assert.equal((await new OrganizationClient(person).search(family,{query:title})).length,1);
+ // A corporate role cannot consent on behalf of the personal owner, even if
+ // the person previously shared all of the source item's ordinary rights.
+ await person.share(family,admin.profile.account,await admin.identity().fingerprint,['read','edit','share','export','create','delete','restore']);await admin.pinAccount(person.profile.account,await person.identity().fingerprint);
+ const adminWork=(await admin.createVault()).vault,denied=await new BulkClient(admin).preview({selection,action:'move',destination:adminWork,tags:[]});assert.equal(denied.selection[0].reason,'personal_owner_required');await refused(new BulkClient(admin).commit(denied,{confirmed:true,ownershipConfirmed:true}),'bulk_selection_denied');
+ // Actual console review: generic bulk consent alone cannot transfer ownership.
+ await f.page.setViewportSize({width,height:1000});await f.page.goto(f.origin+'/app/vault');if(new URL(f.page.url()).pathname==='/setup'){await f.page.getByLabel('I confirm this owner account is ready to use.').check();await f.page.getByRole('button',{name:'Finish setup',exact:true}).click()}
+ await expect(f.page.getByLabel('Profile file')).toBeEnabled();await f.page.getByLabel('Profile file').setInputFiles({name:'profile.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(person.profile))});await f.page.getByLabel('Master password',{exact:true}).fill('synthetic-latchkey-6001');await f.page.getByRole('button',{name:'Unlock vault',exact:true}).click();
+ await f.page.getByLabel('Vault',{exact:true}).selectOption(work);await expect(f.page.getByRole('heading',{name:'No items yet',exact:true})).toBeVisible();await f.page.getByRole('button',{name:'New item',exact:true}).click();await expect(f.page.getByLabel('Destination ownership')).toHaveValue('Company-owned work item');await expect(f.page.getByText('This item and its history belong to the company, including after your employment or sponsored benefits end. Choose a separate personal account for personal content.',{exact:true})).toBeVisible();if(output)await f.page.screenshot({path:join(output,`ownership-create-work-${width}.png`),fullPage:true});await f.page.getByRole('button',{name:'Cancel',exact:true}).first().click();
+ await f.page.getByLabel('Vault',{exact:true}).selectOption(family);await f.page.getByRole('button',{name:title+' login',exact:true}).click();await f.page.getByRole('button',{name:'New item',exact:true}).click();await expect(f.page.getByLabel('Destination ownership')).toHaveValue('Family vault on this installation');if(output)await f.page.screenshot({path:join(output,`ownership-create-family-${width}.png`),fullPage:true});await f.page.getByRole('button',{name:'Cancel',exact:true}).first().click();
+ await f.page.getByRole('button',{name:'Find and organize',exact:true}).click();await f.page.getByLabel('Browse vault').selectOption(family);await f.page.getByLabel('Search permitted decrypted items').fill(title);await f.page.getByRole('checkbox',{name:title,exact:true}).check();await f.page.getByLabel('Bulk action').selectOption('move');await f.page.getByLabel('Destination vault').selectOption(work);await f.page.getByRole('button',{name:'Preview exact bulk action'}).click();await expect(f.page.getByRole('heading',{name:'Personal ownership changes to company ownership'})).toBeVisible();
+ await f.page.getByLabel('I approve these exact objects, versions, resulting recipients and rights.').check();await expect(f.page.getByRole('button',{name:'Apply reviewed move',exact:true})).toBeDisabled();assert.equal((await owner.readVault(work)).versions.some(row=>row.object===object),false);
+ // A recipient change invalidates the exact plan and both consent checkboxes.
+ await owner.share(work,admin.profile.account,await admin.identity().fingerprint,['read']);await f.page.getByLabel('I personally own these family items and explicitly transfer the reviewed copies and history into company ownership.').check();await f.page.getByRole('button',{name:'Apply reviewed move',exact:true}).click();await expect(f.page.getByRole('alert').filter({hasText:'bulk plan changed'})).toBeVisible();assert.equal((await owner.readVault(work)).versions.some(row=>row.object===object),false);
+ await f.page.getByRole('button',{name:'Preview exact bulk action'}).click();await expect(f.page.getByLabel('I personally own these family items and explicitly transfer the reviewed copies and history into company ownership.')).not.toBeChecked();await expect(f.page.getByLabel('I approve these exact objects, versions, resulting recipients and rights.')).not.toBeChecked();await f.page.getByLabel('I approve these exact objects, versions, resulting recipients and rights.').check();await f.page.getByLabel('I personally own these family items and explicitly transfer the reviewed copies and history into company ownership.').check();if(output)await f.page.screenshot({path:join(output,`ownership-transfer-preview-${width}.png`),fullPage:true});assert.ok(await f.page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await f.page.getByRole('button',{name:'Apply reviewed move',exact:true}).click();await expect(f.page.getByRole('heading',{name:'Undo last bulk operation'})).toBeVisible();
+ const received=await owner.readItem(work,object,true);assert.equal(received.versions.length,2);for(const row of received.versions){assert.equal(row.value.ownership,'company');assert.deepEqual(row.value.attachments[0],attachment)}assert.equal(received.versions.at(-1).value.fields.find(field=>field.id==='password').value,secret+'-updated');
+ const source=await person.readItem(family,object,true);assert.equal(source.versions.length,2);assert.ok(source.versions.every(row=>row.value.ownership==='personal'));for(let i=0;i<source.versions.length;i++)assert.deepEqual(received.versions[i].value,{...source.versions[i].value,ownership:'company'});assert.equal((await person.readItem(family,kept)).versions[0].value.title,privateTitle);assert.equal((await new OrganizationClient(person).search(family,{query:title})).length,0);
+ const audit=await person.call('audit',{});assert.equal(audit.filter(row=>row.action==='personal_ownership_transferred').length,1);const publicAudit=JSON.stringify(audit);for(const value of[title,privateTitle,secret,attachment.name,attachment.data])assert.ok(!publicAudit.includes(value));assert.ok(!(JSON.stringify(await owner.call('audit',{}))).includes(privateTitle));if(output)await f.page.screenshot({path:join(output,`ownership-transfer-complete-${width}.png`),fullPage:true});
+ person.lock();admin.lock();console.log(`Ownership journey ${width}: owner-only exact transfer consent, current recipients, encrypted history/attachments, archived source and plaintext-free audit passed`);
 }
 export async function organizationJourney(f,width){
  const owner=f.owner,member=await enroll(f,3000,'Northstar analyst'),admin=await enroll(f,3010,'Northstar delegated administrator','admin'),viewer=await enroll(f,3020,'Northstar read-only analyst');
@@ -54,4 +146,4 @@ export async function organizationJourney(f,width){
  for(const client of[member,admin,viewer])client.lock();
  console.log(`Organization journey ${width}: ${count} encrypted items, private filters/collections, exact bulk preview and undo, independent restore, family refusal and signed 30-day erasure passed`);
 }
-if(import.meta.url===new URL(process.argv[1],'file:').href){for(const width of[1440,390]){const f=await vaultFixture();try{await organizationJourney(f,width)}catch(error){if(output)await f.page.screenshot({path:join(output,`organization-failure-${width}.png`),fullPage:true});throw error}finally{await f.close()}}}
+if(import.meta.url===new URL(process.argv[1],'file:').href){for(const width of[1440,390])for(const journey of[...(width===1440?[accountSeparationJourney]:[]),ownershipJourney,organizationJourney]){const f=await vaultFixture();try{await journey(f,width)}catch(error){if(output)await f.page.screenshot({path:join(output,`${journey.name}-failure-${width}.png`),fullPage:true});throw error}finally{await f.close()}}}

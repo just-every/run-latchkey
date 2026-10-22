@@ -35,7 +35,7 @@ function SearchControls({ criteria, setCriteria, disabled }: { criteria: Criteri
  </div>;
 }
 
-function BulkReview({ preview, selection, confirmed, setConfirmed, busy, apply, cancel }: any) {
+function BulkReview({ preview, selection, confirmed, setConfirmed, ownershipConfirmed, setOwnershipConfirmed, busy, apply, cancel }: any) {
  const denied = preview.selection.some((row: any) => !row.allowed);
  return <section className="tool-box" aria-label="Bulk action preview">
   <h2>Review {preview.action}</h2>
@@ -49,11 +49,12 @@ function BulkReview({ preview, selection, confirmed, setConfirmed, busy, apply, 
   {preview.destination && <div className="definition fingerprint"><h2>Destination</h2><div className="rule-view"><span>Vault · kind · owner</span><span>{preview.destination.id} · {preview.destination.kind} · {preview.destination.owner}</span></div></div>}
   <h2>Entire resulting destination recipient set</h2>
   {preview.destination ? <>{preview.recipients.length === 0 && <p>No destination recipients were reported. This empty set is part of the preview.</p>}{preview.recipients.map((recipient: any) => <div className="definition rule-view" key={recipient.account}><span>Recipient account</span><span>{recipient.account}</span><span>Exact rights: {describe(recipient.rights)}</span></div>)}</> : <p>No destination change for this action.</p>}
+  {!!preview.ownershipTransfers?.length && <div className="notice"><h2>Personal ownership changes to company ownership</h2><p>Every selected personal item version and attachment will be encrypted for the company destination and its exact recipients above. The company keeps these copies after employment or sponsored benefits end. Your source is archived with its history; Undo cannot recall company copies or past access.</p><label className="check"><input type="checkbox" checked={ownershipConfirmed} disabled={busy || denied} onChange={event => setOwnershipConfirmed(event.target.checked)}/>I personally own these family items and explicitly transfer the reviewed copies and history into company ownership.</label></div>}
   {preview.action === 'tag' && <p className="fingerprint">Tags: {preview.tags.join(', ')}</p>}
   {preview.action === 'archive' && <p>Archive is indefinite. Items leave normal fill suggestions and active remediation; history remains.</p>}
   {denied && <p className="error" role="alert">At least one selected item is denied. Nothing can be applied from this preview; remove or resolve denied selections and preview again.</p>}
   <label className="check"><input type="checkbox" checked={confirmed} disabled={busy || denied} onChange={event => setConfirmed(event.target.checked)}/>I approve these exact objects, versions, resulting recipients and rights.</label>
-  <div className="actions"><button className="primary" disabled={busy || denied || !confirmed} onClick={apply}>Apply reviewed {preview.action}</button><button disabled={busy} onClick={cancel}>Cancel preview</button></div>
+  <div className="actions"><button className="primary" disabled={busy || denied || !confirmed || !!preview.ownershipTransfers?.length && !ownershipConfirmed} onClick={apply}>Apply reviewed {preview.action}</button><button disabled={busy} onClick={cancel}>Cancel preview</button></div>
  </section>;
 }
 
@@ -66,11 +67,12 @@ export function OrganizationPanel({ client, vault, run, onChanged }: any) {
  const [selection, setSelection] = useState<Selected[]>([]), [selectedLimit, setSelectedLimit] = useState(50);
  const [loading, setLoading] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState(''), [status, setStatus] = useState(''), [reload, setReload] = useState(0);
  const [action, setAction] = useState<'move'|'tag'|'archive'>('move'), [destination, setDestination] = useState(''), [tags, setTags] = useState(''), [preview, setPreview] = useState<any>(null), [confirmed, setConfirmed] = useState(false);
+ const [ownershipConfirmed, setOwnershipConfirmed] = useState(false);
  const [lastOperation, setLastOperation] = useState<string | null>(null), [undoConfirmed, setUndoConfirmed] = useState(false);
  const [transition, setTransition] = useState<{ state: string; items: Selected[] } | null>(null), [transitionConfirmed, setTransitionConfirmed] = useState(false), [outcomes, setOutcomes] = useState<Outcome[]>([]);
  const [savedFilter, setSavedFilter] = useState(''), [filterName, setFilterName] = useState(''), [collectionName, setCollectionName] = useState(''), [parent, setParent] = useState('');
  const context = useRef(0), mounted = useRef(true);
- const invalidate = () => { setPreview(null); setConfirmed(false); setTransition(null); setTransitionConfirmed(false); };
+ const invalidate = () => { setPreview(null); setConfirmed(false); setOwnershipConfirmed(false); setTransition(null); setTransitionConfirmed(false); };
  useEffect(() => { mounted.current = true; return () => { mounted.current = false; context.current++; }; }, []);
  useEffect(() => {
   let current = true;
@@ -124,7 +126,7 @@ export function OrganizationPanel({ client, vault, run, onChanged }: any) {
   if (!preview || !confirmed || preview.selection.some((row: any) => !row.allowed)) return;
   const approved = preview; invalidate();
   try {
-   const result = await bulk.commit(approved, { confirmed: true });
+   const result = await bulk.commit(approved, { confirmed: true, ownershipConfirmed });
    if (mounted.current) { setLastOperation(result.operation); setUndoConfirmed(false); setSelection([]); }
    await refresh(token); await notify();
    if (token === context.current) setStatus('Bulk operation committed and the current source was refreshed.');
@@ -217,7 +219,7 @@ export function OrganizationPanel({ client, vault, run, onChanged }: any) {
    <button disabled={busy || loading || action === 'move' && !destination || action === 'tag' && !tags.split(',').some(tag => tag.trim())} onClick={previewBulk}>Preview exact bulk action</button>
    <div className="actions"><button disabled={busy || loading} onClick={() => { invalidate(); setTransition({ state: 'trash', items: [...selection] }); }}>Review move to trash</button><button disabled={busy || loading} onClick={() => { invalidate(); setTransition({ state: 'active', items: [...selection] }); }}>Review restore to active</button></div>
   </section>}
-  {preview && <BulkReview preview={preview} selection={selection} confirmed={confirmed} setConfirmed={setConfirmed} busy={busy} apply={applyBulk} cancel={invalidate}/>}
+  {preview && <BulkReview preview={preview} selection={selection} confirmed={confirmed} setConfirmed={setConfirmed} ownershipConfirmed={ownershipConfirmed} setOwnershipConfirmed={setOwnershipConfirmed} busy={busy} apply={applyBulk} cancel={invalidate}/>}
   {transition && <section className="tool-box" aria-label="Lifecycle confirmation"><h2>Confirm {transition.state === 'trash' ? 'trash' : 'restore to active'}</h2>
    <p>{transition.state === 'trash' ? 'Trash retains deleted items for 30 days by default before permanent erasure. Archive instead retains history indefinitely.' : 'Restore requires independent restore and current destination create rights. Company administrators cannot restore family items. Restoring does not revive revoked shares, approvals, machine leases or old provider credentials.'}</p>
    {transition.items.map(row => <article className="definition fingerprint" key={reference(row)}><ItemReference row={row}/></article>)}

@@ -17,6 +17,7 @@ export interface BulkPlan {
  createdAt: number; expiresAt: number; action: BulkAction; selection: BulkSelection[];
  destination: BulkVault | null; recipients: BulkRecipient[]; vaults: BulkVault[];
  tagsHash: string; subjectFenceCount: number;
+ ownershipTransfers: (BulkReference & { sourceOwner: string; destinationOwner: string })[];
 }
 export interface BulkPreview extends BulkPlan { planHash: string; tags: string[] }
 export interface BulkTransport {
@@ -30,6 +31,6 @@ export class BulkClient {
  constructor(client: BulkTransport);
  client: BulkTransport;
  preview(input: { selection: BulkReference[]; destination?: string | null; action: BulkAction; tags?: string[] }): Promise<BulkPreview>;
- commit(preview: BulkPreview, options: { confirmed: true }): Promise<{ operation: string }>;
+ commit(preview: BulkPreview, options: { confirmed: true; ownershipConfirmed?: boolean }): Promise<{ operation: string }>;
  undo(operation: string, options: { confirmed: true }): Promise<{ operation: string; undone: true; undoneAt: number }>;
 }

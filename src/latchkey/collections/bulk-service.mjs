@@ -76,7 +76,8 @@ async function buildPlan(ctx, input, stamp = { operation: id(), createdAt: ctx.n
   if (!reason && !await replayFree(ctx, vault.id, selected.object, count)) reason = 'item_erased';
   if (!reason) { try { await subjectVaultWriteAllowed(ctx, vault.id); } catch (error) { reason = error.code ?? 'vault_write_refused'; } }
   if (!reason && destination) {
-   if (destination.id === vault.id) reason = 'destination_is_source';
+   if (vault.kind === 'family' && vault.owner !== ctx.actor) reason = 'personal_owner_required';
+   else if (destination.id === vault.id) reason = 'destination_is_source';
    else if (normalized.selection.filter(row => row.object === selected.object).length !== 1) reason = 'destination_collision';
    else {
     const target = await history(ctx, destination.id, selected.object); histories.push(target);
@@ -86,7 +87,8 @@ async function buildPlan(ctx, input, stamp = { operation: id(), createdAt: ctx.n
   selection.push({ ...current.view, rights: orderedRights(vault.rights), allowed: !reason, ...(reason ? { reason } : {}) });
  }
  const readable = [...vaults.values()].filter(vault => vault && has(vault, 'read')).sort((a, b) => a.id.localeCompare(b.id));
- const plan = { schema: 'latchkey/bulk-plan/v1', tenant: ctx.tenant, actor: ctx.actor, operation: uuid(stamp.operation), createdAt: stamp.createdAt, expiresAt: stamp.expiresAt, action: normalized.action, selection, destination: destination?.descriptor ?? null, recipients: destination?.descriptor.recipients ?? [], vaults: readable.map(vault => vault.descriptor), tagsHash: normalized.tagsHash, subjectFenceCount: count };
+ const ownershipTransfers = destination && destination.kind !== 'family' ? selection.filter(row => vaults.get(row.vault)?.kind === 'family').map(row => ({ vault: row.vault, object: row.object, sourceOwner: vaults.get(row.vault).owner, destinationOwner: destination.owner })) : [];
+ const plan = { schema: 'latchkey/bulk-plan/v1', tenant: ctx.tenant, actor: ctx.actor, operation: uuid(stamp.operation), createdAt: stamp.createdAt, expiresAt: stamp.expiresAt, action: normalized.action, selection, ownershipTransfers, destination: destination?.descriptor ?? null, recipients: destination?.descriptor.recipients ?? [], vaults: readable.map(vault => vault.descriptor), tagsHash: normalized.tagsHash, subjectFenceCount: count };
  return { plan, vaults: readable, histories, fenceCount: count };
 }
 function stateWrite(ctx, row, state, nonce) {
@@ -135,9 +137,10 @@ async function operation(ctx, key) {
  need(row, 'bulk_operation_not_found', 404); return row;
 }
 async function commit(ctx, input) {
- exact(input, ['plan', 'planHash', 'confirmed', 'writes']); need(input.confirmed === true, 'bulk_confirmation_required', 403);
+ exact(input, ['plan', 'planHash', 'confirmed', 'writes', ...(Object.hasOwn(input, 'ownershipApproval') ? ['ownershipApproval'] : [])]); need(input.confirmed === true, 'bulk_confirmation_required', 403);
  need(input.plan?.schema === 'latchkey/bulk-plan/v1' && input.plan.actor === ctx.actor && input.plan.tenant === ctx.tenant, 'invalid_bulk_plan');
  need(await hash(input.plan) === input.planHash, 'bulk_plan_changed', 409);
+ if (input.plan.ownershipTransfers?.length) need(input.ownershipApproval === input.planHash, 'ownership_confirmation_required', 403);
  const existing = await access(ctx).first('SELECT * FROM lky_bulk_operations WHERE id=? AND tenant=? AND actor=?', uuid(input.plan.operation), ctx.tenant, ctx.actor);
  if (existing) { need(existing.active === 1 && !existing.undone_at && existing.plan === canonicalJson(input.plan), 'bulk_operation_inactive', 409); return { operation: existing.id }; }
  const stamp = { operation: input.plan.operation, ...windowFor(ctx, input.plan) };
@@ -152,7 +155,7 @@ async function commit(ctx, input) {
  }
  for (const vault of loaded.vaults) changes.push(stmt('UPDATE lky_vaults SET revision=revision+1,mutation=? WHERE id=?', plan.operation, vault.id));
  const result = await resultFor(loaded, input.writes);
- changes.push(stmt('INSERT INTO lky_bulk_operations(id,tenant,actor,plan,result,active,undone_at,created_at) VALUES(?,?,?,?,?,1,NULL,?)', plan.operation, ctx.tenant, ctx.actor, canonicalJson(plan), canonicalJson(result), ctx.now), event('bulk_' + plan.action, plan.operation));
+ changes.push(stmt('INSERT INTO lky_bulk_operations(id,tenant,actor,plan,result,active,undone_at,created_at) VALUES(?,?,?,?,?,1,NULL,?)', plan.operation, ctx.tenant, ctx.actor, canonicalJson(plan), canonicalJson(result), ctx.now), event('bulk_' + plan.action, plan.operation), ...(plan.ownershipTransfers.length ? [event('personal_ownership_transferred', plan.operation)] : []));
  await guarded(freshContext(ctx), loaded.vaults, changes, guards(ctx, loaded));
  return { operation: plan.operation };
 }
