@@ -606,17 +606,19 @@ Open boundaries remain explicit: unreachable default-policy caches and already e
 
 Implementation semantics for LKY-037 (22 October 2026): search and health-annotation predicates run only over decrypted permitted records; absence of health evidence is unknown. Logical moves preserve every encrypted history version in the destination and archive the source; approvals bind the full current recipient set, rights, versions and vault revisions. Restore requires independent restore plus create rights and never revives old capabilities. Owner-signed 30-day trash policy and exact signed delete intent authorize expiry through the existing erasure journal; imported lifecycle records cannot activate retention. Archive is indefinite. New health, fill, project and machine doors inherit these lifecycle and replay fences.
 
+Implementation semantics for LKY-018 (22 October 2026): project names, catalogs, paths and values are client-encrypted; shared parents resolve first, inherited parents next and local entries last, with later parents overriding earlier ones. Runtime grants pin exact resolved catalogs and current authority; changed references require a new approved grant. Ordinary field grants use independent encrypted projections and never convey whole-item keys. Only company vaults are eligible; the complete separate personal/family ownership domain remains LKY-027. Vault rollback appends history and leaves provider state unchanged. The CLI and four SDKs decrypt only in authorized runtime memory/processes; Python, Go and Java use an explicitly installed Node bridge over private pipes. New runtime clients and adapters inherit current lifecycle, erasure, archive and review fences.
+
 ## Status
 
-Judged from the code and tests at commit `7a79b513f3950c3f60a2716b02d0e40689783f13` (22 October 2026). Prior foundation judgments are retained. LKY-015 records the access-review journeys built and executed by sx-latchkey-c5 on 22 October 2026; LKY-059 records the remaining evidence-connector work. LKY-001 retains its independently landed client-foundation judgment.
+Judged from the code and tests at commit `fe5f44c3a1ba80183ff0792e7f309b34823ca0d2` (22 October 2026). Prior foundation judgments are retained. LKY-015 records the access-review journeys built and executed by sx-latchkey-c5 on 22 October 2026; LKY-059 records the remaining evidence-connector work. LKY-001 retains its independently landed client-foundation judgment.
 
 The evidence below maps implemented acceptance points to emitted-Worker, CLI and browser assertions that passed locally. Exact-candidate branch and dispatched Verify run IDs are recorded in the campaign plan after execution. LKY-002/033/034 retain their named gaps; independent cryptographic assurance remains LKY-076.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 0 | 0 | 0 | 0 |
-| Target and push further | 4 | 4 | 68 | 76 |
-| All | 4 | 4 | 68 | 76 |
+| Target and push further | 5 | 4 | 67 | 76 |
+| All | 5 | 4 | 67 | 76 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -675,7 +677,7 @@ The evidence below maps implemented acceptance points to emitted-Worker, CLI and
 | `LKY-048` | Dashlane, KeePass, NordPass, Psono and browser migration | target | missing |  | No implementation or public-door acceptance evidence exists for dashlane, keepass, nordpass, psono and browser migration. |
 | `LKY-049` | Pilot, delta cutover and rollback without double authority | target | missing |  | No implementation or public-door acceptance evidence exists for pilot, delta cutover and rollback without double authority. |
 | `LKY-071` | Employee private-vault migration and cutover roster | target | missing |  | No implementation or public-door acceptance evidence exists for employee private-vault migration and cutover roster. |
-| `LKY-018` | Secrets manager for machines and applications | target | missing |  | No implementation or public-door acceptance evidence exists for secrets manager for machines and applications. |
+| `LKY-018` | Secrets manager for machines and applications | target | done | `tests/browser/projects.mjs` / projectRuntimeJourney at 1440/390: real console and API dev/staging/production creation; encrypted typed connections, shared/inherited/local precedence, missing/cyclic/foreign reference refusal; version comparison, stale-preview refusal and append rollback with truthful provider state; exact read/write scopes, expiry/use limits, review removal and next-fetch revoke; ordinary-field projection cannot decrypt the item or fetch another scope, ungranted field/vault and family refusal; actual Base populated archive comparison preserves every ciphertext version without live runtime authority, and control-plane plaintext inspection excludes values/names/paths. `tests/browser/runtime-consumers.mjs` / realRuntimeConsumers: shipped latchkey run plus Node/Python/Go/Java SDK applications authenticate over HTTP, with disk/history/stdout/stderr secret absence. projectRuntimeJourney also observes failed authentication for a bad vault value and successful authentication after rollback while the provider remains unchanged. | None for current runtime doors. LKY-019/020/053 retain provider synchronization/rotation and consumer rollout obligations; LKY-070 retains incumbent-reference migration and every named adapter. SDK bindings explicitly require the installed Node runtime bridge. |
 | `LKY-019` | CI, infrastructure and cloud-secret integrations | target | missing |  | No implementation or public-door acceptance evidence exists for ci, infrastructure and cloud-secret integrations. |
 | `LKY-020` | Verified rotation and short-lived credentials | target | missing |  | No implementation or public-door acceptance evidence exists for verified rotation and short-lived credentials. |
 | `LKY-021` | SSH keys and verified Git signing | target | missing |  | No implementation or public-door acceptance evidence exists for ssh keys and verified git signing. |
