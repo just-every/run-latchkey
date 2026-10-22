@@ -21,7 +21,7 @@
 .docs-nav-heading, .docs-toc-heading, .docs-section {
   margin: 0 0 10px; color: var(--lk-tangerine); font: 700 12.5px/1.3 var(--lk-mono); letter-spacing: .08em; text-transform: uppercase;
 }
-.docs-nav ul, .docs-toc ul { display: grid; gap: 9px; margin: 0; padding: 0; list-style: none; }
+.docs-nav ul, .docs-toc ul { display: grid; gap: 9px; margin: 0; padding: 0; list-style: none; text-wrap: balance; }
 .docs-nav ul a, .docs-toc a { position: relative; color: var(--docs-quiet); text-decoration: none; }
 .docs-nav ul a:hover, .docs-toc a:hover { color: var(--lk-white); text-decoration: underline; text-decoration-color: var(--lk-tangerine); }
 .docs-nav a[aria-current='page'] { color: var(--lk-white); font-weight: 700; }
@@ -36,6 +36,7 @@
 .docs-body h2 { margin: 56px 0 14px; color: var(--lk-white); font: 900 34px/1.1 var(--lk-sans); letter-spacing: -.03em; word-spacing: .08em; }
 .docs-body h3 { margin: 36px 0 10px; color: var(--lk-white); font: 800 23px/1.2 var(--lk-sans); letter-spacing: -.02em; word-spacing: .06em; }
 .docs-body p, .docs-body ul, .docs-body ol { margin: 0 0 18px; }
+.docs-body p, .docs-body li { text-wrap: pretty; }
 .docs-body ul, .docs-body ol { padding-left: 26px; }
 .docs-body ul { list-style: none; }
 .docs-body ul > li { position: relative; }
@@ -100,7 +101,7 @@
   .docs-nav-fold summary::after { content: '+'; color: var(--lk-tangerine); font: 700 22px/1 var(--lk-mono); }
   .docs-nav-fold[open] summary::after { content: '−'; }
   .docs-nav-fold nav { display: grid; gap: 22px; padding: 6px 0 22px 18px; font-size: 16px; }
-  .docs-nav-fold .docs-nav-section ul { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+  .docs-nav-fold .docs-nav-section ul { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; text-wrap: balance; }
   .docs-nav-fold a { color: var(--docs-quiet); text-decoration: none; position: relative; }
   .docs-nav-fold a[aria-current='page'] { color: var(--lk-white); font-weight: 700; }
   .docs-nav-fold .docs-nav-section a[aria-current='page']::before { content: ''; position: absolute; left: -16px; top: .5em; width: 8px; height: 8px; border-radius: 50%; background: var(--lk-tangerine); }

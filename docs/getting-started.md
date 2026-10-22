@@ -41,10 +41,11 @@ Your data stays in that folder's local state between runs. A copy that sits unus
 
 ## What this release does
 
-This release is the foundation of the product described on the homepage. It has:
+This release is the foundation of the product described on the homepage, and its first parts. It has:
 
 - the lobby, owner sign-in and first-run setup in the browser;
 - the vault service with its command-line client: client-encrypted vaults you create, fill, read, share and export, devices and recovery, and scoped reads for a machine you run ([Your first vault](first-vault.md));
+- the vault in the browser, with typed items, their history and a generator, and projects whose secrets applications read at runtime through `latchkey run` and the SDKs ([Command reference](vault-cli.md));
 - installation backup and restore ([Back up and restore](backup-and-restore.md)).
 
-The browser vault, apps and autofill, passkeys, password rotation, breach monitoring and the other capabilities on the homepage are the product being built. [The contract](/contract) lists every clause and what the code does today, and the [security design](security/protocol.md) says exactly what the encryption protects.
+Apps and autofill, passkeys, password rotation, breach monitoring and the other capabilities on the homepage are the product being built. [The contract](/contract) lists every clause and what the code does today, and the [security design](security/protocol.md) says exactly what the encryption protects.

@@ -1,13 +1,14 @@
 /* 06: the annotation on the bottom baseline on two lines, inside the margin
-   (desk fix 3), on a leader from the heading's full stop. */
+   (desk fix 3), on a leader from the heading's full stop to a dot 18 px above
+   its first line. */
 .agent { --measure: 21.3em; }
 .agent-note { position: relative; align-self: flex-end; font-size: clamp(15px, 2.085vw, 44px); }
-.agent-note .record-line { display: block; }
-.agent-note .leader-to { top: -.7em; left: 62%; }
+.agent-note .record-line { position: relative; display: block; }
+.agent-note .leader-to { top: -18px; left: 62%; }
 
 @media (max-width: 760px) {
   .agent svg.leaders, .agent .leader-to { display: none; }
   .agent-note { align-self: flex-start; margin-top: 64px; padding-top: 0; }
-  .agent-note::before { content: ''; position: absolute; left: 4px; bottom: calc(100% + 10px); width: var(--lk-hairline); height: 40px; background: var(--lk-white); }
-  .agent-note::after { content: ''; position: absolute; left: 1px; bottom: calc(100% + 46px); width: 8px; height: 8px; border-radius: 50%; background: var(--lk-white); }
+  .agent-note::before { content: ''; position: absolute; left: 4px; bottom: calc(100% + 10px); width: var(--lk-hairline); height: 40px; background: currentColor; }
+  .agent-note::after { content: ''; position: absolute; left: 1px; bottom: calc(100% + 46px); width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 }

@@ -11,7 +11,7 @@ export function BankLogin() {
       <div className="screen-proof vault-item">
         <p className="vault-title">{bankLogin.title}</p>
         <p className="vault-row"><span>password</span> <span className="vault-bullets" role="img" aria-label="hidden">{'•'.repeat(16)}</span></p>
-        <p className="vault-row vault-use"><span className="seg">fill only ·</span> <span className="seg">{bankLogin.people} people ·</span> <span className="seg">{bankFills} fills in {bankLogin.month} ·</span> <span className="seg">{bankLogin.reveals} reveals ✓</span></p>
+        <p className="vault-row vault-use"><span className="seg">fill only · {bankLogin.people} people ·</span> <span className="seg">{bankFills} fills in {bankLogin.month} · {bankLogin.reveals} reveals ✓</span></p>
       </div>
     </Screen>
   )

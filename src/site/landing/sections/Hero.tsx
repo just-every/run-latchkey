@@ -19,8 +19,8 @@ export function Hero() {
         </h1>
         <ol className="hero-notes">
           <li className="hero-note posted"><To name="posted" /><span className="seg">{leak.day} ·</span> <span className="seg">{leak.posted} pm ·</span> AWS key <span className="seg">{leak.key}</span> pasted in <span className="seg">{leak.where}</span></li>
-          <li className="hero-note replaced"><To name="replaced" /><span className="seg">{leak.replaced} pm ·</span> <span className="seg">new key →</span> <span className="seg">{leak.machines[0]},</span> <span className="seg">{leak.machines[1]},</span> <span className="seg">{leak.machines[2]} ·</span> <span className="seg">3 of 3 by {leak.allReplacedBy}</span></li>
-          <li className="hero-note revoked"><To name="revoked" /><span className="seg">{minute(leak.deployed)} pm ·</span> deploy with new key <span className="seg">passed →</span> old key <span className="seg">revoked {minute(leak.revoked)}</span></li>
+          <li className="hero-note replaced"><To name="replaced" /><span className="seg">{leak.replaced} pm ·</span> <span className="seg">new key → {leak.machines[0]},</span> <span className="seg">{leak.machines[1]},</span> <span className="hero-note-tail"><span className="seg">{leak.machines[2]} ·</span> <span className="seg">3 of 3 by {leak.allReplacedBy}</span></span></li>
+          <li className="hero-note revoked"><To name="revoked" /><span className="seg">{minute(leak.deployed)} pm ·</span> deploy with new key <span className="seg">passed → old key</span> <span className="seg">revoked {minute(leak.revoked)}</span></li>
           <li className="hero-note counted"><To name="counted" /><span className="seg">{company.day} ·</span> <span className="seg">{company.items} items ·</span> <span className="seg">{company.people} people ·</span> <span className="seg">{company.machines} machines</span></li>
         </ol>
       </div>

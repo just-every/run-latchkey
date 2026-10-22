@@ -1,5 +1,6 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join, normalize } from 'node:path'
+import { repository } from '../../shell/links.ts'
 import type { DocsBody, DocsSection } from '../types.ts'
 import { docsDirectory, manifestPath, readManifest } from './manifest.ts'
 import { renderMarkdown } from './render.ts'
@@ -18,13 +19,16 @@ export function buildDocs(root: string): DocsSite {
   const slugOf = new Map(pages.map(page => [page.file, page.slug]))
   const files = [join(root, manifestPath)]
   // A Markdown href as the site serves it: full addresses, the site's own pages and /docs links as they are, a #anchor
-  // on the same page, and a relative link to another published .md file (as GitHub resolves it) as its /docs/<slug>.
+  // on the same page, a relative link to another published .md file (as GitHub resolves it) as its /docs/<slug>, and
+  // a relative link to any other file of the repository as that file on GitHub.
   const siteHref = (file: string) => (href: string): string | null => {
     if (/^(?:https:|mailto:)/i.test(href) || /^\/(?:run|contract)?$/.test(href) || /^\/docs(?:\/|$|#)/.test(href) || href.startsWith('#')) return href
     const [path, anchor] = href.split('#')
     const target = normalize(join(dirname(file), path)).replaceAll('\\', '/')
     const slug = path.endsWith('.md') ? slugOf.get(target) : undefined
-    return slug ? `/docs/${slug}${anchor ? `#${anchor}` : ''}` : null
+    if (slug) return `/docs/${slug}${anchor ? `#${anchor}` : ''}`
+    const source = normalize(join(docsDirectory, target)).replaceAll('\\', '/')
+    return path && !source.startsWith('../') && existsSync(join(root, source)) ? `${repository}/blob/main/${source}${anchor ? `#${anchor}` : ''}` : null
   }
   const rendered = new Map(pages.map(page => {
     const path = join(root, docsDirectory, page.file)

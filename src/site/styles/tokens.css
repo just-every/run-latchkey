@@ -12,6 +12,9 @@
   --lk-sans: var(--rer-font-heading);
   --lk-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --lk-gutter: clamp(24px, 8.334vw, 220px);
+  /* The header strip: its top padding and the lockup's size (the mark is 1.15 of it). */
+  --lk-header-top: clamp(14px, 1.53vw, 30px);
+  --lk-lockup: clamp(24px, 2.36vw, 46px);
   --lk-title: clamp(46px, 6.667vw, 160px);
   --lk-line: clamp(18px, 2.084vw, 46px);
   --lk-proof: clamp(15px, 2.084vw, 46px);

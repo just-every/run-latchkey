@@ -24,6 +24,7 @@ body:has(.landing), body:has(.docs) { margin: 0; -webkit-font-smoothing: antiali
 .seg, .nowrap { white-space: nowrap; }
 
 svg.leaders { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
-svg.leaders line { stroke: var(--lk-white); stroke-width: var(--lk-hairline); }
-svg.leaders circle { fill: var(--lk-white); }
+/* White unless the screen sets --leader: a leader always takes the colour of the text it points at. */
+svg.leaders line { stroke: var(--leader, var(--lk-white)); stroke-width: var(--lk-hairline); }
+svg.leaders circle { fill: var(--leader, var(--lk-white)); }
 .leader-to { position: absolute; width: 0; height: 0; }

@@ -8,7 +8,9 @@
 .leader-h::before, .leader-h::after { content: ''; position: absolute; top: 50%; width: 8px; height: 8px; margin-top: -4px; border-radius: 50%; background: currentColor; }
 .leader-h::before { left: -4px; }
 .leader-h::after { right: -4px; }
-@media (min-width: 1080px) { .screen[data-ground='tangerine'] .equation-label { color: var(--lk-white); } }
+/* The label reaches 24 px at 1440 px (1.667vw): black below, white from there (fix 2). */
+.screen[data-ground='tangerine'] .equation-label { color: var(--lk-black); }
+@media (min-width: 1440px) { .screen[data-ground='tangerine'] .equation-label { color: var(--lk-white); } }
 
 @media (max-width: 760px) {
   .move .screen-title { margin-right: 0; }

@@ -25,8 +25,8 @@ body.lk-base[data-ground='black'] {
   --rer-missing: color-mix(in srgb, var(--lk-white) 26%, var(--lk-black)); --rer-on-missing: var(--lk-white);
   --rer-missing-ink: color-mix(in srgb, var(--lk-white) 66%, var(--lk-black));
 }
-body.lk-base .bar { max-width: none; padding: clamp(14px, 1.53vw, 30px) clamp(16px, 2.36vw, 46px) 0 clamp(16px, 2.15vw, 42px); }
-body.lk-base .bar .brand { gap: .66em; font-size: clamp(24px, 2.36vw, 46px); font-weight: 900; }
+body.lk-base .bar { max-width: none; padding: var(--lk-header-top) clamp(16px, 2.36vw, 46px) 0 clamp(16px, 2.15vw, 42px); }
+body.lk-base .bar .brand { gap: .66em; font-size: var(--lk-lockup); font-weight: 900; }
 body.lk-base .bar .brand img { width: auto; height: 1.15em; }
 body.lk-base .bar nav { gap: clamp(22px, 2.5vw, 48px); font: 800 clamp(16px, 1.3vw, 25px)/1 var(--lk-sans); }
 body.lk-base .bar nav a:hover, body.lk-base .bar nav a[aria-current='page'] { text-decoration: underline; text-decoration-thickness: 3px; text-underline-offset: .3em; }
@@ -45,8 +45,12 @@ body.lk-run .code pre { overflow-wrap: normal; word-break: normal; }
 @container (max-width: 480px) { body.lk-run .code pre { padding-inline: 10px; font-size: 12.5px; } }
 body.lk-run .copy { border-radius: 0; border: 1.5px solid currentColor; font: 600 13.5px/1 var(--lk-mono); }
 body.lk-run .body > p { font-size: 17px; line-height: 1.5; }
+/* An inline command never breaks inside. */
+body.lk-run .note code { white-space: nowrap; }
 body.lk-run .body > p.alt { font-size: 16px; }
 body.lk-run .facts { margin-top: 44px; text-align: left; font-size: 15px; }
+/* The licence stays whole; on a phone it takes its own line instead of a stranded separator. */
+body.lk-run .facts .lk-licence { white-space: nowrap; }
 body.lk-not-found .hero { align-items: flex-start; padding-top: clamp(64px, 16vh, 220px); }
 body.lk-not-found .actions { justify-content: flex-start; }
 body.lk-not-found .link { font-size: 19px; }
@@ -66,12 +70,11 @@ body.lk-contract .search input, body.lk-contract .chips button:not([aria-pressed
 body.lk-contract .group th { background: color-mix(in srgb, var(--lk-white) 9%, var(--lk-black)); }
 body.lk-contract .area-row { border-radius: 0; }
 
-/* The site's wider gutters leave the contract's kind card narrower than Base planned for: keep Base's tablet
-   wrapping of its two count lines up to 1500 px, and give the area names more room on a phone. */
-@media (min-width: 761px) and (max-width: 1500px) {
-  body.lk-contract .split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  body.lk-contract .split .line { white-space: normal; }
-  body.lk-contract .split .line > span:not(.sep) { display: inline-block; }
+/* The site's wider gutters leave the contract's kind card narrower than Base planned for. Up to 1500 px it and the
+   product target each take the full row (the areas stay beside the clauses), so every kind's title and counts hold
+   one line; on a phone the two kinds stack, each with its counts on one line. */
+@media (min-width: 1201px) and (max-width: 1500px) {
+  body.lk-contract .split, body.lk-contract .target { grid-column: 1 / -1; }
 }
 @media (max-width: 900px) {
   body.lk-run .steps { grid-template-columns: 1fr; }
@@ -85,4 +88,13 @@ body.lk-contract .area-row { border-radius: 0; }
   body.lk-run .step h2 { margin: 12px 0 0; min-height: 0; }
   body.lk-contract main { padding: 0 24px; }
   body.lk-contract .area-row { grid-template-columns: 1fr 22px 22px 22px 64px; }
+  body.lk-contract .split { grid-template-columns: minmax(0, 1fr); }
+  body.lk-contract .split > div + div { margin: 14px 0 0; padding: 14px 0 0; border-left: 0; border-top: 1px solid var(--site-line); }
+  body.lk-contract .split .line { white-space: nowrap; }
+  body.lk-contract .split .line > span:not(.sep) { display: inline; }
+  body.lk-contract .split .sep { display: inline; }
+}
+@media (max-width: 480px) {
+  body.lk-run .facts .lk-licence { display: block; }
+  body.lk-run .facts .lk-licence-sep { display: none; }
 }

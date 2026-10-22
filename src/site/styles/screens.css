@@ -15,11 +15,14 @@
 .screen-line { margin: clamp(20px, 2.78vw, 60px) 0 0; max-width: var(--measure, 26.5em); font: 400 var(--lk-line)/1.35 var(--lk-sans); letter-spacing: -.012em; text-wrap: pretty; }
 .screen-proof { margin: auto 0 0; padding: clamp(28px, 4.5vh, 64px) 0 0; list-style: none; font: 400 var(--lk-proof)/1.5 var(--lk-mono); }
 .screen-proof p { margin: 0; }
-/* On tangerine, white is only for text of 24 px and more (3.0:1); smaller lines are black (7.0:1). */
-.screen[data-ground='tangerine'] .screen-proof { color: var(--lk-white); }
+/* On tangerine, white is only for text of 24 px and more (3.0:1); smaller lines are black (7.0:1). The proofs
+   reach 24 px at 1152 px (2.084vw), so they and the leaders that point at them turn white there. */
+.screen[data-ground='tangerine'] { --proof-ink: var(--lk-black); }
+.screen[data-ground='tangerine'] .screen-proof { color: var(--proof-ink); }
+.screen[data-ground='tangerine']:not(.hero) svg.leaders { --leader: var(--proof-ink); }
 
-@media (max-width: 1079px) {
-  .screen[data-ground='tangerine'] .screen-proof { color: var(--lk-black); }
+@media (min-width: 1152px) {
+  .screen[data-ground='tangerine'] { --proof-ink: var(--lk-white); }
 }
 @media (max-width: 760px) {
   .screen { min-height: max(100svh, 640px); padding: 64px 24px 56px; }

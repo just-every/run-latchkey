@@ -6,14 +6,17 @@ import { createSlugger } from './slug.ts'
 // takes the title from docs/site.json, so it is dropped. Raw HTML in the Markdown is shown as text, never passed through.
 // Headings get GitHub-style ids, and the page's h2s and h3s become its contents list. Code blocks become the code
 // record, labelled with their language. Tables scroll inside a focusable region when they cannot fit. `link` turns
-// each Markdown href into the site's (a relative .md link becomes its /docs/<slug> page); it returns null for one
-// that names no published page, which the build reports.
+// each Markdown href into the site's (a relative .md link becomes its /docs/<slug> page, a relative link to another
+// file of the repository that file on GitHub); it returns null for one that names neither, which the build reports.
+// Outside code, a number and the unit after it ("1.5 MB", "12 hours", "2:10 pm") are joined by a no-break space.
 
 export type RenderedPage = { html: string; toc: DocsTocEntry[]; ids: string[]; links: string[]; problems: string[] }
 
 const escapeHtml = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
 const decodeHtml = (value: string) => value.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&')
 const collapse = (value: string) => value.replace(/\s+/g, ' ').trim()
+const unitSpace = /(\d) (?=(?:[KMGT]i?B|bytes?|ms|seconds?|minutes?|hours?|days?|[ap]m)\b)/g
+const keepUnits = (html: string) => html.split(/(<pre>[\s\S]*?<\/pre>|<code>[\s\S]*?<\/code>)/).map((part, i) => (i % 2 ? part : part.replace(unitSpace, '$1&nbsp;'))).join('')
 
 const languageNames: Record<string, string> = {
   sh: 'Shell', bash: 'Shell', shell: 'Shell', zsh: 'Shell', console: 'Shell', json: 'JSON', jsonc: 'JSON', js: 'JavaScript',
@@ -51,7 +54,7 @@ export function renderMarkdown(markdown: string, link: (href: string) => string 
       },
       link({ href, title, tokens }) {
         const target = link(href)
-        if (target === null) problems.push(`links to ${href}, which is not a published docs page or a full https:// address`)
+        if (target === null) problems.push(`links to ${href}, which is not a published docs page, a file in this repository or a full https:// address`)
         else links.push(target)
         const titled = title ? ` title="${escapeHtml(title)}"` : ''
         return `<a href="${escapeHtml(target ?? href)}"${titled}>${this.parser.parseInline(tokens)}</a>`
@@ -62,7 +65,7 @@ export function renderMarkdown(markdown: string, link: (href: string) => string 
       },
     },
   })
-  const html = (marked.parse(markdown.replace(/^\s*# [^\n]*\n/, ''), { async: false }) as string)
+  const html = keepUnits(marked.parse(markdown.replace(/^\s*# [^\n]*\n/, ''), { async: false }) as string)
     .replace(/<table>/g, '<div class="docs-table" role="region" tabindex="0" aria-label="Table"><table>')
     .replace(/<\/table>/g, '</table></div>')
   return { html, toc, ids, links, problems }
