@@ -1235,7 +1235,7 @@
       "executable": false
     },
     "src/latchkey/evidence/workspace.tsx": {
-      "sha256": "a928fd1d4a1bf7f25efab6599eb471cf93de4f3fff78e81050230b79e524512e",
+      "sha256": "6ca1ba2c9622e16c1ecb8d0cd1a1a2de7e2f1085e032f96cac94ed135a77e367",
       "executable": false
     },
     "src/latchkey/generator/eff.mjs": {
@@ -2551,7 +2551,7 @@
       "executable": false
     },
     "tests/browser/reviews.mjs": {
-      "sha256": "d435ee4e221a45b253380b9a1f1852008e02a3d03c37601b90d4b00ddfd67194",
+      "sha256": "dd01ffa173e60aab82081945bcd892e4103605656430373f50f1c40446dd375f",
       "executable": false
     },
     "tests/browser/runtime-consumers.mjs": {
@@ -2575,7 +2575,7 @@
       "executable": false
     },
     "tests/latchkey-evidence.mjs": {
-      "sha256": "0716fbf79eebfdeee5d2dc9830127fed04abe80717d64b62fe3c154b3845d143",
+      "sha256": "3bdafa8f7cf097583110c26517271bdbefa548b6385c5b2345420e70a6627948",
       "executable": false
     },
     "tests/latchkey-generator-policy.mjs": {

@@ -35,8 +35,10 @@ export async function runEvidenceJourneys({owner,review}){
  return history;
 }
 
-export async function runPostureEvidenceJourneys({owner,vault}){
+export async function runPostureEvidenceJourneys({owner,vault,outsider}){
  const client=new EvidenceClient(owner),credential='synthetic-latchkey-2090',sent=[];
+ if(outsider)await assert.rejects(new EvidenceClient(outsider).capture(vault,true),error=>error.code==='review_owner_required');
+ const initial=await client.capture(vault,true),original=await client.preview(initial.id,(await client.destinations()).find(row=>row.destination==='vanta'));
  const privateVault=(await owner.createVault({kind:'private-work'})).vault,familyVault=(await owner.createVault({kind:'family'})).vault;
  await owner.put(privateVault,{schema:'latchkey/vault-meta/v1',title:'synthetic-latchkey-2091'});
  await assert.rejects(client.capture(privateVault,true),error=>error.code==='company_vault_required');
@@ -58,7 +60,7 @@ export async function runPostureEvidenceJourneys({owner,vault}){
   assert.ok(url.endsWith('/public/v2/workspaces/1/evidence'));const body=await request.json();assert.equal(body.artifacts[0].fileKey,'synthetic-latchkey-2094');return Response.json({id:2097,artifactsRequested:1,artifactsCreated:1,artifacts:[{id:2098}]},{status:201});
  };
  let accepted;
- for(const[destination,endpoint]of configs){const config=await client.configure({destination,endpoint,target:'Company posture and enrollment',workspace:destination==='drata'?'1':null});const preview=await client.preview(source.id,config);assert.equal(preview.stale,false);const result=await client.send(preview,destination==='secureframe'?{apiKey:'synthetic-latchkey-2051',keySecret:'synthetic-latchkey-2052'}:credential,true,{fetcher:edge});assert.equal(result.state,'accepted');assert.deepEqual(result.signedPackage,sent.at(-1));if(destination==='vanta')accepted=result;}
+ for(const[destination,endpoint]of configs){const config=await client.configure({destination,endpoint,target:'Company posture and enrollment',workspace:destination==='drata'?'1':null});const preview=await client.preview(source.id,config);assert.deepEqual(preview.package.securityEvents.events,original.package.securityEvents.events);assert.ok(preview.package.securityEvents.events.some(row=>row.action==='review_closed'&&row.count>0));assert.equal(preview.stale,false);const result=await client.send(preview,destination==='secureframe'?{apiKey:'synthetic-latchkey-2051',keySecret:'synthetic-latchkey-2052'}:credential,true,{fetcher:edge});assert.equal(result.state,'accepted');assert.deepEqual(result.signedPackage,sent.at(-1));if(destination==='vanta')accepted=result;}
  assert.equal(sent.length,4);assert.ok(sent.every(value=>JSON.stringify(value.package)===JSON.stringify(sent[0].package)));
  const vanta=(await client.destinations()).find(row=>row.destination==='vanta'),outage=await client.send(await client.preview(source.id,vanta),credential,true,{fetcher:async()=>new Response(null,{status:503})});assert.equal(outage.state,'backlog');assert.equal(outage.sourceTimestamp,sent[0].package.sourceTimestamp);assert.ok(await EvidenceClient.verify(outage.signedPackage,owner.profile.authorityKey));
  const short=await client.configure({destination:'vanta',endpoint:'https://api.vanta.com',target:'Company posture and enrollment',maxAgeSeconds:1});await new Promise(resolve=>setTimeout(resolve,1100));const stale=await client.preview(source.id,short);assert.equal(stale.stale,true);let writes=0;await assert.rejects(client.send(stale,credential,true,{fetcher:async()=>{writes++;throw Error('must not send')}}),error=>error.code==='evidence_source_stale');assert.equal(writes,0);
@@ -80,4 +82,15 @@ export async function runReviewArchiveJourney(f,review){
  const campaign=await db.prepare('SELECT * FROM lky_reviews WHERE id=?').bind(review).first();assert.equal(campaign.phase,'inactive');assert.equal(campaign.package,null);assert.ok((await db.prepare('SELECT * FROM lky_review_rows WHERE review_id=?').bind(review).all()).results.length);
  const destinations=(await db.prepare('SELECT active FROM lky_evidence_destinations').all()).results;assert.ok(destinations.length);assert.ok(destinations.every(row=>row.active===0));assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM lky_devices').first()).n,0);
  const captures=(await db.prepare('SELECT active FROM lky_evidence_sources').all()).results;assert.ok(captures.length);assert.ok(captures.every(row=>row.active===0));
+}
+
+export async function assertEvidenceErasure(f,{source,subject}){
+ const client=new EvidenceClient(f.owner),vault=(await f.owner.call('vaults',{})).find(row=>row.kind==='company'&&row.owner===f.owner.profile.account).id;
+ const fresh=await client.capture(vault,true),destination=(await client.destinations()).find(row=>row.destination==='secureframe'),preview=await client.preview(fresh.id,destination);
+ assert.ok(!JSON.stringify(preview.signedPackage).includes(subject));
+ const records=await createPortability({db:f.db,policy:archivePolicy}),job=await records.exports.create('synthetic-latchkey-2110');
+ while((await records.exports.advance(job,{maxParts:100})).phase!=='complete'){}
+ const lines=(await new Response(await records.exports.download(job)).text()).trim().split('\n').map(line=>JSON.parse(line)),rows=lines.filter(line=>line.kind==='part').flatMap(part=>part.items).filter(item=>item.kind==='row'&&item.table.startsWith('lky_evidence_'));
+ assert.ok(rows.length);const serialized=JSON.stringify(rows);assert.ok(!serialized.includes(subject));assert.ok(!serialized.includes(source));
+ assert.ok(rows.some(row=>row.table==='lky_evidence_deletions'));
 }
