@@ -41,11 +41,13 @@ export class ProjectClient {
  }
  async preview(environment, path, value) {
   pathValue(path); const normalized = secretValue(value), resolver = new ProjectResolver(this.client);
-  const entries = await resolver.entries(environment), previous = entries.has(path) ? await resolver.resolve(environment, path) : null;
-  return { environment, path, previous, proposed: normalized, providerState: 'unchanged', warning: 'Saving changes vault state only; provider credentials are unchanged.' };
+  const entries = await resolver.entries(environment), previous = entries.has(path) ? await resolver.resolve(environment, path) : null,current=await this.environment(environment),local=current.value.entries[path];
+  const expectedVersion=local?.kind==='resource'?(await this.client.readItem(current.vault,local.object)).versions.at(-1)?.version??0:0;
+  return { environment, path, previous,expectedVersion,catalogVersion:current.version, proposed: normalized, providerState: 'unchanged', warning: 'Saving changes vault state only; provider credentials are unchanged.' };
  }
- async set(environment, path, value, { expectedVersion } = {}) {
+ async set(environment, path, value, { expectedVersion, expectedCatalogVersion } = {}) {
   pathValue(path); const normalized = secretValue(value), current = await this.environment(environment);
+  if(expectedCatalogVersion!==undefined)need(current.version===expectedCatalogVersion,'version_conflict',409);
   const previous = current.value.entries[path], object = previous?.kind === 'resource' ? previous.object : id();
   let version;
   if (previous?.kind === 'resource') version = (await this.client.readItem(current.vault, object)).versions.at(-1)?.version;
