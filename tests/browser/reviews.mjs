@@ -1,3 +1,5 @@
+import { EvidenceClient } from '../../src/latchkey/evidence/client.mjs';
+import { MachineClient } from '../../src/latchkey/machine.mjs';
 import { runEvidenceJourneys } from '../latchkey-evidence.mjs';
 import assert from 'node:assert/strict';
 import { expect } from '@playwright/test';
@@ -7,7 +9,7 @@ import { vaultFixture } from './fixture.mjs';
 import { VaultClient } from '../../src/latchkey/client.mjs';
 import { SharingClient,PublicLinkClient } from '../../src/latchkey/sharing/client.mjs';
 import { ReviewClient } from '../../src/latchkey/reviews/client.mjs';
-import { digest,id } from '../../src/latchkey/crypto/envelope.mjs';
+import { digest,id,encode,random } from '../../src/latchkey/crypto/envelope.mjs';
 import { createItem } from '../../src/latchkey/items/types.mjs';
 const output=process.env.LATCHKEY_SCREENSHOTS;
 if(output)await mkdir(output,{recursive:true});
@@ -29,8 +31,10 @@ export async function reviewCampaignJourney(f,width){
  await sharing.setPolicy({externalEnabled:true,domains:['example.test'],defaultDays:7,maxDays:30});
  const external=await sharing.createLink(vault,object,{recipient:'finance-auditor@example.test',expiresAt:Date.now()+86400000,maxViews:10});
  const expired=await sharing.createLink(vault,object,{recipient:'finance-expired@example.test',maxViews:1});await f.db.prepare('UPDATE lky_links SET expires_at=? WHERE id=?').bind(Date.now()-1,expired.link).run();
+ const runtimeKey=encode(random()),machineProfile=await MachineClient.create(f.origin,runtimeKey),machineIdentity=await MachineClient.identity(machineProfile),machineGrant=await owner.grantMachine(vault,object,machineIdentity,machineIdentity.fingerprint);
  const created=await owner.call('reviews/create',{vault,reviewer:owner.profile.account,scheduleAt:Date.now(),dueAt:Date.now()+86400000,period:'Quarterly finance access review'}),review=created.id;
  let state=await owner.call('reviews/get',{review});assert.ok(state.rows.some(r=>r.kind==='direct'&&r.subject===member.profile.account));assert.ok(state.rows.some(r=>r.kind==='inherited'&&r.group===group));assert.ok(state.rows.some(r=>r.kind==='external'&&r.status==='active'));assert.ok(state.rows.some(r=>r.status==='expired'));assert.equal(state.enforcement.mfa,'unknown-not-implemented');
+ const machineRow=state.rows.find(r=>r.kind==='machine'&&r.subject===machineIdentity.machine);assert.ok(machineRow);await owner.call('reviews/decide',{review,key:machineRow.key,decision:'remove',reason:'Retire prior finance automation'});await new ReviewClient(owner).applyRemoval(review,machineRow.key);await refused(MachineClient.read(machineProfile,machineGrant,runtimeKey,{fetcher:f.fetcher}),'machine_authority_expired');
  const own=state.rows.find(r=>r.kind==='direct'&&r.subject===owner.profile.account);
  await refused(owner.call('reviews/decide',{review,key:own.key,decision:'confirm',reason:'Own access'}),'independent_reviewer_required');
  await owner.call('reviews/assign',{review,key:own.key,reviewer:reviewer.profile.account});
@@ -50,7 +54,7 @@ export async function reviewCampaignJourney(f,width){
  const laterRow=state.rows.find(r=>r.subject===later.profile.account&&!r.decision);const article=f.page.getByRole('article',{name:`Grant ${laterRow.key}`,exact:true});await article.getByLabel(`Decision reason for ${laterRow.key}`).fill('Temporary audit access remains required this quarter');await article.getByRole('button',{name:'Record decision',exact:true}).click();await expect(article.getByText('Decision: confirm.',{exact:false})).toBeVisible();
  // The browser owns decisions on desktop and phone; API loops finish the other
  // independently assigned grants, without bypassing the public review door.
- state=await owner.call('reviews/get',{review});for(const grant of state.rows.filter(r=>!r.decision))await owner.call('reviews/decide',{review,key:grant.key,decision:'confirm',reason:'Reviewed as-of rights and expiry evidence'});
+ state=await owner.call('reviews/get',{review});for(const grant of state.rows.filter(r=>!r.decision)){let decider=owner;if([grant.subject,grant.sponsor].includes(owner.profile.account)){await owner.call('reviews/assign',{review,key:grant.key,reviewer:reviewer.profile.account});decider=reviewer}await decider.call('reviews/decide',{review,key:grant.key,decision:'confirm',reason:'Reviewed as-of rights and expiry evidence'})};
  await f.page.getByRole('button',{name:'Refresh reviews',exact:true}).click();await expect(f.page.getByRole('button',{name:'Close review',exact:true})).toBeEnabled();
  if(output)await f.page.screenshot({path:join(output,`reviews-decisions-${width}.png`),fullPage:true});
  await f.page.getByRole('button',{name:'Close review',exact:true}).click();await expect(f.page.getByRole('heading',{name:'Completed review'})).toBeVisible();
@@ -69,6 +73,7 @@ export async function reviewCampaignJourney(f,width){
  const scheduled=(await owner.call('reviews/create',{vault,reviewer:reviewer.profile.account,scheduleAt:Date.now()+60000,dueAt:Date.now()+120000,period:'Next quarterly review'})).id;
  assert.equal((await owner.call('reviews/get',{review:scheduled})).phase,'scheduled');await f.db.prepare('UPDATE lky_reviews SET scheduled_at=?,due_at=? WHERE id=?').bind(Date.now()-2000,Date.now()-1000,scheduled).run();const scheduledResponse=await f.fetcher(f.origin+'/cdn-cgi/local/scheduled?format=json&cron=*+*+*+*+*');assert.equal(scheduledResponse.status,200);const overdue=await owner.call('reviews/get',{review:scheduled});assert.equal(overdue.phase,'open');assert.equal(overdue.overdue,true);const reminder=await owner.call('reviews/remind',{review:scheduled});const replay=await owner.call('reviews/remind',{review:scheduled});assert.equal(reminder.reminders.length,replay.reminders.length);assert.ok(reminder.reminders.length);
  const audit=await owner.call('audit',{});assert.ok(audit.some(r=>r.action==='review_closed'&&r.object_id===review));
+ const secureframe=(await owner.call('evidence/destinations',{})).find(r=>r.destination==='secureframe'),evidence=new EvidenceClient(owner),oldPreview=await evidence.preview(review,secureframe);const operator=(await f.db.prepare('SELECT operator_id FROM lky_accounts WHERE id=?').bind(reviewer.profile.account).first()).operator_id;const erasure=await owner.call('subject/erase-preview',{subject:operator});const receipt=await owner.call('subject/erase',{subject:operator,confirmed:true,planHash:erasure.planHash});assert.equal(receipt.complete,false);await refused(owner.call('reviews/package',{review}),'review_not_found');let writes=0;await refused(evidence.send(oldPreview,{apiKey:'synthetic-latchkey-2051',keySecret:'synthetic-latchkey-2052'},true,{fetcher:async()=>{writes++;throw Error('must not send')}}),'review_not_found');assert.equal(writes,0);
  return {review,vault,object};
  }finally{member.lock();reviewer.lock();later.lock()}
 }
