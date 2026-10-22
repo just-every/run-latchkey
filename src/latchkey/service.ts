@@ -1,3 +1,5 @@
+import { evidenceAuthenticated } from './evidence/service.mjs'
+import { ReviewError, reviewsAuthenticated } from './reviews/index.mjs'
 import { SubjectErasureError, subjectErasureAuthenticated, subjectItemReplayKnown, subjectVaultWriteAllowed, subjectRotationStatements } from './erasure/subject.mjs'
 import { subjectAdmission } from './erasure/admission.mjs'
 import { GeneratorPolicyError, generatorAuthenticated } from './generator/service.mjs'
@@ -211,6 +213,10 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
    }
    if (route === 'item/put' && await first('SELECT 1 AS present FROM lky_subject_fences WHERE tenant=? LIMIT 1', tenant) && await subjectItemReplayKnown(context, input.vault, input.object)) refuse('item_erased', 409);
   }
+  const evidence = grant.recovery === 0 ? await evidenceAuthenticated(route, input, { db, env, now, actor, device, tenant, session, fence, fenceArgs }) : null
+  if (evidence !== null) return response(evidence)
+  const reviewed = grant.recovery === 0 ? await reviewsAuthenticated(route, input, { db, env, now, actor, device, tenant, session, fence, fenceArgs }) : null
+  if (reviewed !== null) return response(reviewed)
   const generator = grant.recovery === 0 ? await generatorAuthenticated(route, input, { db, env, now, actor, device, tenant, session, fence, fenceArgs }) : null
   if (generator !== null) return response(generator)
   const erased = grant.recovery === 0 ? await erasureAuthenticated(route, input, { db, env, now, actor, device, tenant, session, fence, fenceArgs }) : null
@@ -351,7 +357,7 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
   }
   refuse('not_found', 404)
  } catch (error) {
-  if (error instanceof Refusal || error instanceof SharingError || error instanceof RecordsError || error instanceof ItemErasureError || error instanceof GeneratorPolicyError || error instanceof SubjectErasureError) return response({ error: error.code }, error.status)
+  if (error instanceof ReviewError || error instanceof Refusal || error instanceof SharingError || error instanceof RecordsError || error instanceof ItemErasureError || error instanceof GeneratorPolicyError || error instanceof SubjectErasureError) return response({ error: error.code }, error.status)
   // Neither input, exception messages, cryptographic state nor SQL is logged.
   return response({ error: 'request_refused' }, 400)
  }

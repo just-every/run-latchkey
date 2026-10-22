@@ -1,0 +1,1 @@
+export class ReviewClient {constructor(client:any);applyRemoval(review:string,key:string):Promise<any>;export(review:string,destination:string):Promise<any>;static verify(value:any,pinnedAuthority:string):Promise<boolean>}

@@ -711,7 +711,7 @@
       "executable": false
     },
     "scripts/latchkey/archive-policy.mjs": {
-      "sha256": "7a45df8eea21d8d859e0273a66ac967cf14ef82b46da0633a007b1d52d565e30",
+      "sha256": "3bfc95de9f082ca0144e01663a4da41352bda67f87b9e8bca8b7986506a195e3",
       "executable": false
     },
     "scripts/latchkey/items-commands.mjs": {
@@ -967,11 +967,11 @@
       "executable": false
     },
     "src/latchkey/erasure/subject-plan.mjs": {
-      "sha256": "61f79f4af5d3b44c6fa2eceabb4b20321f8055afd088796e1e459342133d4481",
+      "sha256": "b2c8b1f5e450a9c47bca3e837662e3df07ca83499f8e8d95495d83d3c1e65b5d",
       "executable": false
     },
     "src/latchkey/erasure/subject-schema.mjs": {
-      "sha256": "1a460e59e4732bc81e5a83d4b97237053a57b9eea1a1463985c21cc5a3475095",
+      "sha256": "c6a5e29f4b3429aa505ed3dcfb2159a1ae9eff43359b8acf61a6d064c7b52bb7",
       "executable": false
     },
     "src/latchkey/erasure/subject.d.mts": {
@@ -1079,7 +1079,7 @@
       "executable": false
     },
     "src/latchkey/service.ts": {
-      "sha256": "eb0d7784be3bb54ab204f4f8a1df53fc4fbbebdf03a65bd97d7a99e68c80d10c",
+      "sha256": "4fd7d5933df712b1bf82806892fa9b03b8b716f10740d16b8b40fdb88bf4efcd",
       "executable": false
     },
     "src/latchkey/sharing/client.d.mts": {
@@ -1211,7 +1211,7 @@
       "executable": false
     },
     "src/latchkey/ui/vault.tsx": {
-      "sha256": "facad12da23c5970224d4421e5addb7f05a2532f268557e5d5e5d1814383c938",
+      "sha256": "c1a13d797ca037f254cec640523bc5f7d8827244b9c413aea752a391571a05cc",
       "executable": false
     },
     "src/mail.server.d.mts": {
@@ -2095,7 +2095,7 @@
       "executable": false
     },
     "src/server.ts": {
-      "sha256": "2312fc82499541dba31e603cb8dbba2f6895559ca9275e643ce483ec8583adb4",
+      "sha256": "8fd6d8bef2be437f0b2af5f994a6e789b2e98e8ca23460c02aa39a770c4d3f06",
       "executable": false
     },
     "src/site/pages.ts": {
@@ -2167,7 +2167,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "8bd2b5c4681cce7b9444da40a0428e701e3d325d272791b42ef943170f58fc3f",
+      "sha256": "4da6e20fb963e0906e9dc91877e183c81970e1793ab8ea0bf7154e7a5ca46498",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
@@ -2179,7 +2179,7 @@
       "executable": false
     },
     "wrangler.jsonc": {
-      "sha256": "bf0f46997507a523e7181e4135972d984117485c77b4c19c40372871128750a0",
+      "sha256": "09e423038d02e3bb5b79b40b53425012f38070bb3dcf0de6d6ed1eb3e2b8792f",
       "executable": false
     }
   }

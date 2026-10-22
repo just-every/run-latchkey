@@ -44,6 +44,17 @@ export async function subjectPlan(ctx, subject) {
  for(const table of ['lky_exchanges','lky_password_changes','lky_enrollments'])await select(table,'account_id=?',[accountId]);
  await select('lky_registrations','operator_id=?',[subject]);
  await select('lky_restore_preparations');
+ // Campaign snapshots and signed packages contain historical reviewer/subject
+ // identities. Erasure invalidates affected packages rather than re-signing them.
+ const reviews=await all('SELECT * FROM lky_reviews');
+ const reviewRows=await all('SELECT * FROM lky_review_rows');
+ const affectedReviews=reviews.filter(row=>contains(JSON.stringify(row),identity)||reviewRows.some(r=>r.review_id===row.id&&contains(JSON.stringify(r),identity))).map(row=>row.id);
+ const reviewList=JSON.stringify(affectedReviews);
+ await select('lky_review_rows','review_id IN (SELECT value FROM json_each(?))',[reviewList]);
+ await select('lky_review_reminders','review_id IN (SELECT value FROM json_each(?))',[reviewList]);
+ await select('lky_evidence_deliveries','review_id IN (SELECT value FROM json_each(?)) OR owner=?',[reviewList,accountId]);
+ await select('lky_evidence_destinations','owner=?',[accountId]);
+ await select('lky_reviews','id IN (SELECT value FROM json_each(?))',[reviewList]);
  const erased=await select('lky_erased_items',`vault_id IN (${own}) OR erased_by=? OR erased_device IN (SELECT value FROM json_each(?)) OR instr(proof,?)>0`,[...ownArgs,accountId,JSON.stringify(deviceIds),accountId]);
  await select('lky_subject_invalidations',`vault_id IN (${own})`,ownArgs);
  await select('oa_external_identities','operator_id=?',[subject]);
