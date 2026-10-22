@@ -13,22 +13,23 @@
   --band-pad: clamp(8px, 1.4vh, 20px);
   /* The band's height: the promise on three lines. */
   --band: calc(4.26 * var(--band-font) + 2 * var(--band-pad));
-  /* The largest annotation this width can carry; it sets the room kept above and below the headline. */
+  /* The largest annotation this width can carry; it sets the room kept above and below the headline,
+     with .4 of it again between the last annotation and the band. */
   --note-max: max(19px, min(1.4vw, 26px));
   /* Line one's top: the header strip down to just under its links, then the first annotation's line. */
   --T: calc(var(--lk-header-top) + .87 * var(--lk-lockup) + 1.15 * var(--note-max) + 2px);
-  --F: min(14.35vw, calc((100vh - var(--T) - 1.15 * var(--note-max) - 4px - var(--band)) / 3.335));
-  /* 1px where the annotations are white, else 0: F at least 140 px, and the second still on two lines
-     between its letter and the window's edge (its longer line is 46 characters of .6em at the least). */
+  --F: min(14.35vw, calc((100vh - var(--T) - 1.55 * var(--note-max) - var(--band)) / 3.335));
+  /* 1px where the annotations are white, else 0: F at least 140 px, and room between the second's letter
+     and the window's edge for its first line of 47 characters of .6em, so its second starts "Cloudflare". */
   --lit: min(clamp(0px, (var(--F) - 140px) * 1000, 1px),
-    clamp(0px, (98.47vw - 8px - 3.69 * var(--F) - 27.6 * max(19px, .0975 * var(--F))) * 1000, 1px));
+    clamp(0px, (98.47vw - 8px - 3.69 * var(--F) - 28.2 * max(19px, .0975 * var(--F))) * 1000, 1px));
   --note: max(clamp(12px, .0975 * var(--F), 26px), var(--lit) * 19);
   --note-ink: rgb(calc(255 * sign(var(--lit))) calc(255 * sign(var(--lit))) calc(255 * sign(var(--lit))));
   position: relative; display: flex; flex-direction: column; min-height: max(100vh, 620px); padding: 0; overflow: clip;
   background: var(--lk-tangerine); color: var(--lk-black);
 }
 .landing .hero .site-header { position: absolute; top: 0; left: 0; right: 0; }
-.hero-poster { position: relative; flex: 1 0 auto; padding: var(--T) 0 calc(.015 * var(--F) + 1.15 * var(--note) + 4px) 1.53vw; }
+.hero-poster { position: relative; flex: 1 0 auto; padding: var(--T) 0 calc(.015 * var(--F) + 1.15 * var(--note) + .4 * var(--note-max)) 1.53vw; }
 .hero-title { margin: 0; font: 900 var(--F)/.83 var(--lk-sans); letter-spacing: -.012em; word-spacing: .05em; white-space: nowrap; }
 .hero-line { display: block; }
 

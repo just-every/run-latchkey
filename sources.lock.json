@@ -2763,7 +2763,7 @@
       "executable": false
     },
     "src/site/styles/sections/close.css": {
-      "sha256": "b9463623e9e0b3670c0c17a2bdf0fb06d32cf7fa59b392971782cc9124115bc6",
+      "sha256": "0094a95573b272add186058ef6d1db9ec4d767633e1f7b2b758d0312dc97e8e1",
       "executable": false
     },
     "src/site/styles/sections/dead-key.css": {
@@ -2771,7 +2771,7 @@
       "executable": false
     },
     "src/site/styles/sections/hero.css": {
-      "sha256": "7d2b76eba66732935b389cf97e39825d8c3fc6927ebcbf92a66382ba1d098a78",
+      "sha256": "d6de774dd50f68c51061313d8240b4ead1b7832ac02b409c377ddd16e48bbf7d",
       "executable": false
     },
     "src/site/styles/sections/leak.css": {
