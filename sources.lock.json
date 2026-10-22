@@ -719,7 +719,7 @@
       "executable": false
     },
     "scripts/latchkey/archive-policy.mjs": {
-      "sha256": "3bfc95de9f082ca0144e01663a4da41352bda67f87b9e8bca8b7986506a195e3",
+      "sha256": "712a343248f74b1a63688973b1bb6d9c76588c8125ce135dbffd15ba762b7ea3",
       "executable": false
     },
     "scripts/latchkey/items-commands.mjs": {
