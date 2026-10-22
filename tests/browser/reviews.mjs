@@ -59,7 +59,7 @@ export async function reviewCampaignJourney(f,width){
  await runEvidenceJourneys({owner,review});
  await f.page.getByRole('button',{name:'Refresh evidence deliveries',exact:true}).click();
  await expect(f.page.getByRole('region',{name:'Evidence delivery'})).toContainText('accepted');
- if(output)await f.page.screenshot({path:join(output,`reviews-evidence-${width}.png`),fullPage:true});
+ if(output){await f.page.screenshot({path:join(output,`reviews-evidence-${width}.png`),fullPage:true});await f.page.getByRole('region',{name:'Evidence delivery'}).screenshot({path:join(output,`evidence-panel-${width}.png`)});}
  const exporter=new ReviewClient(owner);for(const destination of ['evidence','vanta','drata','secureframe']){const signed=await exporter.export(review,destination);assert.ok(await ReviewClient.verify(signed,owner.profile.authorityKey));assert.equal(signed.package.completeness.decided,signed.package.completeness.total);assert.ok(!JSON.stringify(signed).includes('synthetic-latchkey-2030'));const altered=structuredClone(signed);altered.package.period+=' changed';assert.equal(await ReviewClient.verify(altered,owner.profile.authorityKey),false)}
  // Scheduled public campaign activation and due-state reminders are controlled
  // by persisted dates rather than an application clock or fake scheduler.
