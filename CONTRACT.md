@@ -606,15 +606,15 @@ Open boundaries remain explicit: unreachable default-policy caches and already e
 
 ## Status
 
-Judged from the code and tests at commit `0b1545cda44a3c6886bb5ce6134779d118793048` (22 October 2026). LKY-001 retains its independently landed client-foundation judgment.
+Prior foundation judgments are retained from commit `0b1545cda44a3c6886bb5ce6134779d118793048` (22 October 2026). LKY-015 records the access-review journeys built and executed by sx-latchkey-c5 on 22 October 2026; LKY-059 records the remaining evidence-connector work. LKY-001 retains its independently landed client-foundation judgment.
 
 The evidence below maps implemented acceptance points to emitted-Worker, CLI and browser assertions that passed locally. Exact-candidate branch and dispatched Verify run IDs are recorded in the campaign plan after execution. LKY-002/033/034 retain their named gaps; independent cryptographic assurance remains LKY-076.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 0 | 0 | 0 | 0 |
-| Target and push further | 2 | 3 | 71 | 76 |
-| All | 2 | 3 | 71 | 76 |
+| Target and push further | 3 | 4 | 69 | 76 |
+| All | 3 | 4 | 69 | 76 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |

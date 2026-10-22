@@ -455,7 +455,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "7ab88a98a86b479e1f2e65e3e4957ce361c0e7a63dd29d348e3928dbefd8ca20",
+      "sha256": "a5c967b1c3752aef3cf2b571c0a40751b8691c57f7d7948f69403534cd8a34cf",
       "executable": false
     },
     "deploy-site.json": {
@@ -912,6 +912,14 @@
     },
     "src/latchkey/client.mjs": {
       "sha256": "26ca8e6845944640d97213fc5b471aa0c67adca31e84b5a327c747b4c2a90e69",
+      "executable": false
+    },
+    "src/latchkey/collections/client.d.mts": {
+      "sha256": "988820382fd680e80f521a6afd347cc3c469756e593866e8ac985a50fbf34453",
+      "executable": false
+    },
+    "src/latchkey/collections/client.mjs": {
+      "sha256": "9cafd03b1374656c91dc927613a9e58a5ada3850c5d8517597970c043b521020",
       "executable": false
     },
     "src/latchkey/crypto/envelope.d.mts": {
