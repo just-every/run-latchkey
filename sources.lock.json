@@ -2551,7 +2551,7 @@
       "executable": false
     },
     "tests/browser/reviews.mjs": {
-      "sha256": "e66606423141052039e9fad604708a5579609f44944c7e1d1b0e3e4c54b1252e",
+      "sha256": "c48a6f05782221cc321854de0e3558b087f78cf0060f7d30991b1b45b03c9a1c",
       "executable": false
     },
     "tests/browser/runtime-consumers.mjs": {
