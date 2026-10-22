@@ -3065,14 +3065,19 @@
                     "type": "array",
                     "items": {}
                   },
-                  "wrapped": {}
+                  "wrapped": {},
+                  "capability": {
+                    "type": "object",
+                    "description": "Owner-signed current recipient rights, generation and vault epoch capability."
+                  }
                 },
                 "required": [
                   "revision",
                   "account",
                   "fingerprint",
                   "rights",
-                  "wrapped"
+                  "wrapped",
+                  "capability"
                 ],
                 "additionalProperties": false
               }

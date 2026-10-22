@@ -1007,7 +1007,7 @@
       "executable": false
     },
     "src/latchkey/api/openapi.json": {
-      "sha256": "95dd389515a5dd35a825aeea78fb29d8a75d7c211da2cb4adacd22f2d6e79251",
+      "sha256": "c0626e731df89fc057d188e4ad631f393519ab1df6ee52a14906832141491bd3",
       "executable": false
     },
     "src/latchkey/api/pagination.mjs": {
