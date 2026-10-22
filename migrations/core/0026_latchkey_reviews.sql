@@ -10,6 +10,7 @@ CREATE TABLE lky_reviews (
 CREATE TABLE lky_review_rows (
  review_id TEXT NOT NULL,key TEXT NOT NULL,snapshot TEXT NOT NULL,
  reviewer TEXT NOT NULL,decision TEXT,reason TEXT,decided_at INTEGER,
+ superseded INTEGER NOT NULL DEFAULT 0,
  PRIMARY KEY(review_id,key)
 );
 CREATE TABLE lky_review_reminders (
