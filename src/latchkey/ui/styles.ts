@@ -75,7 +75,7 @@ body:has(.lk){padding:0;background:var(--rer-page,#fff)}
 .lk .new-vault{margin:0 0 24px;padding:20px}.lk .new-vault p{margin:14px 0}
 .lk .page>.detail:not(.empty){padding:0 0 8px}.lk .page>.detail>h1,.lk .page>.detail>.section>h1{margin-bottom:16px}.lk .page>.detail h2{margin-top:24px}.lk .page>.detail h2:first-child{margin-top:0}
 .lk .page>.detail>button,.lk .page>.detail>.section>button{margin:0 0 16px}.lk .page>.detail>:is(form,label,.actions),.lk .page>.detail>.section>:is(form,label){margin-bottom:24px}.lk .section+.section{margin-top:4px}.lk .tool-box{margin:16px 0;border-top:1px solid var(--rule);padding-top:16px}.lk .tool-box label{margin:12px 0}.lk .tool-panel{margin:0}
-.lk .definition{border:1px solid var(--rule);padding:14px 16px;margin:12px 0}.lk .choice{display:flex;align-items:flex-start;gap:10px;font-weight:400}
+.lk .definition{border:1px solid var(--rule);padding:14px 16px;margin:12px 0}.lk .choice{display:flex;align-items:flex-start;gap:10px;min-height:24px;font-weight:400}
 .lk .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.lk .form-grid label+label{margin-top:0}.lk .edit-field{display:grid;gap:8px}
 .lk .url-rule{display:grid;grid-template-columns:minmax(130px,1fr) minmax(180px,2fr) auto;gap:12px;align-items:end;margin:12px 0}.lk .url-rule label+label{margin:0}
 .lk .file-upload{margin-top:14px}.lk video{width:100%;max-height:300px;margin-top:12px}.lk .fingerprint{overflow-wrap:anywhere;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}

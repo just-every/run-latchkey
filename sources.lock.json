@@ -1715,7 +1715,7 @@
       "executable": false
     },
     "src/latchkey/ui/styles.ts": {
-      "sha256": "b3ea73756a48c8bfa81902c9ff661a1e3890fe910644da38721f9853c8d1cec3",
+      "sha256": "f97a59c9e10fbf13638eba56b52bbc66f7914203489b658878b50714d7995cb0",
       "executable": false
     },
     "src/latchkey/ui/tabs.tsx": {
