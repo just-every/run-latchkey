@@ -27,3 +27,5 @@ Conditional item/share/rotation writes require their ordinary signed body `revis
 - Webhooks and owner access-request actions delegate the automation handlers. MCP machine credentials never authorize these human REST doors.
 
 These boundaries must remain visible in clause evidence; an OpenAPI document alone does not establish execution of user-administration or import behavior.
+
+Review administration also exposes the existing assigned-reviewer lookup, exact row assignment, reconciliation, overdue reminder, effective-removal and signed-package verification handlers. The CLI commands are `reviews.reviewers`, `reviews.assign`, `reviews.reconcile`, `reviews.remind`, `reviews.remove` and `reviews.verify-package`. Direct-recipient removal still requires the owner client to perform its cryptographic vault rotation; the metadata removal endpoint cannot unwrap keys or replace that ceremony.

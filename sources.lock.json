@@ -987,7 +987,7 @@
       "executable": false
     },
     "src/latchkey/api/catalogue.mjs": {
-      "sha256": "6d571dce577c89e577888a75dc81f60c92dce302b692700182a94643e9521570",
+      "sha256": "e9c9729d4314b1ea3378b26ddfdff95639b9d902f9fab506095afefa0fe8f78b",
       "executable": false
     },
     "src/latchkey/api/client.d.mts": {
@@ -995,7 +995,7 @@
       "executable": false
     },
     "src/latchkey/api/client.mjs": {
-      "sha256": "f5cf44ea3155cb0468be382cb055da665a9ffa266a547d12c473b7fa6e9b49c3",
+      "sha256": "8cc9f0085957cca345b794c3067a74105bb19c8f520c4e33962ec8965c352057",
       "executable": false
     },
     "src/latchkey/api/http.d.mts": {
@@ -1011,7 +1011,7 @@
       "executable": false
     },
     "src/latchkey/api/openapi.json": {
-      "sha256": "c0626e731df89fc057d188e4ad631f393519ab1df6ee52a14906832141491bd3",
+      "sha256": "1072baaf9df1de32a7bc370db1f4b99345453d4e98e2d41728ddc36c92af8557",
       "executable": false
     },
     "src/latchkey/api/pagination.mjs": {
@@ -1019,7 +1019,7 @@
       "executable": false
     },
     "src/latchkey/api/README.md": {
-      "sha256": "06bf65a1179c9c53fa1eec137ad5482d2682247e14e0ea299c432a47843f098b",
+      "sha256": "0dc4a8dda1e14b995bdd44f1b113a0ab22eb82cbb341df5485819cc391af0b73",
       "executable": false
     },
     "src/latchkey/api/users.mjs": {
@@ -2551,7 +2551,7 @@
       "executable": false
     },
     "tests/browser/reviews.mjs": {
-      "sha256": "c48a6f05782221cc321854de0e3558b087f78cf0060f7d30991b1b45b03c9a1c",
+      "sha256": "368f5308ea53b736cafec8aa6f3ad75bdc4f1b5e352dd2489648ebe294f232d1",
       "executable": false
     },
     "tests/browser/runtime-consumers.mjs": {
