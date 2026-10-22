@@ -48,7 +48,7 @@ async function dispatch(ctx, row, delivery) {
   // Recheck immediately before egress, including deployment allowlist changes.
   need(await first(`SELECT 1 AS allowed FROM lky_webhook_subscriptions s WHERE s.id=? AND s.revision=? AND s.active=1 AND ${live}`,row.id,row.revision),'webhook_authorization_revoked',403);
   stage='transport';
-  const response = await (ctx.fetcher ?? fetch)(endpoint(row.endpoint,ctx.env),{method:'POST',redirect:'error',credentials:'omit',referrerPolicy:'no-referrer',signal:AbortSignal.timeout(15000),headers:{'content-type':'application/json','webhook-id':delivery.event_id,'webhook-timestamp':timestamp,'webhook-signature':signature},body:delivery.payload});
+  const response = await (ctx.fetcher ?? fetch)(endpoint(row.endpoint,ctx.env),{method:'POST',redirect:'manual',signal:AbortSignal.timeout(15000),headers:{'content-type':'application/json','webhook-id':delivery.event_id,'webhook-timestamp':timestamp,'webhook-signature':signature},body:delivery.payload});
   stage='response';status = response.status; phase = response.ok ? 'accepted' : 'backlog';
   await response.body?.cancel();
  } catch { /* Raw network exceptions and response bodies are never retained. */ }

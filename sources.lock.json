@@ -1047,7 +1047,7 @@
       "executable": false
     },
     "src/latchkey/automation/README.md": {
-      "sha256": "273f21bec385bc3bdef081a181f7c4c6e6f08c5eb772b69690930a2d81a37b85",
+      "sha256": "961613f9184510a0d629d11cc156a7c4a7e37a35ae3faeed098454d9e0fff8ea",
       "executable": false
     },
     "src/latchkey/automation/signing-custody.mjs": {
@@ -1059,7 +1059,7 @@
       "executable": false
     },
     "src/latchkey/automation/webhooks.mjs": {
-      "sha256": "0af4e2a310ea8e24ed3f332a9c3fc590bf1448aeab9f5971e83e9676801137d5",
+      "sha256": "a6929ed45f99651f460cd1849a4e67a4d883028d28fe7cfb04410f32c4fcd9cf",
       "executable": false
     },
     "src/latchkey/client.mjs": {
@@ -2511,11 +2511,11 @@
       "executable": false
     },
     "tests/browser/automation.mjs": {
-      "sha256": "7f212e5e66581deea0d7fddf8aa504af67efa8a81d53a58232078eae6620792f",
+      "sha256": "6b359ac43337e6356fb713e31a1f4dcbe8f11960771f6cf73263b9ad79deeba8",
       "executable": false
     },
     "tests/browser/fixture.mjs": {
-      "sha256": "9d95743552bd081af112c7bd781cacda0699f7871864b5582839e46aada19c21",
+      "sha256": "6ac3b5d8059e7a201bf55553b0b4c9ac99d8977a1acf9c26b919e4191a2c94a1",
       "executable": false
     },
     "tests/browser/organization.mjs": {
