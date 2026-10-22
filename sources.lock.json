@@ -2511,7 +2511,7 @@
       "executable": false
     },
     "tests/browser/automation.mjs": {
-      "sha256": "10d83f9a2ee48beaab8e704382fab2f10cec1c8354d5345446740a251e174dd7",
+      "sha256": "81ba39c990aa13e836b89bfa60a6df53c74a97b172f3fee0874af1ad263de853",
       "executable": false
     },
     "tests/browser/fixture.mjs": {
