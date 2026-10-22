@@ -66,7 +66,14 @@ export async function subjectPlan(ctx, subject) {
  const reviewList=JSON.stringify(affectedReviews);
  await select('lky_review_rows','review_id IN (SELECT value FROM json_each(?))',[reviewList]);
  await select('lky_review_reminders','review_id IN (SELECT value FROM json_each(?))',[reviewList]);
- await select('lky_evidence_deliveries','review_id IN (SELECT value FROM json_each(?)) OR owner=?',[reviewList,accountId]);
+ const postureSources=await select('lky_evidence_sources',`owner=? OR vault_id IN (${own}) OR vault_id IN (SELECT value FROM json_each(?))`,[accountId,...ownArgs,JSON.stringify([...new Set([...affectedIds,...reviews.filter(row=>affectedReviews.includes(row.id)).map(row=>row.vault_id)])])]);
+ const evidenceSourceIds=JSON.stringify([...affectedReviews,...postureSources.map(row=>row.id)]);
+ await select('lky_evidence_deliveries','review_id IN (SELECT value FROM json_each(?)) OR owner=?',[evidenceSourceIds,accountId]);
+ await select('lky_evidence_deletions','owner=?',[accountId]);
+ await select('lky_evidence_deletions','owner<>? AND source_id IN (SELECT value FROM json_each(?))',[accountId,evidenceSourceIds],'redact',row=>({...row,source_id:null,
+  request_reference:contains(row.request_reference,identity)?'Reference removed by person erasure':row.request_reference,
+  confirmation_reference:contains(row.confirmation_reference,identity)?'Reference removed by person erasure':row.confirmation_reference,
+  provider_reference:contains(row.provider_reference,identity)?'Reference removed by person erasure':row.provider_reference}));
  await select('lky_evidence_destinations','owner=?',[accountId]);
  await select('lky_reviews','id IN (SELECT value FROM json_each(?))',[reviewList]);
  const erased=await select('lky_erased_items',`vault_id IN (${own}) OR erased_by=? OR erased_device IN (SELECT value FROM json_each(?)) OR instr(proof,?)>0`,[...ownArgs,accountId,JSON.stringify(deviceIds),accountId]);

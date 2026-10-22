@@ -606,6 +606,10 @@
       "sha256": "332f98f4f9e82f36237d005e9328fe29718d2fd3284643e8492b98b0e2b138ea",
       "executable": false
     },
+    "migrations/core/0031_latchkey_posture_evidence.sql": {
+      "sha256": "6b4a73cb46b06e160026593045b28d24bf5c1729a44fe157536f5c5acb3d25e4",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "a2e48542c3e51e31c8d35148905c3654fd7600d22a8b1c1380e2397bd805408a",
       "executable": false
@@ -783,7 +787,7 @@
       "executable": false
     },
     "scripts/latchkey/archive-policy.mjs": {
-      "sha256": "6f79b725c65f5162ea85924730a509e5bf65b734f9fcc9e243114b3af53c1198",
+      "sha256": "21dc3381de369c192f2a9ced8b2292a7ceac0fd5fee8728b60222abfee3b858f",
       "executable": false
     },
     "scripts/latchkey/items-commands.mjs": {
@@ -1167,11 +1171,11 @@
       "executable": false
     },
     "src/latchkey/erasure/subject-plan.mjs": {
-      "sha256": "e1ff3139515222d1801dd12b65bdec841f4da2d0da1723c7996981d28209aee4",
+      "sha256": "ed8bb4717e72e292dd439c0996fdb99a82032a7a27ff8848ffbbc520a43cad81",
       "executable": false
     },
     "src/latchkey/erasure/subject-schema.mjs": {
-      "sha256": "aed180b8e03c16eda98a37148094d586be453612d3780896cecc414fd17075f3",
+      "sha256": "5c51331d4c27c32de513a98a01a27a520a6f632c70f9e074431312f58bc1c53d",
       "executable": false
     },
     "src/latchkey/erasure/subject.d.mts": {
@@ -1191,11 +1195,19 @@
       "executable": false
     },
     "src/latchkey/evidence/client.d.mts": {
-      "sha256": "1a681f484278d274b77d212ff81b5f3dcabec1972240fd77abfbeee23372f9da",
+      "sha256": "bb6272abe1875960893522f13da0ace007dee41fb31931a890b728be61e7507c",
       "executable": false
     },
     "src/latchkey/evidence/client.mjs": {
-      "sha256": "47c55ae836602318e701af9513db14bb64e1cd008f1afdcec48ef800f73d527e",
+      "sha256": "ec01c0f415cb1c1f8964b9952dc98302b6572400b6c485d58cf8a453e380d377",
+      "executable": false
+    },
+    "src/latchkey/evidence/deletions.mjs": {
+      "sha256": "c3e39ca5eea10a66fdeb7a39b3b864861b33a62db1d237ad873566b439828bae",
+      "executable": false
+    },
+    "src/latchkey/evidence/posture.mjs": {
+      "sha256": "cceaa75910f2e0cf74bdff5746d701266db14883248e5af717c2d96c434f94d9",
       "executable": false
     },
     "src/latchkey/evidence/README.md": {
@@ -1207,11 +1219,23 @@
       "executable": false
     },
     "src/latchkey/evidence/service.mjs": {
-      "sha256": "ae1886b5ae3cca240b6d77ec691f673df3ec41aa381ecbfd7ca04237da03735d",
+      "sha256": "d252f9a5414f3cce96fe85c579a173afc198f3a22e7b30450c8d375c536bcbfa",
+      "executable": false
+    },
+    "src/latchkey/evidence/signing.mjs": {
+      "sha256": "48afe5e1a817f9cee5409ba252dee9502535145d442cad1c5cfcf43c59481344",
+      "executable": false
+    },
+    "src/latchkey/evidence/sources.mjs": {
+      "sha256": "5f8af651a788431d7a9b27717ac1beddc1399cf81c32cddcfe717e6e3558e4a8",
       "executable": false
     },
     "src/latchkey/evidence/ui.tsx": {
-      "sha256": "cc9e05d2cbe4575ce56a837b28f86fa0d43781639e597a1f72a9b4bbfd5a7ef1",
+      "sha256": "c88c514f1ff116e407b106be918200397c4f49f206daa5441415593ade274d4f",
+      "executable": false
+    },
+    "src/latchkey/evidence/workspace.tsx": {
+      "sha256": "a928fd1d4a1bf7f25efab6599eb471cf93de4f3fff78e81050230b79e524512e",
       "executable": false
     },
     "src/latchkey/generator/eff.mjs": {
@@ -1615,7 +1639,7 @@
       "executable": false
     },
     "src/latchkey/ui/vault.tsx": {
-      "sha256": "9ca4088cd03c3aa8f6136fa99b1216f7c563ec24772a1996a50dfab3655968bf",
+      "sha256": "991c6837660835c11e9707e414d95fd9b68159d85a2c11734902582e83edb649",
       "executable": false
     },
     "src/mail.server.d.mts": {
@@ -2527,7 +2551,7 @@
       "executable": false
     },
     "tests/browser/reviews.mjs": {
-      "sha256": "5cf680a8cc7e196b303aa5221dbab9cc3e2fbf2b5454555a6abb790ee9363dc4",
+      "sha256": "d435ee4e221a45b253380b9a1f1852008e02a3d03c37601b90d4b00ddfd67194",
       "executable": false
     },
     "tests/browser/runtime-consumers.mjs": {
@@ -2551,7 +2575,7 @@
       "executable": false
     },
     "tests/latchkey-evidence.mjs": {
-      "sha256": "eda5532cd954271dc155d7f6e05c59c6859e851df69ed8443e4f138f1f3c028c",
+      "sha256": "0716fbf79eebfdeee5d2dc9830127fed04abe80717d64b62fe3c154b3845d143",
       "executable": false
     },
     "tests/latchkey-generator-policy.mjs": {
