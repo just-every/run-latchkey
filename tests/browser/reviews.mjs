@@ -18,6 +18,7 @@ async function enroll(f,n,name){
  const client=new VaultClient(f.origin,{fetcher:f.fetcher});await client.confirmIdentity(token);const enrollment=await client.register(`synthetic-latchkey-${n+1}`);await client.unlock(enrollment.profile,`synthetic-latchkey-${n+1}`);return client;
 }
 export async function reviewCampaignJourney(f,width){
+ await f.page.goto(f.origin+'/app/vault');if(new URL(f.page.url()).pathname==='/setup'){await f.page.getByLabel('I confirm this owner account is ready to use.').check();await f.page.getByRole('button',{name:'Finish setup',exact:true}).click()}
  const owner=f.owner,member=await enroll(f,2000,'Northstar Finance analyst'),reviewer=await enroll(f,2010,'Northstar independent reviewer'),later=await enroll(f,2020,'Northstar temporary auditor');
  try{
  const vault=(await owner.createVault()).vault;await owner.put(vault,{schema:'latchkey/vault-meta/v1',title:'Finance quarterly review'});
@@ -32,7 +33,11 @@ export async function reviewCampaignJourney(f,width){
  let state=await owner.call('reviews/get',{review});assert.ok(state.rows.some(r=>r.kind==='direct'&&r.subject===member.profile.account));assert.ok(state.rows.some(r=>r.kind==='inherited'&&r.group===group));assert.ok(state.rows.some(r=>r.kind==='external'&&r.status==='active'));assert.ok(state.rows.some(r=>r.status==='expired'));assert.equal(state.enforcement.mfa,'unknown-not-implemented');
  const own=state.rows.find(r=>r.kind==='direct'&&r.subject===owner.profile.account);
  await refused(owner.call('reviews/decide',{review,key:own.key,decision:'confirm',reason:'Own access'}),'independent_reviewer_required');
- await owner.call('reviews/assign',{review,key:own.key,reviewer:reviewer.profile.account});await reviewer.call('reviews/decide',{review,key:own.key,decision:'confirm',reason:'Independent owner access verification'});
+ await owner.call('reviews/assign',{review,key:own.key,reviewer:reviewer.profile.account});
+ await reviewer.requestIdentity('synthetic-latchkey-2010@example.test');const signInToken=new URL(f.mail.at(-1).content.find(c=>c.type==='text/plain').value.match(/https:\/\/[^\s<>]+/)[0]).searchParams.get('token');
+ const reviewerContext=await f.browser.newContext({ignoreHTTPSErrors:true,viewport:{width,height:1000}});
+ try{const confirmed=await reviewerContext.request.post(f.origin+'/auth/confirm',{headers:{origin:f.origin},data:{token:signInToken},maxRedirects:0});assert.equal(confirmed.status(),303);const page=await reviewerContext.newPage();await page.goto(f.origin+'/app/vault');await page.getByLabel('Profile file').setInputFiles({name:'reviewer.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(reviewer.profile))});await page.getByLabel('Master password',{exact:true}).fill('synthetic-latchkey-2011');await page.getByRole('button',{name:'Unlock vault',exact:true}).click();await page.getByRole('button',{name:'Access reviews',exact:true}).click();const article=page.getByRole('article',{name:`Grant ${own.key}`,exact:true});await expect(article).toBeVisible();await article.getByLabel(`Decision reason for ${own.key}`).fill('Independent owner access verification');await article.getByRole('button',{name:'Record decision',exact:true}).click();await expect(article.getByText('Decision: confirm.',{exact:false})).toBeVisible();if(output)await page.screenshot({path:join(output,`reviews-independent-${width}.png`),fullPage:true});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1))}finally{await reviewerContext.close()}
+
  await refused(later.call('reviews/get',{review}),'review_not_found');await refused(owner.call('reviews/get',{review:id()}),'review_not_found');
  const direct=state.rows.find(r=>r.kind==='direct'&&r.subject===member.profile.account);
  await owner.call('reviews/decide',{review,key:direct.key,decision:'remove',reason:'Finance rotation complete; remove former analyst'});

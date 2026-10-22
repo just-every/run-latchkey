@@ -49,7 +49,7 @@ export function ReviewsPanel({ client, vault, run }: any) {
  const account = client.profile.account;
  const refresh = async (preferred: string, token = context.current) => {
   const ticket = ++request.current;
-  const [members, records, vaults] = await Promise.all([client.call('reviews/people', {}), client.call('reviews/list', { vault }), client.call('vaults', {})]);
+  const [members, records, vaults] = await Promise.all([client.call('reviews/people', {}), client.call('reviews/list', { vault: vault || null }), client.call('vaults', {})]);
   const id = records.some((row: CampaignSummary) => row.id === preferred) ? preferred : records[0]?.id ?? '';
   const detail = id ? await client.call('reviews/get', { review: id }) : null;
   if (token !== context.current || ticket !== request.current) return;

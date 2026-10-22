@@ -1135,7 +1135,7 @@
       "executable": false
     },
     "src/latchkey/reviews/index.mjs": {
-      "sha256": "a10a020e1b9cdc63eeac2d303949855a29b5405bdf14bceaaf7e7d00d2b4f1be",
+      "sha256": "50db82b6d5b7350dd1a84eaab037b33a4c42829b173c466f8003bb4f25e3fd58",
       "executable": false
     },
     "src/latchkey/reviews/scheduled.d.mts": {
@@ -1155,7 +1155,7 @@
       "executable": false
     },
     "src/latchkey/reviews/ui.tsx": {
-      "sha256": "fb351c59fc304b60d6195fed7a291ba15560c584e361bd6b7554dcea70ef8392",
+      "sha256": "15cd70714f95caf2925ac4affb91b69e4917790aa2bae0e2349da54dd61589ff",
       "executable": false
     },
     "src/latchkey/service.ts": {
@@ -1291,7 +1291,7 @@
       "executable": false
     },
     "src/latchkey/ui/vault.tsx": {
-      "sha256": "c1a13d797ca037f254cec640523bc5f7d8827244b9c413aea752a391571a05cc",
+      "sha256": "15d06adb92ddfbc6bd6d817457acc4c44809b8d309ce4120ff1e597c0c43f447",
       "executable": false
     },
     "src/mail.server.d.mts": {
@@ -2191,7 +2191,7 @@
       "executable": false
     },
     "tests/browser/reviews.mjs": {
-      "sha256": "50884be9c9197046c46d17f875cf82c9af3c1d9b2e688b54eaa3d9d185328425",
+      "sha256": "da0b29fd559801f5653d4b0a6598cebf77671a59947b47b991d3d5b896b1d8b3",
       "executable": false
     },
     "tests/browser/sharing.mjs": {
