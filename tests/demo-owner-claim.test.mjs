@@ -30,10 +30,10 @@ test('host-signed owner claims require the configured demo runtime; installed au
    if(mode==='demo'){
     const accepted=await post({token});assert.equal(accepted.status,303,await accepted.clone().text());
     const cookie=accepted.headers.getSetCookie().map(c=>c.split(';')[0]).join('; ');
-    const session=await worker.dispatchFetch(origin+'/auth/session',{headers:{cookie}});assert.equal(session.status,200);assert.equal((await session.json()).operator.email,email);
+    const session=await worker.dispatchFetch(origin+'/auth/session',{headers:{host:new URL(origin).host,cookie}});assert.equal(session.status,200);assert.equal((await session.json()).operator.email,email);
     const replay=await post({token});assert.equal(replay.status,409);assert.equal(replay.headers.has('set-cookie'),false);
    }else{
-    assert.equal((await worker.dispatchFetch(origin+'/auth/session')).status,401,mode);
+    assert.equal((await worker.dispatchFetch(origin+'/auth/session',{headers:{host:new URL(origin).host}})).status,401,mode);
     assert.equal((await db.prepare('SELECT count(*) AS n FROM oa_operators').first()).n,0,mode);
    }
   }finally{await worker.dispose()}

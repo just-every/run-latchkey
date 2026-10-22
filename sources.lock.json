@@ -2863,7 +2863,7 @@
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {
-      "sha256": "0bd953a26ddeafe6184679e2d6c00801d81768e2d28351091028ab15ef70a70e",
+      "sha256": "299565ccdc8df812c62c9aa602032e2bfd79aaf4958f1ddb740020f92b4455a7",
       "executable": false
     },
     "tests/incremental-typecheck.test.mjs": {
