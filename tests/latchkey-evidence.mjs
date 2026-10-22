@@ -4,7 +4,6 @@ import { readFile,readdir } from 'node:fs/promises';
 import { unstable_splitSqlQuery } from 'wrangler';
 import assert from 'node:assert/strict';
 import { EvidenceClient } from '../src/latchkey/evidence/client.mjs';
-import { ReviewClient } from '../src/latchkey/reviews/client.mjs';
 export async function runEvidenceJourneys({owner,review}){
  const client=new EvidenceClient(owner),sent=[],credential='synthetic-latchkey-2050';
  const configs=[['evidence','https://evidence.example.test'],['vanta','https://api.vanta.com'],['drata','https://public-api.drata.com'],['secureframe','https://api.secureframe.com']];
@@ -24,6 +23,7 @@ export async function runEvidenceJourneys({owner,review}){
  for(const[destination,endpoint]of configs){
   const config=await client.configure({destination,endpoint,target:'Finance quarterly review',workspace:destination==='drata'?'1':null});
   const preview=await client.preview(review,config);assert.deepEqual(preview.fields,Object.keys(preview.package).sort());
+  if(destination==='evidence'){const tampered=structuredClone(preview.signedPackage);tampered.package.completeness.total++;await assert.rejects(owner.call('evidence/begin',{review,destination:config.id,revision:config.revision,packageHash:preview.packageHash,signedPackage:tampered,confirmed:true}),error=>error.code==='evidence_signature_invalid');assert.equal(sent.length,0);}
   await assert.rejects(client.send(preview,credential,false,{fetcher:edge}),e=>e.code==='evidence_consent_required');
   const result=await client.send(preview,destination==='secureframe'?{apiKey:'synthetic-latchkey-2051',keySecret:'synthetic-latchkey-2052'}:credential,true,{fetcher:edge});assert.equal(result.state,'accepted');assert.ok(result.providerReference);assert.ok(result.sourceTimestamp);assert.ok(!JSON.stringify(result).includes(credential));
  }
@@ -38,7 +38,7 @@ export async function runEvidenceJourneys({owner,review}){
 export async function runPostureEvidenceJourneys({owner,vault,outsider}){
  const client=new EvidenceClient(owner),credential='synthetic-latchkey-2090',sent=[];
  if(outsider)await assert.rejects(new EvidenceClient(outsider).capture(vault,true),error=>error.code==='review_owner_required');
- const initial=await client.capture(vault,true),original=await client.preview(initial.id,(await client.destinations()).find(row=>row.destination==='vanta'));
+ const initial=await client.capture(vault,true),original=await client.preview(initial.id,(await client.destinations()).find(row=>row.active));
  const privateVault=(await owner.createVault({kind:'private-work'})).vault,familyVault=(await owner.createVault({kind:'family'})).vault;
  await owner.put(privateVault,{schema:'latchkey/vault-meta/v1',title:'synthetic-latchkey-2091'});
  await assert.rejects(client.capture(privateVault,true),error=>error.code==='company_vault_required');

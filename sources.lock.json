@@ -1219,7 +1219,7 @@
       "executable": false
     },
     "src/latchkey/evidence/service.mjs": {
-      "sha256": "d252f9a5414f3cce96fe85c579a173afc198f3a22e7b30450c8d375c536bcbfa",
+      "sha256": "dd4a6e771027b7b97c2c03fbbc976d1a9c2af78abe49b74f66e7987bb4d29578",
       "executable": false
     },
     "src/latchkey/evidence/signing.mjs": {
@@ -2575,7 +2575,7 @@
       "executable": false
     },
     "tests/latchkey-evidence.mjs": {
-      "sha256": "3bdafa8f7cf097583110c26517271bdbefa548b6385c5b2345420e70a6627948",
+      "sha256": "a4b15336ffe96316d2921841d5b683a76547549920e95b59fefafbb6c07aee5f",
       "executable": false
     },
     "tests/latchkey-generator-policy.mjs": {
