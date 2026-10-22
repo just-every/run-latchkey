@@ -1155,7 +1155,7 @@
       "executable": false
     },
     "src/latchkey/reviews/ui.tsx": {
-      "sha256": "15cd70714f95caf2925ac4affb91b69e4917790aa2bae0e2349da54dd61589ff",
+      "sha256": "6dd0ff7b1e15561e3e3dcea885351a690f95cbad263695d5b309d9eb8f0afd28",
       "executable": false
     },
     "src/latchkey/service.ts": {
@@ -2187,11 +2187,11 @@
       "executable": false
     },
     "tests/browser/fixture.mjs": {
-      "sha256": "ed76bb7d6184aceaab0e50ccccfd611f0134942034209a69e6ee0cbb8f1cdd2a",
+      "sha256": "5db2dcd96f16bea7f96fcf6def861f79443caa0652bf33ccf0333aac71a12f26",
       "executable": false
     },
     "tests/browser/reviews.mjs": {
-      "sha256": "24777028e69c5cb8f9a13c1f213407d9fdd6868f82da00fe3438ee30f12002e5",
+      "sha256": "073c62f56ea32b01358ea68b5c5275caccf6f6b5ad7aa04a47b5dbee7cc8adf1",
       "executable": false
     },
     "tests/browser/sharing.mjs": {

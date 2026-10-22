@@ -79,7 +79,7 @@ export function ReviewsPanel({ client, vault, run }: any) {
  };
  const owner = (campaign?.owner ?? vaultOwner) === account;
  const complete = !!campaign && isComplete(campaign.phase);
- const active = !!campaign && !complete && campaign.phase !== 'scheduled' && !stale;
+ const active = !!campaign && campaign.phase === 'open' && !stale;
  const counts = campaign?.completeness;
  const canClose = active && !!counts && counts.decided === counts.total && counts.pendingRemovals === 0 && counts.unreconciled === 0 && campaign!.changes.length === 0;
  return <section className="detail section" aria-label="Access reviews" aria-busy={busy || loading}>
@@ -102,7 +102,7 @@ export function ReviewsPanel({ client, vault, run }: any) {
    <button className="add" disabled={busy || stale}>Schedule review</button>
   </form></details>}
   {campaign && <>
-   <div className="notice"><h2>{complete ? 'Completed review' : campaign.phase === 'scheduled' ? 'Scheduled review' : 'Review in progress'}</h2><div className="rule-view"><span>Campaign</span><span>{campaign.id}</span></div><p>Period: {campaign.period}. Snapshot: {when(campaign.asOf)}. Due: {when(campaign.dueAt)}. Policy version: {campaign.policyVersion}.</p><p>Owner: {campaign.owner}. Phase: {campaign.phase}.</p>
+   <div className="notice"><h2>{complete ? 'Completed review' : campaign.phase === 'scheduled' ? 'Scheduled review' : campaign.phase === 'inactive' ? 'Inactive restored review' : 'Review in progress'}</h2><div className="rule-view"><span>Campaign</span><span>{campaign.id}</span></div><p>Period: {campaign.period}. Snapshot: {when(campaign.asOf)}. Due: {when(campaign.dueAt)}. Policy version: {campaign.policyVersion}.</p><p>Owner: {campaign.owner}. Phase: {campaign.phase}.</p>
     <p>MFA enforcement: {campaign.enforcement?.mfa == null || campaign.enforcement.mfa === 'unknown' ? 'Unknown (no enforcement evidence reported)' : text(campaign.enforcement.mfa)}.</p>
     {campaign.overdue && !complete && <p role="alert">Overdue: this review still needs the owner’s attention.</p>}
     <p>{counts!.decided} of {counts!.total} grants decided. {counts!.removals} removal decisions; {counts!.pendingRemovals} pending removals; {counts!.unreconciled} unreconciled changes.</p>
