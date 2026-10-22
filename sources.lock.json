@@ -1059,7 +1059,7 @@
       "executable": false
     },
     "src/latchkey/automation/webhooks.mjs": {
-      "sha256": "75b22dd9d32325b23b0dda35bbfff7d5e7846e232e2c509b747f76d006409520",
+      "sha256": "0af4e2a310ea8e24ed3f332a9c3fc590bf1448aeab9f5971e83e9676801137d5",
       "executable": false
     },
     "src/latchkey/client.mjs": {
@@ -2511,7 +2511,7 @@
       "executable": false
     },
     "tests/browser/automation.mjs": {
-      "sha256": "cef021270ae2de1092c8ec14df2512ac1779da886f89de3fcd91af967ae804a2",
+      "sha256": "7f212e5e66581deea0d7fddf8aa504af67efa8a81d53a58232078eae6620792f",
       "executable": false
     },
     "tests/browser/fixture.mjs": {

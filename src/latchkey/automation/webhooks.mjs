@@ -41,16 +41,18 @@ async function dispatch(ctx, row, delivery) {
  // send can repeat, always with the same event ID and identical payload bytes.
  const gate = `EXISTS(SELECT 1 FROM lky_webhook_subscriptions s WHERE s.id=? AND s.revision=? AND s.active=1 AND ${live}) AND EXISTS(SELECT 1 FROM lky_webhook_deliveries WHERE id=? AND (lease_until IS NULL OR lease_until<=?))`;
  await transact(ctx,[stmt("UPDATE lky_webhook_deliveries SET phase='dispatching',attempts=attempts+1,lease_until=?,updated_at=? WHERE id=?",ctx.now+60000,ctx.now,delivery.id),stmt("INSERT INTO lky_webhook_attempts VALUES(?,?,?,?,NULL,NULL,'pending')",attempt,delivery.id,row.revision,ctx.now),event('security_webhook_dispatch_authorized',delivery.id)],gate,[row.id,row.revision,delivery.id,ctx.now]);
- let status = null, phase = 'backlog';
+ let status = null, phase = 'backlog',stage='signing';
  try {
   const timestamp = String(Math.floor(ctx.now/1000)), signature = await signWebhook(await loadSigningKey(ctx,row),delivery.event_id,timestamp,delivery.payload);
+  stage='authority';
   // Recheck immediately before egress, including deployment allowlist changes.
   need(await first(`SELECT 1 AS allowed FROM lky_webhook_subscriptions s WHERE s.id=? AND s.revision=? AND s.active=1 AND ${live}`,row.id,row.revision),'webhook_authorization_revoked',403);
+  stage='transport';
   const response = await (ctx.fetcher ?? fetch)(endpoint(row.endpoint,ctx.env),{method:'POST',redirect:'error',credentials:'omit',referrerPolicy:'no-referrer',signal:AbortSignal.timeout(15000),headers:{'content-type':'application/json','webhook-id':delivery.event_id,'webhook-timestamp':timestamp,'webhook-signature':signature},body:delivery.payload});
-  status = response.status; phase = response.ok ? 'accepted' : 'backlog';
+  stage='response';status = response.status; phase = response.ok ? 'accepted' : 'backlog';
   await response.body?.cancel();
  } catch { /* Raw network exceptions and response bodies are never retained. */ }
- await ctx.db.batch([stmt('UPDATE lky_webhook_attempts SET completed_at=?,status=?,outcome=? WHERE id=?',ctx.now,status,phase,attempt),stmt('UPDATE lky_webhook_deliveries SET phase=?,status=?,lease_until=NULL,updated_at=? WHERE id=?',phase,status,ctx.now,delivery.id),event(phase === 'accepted'?'security_webhook_accepted':'security_webhook_backlog',delivery.id)]);
+ await ctx.db.batch([stmt('UPDATE lky_webhook_attempts SET completed_at=?,status=?,outcome=? WHERE id=?',ctx.now,status,phase==='accepted'?'accepted':'backlog:'+stage,attempt),stmt('UPDATE lky_webhook_deliveries SET phase=?,status=?,lease_until=NULL,updated_at=? WHERE id=?',phase,status,ctx.now,delivery.id),event(phase === 'accepted'?'security_webhook_accepted':'security_webhook_backlog',delivery.id)]);
  return deliveryOutput(await first('SELECT * FROM lky_webhook_deliveries WHERE id=?',delivery.id));
 }
 
