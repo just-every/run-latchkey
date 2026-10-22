@@ -14,7 +14,7 @@ body:has(.lk){padding:0;background:var(--rer-page,#fff)}
 .lk .primary,.lk .add{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}.lk .primary:hover:not(:disabled),.lk .add:hover:not(:disabled){background:color-mix(in srgb,var(--accent) 88%,var(--ink))}
 .lk .danger{border-color:var(--danger);color:var(--danger)}.lk .small{min-height:34px;padding:0 12px;font-size:14px}
 .lk .link{border:0;background:none;min-height:36px;padding:0;font-weight:500;text-decoration:underline;text-underline-offset:3px}.lk .link:hover:not(:disabled){background:none;text-decoration-thickness:2px}
-.lk input,.lk textarea,.lk select{border:1px solid var(--control);border-radius:0;background:var(--page);min-height:42px;padding:9px 12px;max-width:100%}.lk input,.lk textarea{width:100%}.lk select{padding-right:8px}
+.lk input,.lk textarea,.lk select{border:1px solid var(--control);border-radius:0;background:var(--page);min-height:42px;padding:9px 12px;max-width:100%}.lk input,.lk textarea{width:100%}.lk select{padding-right:8px;min-width:0}.lk label>select,.lk .vault-select{width:100%}.lk .crumbs .vault-select{width:auto}
 .lk input:focus-visible,.lk textarea:focus-visible,.lk select:focus-visible{outline:0;border-color:var(--ink);box-shadow:0 0 0 3px var(--ring)}
 .lk input[type=file]{padding:8px 10px}.lk input[type=file]::file-selector-button{font:inherit;font-weight:500;border:1px solid var(--edge);background:var(--page);padding:4px 12px;margin-right:12px;cursor:pointer}
 .lk textarea{resize:vertical;overflow-wrap:anywhere}.lk input[type=checkbox],.lk input[type=radio]{width:18px;height:18px;min-height:18px;margin:2px 0 0;flex-shrink:0;accent-color:var(--ink)}
