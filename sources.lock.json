@@ -586,6 +586,14 @@
       "sha256": "37717541baa44a8a0c91ed11120f3a9473c2dc52a64b0e7c239ea2fa6b0c33c2",
       "executable": false
     },
+    "migrations/core/0026_latchkey_reviews.sql": {
+      "sha256": "f4862a8a77f7d4527eb2c505f27296b2bb14d6af0c84641efffc7044404c231a",
+      "executable": false
+    },
+    "migrations/core/0027_latchkey_evidence.sql": {
+      "sha256": "e4e7eb8eb5d9988c71459a9c8801f1d55db1f53e998627264207b7b6f2b73024",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "a2e48542c3e51e31c8d35148905c3654fd7600d22a8b1c1380e2397bd805408a",
       "executable": false
@@ -982,6 +990,38 @@
       "sha256": "2bf84f2e0045c3f6f37ee830cfcca5be09d7f5c3ded0b182bab816eeabfa39a1",
       "executable": false
     },
+    "src/latchkey/evidence/adapters.d.mts": {
+      "sha256": "bece8ea5fb53964d8ad1b2889686a63acac0750e440e77f48f32734da7707394",
+      "executable": false
+    },
+    "src/latchkey/evidence/adapters.mjs": {
+      "sha256": "a710b5d6ac1db7ed9b8842b4ae9b77de3d5d3178b4132c1f031d8a1a08599182",
+      "executable": false
+    },
+    "src/latchkey/evidence/client.d.mts": {
+      "sha256": "1a681f484278d274b77d212ff81b5f3dcabec1972240fd77abfbeee23372f9da",
+      "executable": false
+    },
+    "src/latchkey/evidence/client.mjs": {
+      "sha256": "47c55ae836602318e701af9513db14bb64e1cd008f1afdcec48ef800f73d527e",
+      "executable": false
+    },
+    "src/latchkey/evidence/README.md": {
+      "sha256": "9bdcfd67814b4b7470ed438ba23e4f3ce97c626f7cc6e671a35eca156999db7f",
+      "executable": false
+    },
+    "src/latchkey/evidence/service.d.mts": {
+      "sha256": "20c8101d8306c7ccc2a9dd7a1858ae468aec495aad5e65432132017247df30ee",
+      "executable": false
+    },
+    "src/latchkey/evidence/service.mjs": {
+      "sha256": "ae1886b5ae3cca240b6d77ec691f673df3ec41aa381ecbfd7ca04237da03735d",
+      "executable": false
+    },
+    "src/latchkey/evidence/ui.tsx": {
+      "sha256": "a1796cad1958aff338747739c7f20edb3a492078c94a9634de50171e951cc918",
+      "executable": false
+    },
     "src/latchkey/generator/eff.mjs": {
       "sha256": "cf687221cefa022430ed3c4501581cef3fd1f07c69a1d78fc33a40648bdea043",
       "executable": false
@@ -1076,6 +1116,46 @@
     },
     "src/latchkey/portability/service.mjs": {
       "sha256": "41f20991ebe44a7797616733b2a2456d8d4fae5cb93ca7a57c6c8b62a42230f0",
+      "executable": false
+    },
+    "src/latchkey/reviews/client.d.mts": {
+      "sha256": "fccdc4b48bdcb272fcd708a4a94cd19ff929ce079156aef49a9833f2cb076e2d",
+      "executable": false
+    },
+    "src/latchkey/reviews/client.mjs": {
+      "sha256": "67a408c551d33f6ccba472df544711b521437b8529780b3ae2887d0316dc1308",
+      "executable": false
+    },
+    "src/latchkey/reviews/common.mjs": {
+      "sha256": "75962562e47671b00de8d3c5fca8277ccaaf5fbd202f435a2af98a7cdeca8e78",
+      "executable": false
+    },
+    "src/latchkey/reviews/index.d.mts": {
+      "sha256": "c54433513365a6a2952649bad690d83f3ea59669114aba9c7e27b3022cbf2c1f",
+      "executable": false
+    },
+    "src/latchkey/reviews/index.mjs": {
+      "sha256": "d5e125eec71ef060410903f736d1b908c5977b90978d30461fd64f8b01781b09",
+      "executable": false
+    },
+    "src/latchkey/reviews/scheduled.d.mts": {
+      "sha256": "f9794fa901bd60472382495b083121e01f382b71791bc86482b3fe6386683c3d",
+      "executable": false
+    },
+    "src/latchkey/reviews/scheduled.mjs": {
+      "sha256": "c312d42727650911dbc148a945511d820710519afd1b9629940ae3102ea9919d",
+      "executable": false
+    },
+    "src/latchkey/reviews/snapshot.mjs": {
+      "sha256": "7938f28292d7beba9d834993672905d7d4e60f4ff3f71a0934c53a4efc002c99",
+      "executable": false
+    },
+    "src/latchkey/reviews/state.mjs": {
+      "sha256": "8e5100f3926f1f2860635d665696a3361a7515dc1718f33942a956b96ac9f568",
+      "executable": false
+    },
+    "src/latchkey/reviews/ui.tsx": {
+      "sha256": "e6d982713fd00b9df428ee1625b5c758e17922cc59f76ec573fd7fbf010b630e",
       "executable": false
     },
     "src/latchkey/service.ts": {
@@ -2108,6 +2188,10 @@
     },
     "tests/browser/fixture.mjs": {
       "sha256": "ed76bb7d6184aceaab0e50ccccfd611f0134942034209a69e6ee0cbb8f1cdd2a",
+      "executable": false
+    },
+    "tests/browser/reviews.mjs": {
+      "sha256": "92bc4912fc2afb685621612ed96a426718375cb6d08715c41a2600df00a76c2b",
       "executable": false
     },
     "tests/browser/sharing.mjs": {

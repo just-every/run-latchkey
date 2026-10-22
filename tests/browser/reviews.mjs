@@ -1,3 +1,4 @@
+import { runEvidenceJourneys } from '../latchkey-evidence.mjs';
 import assert from 'node:assert/strict';
 import { expect } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
@@ -20,7 +21,7 @@ export async function reviewCampaignJourney(f,width){
  const owner=f.owner,member=await enroll(f,2000,'Northstar Finance analyst'),reviewer=await enroll(f,2010,'Northstar independent reviewer'),later=await enroll(f,2020,'Northstar temporary auditor');
  try{
  const vault=(await owner.createVault()).vault;await owner.put(vault,{schema:'latchkey/vault-meta/v1',title:'Finance quarterly review'});
- const value=createItem('login',{title:'Treasury portal',fields:[{id:'username',label:'Username',kind:'text',secret:false,value:'finance@example.test'},{id:'password',label:'Password',kind:'password',secret:true,value:'synthetic-latchkey-2030'}]});const object=(await owner.put(vault,value)).object;
+ const value=createItem('login',{title:'Treasury portal',values:{username:'finance@example.test',password:'synthetic-latchkey-2030'}});const object=(await owner.put(vault,value)).object;
  await owner.share(vault,member.profile.account,await member.identity().fingerprint,['read']);await member.pinAccount(owner.profile.account,await owner.identity().fingerprint);
  const sharing=new SharingClient(owner);const group=(await sharing.createGroup([member.profile.account])).group;
  const inherited=await sharing.grant(vault,{recipients:[{account:member.profile.account,fingerprint:await member.identity().fingerprint}],objects:[object],group});
@@ -50,6 +51,10 @@ export async function reviewCampaignJourney(f,width){
  await f.page.getByRole('button',{name:'Close review',exact:true}).click();await expect(f.page.getByRole('heading',{name:'Completed review'})).toBeVisible();
  assert.ok(await f.page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'review horizontal overflow');
  if(output)await f.page.screenshot({path:join(output,`reviews-completed-${width}.png`),fullPage:true});
+ await runEvidenceJourneys({owner,review});
+ await f.page.getByRole('button',{name:'Refresh evidence deliveries',exact:true}).click();
+ await expect(f.page.getByRole('region',{name:'Evidence delivery'})).toContainText('accepted');
+ if(output)await f.page.screenshot({path:join(output,`reviews-evidence-${width}.png`),fullPage:true});
  const exporter=new ReviewClient(owner);for(const destination of ['evidence','vanta','drata','secureframe']){const signed=await exporter.export(review,destination);assert.ok(await ReviewClient.verify(signed,owner.profile.authorityKey));assert.equal(signed.package.completeness.decided,signed.package.completeness.total);assert.ok(!JSON.stringify(signed).includes('synthetic-latchkey-2030'));const altered=structuredClone(signed);altered.package.period+=' changed';assert.equal(await ReviewClient.verify(altered,owner.profile.authorityKey),false)}
  // Scheduled public campaign activation and due-state reminders are controlled
  // by persisted dates rather than an application clock or fake scheduler.
