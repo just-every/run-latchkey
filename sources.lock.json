@@ -755,7 +755,7 @@
       "executable": false
     },
     "public/fonts/fonts.css": {
-      "sha256": "35cee18b8e9c77eeacde22c3702b437d29f2cdaf7de99b9e0ac0a53f0a3736b2",
+      "sha256": "cb69c633132a58a1bb75db53e9129a5bb3f13f91d89f745c42916b5a09095539",
       "executable": false
     },
     "public/fonts/geist/geist-latin-wght.woff2": {
@@ -787,7 +787,7 @@
       "executable": false
     },
     "public/rer-theme.css": {
-      "sha256": "27824531b4984332d935ae981fb176ef9c9f98053bc013bca8e1f263cea08343",
+      "sha256": "7b8bec351b6d511e9c205208120ad70e3703e958dbaebe6e260e702c14cae992",
       "executable": false
     },
     "public/site/share.jpg": {
@@ -1183,7 +1183,7 @@
       "executable": false
     },
     "src/latchkey/collections/ui.tsx": {
-      "sha256": "30c27fd9a5f1f5b0a0a0df10b38e363eb9dd9d797ff503cb9f4c21f3585c8772",
+      "sha256": "650741841f60a9de7deadea0ee6856e51c994269d336f4b1febbe48e155441b0",
       "executable": false
     },
     "src/latchkey/crypto/envelope.d.mts": {
@@ -1655,11 +1655,11 @@
       "executable": false
     },
     "src/latchkey/ui/detail.tsx": {
-      "sha256": "317094c43ed678ef3272ca904a5dc9e483a5296e2a5be17c69e76d88a74fc50e",
+      "sha256": "f99644dbd00c066034fc8ffeecdf72902faedda3138a966a5697b6af10bbca85",
       "executable": false
     },
     "src/latchkey/ui/editor.tsx": {
-      "sha256": "6d2f5eba004ec2ea83ef3c857757d4cde9eb7b777c2c9ad45ed00afd63175a92",
+      "sha256": "848c3f3812068838615f9a32b50648eab232fb8c39d9949f8be32e0de82586a3",
       "executable": false
     },
     "src/latchkey/ui/erase.tsx": {
@@ -1667,7 +1667,7 @@
       "executable": false
     },
     "src/latchkey/ui/field-editor.tsx": {
-      "sha256": "ae41d1a59a5eaef1a9f3d3d892bd11be925071dc515adcda60284a3f7ae48b7d",
+      "sha256": "201ac9e7bc43eadb46e0c2cf8e536321da2403bf2248a26a66a6d7300a394874",
       "executable": false
     },
     "src/latchkey/ui/generator-policy.tsx": {
@@ -1679,7 +1679,7 @@
       "executable": false
     },
     "src/latchkey/ui/history.tsx": {
-      "sha256": "1acf4331a1ade30060478ad0357c5e28a8c0ff7ca6d3c9f3510716755a58d17a",
+      "sha256": "f343674367e70814206d0e520bd629016f91963a0ca66bc737bc3df0d527aadf",
       "executable": false
     },
     "src/latchkey/ui/icon.tsx": {
@@ -1707,7 +1707,7 @@
       "executable": false
     },
     "src/latchkey/ui/styles.ts": {
-      "sha256": "3cd9e411a34bfd4ded09f364510ab5e3be207379bb4759630748d02ec1ac096a",
+      "sha256": "efc42159e0cdac2d7a5f02dfcde3b713b59df6be5558e10b8a96104eb0be53ce",
       "executable": false
     },
     "src/latchkey/ui/templates.tsx": {
@@ -1723,7 +1723,7 @@
       "executable": false
     },
     "src/latchkey/ui/vault.tsx": {
-      "sha256": "0f1c1706aee08b624091e9fc48d99e2b7f2b5f54c69696f88879641328e8cfa9",
+      "sha256": "702268dc69644b1e1751a92f805b921c19902ac21c306e2b0469e3439db18c24",
       "executable": false
     },
     "src/mail.server.d.mts": {
@@ -2603,7 +2603,7 @@
       "executable": false
     },
     "src/server.dev.ts": {
-      "sha256": "4892545be3afaf55d1a45b99933f017baa43512d7152f56b21422010aa70b8a5",
+      "sha256": "849c9a708ab85ecf25106f19a3ee2d2079174ffbddf6ccf89f8bdf673efbf5b5",
       "executable": false
     },
     "src/server.ts": {

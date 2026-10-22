@@ -14,6 +14,9 @@ import { ItemDetail } from './detail';
 import { Generator } from './generator';
 import { Templates } from './templates';
 import { Icon } from './icon';
+import { ItemRow, ItemsHead } from './item-row';
+import { kindLabel, vaultLabel } from './labels';
+import { Tabs } from './tabs';
 import { SharingPanel } from '../sharing/ui';
 import { vaultCss } from './styles';
 import { OwnerTrust } from './owner-trust';
@@ -23,9 +26,9 @@ export function VaultScreen() {
  const [client, setClient] = useState<any>(null), [vaults, setVaults] = useState<any[]>([]), [vault, setVault] = useState(''), [records, setRecords] = useState<ItemRecord[]>([]), [selected, setSelected] = useState('');
  const [query, setQuery] = useState(''), [error, setError] = useState(''), [pending, setPending] = useState(0), [panel, setPanel] = useState(''), [create, setCreate] = useState(false), [vaultName, setVaultName] = useState(''), [status, setStatus] = useState('');
  const [lifecycle,setLifecycle]=useState<any[]>([]),[itemLimit,setItemLimit]=useState(100),[vaultKind,setVaultKind]=useState('company');
- const [ownerTrust, setOwnerTrust] = useState<{ account: string; fingerprint: string } | null>(null);
+ const [ownerTrust, setOwnerTrust] = useState<{ account: string; fingerprint: string } | null>(null), [links, setLinks] = useState<Map<string, number>>(new Map());
  const activeClient = useRef<any>(null), search = useRef<HTMLInputElement>(null), menu = useRef<HTMLDetailsElement>(null), generation = useRef(0);
- const lock = useCallback(() => { generation.current++; activeClient.current?.lock(); activeClient.current = null; setClient(null); setRecords([]); setVaults([]); setVault(''); setSelected(''); setQuery(''); setPanel(''); setCreate(false); setStatus(''); setOwnerTrust(null); }, []);
+ const lock = useCallback(() => { generation.current++; activeClient.current?.lock(); activeClient.current = null; setClient(null); setRecords([]); setVaults([]); setVault(''); setSelected(''); setQuery(''); setPanel(''); setCreate(false); setStatus(''); setOwnerTrust(null); setLinks(new Map()); }, []);
  const run = useCallback(async (work: () => Promise<unknown>) => {
   setPending(n => n + 1); setError('');
   try { await work(); } catch (cause) { if (['device_revoked', 'account_key_changed', 'authority_expired', 'locked'].includes((cause as any)?.code) || activeClient.current && (cause as any)?.status === 401) lock(); if (['not_found', 'permission_denied'].includes((cause as any)?.code)) { setRecords([]); setSelected(''); setPanel(''); } setError(message(cause)); } finally { setPending(n => n - 1); }
@@ -40,16 +43,18 @@ export function VaultScreen() {
  const typed = client ? new TypedItems(client) : null;
  const load = async (connected: any, id: string, preferred = '', descriptor?: any) => {
   const ticket = ++generation.current;
-  setRecords([]); setSelected(''); setVault(id); setPanel(''); setOwnerTrust(null);
-  const owner = (descriptor ?? vaults.find(v => v.id === id))?.owner;
+  setRecords([]); setSelected(''); setVault(id); setPanel(''); setOwnerTrust(null); setLinks(new Map());
+  const info = descriptor ?? vaults.find(v => v.id === id), owner = info?.owner;
   if (owner && !connected.profile.trusted[owner]) {
    const entry = await connected.call('directory', { account: owner });
    if (activeClient.current === connected && generation.current === ticket) setOwnerTrust({ account: owner, fingerprint: entry.fingerprint });
    return;
   }
   const result = await connected.readVault(id);
-  const states=await connected.call('lifecycle/list',{vault:id});
+  // Share links are listed to accounts that may share from this vault.
+  const [states, shared] = await Promise.all([connected.call('lifecycle/list',{vault:id}), sharer(info) ? connected.call('sharing/history', { vault: id, object: null }) : null]);
   if (activeClient.current !== connected || generation.current !== ticket) return;
+  setLinks(activeLinks(shared?.links ?? []));
   const latest = new Map<string, ItemRecord>(); for (const row of result.versions) if (!latest.has(row.object) || latest.get(row.object)!.version < row.version) latest.set(row.object, row);
   const rows = [...latest.values()]; setRecords(rows);setLifecycle(states.items);
   const title = rows.find(row => row.value.schema === 'latchkey/vault-meta/v1')?.value.title;
@@ -84,7 +89,7 @@ export function VaultScreen() {
  return <div className="lk"><style>{vaultCss}</style><a className="skip" href="#vault-main">Skip to vault</a>
  <header className="topbar"><Lockup ground="white" href="/app/vault"/>
   {client ? <>{vaultView && vault && <label className="search"><Icon name="search"/><input ref={search} type="search" aria-label="Search vault" placeholder="Search vault…" value={query} maxLength={500} onChange={e => setQuery(e.target.value)}/><kbd>⌘ K</kbd></label>}
-   <nav className="tabs" aria-label="Main navigation">{tabs.map(([name, label, full]) => <button type="button" key={label} aria-label={full} aria-current={(name ? panel === name : vaultView) ? 'page' : undefined} onClick={() => show(name)}>{label}</button>)}</nav>
+   <Tabs tabs={tabs} current={tabs.find(([name]) => name ? panel === name : vaultView)?.[1]} onPick={show}/>
    <details className="menu" ref={menu}><summary>More</summary><div className="menu-list">
     <button type="button" disabled={pending > 0} onClick={() => { setCreate(!create); if (menu.current) menu.current.open = false; }}>New vault</button>
     <button type="button" disabled={!vault} onClick={() => show('generator', true)}>Password generator</button>
@@ -101,13 +106,13 @@ export function VaultScreen() {
   {error && <div className="error" role="alert">{error}<button aria-label="Dismiss error" onClick={() => setError('')}>Dismiss</button></div>}
   <p className="sr-only" role="status" aria-live="polite">{pending ? 'Working…' : status}</p>
   {!client ? <Unlock run={run} busy={pending > 0} onUnlock={onUnlock}/> : <>
-   {vault && vaultView && <header className="page-head"><p className="crumbs"><span>Vaults</span><span aria-hidden="true">/</span><select className="vault-select" aria-label="Vault" value={vault} disabled={pending > 0} onChange={e => void run(async () => load(client, e.target.value))}>{vaults.map(v => <option key={v.id} value={v.id}>{v.title ?? `Vault · ${v.id.slice(0, 8)}`}</option>)}</select></p>
-    <div className="head-text"><h1>{current?.title ?? `Vault · ${vault.slice(0, 8)}`}</h1><p className="subline">{kinds[current?.kind] ?? 'Vault'} · {items.length === 1 ? '1 item' : `${items.length} items`}</p></div>
+   {vault && vaultView && <header className="page-head"><p className="crumbs"><span>Vaults</span><span aria-hidden="true">/</span><select className="vault-select" aria-label="Vault" value={vault} disabled={pending > 0} onChange={e => void run(async () => load(client, e.target.value))}>{vaults.map(v => <option key={v.id} value={v.id}>{vaultLabel(v)}</option>)}</select></p>
+    <div className="head-text"><h1>{vaultLabel(current ?? { id: vault })}</h1><p className="subline">{kindLabel(current?.kind)} · {items.length === 1 ? '1 item' : `${items.length} items`}</p></div>
     <div className="head-actions"><button disabled={pending > 0} onClick={() => void run(refresh)}>Refresh</button><button className="primary" disabled={pending > 0 || !!ownerTrust} onClick={() => { setPanel('new'); setCreate(false); }}><Icon name="plus"/>New item</button></div></header>}
    {create && <form className="new-vault notice" onSubmit={e => { e.preventDefault(); void run(async () => { const name = vaultName.trim(); if (!name) throw { code: 'vault_name_required' }; const created = await client.createVault({kind:vaultKind}); await client.put(created.vault, { schema: 'latchkey/vault-meta/v1', title: name }); const list = await client.call('vaults', {}); setVaults(list); await load(client, created.vault); setCreate(false); setVaultName(''); }); }}><h2>New vault</h2><div className="form-grid"><label>Vault name<input required maxLength={500} value={vaultName} onChange={e => setVaultName(e.target.value)}/></label><label>Vault kind<select value={vaultKind} onChange={e=>setVaultKind(e.target.value)}><option value="company">Company</option><option value="private-work">Private work</option><option value="family">Family</option></select></label></div><p className="muted">Archive keeps history indefinitely. Moving an item to trash requires confirmation and permanently erases it after 30 days.</p><button className="primary" disabled={pending > 0}>Create vault</button></form>}
    {panel==='automation'&&<AutomationPanel client={client} vault={vault} run={run}/>}
    {panel==='projects'&&<ProjectsPanel client={client} run={run}/>}
-   {panel==='organize'&&<OrganizationPanel client={client} vault={vault} run={run} onChanged={async()=>{const fresh=await client.readVault(vault);const latest=new Map<string,ItemRecord>();for(const row of fresh.versions)if(!latest.has(row.object)||latest.get(row.object)!.version<row.version)latest.set(row.object,row);setRecords([...latest.values()]);setLifecycle((await client.call('lifecycle/list',{vault})).items)}}/>}
+   {panel==='organize'&&<OrganizationPanel client={client} vault={vault} run={run} names={Object.fromEntries(vaults.filter(v => v.title).map(v => [v.id, v.title]))} onNamed={(id: string, title: string) => setVaults(previous => previous.map(v => v.id === id ? { ...v, title } : v))} onChanged={async()=>{const fresh=await client.readVault(vault);const latest=new Map<string,ItemRecord>();for(const row of fresh.versions)if(!latest.has(row.object)||latest.get(row.object)!.version<row.version)latest.set(row.object,row);setRecords([...latest.values()]);setLifecycle((await client.call('lifecycle/list',{vault})).items)}}/>}
    {panel==='evidence'&&<EvidenceWorkspace client={client} vault={vault}/>}
    {panel === 'reviews' && <ReviewsPanel client={client} vault={vault} run={run}/>}
    {panel === 'people-erasure' && <PeopleErasure client={client} run={run}/>}
@@ -116,8 +121,8 @@ export function VaultScreen() {
    {!!pending && !records.length && vault && <div className="notice" role="status">Opening encrypted vault…</div>}
    {vault && !['received','people-erasure','reviews','organize','projects','automation','evidence'].includes(panel) && <>{ownerTrust ? <OwnerTrust owner={ownerTrust} client={client} run={run} onConfirmed={async () => { setOwnerTrust(null); await load(client, vault); }}/>: panel === 'generator' ? <Generator client={client} run={run}/> : panel === 'sharing' ? <section className="detail section" id="sharing"><h1>Share vault</h1><SharingPanel client={client} vault={vault}/></section> : panel === 'templates' ? <Templates templates={templates} typed={typed} vault={vault} run={run} onSaved={refresh} onClose={() => setPanel('')}/> : <>
     {panel === 'new' && editor}
-    <div className="items-head" aria-hidden="true"><span>Name</span><span>Username</span><span>Type</span><span>Changed</span></div>
-    <nav className="items" aria-label="Vault items">{visible.slice(0,itemLimit).map(item => { const open = selected === item.object; return <div className="row" key={item.object}><button className={`item${open ? ' selected' : ''}`} aria-label={`${item.value.title} ${summary(item.value)}`} onClick={() => { setSelected(item.object); setPanel(''); }} aria-current={open ? 'true' : undefined}><span className="cell name"><Tile item={item.value}/><span className="item-title">{item.value.title}</span></span><span className="cell user">{username(item.value) ?? '—'}</span><span className="cell kind">{typeName(item.value.type)}</span><span className="cell changed">{changed(item.value)}</span><Icon name="chevron" className="chevron"/></button>
+    <ItemsHead/>
+    <nav className="items" aria-label="Vault items">{visible.slice(0,itemLimit).map(item => { const open = selected === item.object; return <div className="row" key={item.object}><ItemRow row={item} links={links.get(item.object) ?? 0} open={open} onOpen={() => { setSelected(item.object); setPanel(''); }}/>
      {open && (panel === 'edit' ? editor : panel === '' && <ItemDetail key={`${vault}:${item.object}:${item.version}`} row={item} canErase={current?.owner === client.profile.account} typed={typed} client={client} vault={vault} run={run} onEdit={() => setPanel('edit')} onRefresh={refresh}/>)}</div>; })}
      {!visible.length && !pending && <div className="empty"><h2>{query ? 'No matching items' : 'No items yet'}</h2><p>{query ? 'Try another title, label or tag.' : 'Add your first item to this vault.'}</p></div>}{visible.length>itemLimit&&<button className="more" onClick={()=>setItemLimit(n=>n+100)}>Show more vault items</button>}</nav>
    </>}</>}
@@ -125,11 +130,12 @@ export function VaultScreen() {
  </main></div>;
 }
 
-const kinds: Record<string, string> = { company: 'Company vault', 'private-work': 'Private work vault', family: 'Family vault' };
-// The top bar's destinations; a short visible label keeps the panel's full name as its accessible name.
+// The top bar's destinations: panel, visible label and, where shorter, the panel's full name.
 const tabs: [string, string, string?][] = [['', 'Vault'], ['received', 'Shared with me'], ['reviews', 'Access reviews'], ['evidence', 'Evidence', 'Company evidence'], ['projects', 'Projects', 'Projects and applications'], ['automation', 'Agent access', 'API and agent access']];
-const username = (item: Item) => item.fields.find(field => !field.secret && ['username', 'email', 'accountHolder', 'description'].includes(field.id))?.value as string | undefined;
-const summary = (item: Item) => String(username(item) ?? item.type.replaceAll('-', ' '));
-const typeName = (type: string) => type.charAt(0).toUpperCase() + type.slice(1).replaceAll('-', ' ');
-const changed = (item: Item) => item.change?.time ? new Date(item.change.time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
-function Tile({ item }: { item: Item }) { return item.type === 'login' ? <span className="tile" aria-hidden="true">{item.title.trim().charAt(0).toUpperCase() || '·'}</span> : <span className="tile quiet" aria-hidden="true"><Icon name={item.type === 'card' ? 'card' : 'file'}/></span>; }
+const sharer = (vault: any) => { const rights = typeof vault?.rights === 'string' ? JSON.parse(vault.rights) : vault?.rights ?? []; return rights.includes('read') && rights.includes('share'); };
+// Links still openable, as the Sharing panel counts them "Active", by item.
+function activeLinks(rows: any[]) {
+ const counts = new Map<string, number>(), now = Date.now();
+ for (const link of rows) if (link.revoked_at == null && link.expires_at > now && link.views < link.max_views) counts.set(link.object_id, (counts.get(link.object_id) ?? 0) + 1);
+ return counts;
+}

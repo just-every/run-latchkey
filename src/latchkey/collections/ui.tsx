@@ -3,6 +3,7 @@ import { OrganizationClient, filterRecords } from './client.mjs';
 import { BulkClient } from './bulk-client.mjs';
 import { LifecycleClient } from '../lifecycle/client.mjs';
 import { message } from '../ui/types';
+import { kindLabel, typeLabel, vaultLabel } from '../ui/labels';
 
 type Selected = { vault: string; object: string; title: string };
 type Snapshot = { records: any[]; lifecycle: any[]; vault: { id: string; kind: string; owner: string } };
@@ -35,7 +36,7 @@ function SearchControls({ criteria, setCriteria, disabled }: { criteria: Criteri
  </div>;
 }
 
-function BulkReview({ preview, selection, confirmed, setConfirmed, ownershipConfirmed, setOwnershipConfirmed, busy, apply, cancel }: any) {
+function BulkReview({ preview, selection, confirmed, setConfirmed, ownershipConfirmed, setOwnershipConfirmed, busy, apply, cancel, vaultName, ownerName }: any) {
  const denied = preview.selection.some((row: any) => !row.allowed);
  return <section className="tool-box" aria-label="Bulk action preview">
   <h2>Review {preview.action}</h2>
@@ -46,7 +47,7 @@ function BulkReview({ preview, selection, confirmed, setConfirmed, ownershipConf
    <p>{row.allowed ? 'Allowed by current authority checks.' : 'Denied.'} {row.reason && describe(row.reason)}</p>
    {row.rights !== undefined && <div className="rule-view"><span>Exact source rights</span><span>{describe(row.rights)}</span></div>}
   </article>)}
-  {preview.destination && <div className="definition fingerprint"><h2>Destination</h2><div className="rule-view"><span>Vault · kind · owner</span><span>{preview.destination.id} · {preview.destination.kind} · {preview.destination.owner}</span></div></div>}
+  {preview.destination && <div className="definition fingerprint"><h2>Destination</h2><div className="rule-view"><span>Vault · kind · owner</span><span>{vaultName(preview.destination.id)} · {kindLabel(preview.destination.kind)} · {ownerName(preview.destination.owner)}</span></div></div>}
   <h2>Entire resulting destination recipient set</h2>
   {preview.destination ? <>{preview.recipients.length === 0 && <p>No destination recipients were reported. This empty set is part of the preview.</p>}{preview.recipients.map((recipient: any) => <div className="definition rule-view" key={recipient.account}><span>Recipient account</span><span>{recipient.account}</span><span>Exact rights: {describe(recipient.rights)}</span></div>)}</> : <p>No destination change for this action.</p>}
   {!!preview.ownershipTransfers?.length && <div className="notice"><h2>Personal ownership changes to company ownership</h2><p>Every selected personal item version and attachment will be encrypted for the company destination and its exact recipients above. The company keeps these copies after employment or sponsored benefits end. Your source is archived with its history; Undo cannot recall company copies or past access.</p><label className="check"><input type="checkbox" checked={ownershipConfirmed} disabled={busy || denied} onChange={event => setOwnershipConfirmed(event.target.checked)}/>I personally own these family items and explicitly transfer the reviewed copies and history into company ownership.</label></div>}
@@ -58,7 +59,9 @@ function BulkReview({ preview, selection, confirmed, setConfirmed, ownershipConf
  </section>;
 }
 
-export function OrganizationPanel({ client, vault, run, onChanged }: any) {
+// Vaults show their names where this session has decrypted them (the vault screen's and this
+// panel's own source), owners their names from the account directory the reviews use.
+export function OrganizationPanel({ client, vault, run, onChanged, names, onNamed }: any) {
  const organization = useMemo(() => new OrganizationClient(client), [client]);
  const bulk = useMemo(() => new BulkClient(client), [client]);
  const lifecycle = useMemo(() => new LifecycleClient(client), [client]);
@@ -67,7 +70,7 @@ export function OrganizationPanel({ client, vault, run, onChanged }: any) {
  const [selection, setSelection] = useState<Selected[]>([]), [selectedLimit, setSelectedLimit] = useState(50);
  const [loading, setLoading] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState(''), [status, setStatus] = useState(''), [reload, setReload] = useState(0);
  const [action, setAction] = useState<'move'|'tag'|'archive'>('move'), [destination, setDestination] = useState(''), [tags, setTags] = useState(''), [preview, setPreview] = useState<any>(null), [confirmed, setConfirmed] = useState(false);
- const [ownershipConfirmed, setOwnershipConfirmed] = useState(false);
+ const [ownershipConfirmed, setOwnershipConfirmed] = useState(false), [people, setPeople] = useState<{ account: string; name: string }[]>([]);
  const [lastOperation, setLastOperation] = useState<string | null>(null), [undoConfirmed, setUndoConfirmed] = useState(false);
  const [transition, setTransition] = useState<{ state: string; items: Selected[] } | null>(null), [transitionConfirmed, setTransitionConfirmed] = useState(false), [outcomes, setOutcomes] = useState<Outcome[]>([]);
  const [savedFilter, setSavedFilter] = useState(''), [filterName, setFilterName] = useState(''), [collectionName, setCollectionName] = useState(''), [parent, setParent] = useState('');
@@ -77,7 +80,7 @@ export function OrganizationPanel({ client, vault, run, onChanged }: any) {
  useEffect(() => {
   let current = true;
   setVaults([]); setSelection([]); setLastOperation(null); setOutcomes([]); setDestination(''); setUndoConfirmed(false); invalidate();
-  void client.call('vaults', {}).then((rows: any[]) => { if (current) setVaults(rows); }).catch((cause: unknown) => { if (current) setError(message(cause)); });
+  void Promise.all([client.call('vaults', {}), client.call('reviews/people', {})]).then(([rows, members]: any[][]) => { if (current) { setVaults(rows); setPeople(members); } }).catch((cause: unknown) => { if (current) setError(message(cause)); });
   return () => { current = false; };
  }, [client]);
  useEffect(() => { setSource(vault || ''); }, [vault]);
@@ -87,6 +90,10 @@ export function OrganizationPanel({ client, vault, run, onChanged }: any) {
   if (source) void organization.load(source).then((loaded: Snapshot) => { if (token === context.current) setSnapshot(loaded); }).catch((cause: unknown) => { if (token === context.current) setError(message(cause)); }).finally(() => { if (token === context.current) setLoading(false); });
   return () => { context.current++; };
  }, [organization, source, reload]);
+ const sourceTitle = snapshot?.records.find(row => row.value?.schema === 'latchkey/vault-meta/v1')?.value.title;
+ useEffect(() => { if (snapshot && sourceTitle && names?.[snapshot.vault.id] !== sourceTitle) onNamed?.(snapshot.vault.id, sourceTitle); }, [snapshot, sourceTitle]);
+ const vaultName = (id: string) => vaultLabel({ id, title: names?.[id] ?? (snapshot?.vault.id === id ? sourceTitle : undefined) });
+ const ownerName = (account: string) => { const you = account === client.profile.account, name = people.find(person => person.account === account)?.name; return name ? `${name}${you ? ' (you)' : ''}` : you ? 'You' : `Account · ${account.slice(0, 8)}`; };
  const changeCriteria = (next: Criteria) => { setCriteria(next); setLimit(50); setCollectionView(''); };
  const filters = snapshot?.records.filter(row => row.value?.schema === 'latchkey/saved-filter/v1') ?? [];
  const collections = snapshot?.records.filter(row => row.value?.schema === 'latchkey/collection/v1') ?? [];
@@ -164,13 +171,13 @@ export function OrganizationPanel({ client, vault, run, onChanged }: any) {
   <p className="muted">Search runs locally over items you can decrypt. Counts apply only to permitted decrypted items in the source vault. Selections remain when you browse another vault.</p>
   {error && <div className="error" role="alert"><span>{error}</span></div>}
   {status && <p className="notice" role="status">{status}</p>}
-  <div className="form-grid"><label>Browse vault<select className="vault-select" value={source} disabled={busy} onChange={event => setSource(event.target.value)}><option value="">Choose source vault</option>{vaults.map(row => <option key={row.id} value={row.id}>{row.title || row.id} · {row.kind}</option>)}</select></label><div className="actions"><button disabled={busy || loading || !source} onClick={() => setReload(value => value + 1)}>Refresh source</button></div></div>
+  <div className="form-grid"><label>Browse vault<select className="vault-select" value={source} disabled={busy} onChange={event => setSource(event.target.value)}><option value="">Choose source vault</option>{vaults.map(row => <option key={row.id} value={row.id}>{vaultName(row.id)} · {kindLabel(row.kind)}</option>)}</select></label><div className="actions"><button disabled={busy || loading || !source} onClick={() => setReload(value => value + 1)}>Refresh source</button></div></div>
   {!source && <div className="empty"><p>Choose a permitted vault to browse.</p></div>}
   {loading && <p role="status">Decrypting permitted source items…</p>}
   {busy && <p role="status">Processing the requested action…</p>}
   <nav className="actions" aria-label="Organization sections">{[['search', 'Search'], ['collections', 'Collections'], ['trash', 'Trash']].map(([value, label]) => <button key={value} aria-pressed={tab === value} disabled={busy} onClick={() => chooseTab(value)}>{label}</button>)}</nav>
   {snapshot && <>
-   <div className="rule-view"><span>Current source · kind · owner</span><span>{snapshot.vault.id} · {snapshot.vault.kind} · {snapshot.vault.owner}</span></div>
+   <div className="rule-view"><span>Current source · kind · owner</span><span>{vaultName(snapshot.vault.id)} · {kindLabel(snapshot.vault.kind)} · {ownerName(snapshot.vault.owner)}</span></div>
    {tab === 'trash' && <p className="notice">Deleted items remain in trash for 30 days by default before permanent erasure. Archive is indefinite. Restore requires independent restore permission and current destination create rights. Company administrators cannot restore family items.</p>}
    <SearchControls criteria={criteria} setCriteria={changeCriteria} disabled={busy || loading}/>
    <details className="tool-box"><summary>Saved filters</summary>
@@ -198,8 +205,8 @@ export function OrganizationPanel({ client, vault, run, onChanged }: any) {
     {!visible.length && <div className="empty"><p>{criteria.state === 'trash' ? 'No permitted trash items match.' : criteria.state === 'archived' ? 'No permitted archived items match.' : 'No permitted active items match.'}</p></div>}
     {visible.slice(0, limit).map(row => <article className="definition fingerprint" key={row.object}>
      <label className="check"><input type="checkbox" disabled={busy} checked={selection.some(item => item.vault === source && item.object === row.object)} onChange={event => updateSelection(row, event.target.checked)}/>{row.value.title}</label>
-     <div className="rule-view"><span>Object reference · version · type</span><span>{source}/{row.object} · {row.version} · {row.value.type}</span></div>
-     <p>State: {row.lifecycle.state}. {row.value.favorite ? 'Favorite. ' : ''}Owner: {row.value.owner ?? snapshot.vault.owner}.</p>
+     <div className="rule-view"><span>Object reference · version · type</span><span>{source}/{row.object} · {row.version} · {typeLabel(row.value.type)}</span></div>
+     <p>State: {row.lifecycle.state}. {row.value.favorite ? 'Favorite. ' : ''}Owner: {ownerName(row.value.owner ?? snapshot.vault.owner)}.</p>
      <p>Health: {!Array.isArray(row.value.healthFindings) ? 'Unknown — no findings evidence reported.' : row.value.healthFindings.length ? `${row.value.healthFindings.length} findings reported.` : 'Checked; no findings reported.'}</p>
      {row.lifecycle.state === 'archived' && <p>Archived indefinitely; excluded from normal fill suggestions and active remediation.</p>}
      {row.lifecycle.state === 'trash' && <p>Trash retention expires: {date(row.lifecycle.expiresAt)}.</p>}
@@ -213,13 +220,13 @@ export function OrganizationPanel({ client, vault, run, onChanged }: any) {
    {selectedLimit < selection.length && <button disabled={busy} onClick={() => setSelectedLimit(value => value + 50)}>Show more selected references</button>}
    <button disabled={busy} onClick={() => { invalidate(); setSelection([]); }}>Clear selection</button>
    <div className="form-grid"><label>Bulk action<select value={action} disabled={busy} onChange={event => { setAction(event.target.value as 'move'|'tag'|'archive'); invalidate(); }}><option value="move">Move</option><option value="tag">Tag</option><option value="archive">Archive</option></select></label>
-    <label>Destination vault<select className="vault-select" value={destination} disabled={busy || action !== 'move'} onChange={event => { setDestination(event.target.value); invalidate(); }}><option value="">Choose destination</option>{vaults.map(row => <option key={row.id} value={row.id}>{row.title || row.id} · {row.kind}</option>)}</select></label>
+    <label>Destination vault<select className="vault-select" value={destination} disabled={busy || action !== 'move'} onChange={event => { setDestination(event.target.value); invalidate(); }}><option value="">Choose destination</option>{vaults.map(row => <option key={row.id} value={row.id}>{vaultName(row.id)} · {kindLabel(row.kind)}</option>)}</select></label>
     {action === 'tag' && <label>Tags to add (comma separated)<input maxLength={2000} value={tags} disabled={busy} onChange={event => { setTags(event.target.value); invalidate(); }}/></label>}
    </div>
    <button disabled={busy || loading || action === 'move' && !destination || action === 'tag' && !tags.split(',').some(tag => tag.trim())} onClick={previewBulk}>Preview exact bulk action</button>
    <div className="actions"><button disabled={busy || loading} onClick={() => { invalidate(); setTransition({ state: 'trash', items: [...selection] }); }}>Review move to trash</button><button disabled={busy || loading} onClick={() => { invalidate(); setTransition({ state: 'active', items: [...selection] }); }}>Review restore to active</button></div>
   </section>}
-  {preview && <BulkReview preview={preview} selection={selection} confirmed={confirmed} setConfirmed={setConfirmed} ownershipConfirmed={ownershipConfirmed} setOwnershipConfirmed={setOwnershipConfirmed} busy={busy} apply={applyBulk} cancel={invalidate}/>}
+  {preview && <BulkReview preview={preview} selection={selection} confirmed={confirmed} setConfirmed={setConfirmed} ownershipConfirmed={ownershipConfirmed} setOwnershipConfirmed={setOwnershipConfirmed} busy={busy} apply={applyBulk} cancel={invalidate} vaultName={vaultName} ownerName={ownerName}/>}
   {transition && <section className="tool-box" aria-label="Lifecycle confirmation"><h2>Confirm {transition.state === 'trash' ? 'trash' : 'restore to active'}</h2>
    <p>{transition.state === 'trash' ? 'Trash retains deleted items for 30 days by default before permanent erasure. Archive instead retains history indefinitely.' : 'Restore requires independent restore and current destination create rights. Company administrators cannot restore family items. Restoring does not revive revoked shares, approvals, machine leases or old provider credentials.'}</p>
    {transition.items.map(row => <article className="definition fingerprint" key={reference(row)}><ItemReference row={row}/></article>)}

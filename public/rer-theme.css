@@ -5,10 +5,12 @@
    are: a white app with black ink and tangerine primary buttons with black
    labels (7.0:1). The run site reads the same values and sets its own grounds
    from them (src/site/styles/tokens.css), and the app's stylesheet
-   (src/latchkey/ui/styles.ts) mixes its hairlines from them. Faces are in
-   /fonts/fonts.css. Control borders are a quiet grey that still meets 3:1. */
-@import url('/fonts/fonts.css');
-
+   (src/latchkey/ui/styles.ts) mixes its hairlines from them. Control borders
+   are a quiet grey that still meets 3:1. The installer reads this file with
+   Base's theme grammar (only :root --rer-* tokens with literal values, and
+   @font-face rules) and checks its colour pairs, so the faces, Latchkey's own
+   tokens and Base's documents in the app look are in /fonts/fonts.css, which
+   every document links with this file. */
 :root {
   --rer-page: #ffffff;
   --rer-surface: #ffffff;
@@ -22,37 +24,5 @@
   --rer-font-body: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --rer-font-heading: Geist, 'Helvetica Neue', Arial, sans-serif;
   --rer-radius: 0px;
-  --rer-button-radius: 0px;
-  --rer-wordmark-weight: 900;
-  --rer-wordmark-tracking: -0.025em;
   --rer-logo: url('/brand/mark.svg');
-}
-
-/* Base's server-rendered frames (sign-in, sign-in settings, /setup and the
-   Lobby) in the app look: flat white with one hairline frame instead of a
-   floating card, the key mark at its own proportions beside the heavy
-   wordmark, square hairline fields and the flat tangerine button. Each rule
-   outranks the frame's own hashed style by one element, so the frames keep
-   their structure and only their dress changes. */
-html.rer-themed body { padding: 72px 16px; }
-html.rer-themed main { max-width: 440px; padding: 40px; box-shadow: none; border: 1px solid color-mix(in srgb, var(--rer-text) 11%, var(--rer-page)); }
-html.rer-themed .brand, html.rer-themed .rer-brand { gap: 12px; margin: 0 0 32px; color: var(--rer-text); font: 900 21px/1 var(--rer-font-heading); letter-spacing: -0.025em; }
-html.rer-themed .brand::before, html.rer-themed .rer-brand::before { width: 58px; height: 24px; }
-html.rer-themed h1 { font-weight: 800; font-size: 30px; line-height: 1.15; letter-spacing: -0.025em; }
-html.rer-themed p { font-size: 15px; }
-html.rer-themed label { font-weight: 500; }
-html.rer-themed input:not([type=checkbox]):not([type=hidden]) { min-height: 44px; border: 1px solid var(--rer-border); border-radius: 0; }
-html.rer-themed input:focus-visible { outline: 0; border-color: var(--rer-text); box-shadow: 0 0 0 3px color-mix(in srgb, var(--rer-accent) 35%, transparent); }
-html.rer-themed button, html.rer-themed .action { min-height: 46px; border-radius: 0; font-weight: 600; box-shadow: none; }
-html.rer-themed button:hover:not(:disabled) { box-shadow: none; background: color-mix(in srgb, var(--rer-accent) 88%, var(--rer-text)); }
-html.rer-themed button.secondary { border: 1px solid color-mix(in srgb, var(--rer-text) 30%, var(--rer-page)); }
-html.rer-themed button.secondary:hover:not(:disabled) { background: color-mix(in srgb, var(--rer-text) 6%, var(--rer-page)); }
-html.rer-themed .divider::before, html.rer-themed .divider::after { border-top-color: color-mix(in srgb, var(--rer-text) 11%, var(--rer-page)); }
-html.rer-themed .notice { border-left: 0; border: 1px solid color-mix(in srgb, var(--rer-text) 11%, var(--rer-page)); background: color-mix(in srgb, var(--rer-text) 3.5%, var(--rer-page)); padding: 12px 14px; }
-html[data-state] .btn { background: var(--rer-accent); box-shadow: none; }
-html[data-state] .lockup .mark { width: auto; height: 1em; }
-@media (max-width: 480px) {
-  html.rer-themed body { padding: 24px 16px; }
-  html.rer-themed main { padding: 28px 20px; }
-  html.rer-themed h1 { font-size: 26px; }
 }

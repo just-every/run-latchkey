@@ -1,3 +1,12 @@
+/* Latchkey's look beyond its theme. /rer-theme.css holds only what Base's
+   theme grammar allows (the --rer-* tokens; the installer reads it), so the
+   rest every document wears is here: the faces, Latchkey's own tokens and
+   Base's documents in the app look. Base links this file with the theme in
+   the root document, /setup and sign-in (src/base/font-head.ts), the Lobby
+   and the Run pages (the edition identity's fonts); the app shell, the run
+   site and the development sign-in and hand-off pages (src/server.dev.ts)
+   link it too. */
+
 /* Latchkey's two faces, self-hosted from public/fonts (README.md there has
    their sources and licences); no page makes a third-party request. Geist
    sets the headings, the wordmark and the sentences; JetBrains Mono sets the
@@ -15,4 +24,54 @@
   font-weight: 400 800;
   font-display: swap;
   src: url('/fonts/jetbrains-mono/jetbrains-mono-latin-wght.woff2') format('woff2');
+}
+
+/* Latchkey's tokens beside the theme's: Base's Lobby and Run pages read them
+   for the wordmark and buttons. */
+:root {
+  --rer-button-radius: 0px;
+  --rer-wordmark-weight: 900;
+  --rer-wordmark-tracking: -0.025em;
+}
+
+/* Base's server-rendered frames (sign-in, sign-in settings, /setup and the
+   Lobby) in the app look: flat white with one hairline frame instead of a
+   floating card, the key mark at its own proportions beside the heavy
+   wordmark, square hairline fields and the flat tangerine button. Each rule
+   outranks the frame's own hashed style by one element, so the frames keep
+   their structure and only their dress changes. */
+html.rer-themed body { padding: 72px 16px; }
+html.rer-themed main { max-width: 440px; padding: 40px; box-shadow: none; border: 1px solid color-mix(in srgb, var(--rer-text) 11%, var(--rer-page)); }
+html.rer-themed .brand, html.rer-themed .rer-brand { gap: 12px; margin: 0 0 32px; color: var(--rer-text); font: 900 21px/1 var(--rer-font-heading); letter-spacing: -0.025em; }
+html.rer-themed .brand::before, html.rer-themed .rer-brand::before { width: 58px; height: 24px; }
+html.rer-themed h1 { font-weight: 800; font-size: 30px; line-height: 1.15; letter-spacing: -0.025em; }
+html.rer-themed p { font-size: 15px; }
+html.rer-themed label { font-weight: 500; }
+html.rer-themed input:not([type=checkbox]):not([type=hidden]) { min-height: 44px; border: 1px solid var(--rer-border); border-radius: 0; }
+html.rer-themed input:focus-visible { outline: 0; border-color: var(--rer-text); box-shadow: 0 0 0 3px color-mix(in srgb, var(--rer-accent) 35%, transparent); }
+html.rer-themed button, html.rer-themed .action { min-height: 46px; border-radius: 0; font-weight: 600; box-shadow: none; }
+html.rer-themed button:hover:not(:disabled) { box-shadow: none; background: color-mix(in srgb, var(--rer-accent) 88%, var(--rer-text)); }
+html.rer-themed button.secondary { border: 1px solid color-mix(in srgb, var(--rer-text) 30%, var(--rer-page)); }
+html.rer-themed button.secondary:hover:not(:disabled) { background: color-mix(in srgb, var(--rer-text) 6%, var(--rer-page)); }
+html.rer-themed .divider::before, html.rer-themed .divider::after { border-top-color: color-mix(in srgb, var(--rer-text) 11%, var(--rer-page)); }
+html.rer-themed .notice { border-left: 0; border: 1px solid color-mix(in srgb, var(--rer-text) 11%, var(--rer-page)); background: color-mix(in srgb, var(--rer-text) 3.5%, var(--rer-page)); padding: 12px 14px; }
+html[data-state] .btn { background: var(--rer-accent); box-shadow: none; }
+html[data-state] .lockup .mark { width: auto; height: 1em; }
+/* rer dev's local key gate ("Opening the local app") is a Base page without
+   the rer-themed class. It wears the frames' hairline frame, lockup and heavy
+   title. These rules match only a main element that opens with the brand
+   line, which no run site or app page has, and outrank the gate's own style. */
+html:not(.rer-themed) > body:has(> main > p.brand) { padding: 72px 16px; }
+html:not(.rer-themed) > body > main:has(> p.brand) { max-width: 440px; padding: 40px; border: 1px solid color-mix(in srgb, var(--rer-text) 11%, var(--rer-page)); }
+html:not(.rer-themed) > body > main > p.brand { gap: 12px; margin: 0 0 32px; color: var(--rer-text); font: 900 21px/1 var(--rer-font-heading); letter-spacing: -0.025em; }
+html:not(.rer-themed) > body > main > p.brand > img { width: auto; height: 24px; }
+html:not(.rer-themed) > body > main > p.brand + h1 { margin: 0 0 12px; font: 800 30px/1.15 var(--rer-font-heading); letter-spacing: -0.025em; }
+html:not(.rer-themed) > body > main > p.brand ~ p { font-size: 15px; }
+@media (max-width: 480px) {
+  html.rer-themed body { padding: 24px 16px; }
+  html.rer-themed main { padding: 28px 20px; }
+  html.rer-themed h1 { font-size: 26px; }
+  html:not(.rer-themed) > body:has(> main > p.brand) { padding: 24px 16px; }
+  html:not(.rer-themed) > body > main:has(> p.brand) { padding: 28px 20px; }
+  html:not(.rer-themed) > body > main > p.brand + h1 { font-size: 26px; }
 }
