@@ -51,7 +51,7 @@ export function VaultScreen() {
   activeClient.current = connected; setClient(connected); setStatus('Vault unlocked');
   const list = await connected.call('vaults', {}); if (activeClient.current !== connected) return; setVaults(list); if (list.length) await load(connected, list[0].id, '', list[0]);
  };
- const refresh = async () => { const list = await client.call('vaults', {}); setVaults(previous => list.map((next: any) => ({ ...next, title: previous.find(v => v.id === next.id)?.title }))); const id = list.some((v: any) => v.id === vault) ? vault : list[0]?.id; if (id) await load(client, id, selected, list.find((v: any) => v.id === id)); else { setRecords([]); setSelected(''); setVault(''); setPanel(''); } };
+ const refresh = async () => { setRecords([]); setSelected(''); setPanel(''); const list = await client.call('vaults', {}); setVaults(previous => list.map((next: any) => ({ ...next, title: previous.find(v => v.id === next.id)?.title }))); const id = list.some((v: any) => v.id === vault) ? vault : list[0]?.id; if (id) await load(client, id, selected, list.find((v: any) => v.id === id)); else { setRecords([]); setSelected(''); setVault(''); setPanel(''); } };
  const save = async (item: Item, row?: ItemRecord) => {
   let result;
   if (row) {

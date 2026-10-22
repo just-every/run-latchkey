@@ -1299,7 +1299,7 @@
       "executable": false
     },
     "src/latchkey/ui/vault.tsx": {
-      "sha256": "15d06adb92ddfbc6bd6d817457acc4c44809b8d309ce4120ff1e597c0c43f447",
+      "sha256": "566b40c71e14e3c7d257f4ae7b81ae18267c99bbf31ba8c3613ef5b9e0db7651",
       "executable": false
     },
     "src/mail.server.d.mts": {
