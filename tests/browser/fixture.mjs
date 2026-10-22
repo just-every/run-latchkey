@@ -31,7 +31,7 @@ export async function vaultFixture() {
  const cookies=await context.cookies(),cookie=cookies.map(c=>`${c.name}=${c.value}`).join('; ');
  const owner=new VaultClient(origin,{cookie,fetcher}),password='synthetic-latchkey-1107',enrolled=await owner.register(password);await owner.unlock(enrolled.profile,password);
  const page=await context.newPage();
- return {origin,db,owner,password,enrolled,page,context,browser,mail,fetcher,
+ return {caFile:join(directory,'cert.pem'),origin,db,owner,password,enrolled,page,context,browser,mail,fetcher,
   archiveDatabase:()=>worker.getD1Database('ARCHIVE'),
   schedule:async(time=Date.now())=>(await worker.getWorker()).scheduled({scheduledTime:new Date(time),cron:'* * * * *'}),
   code:()=>{const value=mail.at(-1).content.find(c=>c.type==='text/plain').value.match(/Latchkey verification code: (\d{6})/);assert.ok(value);return value[1]},

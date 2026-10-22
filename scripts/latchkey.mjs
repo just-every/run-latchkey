@@ -31,7 +31,9 @@ try {
  let raw = ''; for await (const chunk of process.stdin) { raw += chunk; if (Buffer.byteLength(raw) > 1500000) throw new ClientError('input_too_large'); }
  const input = JSON.parse(raw), command = process.argv[2];
  let client, profile, result;
- if (command === 'records-restore') {
+ if(command==='run'){
+  const {runConsumer}=await import('./latchkey/run-command.mjs');result=await runConsumer(input,process.argv.slice(3));process.exitCode=result.exitCode;
+ } else if (command === 'records-restore') {
   const { restoreLocalRecords } = await import('./latchkey/records-local.mjs');
   result = await restoreLocalRecords(input);
  } else if (command === 'identity-request') {

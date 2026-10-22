@@ -43,6 +43,7 @@ export async function reviewsAuthenticated(route,input,ctx){
   need(value.kind!=='direct','client_rekey_required',409);let write;
   if(['inherited','internal'].includes(value.kind))write=stmt('DELETE FROM lky_share_keys WHERE share_id=? AND account_id=?',value.id,value.subject);
   else if(value.kind==='external')write=stmt('UPDATE lky_links SET revoked_at=?,mutation=? WHERE id=? AND vault_id=?',ctx.now,id(),value.id,row.vault_id);
+  else if(value.kind==='machine'&&value.transport==='scoped-runtime')write=stmt('UPDATE lky_runtime_grants SET revoked_at=? WHERE id=? AND tenant=?',ctx.now,value.id,ctx.tenant);
   else if(value.kind==='machine')write=stmt('UPDATE lky_machines SET revoked_at=?,mutation=? WHERE id=? AND vault_id=?',ctx.now,id(),value.id,row.vault_id);
   need(write,'invalid_review_grant');await transact(ctx,row.vault_id,[write,event('review_removal_effective',review)]);return detail(ctx,row);
  }

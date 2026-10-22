@@ -68,5 +68,8 @@
     ]
   },
   "repository": "https://github.com/just-every/run-latchkey",
-  "license": "MIT"
+  "license": "MIT",
+  "bin": {
+    "latchkey": "scripts/latchkey.mjs"
+  }
 }

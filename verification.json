@@ -46,6 +46,15 @@
         "pnpm run build",
         "node tests/browser/organization.mjs"
       ]
+    },
+    {
+      "name": "machines-browser",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "pnpm run build",
+        "node tests/browser/projects.mjs"
+      ]
     }
   ],
   "nightly": []

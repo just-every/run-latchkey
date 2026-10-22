@@ -38,6 +38,11 @@ export async function subjectPlan(ctx, subject) {
  await select('lky_lifecycle',`vault_id IN (${own})`,ownArgs);
  await select('lky_lifecycle',`vault_id NOT IN (${own}) AND instr(proof,?)>0`,[...ownArgs,accountId],'redact',row=>({...row,proof:null,retention_active:0}));
  await select('lky_bulk_operations',`actor=? OR instr(plan,?)>0`,[accountId,accountId]);
+ const projects=await select('lky_projects',`owner=? OR vault_id IN (${own})`,[accountId,...ownArgs]);const projectIds=JSON.stringify(projects.map(r=>r.id));
+ const envs=await select('lky_project_environments','project_id IN(SELECT value FROM json_each(?))',[projectIds]);
+ await select('lky_project_resources',`vault_id IN (${own}) OR environment_id IN(SELECT value FROM json_each(?))`,[...ownArgs,JSON.stringify(envs.map(r=>r.id))]);
+ const runtimeGrants=await select('lky_runtime_grants',`account_id=? OR id IN(SELECT grant_id FROM lky_runtime_scopes WHERE vault_id IN (${own}))`,[accountId,...ownArgs]);const runtimeIds=JSON.stringify(runtimeGrants.map(r=>r.id));
+ await select('lky_runtime_scopes','grant_id IN(SELECT value FROM json_each(?))',[runtimeIds]);await select('lky_runtime_dependencies','grant_id IN(SELECT value FROM json_each(?))',[runtimeIds]);
  const ownedVersions=await select('lky_versions',`vault_id IN (${own})`,ownArgs);
  await select('lky_link_challenges','link_id IN (SELECT value FROM json_each(?))',[linkList]);
  await select('lky_share_group_members','account_id=? OR group_id IN (SELECT value FROM json_each(?))',[accountId,groupList]);

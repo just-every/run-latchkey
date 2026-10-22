@@ -611,7 +611,7 @@
       "executable": false
     },
     "package.json": {
-      "sha256": "b99b3b057bbf1a586b043022827fce4de29aa83dc4e471c33ff2e7d57fc50bc6",
+      "sha256": "b349f4e922120594f7ae74fcfa4edfcaa85aa9c0c141170378eee6147eb7a398",
       "executable": false
     },
     "pnpm-lock.yaml": {
@@ -723,7 +723,7 @@
       "executable": false
     },
     "scripts/latchkey/archive-policy.mjs": {
-      "sha256": "b48c0098312ef0cfb145f9d973fd3a4a1bb7d35cc001f1f72ea76c98abe977ef",
+      "sha256": "099a9807efef959e60082df7bc8c7d68bd394cb14e04ee3ec3d14fe82b155162",
       "executable": false
     },
     "scripts/latchkey/items-commands.mjs": {
@@ -995,7 +995,7 @@
       "executable": false
     },
     "src/latchkey/erasure/inventory.mjs": {
-      "sha256": "c8aab60397e82d5a6f003b21a16d3bb724a0e219f4e2b763384471115076d34f",
+      "sha256": "ee2be3fb7d204d80f4c66f716d3d46b80a6fa991506a3e7f3419045dffa709a3",
       "executable": false
     },
     "src/latchkey/erasure/native-admission.d.mts": {
@@ -1019,11 +1019,11 @@
       "executable": false
     },
     "src/latchkey/erasure/subject-plan.mjs": {
-      "sha256": "43ac376e96c64006684e61df8ed3ccf08d08f5cf68ba073c4ede3dff8465a131",
+      "sha256": "fc6e2ea4a3fae2314bb54e98e1be584b38325407aa5f48a2dd41f4dee6a5ec56",
       "executable": false
     },
     "src/latchkey/erasure/subject-schema.mjs": {
-      "sha256": "d3ed3bffbf82b1a70cb04b8604e8213bdf167307ba37b8261b74217bede6c45a",
+      "sha256": "35d2497f16319155896e4cc344ab132ddb45f55081b3d5433f1d2251fa9f29ba",
       "executable": false
     },
     "src/latchkey/erasure/subject.d.mts": {
@@ -1143,7 +1143,7 @@
       "executable": false
     },
     "src/latchkey/lifecycle/common.mjs": {
-      "sha256": "4c699994bac5840d48a0eb8c0210d60bf5212c94ac1fba88b439dfc1c764426f",
+      "sha256": "b8101d36a45812f4340ceb078d9d3e91c0f8810eada779d25dbd6e03bf990c20",
       "executable": false
     },
     "src/latchkey/lifecycle/scheduled.d.mts": {
@@ -1219,7 +1219,7 @@
       "executable": false
     },
     "src/latchkey/reviews/index.mjs": {
-      "sha256": "50db82b6d5b7350dd1a84eaab037b33a4c42829b173c466f8003bb4f25e3fd58",
+      "sha256": "c4855742cb868763930d60e5bb40f1ea4bd29b803133ff99dfc0813dfe648a74",
       "executable": false
     },
     "src/latchkey/reviews/scheduled.d.mts": {
@@ -1231,7 +1231,7 @@
       "executable": false
     },
     "src/latchkey/reviews/snapshot.mjs": {
-      "sha256": "c55325297db65161f781c9ec39f051a38a58e54dbdf807270dd62514734861f7",
+      "sha256": "c65083fd3f3d04e28c2eb48ab9dff2b9be0556dd39879737ca07c72f6a615b96",
       "executable": false
     },
     "src/latchkey/reviews/state.mjs": {
@@ -1243,7 +1243,7 @@
       "executable": false
     },
     "src/latchkey/service.ts": {
-      "sha256": "878e3e48847de62be3dfb0e277fbb2f51a7c455db9997e2c4a48439deaa96b5c",
+      "sha256": "c66a06f3c04fcca7f6d58aff0fe130e4b37d14b1271ea7b04c6b7a091ac4b3ee",
       "executable": false
     },
     "src/latchkey/sharing/client.d.mts": {
@@ -1375,7 +1375,7 @@
       "executable": false
     },
     "src/latchkey/ui/vault.tsx": {
-      "sha256": "585be5301a4f0b453af0f95b0d9c4ec9d39491ad0a7a1a8e4ea8c774f8b89332",
+      "sha256": "a8ae5569a57318fe2369e5504129d06832a15322a25be944df9d26bdb99ee4f6",
       "executable": false
     },
     "src/mail.server.d.mts": {
@@ -2271,7 +2271,7 @@
       "executable": false
     },
     "tests/browser/fixture.mjs": {
-      "sha256": "6201f03760abd20d20d5b345362bc1b86107ea5e780f0b579cd4ff1a74a9fb78",
+      "sha256": "449f293fb6521bd4b27d7dc295f2c4b0aab8bfdfed2fe03f9a2c5adb865766b6",
       "executable": false
     },
     "tests/browser/organization.mjs": {
@@ -2343,7 +2343,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "56ea33c2c0027620469961a2fd9570f3d37166bd147a59979bb309d24bd0385d",
+      "sha256": "f292bc3728350fc7728f8ef0927f30ef2aabe19a8f6b3cdab49bdd41f1cf0c03",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {

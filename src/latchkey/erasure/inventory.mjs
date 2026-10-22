@@ -18,6 +18,10 @@ export async function inventory(ctx, vault, object) {
   // activation preparations are scrubbed together as well.
   { table: 'lky_restore_preparations', keys: ['id'], select: 'SELECT id FROM lky_restore_preparations', args: [] },
  ];
+ const grants=await all('SELECT DISTINCT grant_id AS id FROM lky_runtime_scopes WHERE vault_id=? AND object_id=? UNION SELECT grant_id AS id FROM lky_runtime_dependencies WHERE vault_id=? AND object_id=?',vault,object,vault,object);const grantIds=JSON.stringify(grants.map(r=>r.id));
+ entries.push({table:'lky_runtime_scopes',keys:['id'],select:'SELECT id FROM lky_runtime_scopes WHERE grant_id IN(SELECT value FROM json_each(?))',args:[grantIds]},{table:'lky_runtime_dependencies',keys:['grant_id','vault_id','object_id'],select:'SELECT grant_id,vault_id,object_id FROM lky_runtime_dependencies WHERE grant_id IN(SELECT value FROM json_each(?))',args:[grantIds]},{table:'lky_runtime_grants',keys:['id'],select:'SELECT id FROM lky_runtime_grants WHERE id IN(SELECT value FROM json_each(?))',args:[grantIds]});
+ const projects=await all('SELECT id FROM lky_projects WHERE vault_id=? AND metadata_object=?',vault,object);const projectIds=JSON.stringify(projects.map(r=>r.id));const envs=await all('SELECT id FROM lky_project_environments WHERE project_id IN(SELECT value FROM json_each(?)) OR catalog_object=?',projectIds,object);const envIds=JSON.stringify(envs.map(r=>r.id));
+ entries.push({table:'lky_project_resources',keys:['id'],select:'SELECT id FROM lky_project_resources WHERE (vault_id=? AND object_id=?) OR environment_id IN(SELECT value FROM json_each(?))',args:[vault,object,envIds]},{table:'lky_project_environments',keys:['id'],select:'SELECT id FROM lky_project_environments WHERE id IN(SELECT value FROM json_each(?))',args:[envIds]},{table:'lky_projects',keys:['id'],select:'SELECT id FROM lky_projects WHERE id IN(SELECT value FROM json_each(?))',args:[projectIds]});
  for (const entry of entries) {
   entry.ordered = `SELECT * FROM (${entry.select}) ORDER BY ${entry.keys.join(',')}`;
   entry.rows = await all(entry.ordered, ...entry.args);

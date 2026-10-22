@@ -1,3 +1,5 @@
+import {projectsAuthenticated} from './projects/service.mjs'
+import {runtimeAuthenticated,runtimePublic,RuntimeError} from './runtime/service.mjs'
 import {bulkAuthenticated,BulkError} from './collections/bulk-service.mjs'
 import {batchAuthenticated} from './lifecycle/batch.mjs'
 import { lifecycleAuthenticated,LifecycleError } from './lifecycle/service.mjs'
@@ -61,6 +63,8 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
   let input: Row; try { input = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(raw)) } catch { refuse('invalid_json') }
   if (!input! || typeof input !== 'object' || Array.isArray(input)) refuse('invalid_body')
   const route = url.pathname.slice('/api/latchkey/'.length)
+  const machineResult=await runtimePublic(route,input,{db,now,request,raw})
+  if(machineResult!==null)return response(machineResult)
   const external = await sharingPublic(route, input, { db, env, now, limited })
   if (external !== null) return response(external)
   await opaque.ready
@@ -218,6 +222,10 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
    }
    if (route === 'item/put' && await first('SELECT 1 AS present FROM lky_subject_fences WHERE tenant=? LIMIT 1', tenant) && await subjectItemReplayKnown(context, input.vault, input.object)) refuse('item_erased', 409);
   }
+  const projectResult=grant.recovery===0?await projectsAuthenticated(route,input,{db,now,actor,device,tenant,fence,fenceArgs}):null
+  if(projectResult!==null)return response(projectResult)
+  const runtimeResult=grant.recovery===0?await runtimeAuthenticated(route,input,{db,now,actor,device,tenant,fence,fenceArgs}):null
+  if(runtimeResult!==null)return response(runtimeResult)
   const bulk=grant.recovery===0?await bulkAuthenticated(route,input,{db,env,now,actor,device,tenant,session,fence,fenceArgs}):null
   if(bulk!==null)return response(bulk)
   const batch=grant.recovery===0?await batchAuthenticated(route,input,{db,env,now,actor,device,tenant,session,fence,fenceArgs}):null
@@ -376,7 +384,7 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
   }
   refuse('not_found', 404)
  } catch (error) {
-  if (error instanceof BulkError || error instanceof LifecycleError || error instanceof ReviewError || error instanceof Refusal || error instanceof SharingError || error instanceof RecordsError || error instanceof ItemErasureError || error instanceof GeneratorPolicyError || error instanceof SubjectErasureError) return response({ error: error.code }, error.status)
+  if (error instanceof RuntimeError || error instanceof BulkError || error instanceof LifecycleError || error instanceof ReviewError || error instanceof Refusal || error instanceof SharingError || error instanceof RecordsError || error instanceof ItemErasureError || error instanceof GeneratorPolicyError || error instanceof SubjectErasureError) return response({ error: error.code }, error.status)
   // Neither input, exception messages, cryptographic state nor SQL is logged.
   return response({ error: 'request_refused' }, 400)
  }
