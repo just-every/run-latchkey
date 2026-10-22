@@ -431,7 +431,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "8c29f9c988c58292bfc334e14361df721899a14675a73ba6065f96ec0d8ec898",
+      "sha256": "c9691152d7d5c5accc1c05f64492e94a422e8831772376878e6126b44fc5364c",
       "executable": false
     },
     "AGENTS.md": {
@@ -455,7 +455,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "e20c1169ac7f53531628626552030a9fbf93b6fbce95996ffd628fdb0c3975ba",
+      "sha256": "8bfcfaa9b1f36ec0030a43123f92e22dc3476a0a8a61806519902eabd7be3801",
       "executable": false
     },
     "deploy-site.json": {
@@ -507,7 +507,7 @@
       "executable": false
     },
     "docs/vault-cli.md": {
-      "sha256": "6d2d8f1b8991b29e64d47879ec68a8bc7d521d3d3b3ed2e8b07ab240b7dec7c7",
+      "sha256": "a6165362b79b93189db69445fdd166b22eea61db0c58612b25afd7e384c1b321",
       "executable": false
     },
     "edition.json": {
