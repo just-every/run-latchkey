@@ -8,8 +8,8 @@ import { hasValue, typeLabel } from './labels';
 export function ItemRow({ row, links, open, onOpen }: { row: ItemRecord; links: number; open: boolean; onOpen: () => void }) {
  const item = row.value, site = siteOf(item), facts = factsOf(row, links), time = item.change?.time;
  return <button className={`item${open ? ' selected' : ''}`} aria-label={`${item.title} ${summary(item)}`} onClick={onOpen} aria-current={open ? 'true' : undefined}>
-  <span className="cell name"><Tile item={item}/><span className="name-text"><span className="item-title">{item.title}</span>{site ? <span className="item-sub mono">{site}</span> : item.type !== 'login' && <span className="item-sub">{typeLabel(item.type)}</span>}</span></span>
-  <span className="cell user">{username(item) ?? '—'}</span>
+  <span className="cell name"><Tile item={item}/><span className="name-text"><span className="item-title">{item.title}</span>{site ? <span className="item-sub mono">{breakable(site)}</span> : item.type !== 'login' && <span className="item-sub">{typeLabel(item.type)}</span>}</span></span>
+  <span className="cell user">{breakable(username(item) ?? '—')}</span>
   <span className={`cell state${facts.length ? '' : ' none'}`}>{facts.length ? <span className="facts">{facts.map((fact, i) => <span key={i}>{fact}</span>)}</span> : '—'}</span>
   <span className="cell changed">{time ? <time dateTime={time} title={new Date(time).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}>{changed(new Date(time))}</time> : '—'}</span>
   <Icon name="chevron" className="chevron"/>
@@ -18,6 +18,8 @@ export function ItemRow({ row, links, open, onOpen }: { row: ItemRecord; links: 
 
 export const ItemsHead = () => <div className="items-head" aria-hidden="true"><span>Name</span><span>Username</span><span>Details</span><span>Changed</span></div>;
 
+// Long hosts and addresses may wrap after a dot or before the @, not mid-word.
+const breakable = (text: string) => text.split(/(?<=\.)|(?=@)/).flatMap((part, i) => i ? [<wbr key={i}/>, part] : [part]);
 const username = (item: Item) => item.fields.find(field => !field.secret && ['username', 'email', 'accountHolder', 'description'].includes(field.id))?.value as string | undefined;
 const summary = (item: Item) => String(username(item) ?? item.type.replaceAll('-', ' '));
 // The first rule a browser fills from, else the app it opens.

@@ -755,7 +755,7 @@
       "executable": false
     },
     "public/fonts/fonts.css": {
-      "sha256": "cb69c633132a58a1bb75db53e9129a5bb3f13f91d89f745c42916b5a09095539",
+      "sha256": "de9b099a84aace254b30362021e1764d7b82e530536afac9021be49fa271202f",
       "executable": false
     },
     "public/fonts/geist/geist-latin-wght.woff2": {
@@ -1183,7 +1183,7 @@
       "executable": false
     },
     "src/latchkey/collections/ui.tsx": {
-      "sha256": "650741841f60a9de7deadea0ee6856e51c994269d336f4b1febbe48e155441b0",
+      "sha256": "3fba6f2307a71691a94dc4c9482613ff2e8532b820d3b24e416ff8c66fc643ee",
       "executable": false
     },
     "src/latchkey/crypto/envelope.d.mts": {
@@ -1686,6 +1686,14 @@
       "sha256": "108e9acb918bb57c9c412d121f3daea1714b5e4bc739ef78b39785eb8ef84a62",
       "executable": false
     },
+    "src/latchkey/ui/item-row.tsx": {
+      "sha256": "5a731bf39e8fd81457f7e472064fba303c6b0d4347e70f2acdda1861677c2a16",
+      "executable": false
+    },
+    "src/latchkey/ui/labels.ts": {
+      "sha256": "3ad4f13626a20e208a07715007012ec530eed69acad00fe098b89a3c2363a141",
+      "executable": false
+    },
     "src/latchkey/ui/owner-trust.tsx": {
       "sha256": "8f17d836f8100bcb7100fc381394437719b0b45d8b322a92bbd93b93b3bd9467",
       "executable": false
@@ -1707,7 +1715,11 @@
       "executable": false
     },
     "src/latchkey/ui/styles.ts": {
-      "sha256": "efc42159e0cdac2d7a5f02dfcde3b713b59df6be5558e10b8a96104eb0be53ce",
+      "sha256": "b3ea73756a48c8bfa81902c9ff661a1e3890fe910644da38721f9853c8d1cec3",
+      "executable": false
+    },
+    "src/latchkey/ui/tabs.tsx": {
+      "sha256": "70eb4e064030e794ce7d06a638151c08feaf3311587fb9e88a1be1e613a05b58",
       "executable": false
     },
     "src/latchkey/ui/templates.tsx": {

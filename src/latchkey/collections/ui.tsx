@@ -3,7 +3,7 @@ import { OrganizationClient, filterRecords } from './client.mjs';
 import { BulkClient } from './bulk-client.mjs';
 import { LifecycleClient } from '../lifecycle/client.mjs';
 import { message } from '../ui/types';
-import { kindLabel, typeLabel, vaultLabel } from '../ui/labels';
+import { dots, kindLabel, typeLabel, vaultLabel } from '../ui/labels';
 
 type Selected = { vault: string; object: string; title: string };
 type Snapshot = { records: any[]; lifecycle: any[]; vault: { id: string; kind: string; owner: string } };
@@ -47,7 +47,7 @@ function BulkReview({ preview, selection, confirmed, setConfirmed, ownershipConf
    <p>{row.allowed ? 'Allowed by current authority checks.' : 'Denied.'} {row.reason && describe(row.reason)}</p>
    {row.rights !== undefined && <div className="rule-view"><span>Exact source rights</span><span>{describe(row.rights)}</span></div>}
   </article>)}
-  {preview.destination && <div className="definition fingerprint"><h2>Destination</h2><div className="rule-view"><span>Vault · kind · owner</span><span>{vaultName(preview.destination.id)} · {kindLabel(preview.destination.kind)} · {ownerName(preview.destination.owner)}</span></div></div>}
+  {preview.destination && <div className="definition fingerprint"><h2>Destination</h2><div className="rule-view"><span>{dots(['Vault', 'kind', 'owner'])}</span><span>{dots([vaultName(preview.destination.id), kindLabel(preview.destination.kind), ownerName(preview.destination.owner)])}</span></div></div>}
   <h2>Entire resulting destination recipient set</h2>
   {preview.destination ? <>{preview.recipients.length === 0 && <p>No destination recipients were reported. This empty set is part of the preview.</p>}{preview.recipients.map((recipient: any) => <div className="definition rule-view" key={recipient.account}><span>Recipient account</span><span>{recipient.account}</span><span>Exact rights: {describe(recipient.rights)}</span></div>)}</> : <p>No destination change for this action.</p>}
   {!!preview.ownershipTransfers?.length && <div className="notice"><h2>Personal ownership changes to company ownership</h2><p>Every selected personal item version and attachment will be encrypted for the company destination and its exact recipients above. The company keeps these copies after employment or sponsored benefits end. Your source is archived with its history; Undo cannot recall company copies or past access.</p><label className="check"><input type="checkbox" checked={ownershipConfirmed} disabled={busy || denied} onChange={event => setOwnershipConfirmed(event.target.checked)}/>I personally own these family items and explicitly transfer the reviewed copies and history into company ownership.</label></div>}
@@ -177,7 +177,7 @@ export function OrganizationPanel({ client, vault, run, onChanged, names, onName
   {busy && <p role="status">Processing the requested action…</p>}
   <nav className="actions" aria-label="Organization sections">{[['search', 'Search'], ['collections', 'Collections'], ['trash', 'Trash']].map(([value, label]) => <button key={value} aria-pressed={tab === value} disabled={busy} onClick={() => chooseTab(value)}>{label}</button>)}</nav>
   {snapshot && <>
-   <div className="rule-view"><span>Current source · kind · owner</span><span>{vaultName(snapshot.vault.id)} · {kindLabel(snapshot.vault.kind)} · {ownerName(snapshot.vault.owner)}</span></div>
+   <div className="rule-view"><span>{dots(['Current source', 'kind', 'owner'])}</span><span>{dots([vaultName(snapshot.vault.id), kindLabel(snapshot.vault.kind), ownerName(snapshot.vault.owner)])}</span></div>
    {tab === 'trash' && <p className="notice">Deleted items remain in trash for 30 days by default before permanent erasure. Archive is indefinite. Restore requires independent restore permission and current destination create rights. Company administrators cannot restore family items.</p>}
    <SearchControls criteria={criteria} setCriteria={changeCriteria} disabled={busy || loading}/>
    <details className="tool-box"><summary>Saved filters</summary>
@@ -205,7 +205,7 @@ export function OrganizationPanel({ client, vault, run, onChanged, names, onName
     {!visible.length && <div className="empty"><p>{criteria.state === 'trash' ? 'No permitted trash items match.' : criteria.state === 'archived' ? 'No permitted archived items match.' : 'No permitted active items match.'}</p></div>}
     {visible.slice(0, limit).map(row => <article className="definition fingerprint" key={row.object}>
      <label className="check"><input type="checkbox" disabled={busy} checked={selection.some(item => item.vault === source && item.object === row.object)} onChange={event => updateSelection(row, event.target.checked)}/>{row.value.title}</label>
-     <div className="rule-view"><span>Object reference · version · type</span><span>{source}/{row.object} · {row.version} · {typeLabel(row.value.type)}</span></div>
+     <div className="rule-view"><span>{dots(['Object reference', 'version', 'type'])}</span><span>{dots([`${source}/${row.object}`, String(row.version), typeLabel(row.value.type)])}</span></div>
      <p>State: {row.lifecycle.state}. {row.value.favorite ? 'Favorite. ' : ''}Owner: {ownerName(row.value.owner ?? snapshot.vault.owner)}.</p>
      <p>Health: {!Array.isArray(row.value.healthFindings) ? 'Unknown — no findings evidence reported.' : row.value.healthFindings.length ? `${row.value.healthFindings.length} findings reported.` : 'Checked; no findings reported.'}</p>
      {row.lifecycle.state === 'archived' && <p>Archived indefinitely; excluded from normal fill suggestions and active remediation.</p>}

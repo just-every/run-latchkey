@@ -47,6 +47,7 @@ html.rer-themed .brand::before, html.rer-themed .rer-brand::before { width: 58px
 html.rer-themed h1 { font-weight: 800; font-size: 30px; line-height: 1.15; letter-spacing: -0.025em; }
 html.rer-themed p { font-size: 15px; }
 html.rer-themed label { font-weight: 500; }
+html.rer-themed .check { min-height: 24px; }
 html.rer-themed input:not([type=checkbox]):not([type=hidden]) { min-height: 44px; border: 1px solid var(--rer-border); border-radius: 0; }
 html.rer-themed input:focus-visible { outline: 0; border-color: var(--rer-text); box-shadow: 0 0 0 3px color-mix(in srgb, var(--rer-accent) 35%, transparent); }
 html.rer-themed button, html.rer-themed .action { min-height: 46px; border-radius: 0; font-weight: 600; box-shadow: none; }

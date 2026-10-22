@@ -18,7 +18,7 @@ export const typeLabel = (type: string) => types[type] ?? type;
 export const fieldTypeLabel = (type: string) => fieldTypes[type] ?? type;
 export const matchLabel = (match: string) => matches[match] ?? match;
 export const kindLabel = (kind: string | undefined) => kinds[kind ?? ''] ?? 'Vault';
-export const vaultLabel = (vault: { id: string; title?: string }) => vault.title ?? `Vault · ${vault.id.slice(0, 8)}`;
+export const vaultLabel = (vault: { id: string; title?: string }) => vault.title ?? dots(['Vault', vault.id.slice(0, 8)]);
 export function fieldLabel(item: Pick<Item, 'type' | 'template'>, field: Field) {
  const builtIn = item.type !== 'custom' && !item.template && (itemTypes[item.type]?.some(definition => definition.id === field.id && definition.type === field.type) || captured[field.id] === field.type);
  return builtIn && fields[field.id] || field.label;
@@ -26,6 +26,8 @@ export function fieldLabel(item: Pick<Item, 'type' | 'template'>, field: Field) 
 // "Company login · Favorite · Finance · #quarterly": who owns it, what it is, then its marks.
 export function itemSummary(item: Item) {
  const noun = nouns[item.type] ?? typeLabel(item.type).toLowerCase(), template = item.template?.definition?.name;
- return [`${item.ownership === 'personal' ? 'Personal' : 'Company'} ${noun}`, ...(template ? [template] : []), ...(item.favorite ? ['Favorite'] : []), ...item.labels, ...item.tags.map(tag => `#${tag}`)].join(' · ');
+ return dots([`${item.ownership === 'personal' ? 'Personal' : 'Company'} ${noun}`, ...(template ? [template] : []), ...(item.favorite ? ['Favorite'] : []), ...item.labels, ...item.tags.map(tag => `#${tag}`)]);
 }
 export const hasValue = (field: Field) => field.value != null && field.value !== '';
+// Joins parts with " · ", the dot bound to the part after it, so a wrapped line never ends on it.
+export const dots = (parts: string[]) => parts.join(' ·\u00a0');
