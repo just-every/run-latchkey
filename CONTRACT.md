@@ -619,8 +619,8 @@ The evidence below maps implemented acceptance points to emitted-Worker, CLI and
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 0 | 0 | 0 | 0 |
-| Target and push further | 7 | 3 | 66 | 76 |
-| All | 7 | 3 | 66 | 76 |
+| Target and push further | 7 | 4 | 65 | 76 |
+| All | 7 | 4 | 65 | 76 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
