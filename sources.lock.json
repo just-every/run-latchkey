@@ -443,7 +443,7 @@
       "executable": false
     },
     "base-copies.json": {
-      "sha256": "ffaeea3ab239a3c0c6a8891ebefba0855bee8c56237ad943c200d66c02eefeb1",
+      "sha256": "35201721c764f6f5bd385f2ae10d649321c11d6d9de3012ad59f3d4ccb80510b",
       "executable": false
     },
     "CLAUDE.md": {
@@ -2863,7 +2863,7 @@
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {
-      "sha256": "e32a9b73f27c0915b5bbdb5c1925e0c333d34d4e6058b8a6000cf132efdb0631",
+      "sha256": "99941e9815cbfff121096e5c5f8e24cb6b9f80a0eb67ba054d5f569801d18479",
       "executable": false
     },
     "tests/incremental-typecheck.test.mjs": {
