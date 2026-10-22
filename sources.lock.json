@@ -2187,11 +2187,11 @@
       "executable": false
     },
     "tests/browser/fixture.mjs": {
-      "sha256": "5db2dcd96f16bea7f96fcf6def861f79443caa0652bf33ccf0333aac71a12f26",
+      "sha256": "6201f03760abd20d20d5b345362bc1b86107ea5e780f0b579cd4ff1a74a9fb78",
       "executable": false
     },
     "tests/browser/reviews.mjs": {
-      "sha256": "073c62f56ea32b01358ea68b5c5275caccf6f6b5ad7aa04a47b5dbee7cc8adf1",
+      "sha256": "b499356e060499bef4f804aaf1e632bdc624d55ceab88f0c2c40b2b4f72ab027",
       "executable": false
     },
     "tests/browser/sharing.mjs": {
@@ -2211,7 +2211,7 @@
       "executable": false
     },
     "tests/latchkey-evidence.mjs": {
-      "sha256": "3a6da3d6b52e5900f141dcb9464adfaddae696bb6399f962c79350bfa7077fbd",
+      "sha256": "4eb3fde3b508274016ec9f0bb8abccda1ed79b6d19749caba330ccb65fd3f302",
       "executable": false
     },
     "tests/latchkey-generator-policy.mjs": {

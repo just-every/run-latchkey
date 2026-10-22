@@ -1,3 +1,7 @@
+import { createPortability } from '@runeditrun/rer/modules/portability';
+import archivePolicy from '../scripts/latchkey/archive-policy.mjs';
+import { readFile,readdir } from 'node:fs/promises';
+import { unstable_splitSqlQuery } from 'wrangler';
 import assert from 'node:assert/strict';
 import { EvidenceClient } from '../src/latchkey/evidence/client.mjs';
 import { ReviewClient } from '../src/latchkey/reviews/client.mjs';
@@ -29,4 +33,16 @@ export async function runEvidenceJourneys({owner,review}){
  const preview=await client.preview(review,target);await client.revoke(target);let calls=0;await assert.rejects(client.send(preview,credential,true,{fetcher:async()=>{calls++;throw Error('must not dispatch')}}),e=>e.code==='evidence_destination_revoked');assert.equal(calls,0);
  const history=await client.deliveries(review);assert.equal(history.length,7);assert.equal(history.filter(r=>r.state==='accepted').length,4);assert.ok(history.every(r=>r.sourceTimestamp===sent[0].value.package.closedAt));
  return history;
+}
+
+export async function runReviewArchiveJourney(f,review){
+ const source=await createPortability({db:f.db,policy:archivePolicy}),job=await source.exports.create('synthetic-latchkey-2081');
+ while((await source.exports.advance(job,{maxParts:100})).phase!=='complete'){}
+ const lines=(await new Response(await source.exports.download(job)).text()).trim().split('\n').map(line=>JSON.parse(line));
+ const db=await f.archiveDatabase();for(const name of(await readdir('migrations/core')).filter(n=>n.endsWith('.sql')).sort())await db.batch(unstable_splitSqlQuery(await readFile('migrations/core/'+name,'utf8')).map(sql=>db.prepare(sql)));
+ const destination=await createPortability({db,policy:archivePolicy}),imported=await destination.imports.create(lines[0],'synthetic-latchkey-2082');
+ for(const part of lines.slice(1,-1))await destination.imports.uploadPart(imported,part.index,part);
+ const final=lines.at(-1),result=await destination.imports.finalize(imported,{contentHash:final.contentHash,archiveHash:final.archiveHash});assert.equal(result.phase,'complete');
+ const campaign=await db.prepare('SELECT * FROM lky_reviews WHERE id=?').bind(review).first();assert.equal(campaign.phase,'inactive');assert.equal(campaign.package,null);assert.ok((await db.prepare('SELECT * FROM lky_review_rows WHERE review_id=?').bind(review).all()).results.length);
+ const destinations=(await db.prepare('SELECT active FROM lky_evidence_destinations').all()).results;assert.ok(destinations.length);assert.ok(destinations.every(row=>row.active===0));assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM lky_devices').first()).n,0);
 }

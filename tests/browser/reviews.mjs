@@ -1,6 +1,6 @@
 import { EvidenceClient } from '../../src/latchkey/evidence/client.mjs';
 import { MachineClient } from '../../src/latchkey/machine.mjs';
-import { runEvidenceJourneys } from '../latchkey-evidence.mjs';
+import { runEvidenceJourneys,runReviewArchiveJourney } from '../latchkey-evidence.mjs';
 import assert from 'node:assert/strict';
 import { expect } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
@@ -73,6 +73,7 @@ export async function reviewCampaignJourney(f,width){
  const scheduled=(await owner.call('reviews/create',{vault,reviewer:reviewer.profile.account,scheduleAt:Date.now()+60000,dueAt:Date.now()+120000,period:'Next quarterly review'})).id;
  assert.equal((await owner.call('reviews/get',{review:scheduled})).phase,'scheduled');await f.db.prepare('UPDATE lky_reviews SET scheduled_at=?,due_at=? WHERE id=?').bind(Date.now()-2000,Date.now()-1000,scheduled).run();const scheduledResponse=await f.schedule();assert.equal(scheduledResponse.outcome,'ok');const overdue=await owner.call('reviews/get',{review:scheduled});assert.equal(overdue.phase,'open');assert.equal(overdue.overdue,true);const reminder=await owner.call('reviews/remind',{review:scheduled});const replay=await owner.call('reviews/remind',{review:scheduled});assert.equal(reminder.reminders.length,replay.reminders.length);assert.ok(reminder.reminders.length);
  const audit=await owner.call('audit',{});assert.ok(audit.some(r=>r.action==='review_closed'&&r.object_id===review));
+ if(width===1440)await runReviewArchiveJourney(f,review);
  const secureframe=(await owner.call('evidence/destinations',{})).find(r=>r.destination==='secureframe'),evidence=new EvidenceClient(owner),oldPreview=await evidence.preview(review,secureframe);const operator=(await f.db.prepare('SELECT operator_id FROM lky_accounts WHERE id=?').bind(reviewer.profile.account).first()).operator_id;const erasure=await owner.call('subject/erase-preview',{subject:operator});const receipt=await owner.call('subject/erase',{subject:operator,confirmed:true,planHash:erasure.planHash});assert.equal(receipt.complete,false);await refused(owner.call('reviews/package',{review}),'review_not_found');let writes=0;await refused(evidence.send(oldPreview,{apiKey:'synthetic-latchkey-2051',keySecret:'synthetic-latchkey-2052'},true,{fetcher:async()=>{writes++;throw Error('must not send')}}),'review_not_found');assert.equal(writes,0);
  return {review,vault,object};
  }finally{member.lock();reviewer.lock();later.lock()}
