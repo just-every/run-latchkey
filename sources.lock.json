@@ -1019,7 +1019,7 @@
       "executable": false
     },
     "src/latchkey/evidence/ui.tsx": {
-      "sha256": "a1796cad1958aff338747739c7f20edb3a492078c94a9634de50171e951cc918",
+      "sha256": "cc9e05d2cbe4575ce56a837b28f86fa0d43781639e597a1f72a9b4bbfd5a7ef1",
       "executable": false
     },
     "src/latchkey/generator/eff.mjs": {
@@ -2191,7 +2191,7 @@
       "executable": false
     },
     "tests/browser/reviews.mjs": {
-      "sha256": "5c341a91bc8c38caa6c02ad603dbe4a732d9307c5068b64fba1d23b73295bcd1",
+      "sha256": "749aa9bc98be83b0ec4db7cf46ef41e1a632cc1f57d11e3b898a595113dc5183",
       "executable": false
     },
     "tests/browser/sharing.mjs": {

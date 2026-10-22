@@ -81,9 +81,9 @@ export function EvidencePanel({ client, review }: {client:any;review:string | {i
    <button disabled={busy || !closed || !destination?.active} onClick={() => void makePreview()}>Preview exact evidence fields</button>
    {preview && <div className="definition">
     <h3>Approved disclosure preview</h3><p>Destination: {preview.destination.endpoint}. Target: {preview.destination.target}. Authorization revision: {preview.destination.revision}. Source timestamp: {when(preview.sourceTimestamp)}.</p>
-    <p>Exact review-package fields: {preview.fields.join(', ')}.</p><p>Package hash: <code>{preview.packageHash}</code></p>
+    <p>Exact review-package fields: {preview.fields.join(', ')}.</p><p>Package hash: <code className="fingerprint">{preview.packageHash}</code></p>
     <p>The outbound signed envelope also includes its schema, destination, signer, authority key and signature, shown below. Review the complete metadata before approving.</p>
-    <details><summary>Exact signed JSON to send</summary><pre>{JSON.stringify(preview.signedPackage, null, 2)}</pre></details>
+    <details><summary>Exact signed JSON to send</summary><pre style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{JSON.stringify(preview.signedPackage, null, 2)}</pre></details>
     {preview.destination.destination === 'secureframe' ? <><label>Secureframe API key<input type="password" autoComplete="off" disabled={busy} value={apiKey} onChange={event => setApiKey(event.target.value)}/></label><label>Secureframe key secret<input type="password" autoComplete="off" disabled={busy} value={keySecret} onChange={event => setKeySecret(event.target.value)}/></label></> : <label>{preview.destination.destination === 'vanta' ? 'Vanta OAuth access token' : 'Destination API token'}<input type="password" autoComplete="off" disabled={busy} value={credential} onChange={event => setCredential(event.target.value)}/></label>}
     <p className="muted">Credentials stay in this panel’s memory and are cleared after sending or changing the preview.</p>
     <label className="check"><input type="checkbox" disabled={busy} checked={consent} onChange={event => setConsent(event.target.checked)}/>I approve these exact fields and this signed package for this destination.</label>
