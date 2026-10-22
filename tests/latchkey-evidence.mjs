@@ -35,7 +35,7 @@ export async function runEvidenceJourneys({owner,review}){
  return history;
 }
 
-export async function runReviewArchiveJourney(f,review){
+export async function restoreDomainArchive(f){
  const source=await createPortability({db:f.db,policy:archivePolicy}),job=await source.exports.create('synthetic-latchkey-2081');
  while((await source.exports.advance(job,{maxParts:100})).phase!=='complete'){}
  const lines=(await new Response(await source.exports.download(job)).text()).trim().split('\n').map(line=>JSON.parse(line));
@@ -43,6 +43,10 @@ export async function runReviewArchiveJourney(f,review){
  const destination=await createPortability({db,policy:archivePolicy}),imported=await destination.imports.create(lines[0],'synthetic-latchkey-2082');
  for(const part of lines.slice(1,-1))await destination.imports.uploadPart(imported,part.index,part);
  const final=lines.at(-1),result=await destination.imports.finalize(imported,{contentHash:final.contentHash,archiveHash:final.archiveHash});assert.equal(result.phase,'complete');
+ return db;
+}
+export async function runReviewArchiveJourney(f,review){
+ const db=await restoreDomainArchive(f);
  const campaign=await db.prepare('SELECT * FROM lky_reviews WHERE id=?').bind(review).first();assert.equal(campaign.phase,'inactive');assert.equal(campaign.package,null);assert.ok((await db.prepare('SELECT * FROM lky_review_rows WHERE review_id=?').bind(review).all()).results.length);
  const destinations=(await db.prepare('SELECT active FROM lky_evidence_destinations').all()).results;assert.ok(destinations.length);assert.ok(destinations.every(row=>row.active===0));assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM lky_devices').first()).n,0);
 }
