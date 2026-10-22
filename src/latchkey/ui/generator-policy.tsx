@@ -1,0 +1,10 @@
+import { useState } from 'react';
+
+export function GeneratorPolicyForm({ policy, onSave, disabled }: { policy: any; onSave: (input: any) => void; disabled: boolean }) {
+ const [group, setGroup] = useState(''), [reason, setReason] = useState('');
+ const [bounds, setBounds] = useState({ minLength: policy.minLength, maxLength: policy.maxLength, minEntropyBits: policy.minEntropyBits, historyDays: policy.historyDays });
+ return <details className="tool-box"><summary>Manage company and group policy</summary><p className="muted">Company constraints apply to everyone. A group policy adds constraints for current group members. The strictest applicable constraints always win. Each change requires a reason and is audited.</p>
+  <div className="form-grid"><label>Minimum characters<input type="number" min="16" step="1" value={bounds.minLength} disabled={disabled} onChange={event => setBounds({ ...bounds, minLength: Number(event.target.value) })}/></label><label>Maximum characters<input type="number" min="16" max="256" step="1" value={bounds.maxLength} disabled={disabled} onChange={event => setBounds({ ...bounds, maxLength: Number(event.target.value) })}/></label><label>Minimum entropy (bits)<input type="number" min="80" step="1" value={bounds.minEntropyBits} disabled={disabled} onChange={event => setBounds({ ...bounds, minEntropyBits: Number(event.target.value) })}/></label><label>History retention (days, 0 disables history)<input type="number" min="0" max="30" step="1" value={bounds.historyDays} disabled={disabled} onChange={event => setBounds({ ...bounds, historyDays: Number(event.target.value) })}/></label></div>
+  <label>Existing group ID (leave empty for company policy)<input value={group} disabled={disabled} onChange={event => setGroup(event.target.value)}/></label><label>Reason for this change<input maxLength={1000} value={reason} disabled={disabled} onChange={event => setReason(event.target.value)}/></label><button type="button" disabled={disabled || !reason.trim()} onClick={() => onSave({ group: group.trim() || null, policy: bounds, reason: reason.trim() })}>Save audited policy</button>
+ </details>;
+}

@@ -9,27 +9,69 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ShareRouteImport } from './routes/share'
+import { Route as AppVaultRouteImport } from './routes/app.vault'
 
-export interface FileRoutesByFullPath {}
-export interface FileRoutesByTo {}
+const ShareRoute = ShareRouteImport.update({
+  id: '/share',
+  path: '/share',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppVaultRoute = AppVaultRouteImport.update({
+  id: '/app/vault',
+  path: '/app/vault',
+  getParentRoute: () => rootRouteImport,
+} as any)
+
+export interface FileRoutesByFullPath {
+  '/share': typeof ShareRoute
+  '/app/vault': typeof AppVaultRoute
+}
+export interface FileRoutesByTo {
+  '/share': typeof ShareRoute
+  '/app/vault': typeof AppVaultRoute
+}
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/share': typeof ShareRoute
+  '/app/vault': typeof AppVaultRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: never
+  fullPaths: '/share' | '/app/vault'
   fileRoutesByTo: FileRoutesByTo
-  to: never
-  id: '__root__'
+  to: '/share' | '/app/vault'
+  id: '__root__' | '/share' | '/app/vault'
   fileRoutesById: FileRoutesById
 }
-export interface RootRouteChildren {}
-
-declare module '@tanstack/react-router' {
-  interface FileRoutesByPath {}
+export interface RootRouteChildren {
+  ShareRoute: typeof ShareRoute
+  AppVaultRoute: typeof AppVaultRoute
 }
 
-const rootRouteChildren: RootRouteChildren = {}
+declare module '@tanstack/react-router' {
+  interface FileRoutesByPath {
+    '/share': {
+      id: '/share'
+      path: '/share'
+      fullPath: '/share'
+      preLoaderRoute: typeof ShareRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/vault': {
+      id: '/app/vault'
+      path: '/app/vault'
+      fullPath: '/app/vault'
+      preLoaderRoute: typeof AppVaultRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+  }
+}
+
+const rootRouteChildren: RootRouteChildren = {
+  ShareRoute: ShareRoute,
+  AppVaultRoute: AppVaultRoute,
+}
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()

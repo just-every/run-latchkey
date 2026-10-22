@@ -1,10 +1,9 @@
+import { nativeErasureResponse } from './latchkey/erasure/native-admission.mjs'
 import { rejectedResponse } from './base/rejected-response'
 import { createDependencies } from './modules/dependencies/index.mjs'
 import { createIdpOwnerClaimHandler } from './modules/owner-claim/index.mjs'
 import { firstRunResponse } from './base/setup'
-import { fontHead } from './base/font-head'
 import { fontDocumentResponse } from './base/font-response'
-import { themeFrame } from './base/theme-frame'
 import { createOperatorAuth, createAuthHandler, createSignInHandler, type AuthConfig } from './modules/operator-auth/index.mjs'
 import { operatorMail } from './mail.server.mjs'
 import branding from './branding.json'
@@ -32,6 +31,8 @@ export interface Bindings {
  RER_INSTALLATION_ID?: string
  RER_MANAGEMENT_ORIGIN?: string
  OWNER_EMAIL: string
+ LATCHKEY_WEBHOOK_ORIGINS?: string
+ LATCHKEY_ERASURE_SECRET?: string
  SESSION_SECRET: string
  SETUP_TOKEN?: string
  MAIL_PROVIDER?: 'development' | 'resend' | 'sendgrid' | 'cloudflare'
@@ -47,11 +48,6 @@ export function operatorAuth(env: Bindings) {
 }
 
 const privateHeaders = { 'cache-control': 'no-store', 'referrer-policy': 'no-referrer', 'x-content-type-options': 'nosniff', 'x-robots-tag': 'noindex, nofollow' }
-const escape = (value: string) => value.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
-async function html(body: string) {
- const frame = await themeFrame(theme)
- return new Response(`<!doctype html><html lang="en"${frame.htmlClass}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escape(branding.name)}</title>${fontHead}${frame.head}</head><body><main>${frame.brand}${body}</main></body></html>`, { headers: { ...privateHeaders, 'content-type': 'text/html; charset=utf-8', 'content-security-policy': `default-src 'none'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; ${frame.policy}` } })
-}
 
 async function handleAuthResponse(request: Request, original: Bindings): Promise<Response | null> {
  const env = runtimeBindings(original), url = new URL(request.url)
@@ -67,7 +63,10 @@ async function handleAuthResponse(request: Request, original: Bindings): Promise
   })(request)
   if (page) return fontDocumentResponse(page)
  }
- if (url.pathname.startsWith('/auth/')) return fontDocumentResponse(await createAuthHandler(operatorAuth(env))(request))
+ if (url.pathname.startsWith('/auth/')) {
+  const auth = operatorAuth(env), erased = await nativeErasureResponse(request, env, auth)
+  return fontDocumentResponse(erased ?? await createAuthHandler(auth)(request))
+ }
  if (url.pathname === '/setup' || url.pathname === '/app' || url.pathname.startsWith('/app/')) {
   const setup = await firstRunResponse(request, env, operatorAuth(env), { theme })
   if (setup) return setup
@@ -75,7 +74,7 @@ async function handleAuthResponse(request: Request, original: Bindings): Promise
  if (url.pathname === '/app') {
   const session = await operatorAuth(env).getSession(request)
   if (!session) return new Response(null, { status: 303, headers: { ...privateHeaders, location: '/signin' } })
-  return html(`<h1 data-rer-name>${escape(branding.name)}</h1><p>Signed in as ${escape(session.operator.displayName)}</p>`)
+  return new Response(null, { status: 303, headers: { ...privateHeaders, location: '/app/vault' } })
  }
  return null
 }
