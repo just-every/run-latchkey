@@ -604,17 +604,19 @@ The nonblocking review items are now target work in LKY-002–008, LKY-010–014
 
 Open boundaries remain explicit: unreachable default-policy caches and already exposed values cannot be recalled, local fill without reveal is a deterrent, unsupported passkey-transfer sources need verified re-enrollment, website or provider operations lacking safe automation retain human ceremonies, and non-revocable provider sessions remain visible until observed expiry. Managed pricing and the operator's legal identity are owner inputs recorded as the LKY-074 Gap. Uptime owns availability checks and [Lamp](https://github.com/just-every/run-lamp) the status page, without importing either product's workflow into Latchkey.
 
+Implementation semantics for LKY-037 (22 October 2026): search and health-annotation predicates run only over decrypted permitted records; absence of health evidence is unknown. Logical moves preserve every encrypted history version in the destination and archive the source; approvals bind the full current recipient set, rights, versions and vault revisions. Restore requires independent restore plus create rights and never revives old capabilities. Owner-signed 30-day trash policy and exact signed delete intent authorize expiry through the existing erasure journal; imported lifecycle records cannot activate retention. Archive is indefinite. New health, fill, project and machine doors inherit these lifecycle and replay fences.
+
 ## Status
 
-Judged from the code and tests at commit `82d5875d0f4e0521b24a97ebef26edda58d3efc9` (22 October 2026). Prior foundation judgments are retained. LKY-015 records the access-review journeys built and executed by sx-latchkey-c5 on 22 October 2026; LKY-059 records the remaining evidence-connector work. LKY-001 retains its independently landed client-foundation judgment.
+Judged from the code and tests at commit `7a79b513f3950c3f60a2716b02d0e40689783f13` (22 October 2026). Prior foundation judgments are retained. LKY-015 records the access-review journeys built and executed by sx-latchkey-c5 on 22 October 2026; LKY-059 records the remaining evidence-connector work. LKY-001 retains its independently landed client-foundation judgment.
 
 The evidence below maps implemented acceptance points to emitted-Worker, CLI and browser assertions that passed locally. Exact-candidate branch and dispatched Verify run IDs are recorded in the campaign plan after execution. LKY-002/033/034 retain their named gaps; independent cryptographic assurance remains LKY-076.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 0 | 0 | 0 | 0 |
-| Target and push further | 3 | 4 | 69 | 76 |
-| All | 3 | 4 | 69 | 76 |
+| Target and push further | 4 | 4 | 68 | 76 |
+| All | 4 | 4 | 68 | 76 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -634,7 +636,7 @@ The evidence below maps implemented acceptance points to emitted-Worker, CLI and
 | `LKY-004` | Unlock and device security | target | missing |  | No implementation or public-door acceptance evidence exists for unlock and device security. |
 | `LKY-017` | Open export and self-hosting parity | target | missing |  | No implementation or public-door acceptance evidence exists for open export and self-hosting parity. |
 | `LKY-027` | Personal and family accounts remain separate | target | missing |  | No implementation or public-door acceptance evidence exists for personal and family accounts remain separate. |
-| `LKY-037` | Find, organize, archive and restore work | target | missing |  | No implementation or public-door acceptance evidence exists for find, organize, archive and restore work. |
+| `LKY-037` | Find, organize, archive and restore work | target | done | `tests/browser/organization.mjs` / organizationJourney: local type/tag/favorite/owner/expiry/health filters, encrypted saved filters and nested collections; unauthorized existing/absent vaults give the same refusal and search sends no query; mixed source rights refuse the whole commit; exact resulting recipient preview and changed-recipient refusal; history-preserving move/tag/archive and Undo; archive excludes fill/active health results, restores preserve history and never revive share/link/machine authority; private/shared member and independently scoped admin restore, viewer refusal and family-admin refusal; signed 30-day expiry uses permanent erasure and anonymized audit while archive remains recoverable. The same committed journey with --scale passed on 10,000 real client-encrypted items at 1440/390 outside push Verify; exact-candidate run IDs are cited in the campaign plan. | None for current doors. LKY-011/022 inherit active-remediation filtering; LKY-003/004/024/057 inherit archive/trash exclusion at new fill doors. LKY-027 retains complete personal/family account separation. |
 | `LKY-038` | Offline continuity, conflicts and revocation policy | target | missing |  | No implementation or public-door acceptance evidence exists for offline continuity, conflicts and revocation policy. |
 | `LKY-039` | Rollout, accessibility and support without disclosure | target | missing |  | No implementation or public-door acceptance evidence exists for rollout, accessibility and support without disclosure. |
 | `LKY-050` | Hide-my-email aliases with a real forwarding provider | target | missing |  | No implementation or public-door acceptance evidence exists for hide-my-email aliases with a real forwarding provider. |
