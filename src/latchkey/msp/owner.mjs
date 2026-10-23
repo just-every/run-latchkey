@@ -7,7 +7,7 @@ export async function mspAuthenticated(route,input,ctx){
  need(await first(`SELECT 1 AS allowed WHERE ${ctx.fence}`,...ctx.fenceArgs),'authority_expired',401);
  if(route==='msp/list'){
   exact(input,[]);
-  return{delegations:(await all('SELECT * FROM lky_msp_delegations WHERE tenant=? ORDER BY created_at,id',ctx.tenant)).map(row=>({id:row.id,provider:row.provider,consoleOrigin:row.console_origin,scopes:JSON.parse(row.scopes),expiresAt:row.expires_at,revokedAt:row.revoked_at})),commercial:await first('SELECT status,reference,recorded_at AS recordedAt FROM lky_msp_commercial WHERE tenant=?',ctx.tenant)??{status:'not_recorded'}};
+  return{events:await all("SELECT e.id,e.action,e.object_id AS operation,e.created_at AS occurredAt,d.provider FROM lky_events e JOIN lky_msp_delegations d ON d.id=e.device WHERE d.tenant=? AND e.actor='msp-provider' ORDER BY e.created_at,e.id LIMIT 1000",ctx.tenant),delegations:(await all('SELECT * FROM lky_msp_delegations WHERE tenant=? ORDER BY created_at,id',ctx.tenant)).map(row=>({id:row.id,provider:row.provider,consoleOrigin:row.console_origin,scopes:JSON.parse(row.scopes),expiresAt:row.expires_at,revokedAt:row.revoked_at})),commercial:await first('SELECT status,reference,recorded_at AS recordedAt FROM lky_msp_commercial WHERE tenant=?',ctx.tenant)??{status:'not_recorded'}};
  }
  if(route==='msp/grant'){
   exact(input,['provider','publicKey','consoleOrigin','scopes','expiresAt','confirmed']);need(input.confirmed===true,'owner_consent_required',403);

@@ -7,6 +7,7 @@ type Props = { client: any; run: (work: () => Promise<unknown>) => Promise<void>
 const when = (value: number) => new Date(value).toLocaleString();
 
 export function MspOwnerPanel({ client, run }: Props) {
+ const [events, setEvents] = useState<any[]>([]);
  const [grants, setGrants] = useState<Grant[]>([]), [identity, setIdentity] = useState<PublicProviderIdentity | null>(null);
  const [template, setTemplate] = useState(false), [consent, setConsent] = useState(false), [days, setDays] = useState(30), [delegation, setDelegation] = useState<unknown>(null);
  const [commercial, setCommercial] = useState<{ status: string; reference?: string }>({ status: 'not_recorded' }), [commercialStatus, setCommercialStatus] = useState('trial'), [reference, setReference] = useState(''), [commercialConsent, setCommercialConsent] = useState(false);
@@ -15,7 +16,7 @@ export function MspOwnerPanel({ client, run }: Props) {
  const refresh = async (token = generation.current) => {
   const result = await client.call('msp/list', {});
   if (token !== generation.current) return;
-  setGrants(result.delegations); setCommercial(result.commercial);
+  setGrants(result.delegations); setCommercial(result.commercial); setEvents(result.events);
  };
  useEffect(() => {
   const token = ++generation.current;
@@ -56,6 +57,7 @@ export function MspOwnerPanel({ client, run }: Props) {
    <button className="primary" disabled={busy || loading || !identity || !consent || !Number.isInteger(days) || days < 1 || days > 90}>Create delegation</button>
   </form>
   {delegation != null && <div className="notice"><p>Delegation file ready. This file identifies the permitted company and scopes; the provider must also hold its matching private signing key.</p><button onClick={() => download('latchkey-provider-delegation.json', JSON.stringify(delegation, null, 2))}>Download delegation file</button></div>}
+  <details><summary>Provider policy audit ({events.length})</summary>{events.map(event => <p className="fingerprint" key={event.id}>{event.action} · {when(event.occurredAt)} · Operation {event.operation} · Provider {event.provider}</p>)}</details>
   <h2>Delegations</h2>
   {!loading && grants.length === 0 && <p className="empty">No provider delegations.</p>}
   {grants.map(grant => <article className="definition" key={grant.id}><h3>Provider {grant.provider}</h3><p className="fingerprint">Delegation: {grant.id}<br/>Console: {grant.consoleOrigin}</p><p>Scopes: {grant.scopes.join(', ')}. Expires: {when(grant.expiresAt)}.</p><p>{grant.revokedAt ? `Revoked ${when(grant.revokedAt)}` : grant.expiresAt <= Date.now() ? 'Expired' : 'Active'}</p>

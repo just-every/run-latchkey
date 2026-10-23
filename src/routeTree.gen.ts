@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ShareRouteImport } from './routes/share'
+import { Route as AppFleetRouteImport } from './routes/app.fleet'
 import { Route as AppVaultRouteImport } from './routes/app.vault'
 
 const ShareRoute = ShareRouteImport.update({
   id: '/share',
   path: '/share',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppFleetRoute = AppFleetRouteImport.update({
+  id: '/app/fleet',
+  path: '/app/fleet',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppVaultRoute = AppVaultRouteImport.update({
@@ -25,27 +31,31 @@ const AppVaultRoute = AppVaultRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/share': typeof ShareRoute
+  '/app/fleet': typeof AppFleetRoute
   '/app/vault': typeof AppVaultRoute
 }
 export interface FileRoutesByTo {
   '/share': typeof ShareRoute
+  '/app/fleet': typeof AppFleetRoute
   '/app/vault': typeof AppVaultRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/share': typeof ShareRoute
+  '/app/fleet': typeof AppFleetRoute
   '/app/vault': typeof AppVaultRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/share' | '/app/vault'
+  fullPaths: '/share' | '/app/fleet' | '/app/vault'
   fileRoutesByTo: FileRoutesByTo
-  to: '/share' | '/app/vault'
-  id: '__root__' | '/share' | '/app/vault'
+  to: '/share' | '/app/fleet' | '/app/vault'
+  id: '__root__' | '/share' | '/app/fleet' | '/app/vault'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   ShareRoute: typeof ShareRoute
+  AppFleetRoute: typeof AppFleetRoute
   AppVaultRoute: typeof AppVaultRoute
 }
 
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/share'
       fullPath: '/share'
       preLoaderRoute: typeof ShareRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/fleet': {
+      id: '/app/fleet'
+      path: '/app/fleet'
+      fullPath: '/app/fleet'
+      preLoaderRoute: typeof AppFleetRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app/vault': {
@@ -70,6 +87,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   ShareRoute: ShareRoute,
+  AppFleetRoute: AppFleetRoute,
   AppVaultRoute: AppVaultRoute,
 }
 export const routeTree = rootRouteImport
