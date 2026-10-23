@@ -1475,7 +1475,7 @@
       "executable": false
     },
     "src/latchkey/msp/http.mjs": {
-      "sha256": "1f07c4e98120b3c57f84853e93051e155f18ecac12959be8f69faf4f7328dc30",
+      "sha256": "febd5dbfbb2868c4d8726232edfd9815f37185856cf7453ecd9ae9a15214019d",
       "executable": false
     },
     "src/latchkey/msp/owner-ui.tsx": {
@@ -1487,7 +1487,7 @@
       "executable": false
     },
     "src/latchkey/msp/owner.mjs": {
-      "sha256": "386a80bc4880f37d0443136c028a7a8b92771b5e6e8d5a58544bad1be2927266",
+      "sha256": "fda03604b06331c1845a6be656010bc5703c2f53cf41e76603a0a250a9a05667",
       "executable": false
     },
     "src/latchkey/msp/posture-client.d.mts": {
@@ -2923,7 +2923,7 @@
       "executable": false
     },
     "tests/browser/msp.mjs": {
-      "sha256": "72b511291cb10cc5f49703e9731de3041c8b827f6a9abd830b7e7351d6ffbdbf",
+      "sha256": "b5a6fcc4c4714c5806c82e9561b4118d002e4467bbc8fd6cf4c6b505ed37e067",
       "executable": false
     },
     "tests/browser/organization.mjs": {
