@@ -40,6 +40,8 @@
     "@tanstack/react-start": "1.168.60",
     "hono": "4.13.7",
     "jsqr": "1.4.0",
+    "kdbxweb": "2.1.1",
+    "papaparse": "5.5.3",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
@@ -62,7 +64,8 @@
     "overrides": {
       "sharp": "0.35.5",
       "undici": "7.29.1",
-      "source-map-js": "1.2.2"
+      "source-map-js": "1.2.2",
+      "kdbxweb>@xmldom/xmldom": "0.8.15"
     },
     "onlyBuiltDependencies": [
       "esbuild",

@@ -58,6 +58,8 @@ try {
   await writePrivate(input.accountRegistry,await accounts.encrypt(input.registryKey),true); result={linked:true,accounts:accounts.list()};
  } else if(['msp-identity','msp-provider'].includes(command)){
   const {mspCommand}=await import('./latchkey/msp-commands.mjs');result=await mspCommand(command,input,{readPrivate,writePrivate});
+ } else if(['passbolt-preview','passbolt-review'].includes(command)){
+  const {passboltCommand}=await import('./latchkey/passbolt-commands.mjs');result=await passboltCommand(command,input);
  } else if(command==='run'){
   const {runConsumer}=await import('./latchkey/run-command.mjs');result=await runConsumer(input,process.argv.slice(3));process.exitCode=result.exitCode;
  } else if (command === 'records-restore') {
@@ -108,12 +110,13 @@ try {
    const accounts = await accountRegistry(input); client = await accounts.switch(input.accountName,input.password); profile = client.profile; }
   else { profile = await readPrivate(input.profile); client = new VaultClient(profile.origin); await client.unlock(profile, input.password); }
   switch (command) {
+   case 'passbolt-import': {const {passboltCommand}=await import('./latchkey/passbolt-commands.mjs');result=await passboltCommand(command,input,client);break;}
    case 'api': {const {apiCommand}=await import('../src/latchkey/api/client.mjs');result=await apiCommand(client,input.api);break;}
    case 'project-create': {const {ProjectClient}=await import('../src/latchkey/projects/client.mjs');result=await new ProjectClient(client).create({name:input.name,vault:input.vault});break;}
    case 'project-environment': {const {ProjectClient}=await import('../src/latchkey/projects/client.mjs');result=await new ProjectClient(client).createEnvironment(input.project,input.environment);break;}
    case 'project-set': {const {ProjectClient}=await import('../src/latchkey/projects/client.mjs');result=await new ProjectClient(client).set(input.environment,input.path,input.value,{expectedVersion:input.expectedVersion});break;}
    case 'identity': result = { ...client.identity(), fingerprint: await client.identity().fingerprint, serverKey: profile.serverKey }; break;
-   case 'vault-create': result = await client.createVault(); break;
+   case 'vault-create': result = await client.createVault({kind: input.kind ?? 'company'}); break;
    case 'put': result = await client.put(input.vault, input.value, input.object); break;
    case 'read': { const value = await client.readVault(input.vault); await writePrivate(input.output, value); result = { written: true, versions: value.versions.length }; break; }
    case 'trust': result = await client.pinAccount(input.account, input.fingerprint); break;

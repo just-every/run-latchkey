@@ -435,7 +435,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "af4bdb1420715b35d8c7c21d5363756f15c5dbf854c53307c9daa805107e9ea5",
+      "sha256": "c2540059b30c11d8638baa9a7a2bf317c72a175d4c569724d2fea74420b13c3a",
       "executable": false
     },
     "AGENTS.md": {
@@ -463,7 +463,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "6dc1ff4343226357a28d81ff309a80c58168f89065f80af64494a5e4d8119590",
+      "sha256": "2ec83177516a3e1bc2df865bb7e95b5cd6dbe3d972df989b3772a13817dfd960",
       "executable": false
     },
     "deploy-demo.json": {
@@ -502,6 +502,10 @@
       "sha256": "ac40468a0f812fb377aa51b17fa344d3ebd192060c00514b030fcbf66862d6fc",
       "executable": false
     },
+    "docs/migration/passbolt.md": {
+      "sha256": "197cfe3ac2b092e86861a25cf6ad4a381ffad659428916341223b10e306b04ff",
+      "executable": false
+    },
     "docs/msp.md": {
       "sha256": "a3b6338b6749b48b243c931f8cd7010548e3eb7bf191f76a2b0ffcb5bb0f31e8",
       "executable": false
@@ -519,11 +523,11 @@
       "executable": false
     },
     "docs/site.json": {
-      "sha256": "2fe9baf9393ea5eb33f08192aecf43885f241fee450ae309b80952d82b6c3bd7",
+      "sha256": "ad8bf08bd946df1740fa8b88fd245fa1cb322e23f83b434948cd55b58684b80d",
       "executable": false
     },
     "docs/vault-cli.md": {
-      "sha256": "a6165362b79b93189db69445fdd166b22eea61db0c58612b25afd7e384c1b321",
+      "sha256": "b00358e57f84f91d46cd0e8223f8d2bd508d2cbd5b0061f3a8a784080fd01824",
       "executable": false
     },
     "edition.json": {
@@ -679,7 +683,7 @@
       "executable": false
     },
     "package.json": {
-      "sha256": "fb8ccec56f27dd83b386015fa8cd852a4589177944c75ca65a1105be86878572",
+      "sha256": "3b672431a23e2c26d1c2facc0b433e3085713aaeeeca367e0c60c143b3360235",
       "executable": false
     },
     "packages/runtime/client.d.mts": {
@@ -735,7 +739,7 @@
       "executable": false
     },
     "pnpm-lock.yaml": {
-      "sha256": "a5f68a6e901f326e8712bf79c8fa9edf286dad81c3f00600cef66b3c1f93c015",
+      "sha256": "f41e1e93fcec82dd3bcaeaec8d874e4e0e4c9ae69c491bb1f3819fd7ff1475da",
       "executable": false
     },
     "public/apple-touch-icon.png": {
@@ -887,7 +891,7 @@
       "executable": false
     },
     "scripts/latchkey.mjs": {
-      "sha256": "5bb93bae58fa1c7434959ad9fe799766a130497dada1f71e13aa51f5ab4fbbc6",
+      "sha256": "da93b83da2d3229f7fce6f4c02df3c2c261c6aacfea9faf6a24330c8cd0e6f26",
       "executable": false
     },
     "scripts/latchkey/archive-policy.mjs": {
@@ -908,6 +912,10 @@
     },
     "scripts/latchkey/opaque-worker.mjs": {
       "sha256": "de231155bcdce7aebc2b05c62fc18172b868a72d2f24ff079e4f9723a5f2c2e4",
+      "executable": false
+    },
+    "scripts/latchkey/passbolt-commands.mjs": {
+      "sha256": "a1d1fdb9d18479592c9d6efcf6377fda437a14fd7b31c547f1c2995cf4736d4e",
       "executable": false
     },
     "scripts/latchkey/records-commands.mjs": {
@@ -1454,6 +1462,14 @@
       "sha256": "83a9cf0f982e60255e1394d385c0feeedea31d4bc6080fad23b6bf687404951f",
       "executable": false
     },
+    "src/latchkey/migration/passbolt-csv.mjs": {
+      "sha256": "4583af6216461f55ce40365a9fd046ba78444ca0779fc948fb9e27a51647a2cf",
+      "executable": false
+    },
+    "src/latchkey/migration/passbolt.mjs": {
+      "sha256": "3b545a79af93a0df488f7d160fc657e6ed3eafd6e79afd104a3fd3e50027784c",
+      "executable": false
+    },
     "src/latchkey/msp/client.d.mts": {
       "sha256": "bc70d4e13b92d15a1549636ff88c28e1e8b95ed4d7d10fc5d6e6de07a6499441",
       "executable": false
@@ -1743,7 +1759,7 @@
       "executable": false
     },
     "src/latchkey/ui/detail.tsx": {
-      "sha256": "75ffae764d43c4eff7da1eb8dbe246b7eab883b53266e193e305093b7e883789",
+      "sha256": "fb248f30b4a7397c9a5e5615522f7a680af0d649985e156f8368d4614048255a",
       "executable": false
     },
     "src/latchkey/ui/editor.tsx": {
@@ -1803,7 +1819,7 @@
       "executable": false
     },
     "src/latchkey/ui/styles.ts": {
-      "sha256": "f97a59c9e10fbf13638eba56b52bbc66f7914203489b658878b50714d7995cb0",
+      "sha256": "4dd5d3fba62f96cfe915c863c404a45c002a400bb382bb3715878a5dc345a18a",
       "executable": false
     },
     "src/latchkey/ui/tabs.tsx": {
@@ -2930,6 +2946,10 @@
       "sha256": "0ca8edc69c59e224dc81a9a76b71aaf3b75a3c439684728f6b5341e906b521f9",
       "executable": false
     },
+    "tests/browser/passbolt.mjs": {
+      "sha256": "9c04115a5c14346cce8330a39a576667e6554ecc08dbc8e2528cd85318f540ef",
+      "executable": false
+    },
     "tests/browser/projects.mjs": {
       "sha256": "a549fddf8a16fa8fecd6ae6a1478e2e8cc9165d33492d1a55dac216f7d659e70",
       "executable": false
@@ -2947,11 +2967,15 @@
       "executable": false
     },
     "tests/browser/vault.mjs": {
-      "sha256": "9fc53634703609263b28c14263fdf52098edc475c3860691db95d6d606b89bad",
+      "sha256": "6a332f6e162a413819b2ea7730122f2e5c689579617ef7ead4a5856d6bc3e617",
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {
       "sha256": "99941e9815cbfff121096e5c5f8e24cb6b9f80a0eb67ba054d5f569801d18479",
+      "executable": false
+    },
+    "tests/fixtures/passbolt.mjs": {
+      "sha256": "fbc2f6e7d7306a12935f4bd3f1f8adaeb8fa1586d18b09a69dab4a08b5af0e59",
       "executable": false
     },
     "tests/incremental-typecheck.test.mjs": {
@@ -2979,7 +3003,7 @@
       "executable": false
     },
     "tests/latchkey-records.test.mjs": {
-      "sha256": "bdacb5f2570302c095a3fa9928cd736de919603a7695da2ce3e4b7c1224267f5",
+      "sha256": "9c3dd64b58bdae72ec59c69ab95f73332672948ca7c404f8f38965e531f4855c",
       "executable": false
     },
     "tests/latchkey-restore.mjs": {

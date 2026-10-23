@@ -36,7 +36,7 @@ Every row below also needs `profile` and `password`. The service checks current 
 
 | Command | Additional input | Output/behavior |
 | --- | --- | --- |
-| `vault-create` | None | Creates an empty encrypted vault; opaque `vault` ID |
+| `vault-create` | Optional `kind`: `company` (default), `private-work`, or `family` | Creates an empty encrypted vault; opaque `vault` ID |
 | `put` | `vault`, `value` JSON, optional existing `object` | Encrypts locally; creates or appends a version, with compare-and-swap conflict refusal |
 | `read` | `vault`, new `output` path | Decrypts all retained versions to a private local JSON file |
 | `share` | `vault`, recipient `account`, verified `fingerprint`, `rights` array | Owner signs a recipient-specific wrapped vault key; rights are independent `read`, `create`, `edit`, `export`, `share`, `rotate` checks at implemented doors |
@@ -127,3 +127,11 @@ The adopted conservative identity policy refuses native reinvitation and email r
 `latchkey run -- <executable> [arguments]` reads `{profile,grant,runtimeKey,references}` from stdin, resolves only the approved references, and injects values directly into the child environment. It uses no shell, environment file or persistent cache. Keep this JSON in a protected input pipe; never paste it as an argument. Only the child process receives resolved values. The Node, Python, Go and Java SDK bindings are documented under `packages/sdk-*`; Python, Go and Java invoke the explicitly installed Node runtime bridge over private pipes.
 
 `latchkey project-create`, `project-environment` and `project-set` take the normal protected profile/password stdin plus their documented ProjectClient inputs. `latchkey api` takes the normal protected profile/password stdin and an `api` object `{command,body,...references,limit,cursor,ifMatch}`. The full command catalogue and wire protocol are in `src/latchkey/api/README.md`. Secret-bearing data stays in stdin or explicitly protected files. Values in project records and ordinary items remain client-encrypted in the REST API.
+
+## Passbolt source preview
+
+`passbolt-preview` decrypts KDBX locally or reads the documented KeePass CSV variant
+and saves an encrypted review. `passbolt-review` writes an explicitly approved
+private plaintext review. `passbolt-import` imports one approved personal item
+into an empty owner-only family vault. See the [Passbolt command guide](migration/passbolt.md)
+for inputs, supported formats, source metadata mapping and remaining cutover gaps.

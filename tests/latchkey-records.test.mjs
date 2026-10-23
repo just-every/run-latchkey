@@ -110,3 +110,128 @@ test('Records rewrap approval binds the verified owners, destination, archive an
   await assert.rejects(recordsCommand('records-rewrap-verify', { plan, approval: active, sourceFingerprint, destinationFingerprint }));
  } finally { await runtime.dispose(); await rm(directory, { recursive: true, force: true }); }
 });
+
+test('Passbolt CLI keeps a real KDBX preview encrypted and refuses a wrong passphrase without output', async () => {
+ const { passboltFixture } = await import('./fixtures/passbolt.mjs');
+ const { spawn } = await import('node:child_process');
+ const fixture = await passboltFixture(), directory = await mkdtemp(join(tmpdir(), 'synthetic-latchkey-1480-'));
+ const cli = (command, input) => new Promise((resolve, reject) => {
+  const child = spawn(process.execPath, ['scripts/latchkey.mjs', command], { stdio: ['pipe', 'pipe', 'pipe'] });
+  let stdout = '', stderr = ''; child.stdout.on('data', chunk => stdout += chunk); child.stderr.on('data', chunk => stderr += chunk); child.on('error', reject); child.on('close', code => resolve({ code, stdout, stderr })); child.stdin.end(JSON.stringify(input));
+ });
+ try {
+  const kdbx = join(directory, 'source.kdbx'), metadata = join(directory, 'metadata.json'), output = join(directory, 'preview.json');
+  await writeFile(kdbx, fixture.data, { mode: 0o600 }); await writeFile(metadata, JSON.stringify(fixture.metadata), { mode: 0o600 });
+  const input = { kdbx, metadata, output, passphrase: fixture.passphrase, mapping: fixture.mapping, sourceOrigin: fixture.sourceOrigin, sourceUser: fixture.sourceUser, previewKey: encode(random()) };
+  const wrong = await cli('passbolt-preview', { ...input, passphrase: 'synthetic-latchkey-1481' });
+  assert.equal(wrong.code, 1); assert.deepEqual(JSON.parse(wrong.stderr), { error: 'kdbx_cannot_decrypt' }); await assert.rejects(stat(output), { code: 'ENOENT' });
+  const result = await cli('passbolt-preview', input); assert.equal(result.code, 0, result.stderr);
+  assert.equal(JSON.parse(result.stdout).items, 2); assert.equal(JSON.parse(result.stdout).blocked, 1);
+  assert.equal((await stat(output)).mode & 0o777, 0o600);
+  const encrypted = await readFile(output, 'utf8');
+  for (const secret of [fixture.passphrase, 'synthetic-latchkey-1430', 'synthetic-latchkey-1450', 'synthetic-latchkey-1470', 'synthetic-latchkey-1471']) assert.ok(!(encrypted + result.stdout + result.stderr).includes(secret));
+  for (const [index, options] of [{ withKeyfile: true }, { keyfileOnly: true }].entries()) {
+   const keyed = await passboltFixture(options), keyedSource = join(directory, `keyed-${index}.kdbx`), keyfile = join(directory, `source-${index}.key`), keyedOutput = join(directory, `keyed-preview-${index}.json`);
+   await writeFile(keyedSource, keyed.data, { mode: 0o600 }); await writeFile(keyfile, keyed.keyfile, { mode: 0o600 });
+   const keyedInput = { ...input, kdbx: keyedSource, output: keyedOutput, mapping: keyed.mapping, passphrase: keyed.passphrase };
+   const missingKey = await cli('passbolt-preview', keyedInput);
+   assert.equal(missingKey.code, 1); await assert.rejects(stat(keyedOutput), { code: 'ENOENT' });
+   const withKey = await cli('passbolt-preview', { ...keyedInput, keyfile }); assert.equal(withKey.code, 0, withKey.stderr);
+  }
+  const deniedKeyOutput = join(directory, 'wrong-key.json');
+  const wrongPreviewKey = await cli('passbolt-review', { preview: output, previewKey: encode(random()), output: deniedKeyOutput, confirmed: true });
+  assert.equal(wrongPreviewKey.code, 1); await assert.rejects(stat(deniedKeyOutput), { code: 'ENOENT' });
+  const review = join(directory, 'review.json');
+  const denied = await cli('passbolt-review', { preview: output, previewKey: input.previewKey, output: review }); assert.equal(denied.code, 1); await assert.rejects(stat(review), { code: 'ENOENT' });
+  const opened = await cli('passbolt-review', { preview: output, previewKey: input.previewKey, output: review, confirmed: true }); assert.equal(opened.code, 0, opened.stderr);
+  const report = JSON.parse(await readFile(review)); assert.equal(report.hash, JSON.parse(result.stdout).hash);
+  assert.equal(report.plan.rows[0].item.fields.find(field => field.id === 'secretNote').value, 'synthetic-latchkey-1440\nsecond line');
+  assert.equal(report.plan.rows[0].item.fields.find(field => field.id === 'description').value, 'synthetic-latchkey-1450');
+  assert.ok(!JSON.stringify(report).includes('synthetic-latchkey-1470')); assert.ok(!JSON.stringify(report).includes('synthetic-latchkey-1471'));
+ } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+test('Passbolt preview preserves TOTP and expiry while unresolved source identities and recipients block approval', async () => {
+ const { passboltFixture } = await import('./fixtures/passbolt.mjs');
+ const { previewPassbolt } = await import('../src/latchkey/migration/passbolt.mjs');
+ const { totp } = await import('../src/latchkey/totp/index.mjs');
+ const fixture = await passboltFixture(), { plan } = await previewPassbolt(fixture);
+ for (const row of plan.rows) {
+  assert.equal((await totp(row.item.fields.find(field => field.id === 'totp').value, 59000)).code, '94287082');
+  assert.equal(row.item.fields.find(field => field.id === 'expiry').value, '2030-01-02T00:00:00.000Z');
+  assert.deepEqual(row.recovered, ['description_recovered_separately_from_secret_note']);
+ }
+ assert.deepEqual(plan.rows[0].gaps, []); assert.ok(plan.rows[1].gaps.includes('shared_recipient_or_ownership_mapping_required'));
+ const unknown = await previewPassbolt({ ...fixture, metadata: undefined, mapping: [] });
+ assert.ok(unknown.plan.rows.every(row => row.gaps.includes('source_description_unknown') && row.gaps.includes('source_recipients_unknown')));
+ await assert.rejects(previewPassbolt({ ...fixture, mapping: [fixture.mapping[0], fixture.mapping[0]] }), { code: 'ambiguous_source_mapping' });
+ const changed = structuredClone(fixture.metadata); changed.body[0].name = 'synthetic-latchkey-1482';
+ assert.ok((await previewPassbolt({ ...fixture, metadata: changed })).plan.rows[0].gaps.includes('source_identity_discrepancy'));
+});
+
+test('Passbolt private import binds approval to a reviewed item and refuses company destinations, sharing and replay', async () => {
+ const { passboltFixture } = await import('./fixtures/passbolt.mjs');
+ const { previewPassbolt, importPassboltItem } = await import('../src/latchkey/migration/passbolt.mjs');
+ const { vaultFixture } = await import('./browser/fixture.mjs');
+ const { VaultClient } = await import('../src/latchkey/client.mjs');
+ const fixture = await passboltFixture(), { plan, hash } = await previewPassbolt(fixture), f = await vaultFixture({ browserEnabled: false });
+ try {
+  const vault = (await f.owner.createVault({ kind: 'family' })).vault;
+  const input = { approvedHash: hash, entry: fixture.entries[0], vault, confirmed: true, ownership: 'personal' };
+  await assert.rejects(importPassboltItem(f.owner, plan, { ...input, approvedHash: 'synthetic-latchkey-1483' }), { code: 'migration_approval_mismatch' });
+  await assert.rejects(importPassboltItem(f.owner, plan, { ...input, entry: fixture.entries[1] }), { code: 'migration_discrepancies_unresolved' });
+  const company = (await f.owner.createVault()).vault;
+  await assert.rejects(importPassboltItem(f.owner, plan, { ...input, vault: company }), { code: 'personal_destination_required' });
+  assert.equal((await f.owner.readVault(company)).versions.length, 0);
+  const directory = await mkdtemp(join(tmpdir(), 'synthetic-latchkey-1491-'));
+  let result;
+  try {
+   const { passboltCommand } = await import('../scripts/latchkey/passbolt-commands.mjs');
+   const { spawn } = await import('node:child_process');
+   const profile = join(directory, 'profile.json'), source = join(directory, 'source.kdbx'), metadata = join(directory, 'metadata.json'), preview = join(directory, 'preview.json'), previewKey = encode(random());
+   await writeFile(profile, JSON.stringify(f.owner.profile), { mode: 0o600 });
+   await writeFile(source, fixture.data, { mode: 0o600 }); await writeFile(metadata, JSON.stringify(fixture.metadata), { mode: 0o600 });
+   await passboltCommand('passbolt-preview', { ...fixture, data: undefined, kdbx: source, metadata, output: preview, previewKey });
+   const invoke = (command, value) => new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, ['scripts/latchkey.mjs', command], { stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, NODE_EXTRA_CA_CERTS: f.caFile } });
+    let stdout = '', stderr = ''; child.stdout.on('data', chunk => stdout += chunk); child.stderr.on('data', chunk => stderr += chunk); child.on('error', reject); child.on('close', code => resolve({ code, stdout, stderr })); child.stdin.end(JSON.stringify(value));
+   });
+   const created = await invoke('vault-create', { profile, password: f.password, kind: 'family' }); assert.equal(created.code, 0, created.stderr);
+   const cliVault = JSON.parse(created.stdout).vault;
+   assert.equal((await f.owner.call('vaults', {})).find(row => row.id === cliVault).kind, 'family');
+   const imported = await invoke('passbolt-import', { profile, password: f.password, preview, previewKey, ...input }); assert.equal(imported.code, 0, imported.stderr);
+   for (const secret of [fixture.passphrase, f.password, 'synthetic-latchkey-1430', 'synthetic-latchkey-1470']) assert.ok(!(imported.stdout + imported.stderr).includes(secret));
+   result = JSON.parse(imported.stdout);
+  } finally { await rm(directory, { recursive: true, force: true }); }
+
+  const read = await f.owner.readVault(vault); assert.equal(read.versions.length, 1); assert.equal(read.versions[0].object, result.object);
+  assert.equal(read.versions[0].value.fields.find(field => field.id === 'password').value, 'synthetic-latchkey-1430');
+  await assert.rejects(importPassboltItem(f.owner, plan, input), { code: 'empty_destination_required' });
+  const archiveKey = encode(random()), archive = await f.owner.exportVault(vault, archiveKey), restored = await VaultClient.openExport(archive, archiveKey);
+  assert.equal(restored.versions[0].value.migration.cutoverComplete, false);
+  for (const secret of ['synthetic-latchkey-1470', 'synthetic-latchkey-1471']) assert.ok(!JSON.stringify(restored).includes(secret));
+  const stored = JSON.stringify((await f.db.prepare('SELECT envelope FROM lky_versions WHERE vault_id=?').bind(vault).all()).results);
+  assert.ok(!stored.includes('synthetic-latchkey-1430') && !stored.includes(fixture.passphrase));
+ } finally { await f.close(); }
+});
+
+test('Passbolt CSV command preserves quoted multiline values and recovers omitted expiry without accepting malformed rows', async () => {
+ const { passboltCsvFixture } = await import('./fixtures/passbolt.mjs');
+ const { passboltCommand } = await import('../scripts/latchkey/passbolt-commands.mjs');
+ const { totp } = await import('../src/latchkey/totp/index.mjs');
+ const fixture = await passboltCsvFixture(), directory = await mkdtemp(join(tmpdir(), 'synthetic-latchkey-1490-'));
+ try {
+  const csv = join(directory, 'source.csv'), metadata = join(directory, 'metadata.json'), output = join(directory, 'preview.json'), review = join(directory, 'review.json'), previewKey = encode(random());
+  await writeFile(csv, fixture.data, { mode: 0o600 }); await writeFile(metadata, JSON.stringify(fixture.metadata), { mode: 0o600 });
+  const receipt = await passboltCommand('passbolt-preview', { ...fixture, data: undefined, csv, metadata, output, previewKey });
+  assert.equal(receipt.items, 2); assert.equal(receipt.blocked, 1);
+  await passboltCommand('passbolt-review', { preview: output, previewKey, output: review, confirmed: true });
+  const { plan } = JSON.parse(await readFile(review));
+  assert.equal(plan.rows[0].item.fields.find(field => field.id === 'secretNote').value, 'synthetic-latchkey-1440\nsecond line, with "quotes"');
+  assert.equal(plan.rows[0].item.fields.find(field => field.id === 'expiry').value, '2030-01-02T00:00:00.000Z');
+  assert.equal((await totp(plan.rows[0].item.fields.find(field => field.id === 'totp').value, 59000)).code, '94287082');
+  await writeFile(csv, 'Title,Username,URL,Password,Notes,Group,TOTP\n"unclosed', { mode: 0o600 });
+  await assert.rejects(passboltCommand('passbolt-preview', { ...fixture, data: undefined, csv, metadata, output: join(directory, 'bad.json'), previewKey }), { code: 'invalid_passbolt_csv' });
+  await assert.rejects(stat(join(directory, 'bad.json')), { code: 'ENOENT' });
+ } finally { await rm(directory, { recursive: true, force: true }); }
+});

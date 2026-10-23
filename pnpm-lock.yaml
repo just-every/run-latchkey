@@ -8,6 +8,7 @@ overrides:
   sharp: 0.35.5
   undici: 7.29.1
   source-map-js: 1.2.2
+  kdbxweb>@xmldom/xmldom: 0.8.15
 
 importers:
 
@@ -28,6 +29,12 @@ importers:
       jsqr:
         specifier: 1.4.0
         version: 1.4.0
+      kdbxweb:
+        specifier: 2.1.1
+        version: 2.1.1
+      papaparse:
+        specifier: 5.5.3
+        version: 5.5.3
       react:
         specifier: 19.2.8
         version: 19.2.8
@@ -824,6 +831,10 @@ packages:
       oxc-transform-react:
         optional: true
 
+  '@xmldom/xmldom@0.8.15':
+    resolution: {integrity: sha512-/5NV/vDALVFDXgLmfsy9TRCBlKwO2LNBFzpzvb9iIj+jR+eSc6DLYYvVOdivT/jm7MtU6TebYuRmzEOI7w40UA==}
+    engines: {node: '>=10.0.0'}
+
   ansis@4.3.1:
     resolution: {integrity: sha512-BJ8/l4R5LRE7hW9WdSuGYrLSHi2ynxeFpDFbH0K/CgNeY/tyhk+vO6TYxXC5r5CpUhNVX310xzPsN/H9lCdfOA==}
     engines: {node: '>=14'}
@@ -914,6 +925,9 @@ packages:
   fetchdts@0.1.7:
     resolution: {integrity: sha512-YoZjBdafyLIop9lSxXVI33oLD5kN31q4Td+CasofLLYeLXRFeOsuOw0Uo+XNRi9PZlbfdlN2GmRtm4tCEQ9/KA==}
 
+  fflate@0.7.5:
+    resolution: {integrity: sha512-QieYf//cis6ywHNi5qW1+PXPQ4bC+XVJAtS4AXIML8P76GroEiOxm/oQtn1f02UkJY1+KsXMJcC+R2v/Eg4G3g==}
+
   fsevents@2.3.3:
     resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
@@ -964,6 +978,9 @@ packages:
 
   jsqr@1.4.0:
     resolution: {integrity: sha512-dxLob7q65Xg2DvstYkRpkYtmKm2sPJ9oFhrhmudT1dZvNFFTlroai3AWSpLey/w5vMcLBXRgOJsbXpdN9HzU/A==}
+
+  kdbxweb@2.1.1:
+    resolution: {integrity: sha512-z+a2+BEzyK2kUh0xDekY7gwc9CkbzSetUyvc78NKVawxV06UG1KYbg9W9hZCJdQPYizIVePTvQsYUXIO1qtAhQ==}
 
   kleur@4.1.5:
     resolution: {integrity: sha512-o+NO+8WrRiQEE4/7nwRJhN1HWpVmJm511pBHUxPLtp0BUISzlBplORYSmTclCnJvQq2tKu/sgl3xVpkc7ZWuQQ==}
@@ -1065,6 +1082,9 @@ packages:
   node-releases@2.0.55:
     resolution: {integrity: sha512-mIrE/Cw9y+9Au6dS5vDKDhQza9YvG6w+ZrS6X+ZzA7yFW/soAeaups4Qzn1bL6g5FVy8WtP79+0j82oPIbqRjQ==}
     engines: {node: '>=18'}
+
+  papaparse@5.5.3:
+    resolution: {integrity: sha512-5QvjGxYVjxO59MGU2lHVYpRWBBtKHnlIAcSe1uNFCkkptUh63NFRj0FJQm7nR67puEruUci/ZkjmEFrjCAyP4A==}
 
   path-to-regexp@6.3.0:
     resolution: {integrity: sha512-Yhpw4T9C6hPpgPeA28us07OJeqZ5EzQTkbfwuhsUg0c237RomFoETJgmp2sa3F/41gfLE6G5cqcYwznmeEeOlQ==}
@@ -2014,6 +2034,8 @@ snapshots:
       '@rolldown/pluginutils': 1.0.1
       vite: 8.2.2(@types/node@22.18.6)(esbuild@0.28.1)(jiti@2.7.0)
 
+  '@xmldom/xmldom@0.8.15': {}
+
   ansis@4.3.1: {}
 
   argparse@2.0.1: {}
@@ -2104,6 +2126,8 @@ snapshots:
 
   fetchdts@0.1.7: {}
 
+  fflate@0.7.5: {}
+
   fsevents@2.3.3:
     optional: true
 
@@ -2131,6 +2155,11 @@ snapshots:
   json5@2.2.3: {}
 
   jsqr@1.4.0: {}
+
+  kdbxweb@2.1.1:
+    dependencies:
+      '@xmldom/xmldom': 0.8.15
+      fflate: 0.7.5
 
   kleur@4.1.5: {}
 
@@ -2211,6 +2240,8 @@ snapshots:
   nanoid@3.3.19: {}
 
   node-releases@2.0.55: {}
+
+  papaparse@5.5.3: {}
 
   path-to-regexp@6.3.0: {}
 
