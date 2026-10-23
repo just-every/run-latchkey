@@ -3,7 +3,7 @@ import { access, exact, liveSql, MspError, need, uuid } from './common.mjs';
 import { providerAction } from './provider.mjs';
 const baseHeaders={'cache-control':'no-store','referrer-policy':'no-referrer','x-content-type-options':'nosniff','content-security-policy':"default-src 'none'; frame-ancestors 'none'",vary:'Origin'};
 export async function mspResponse(request,env){
- const now=Date.now(),ctx={db:env.DB,now},url=new URL(request.url),requestedOrigin=request.headers.get('origin'),{first,stmt}=access(ctx);let allowedOrigin=null;
+ let now=Date.now();const ctx={db:env.DB,now},url=new URL(request.url),requestedOrigin=request.headers.get('origin'),{first,stmt}=access(ctx);let allowedOrigin=null;
  const response=(value,status=200)=>Response.json(value,{status,headers:{...baseHeaders,...(allowedOrigin?{'access-control-allow-origin':allowedOrigin}:{})}});
  try{
   need(url.origin===env.AUTH_ORIGIN&&!url.search,'invalid_origin',403);
@@ -19,6 +19,9 @@ export async function mspResponse(request,env){
   while(true){const part=await reader.read();if(part.done)break;size+=part.value.length;if(size>65536){await reader.cancel();throw new MspError('body_too_large',413)}chunks.push(part.value)}
   const raw=new Uint8Array(size);let offset=0;for(const chunk of chunks){raw.set(chunk,offset);offset+=chunk.length}
   let body,rawText;try{rawText=new TextDecoder('utf-8',{fatal:true}).decode(raw);body=JSON.parse(rawText)}catch{throw new MspError('invalid_json')}
+  // Consent expiry is checked when the complete request is available, so a
+  // slow upload cannot retain authority from its initial headers.
+  now=Date.now();ctx.now=now;
   exact(body,['delegation','provider','nonce','time','action','input']);uuid(body.delegation);uuid(body.provider);uuid(body.nonce);
   const delegation=await first(`SELECT d.* FROM lky_msp_delegations d WHERE d.id=? AND d.provider=? AND ${liveSql}`,body.delegation,body.provider,now);
   need(delegation&&requestedOrigin===delegation.console_origin,'delegation_unavailable',403);allowedOrigin=delegation.console_origin;

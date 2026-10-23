@@ -3,6 +3,7 @@ import { id, publicKey } from '../crypto/envelope.mjs';
 import { access, event, exact, need, origin, uuid } from './common.mjs';
 export async function mspAuthenticated(route,input,ctx){
  if(!route.startsWith('msp/'))return null;
+ const now=Date.now();ctx={...ctx,now,fenceArgs:ctx.fenceArgs.map(value=>value===ctx.now?now:value)};
  need(ctx.session.operator.role==='owner','owner_required',403);
  const{stmt,first,all}=access(ctx);
  need(await first(`SELECT 1 AS allowed WHERE ${ctx.fence}`,...ctx.fenceArgs),'authority_expired',401);
