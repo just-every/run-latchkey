@@ -44,7 +44,7 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
  if (!url.pathname.startsWith('/api/latchkey/')) return null
  if(url.pathname==='/api/latchkey/msp/provider')return mspResponse(request,env)
  if(!meta&&url.pathname.startsWith('/api/latchkey/v1/'))return apiRequest(request,(wire,metadata)=>latchkeyResponse(wire,env,auth,metadata) as Promise<Response>)
- const db = env.DB, now = Date.now()
+ const db = env.DB; let now = Date.now()
  const first = (sql: string, ...args: any[]) => db.prepare(sql).bind(...args).first<Row>()
  const checkWrap = async (value: unknown, accountId: string, expected: Context) => {
   const account = await first('SELECT authority_key FROM lky_accounts WHERE id=?', accountId)
@@ -73,6 +73,10 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
    try{input=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(raw))}catch{refuse('invalid_json')}
   }
   if(!input!||typeof input!=='object'||Array.isArray(input))refuse('invalid_body')
+  // Authority and expiry must be judged against the moment the complete request
+  // is in hand, not its header arrival: a stalled body may outlast a grant,
+  // link or verification code that was still valid when the first byte arrived.
+  now = Date.now()
   const route=meta?.route??url.pathname.slice('/api/latchkey/'.length)
   const automated=await automationPublic(route,input,{db,env,now,request,raw})
   if(automated!==null)return automated instanceof Response?automated:response(automated)

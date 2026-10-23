@@ -249,6 +249,32 @@ try {
  await productDb.prepare('UPDATE lky_machines SET expires_at=? WHERE id=?').bind(Date.now() - 1, thirdIdentity.machine).run()
  await rejected(MachineClient.read(thirdMachine, thirdGrant, runtimeKey, { fetcher: fetchProduct }), 'machine_authority_expired')
  console.log('Machine-runtime custody: explicit item-key wrap, private runtime profile, exact object context, expiry, revoke and rotation fences passed')
+
+ // A machine read whose body only finishes after its grant lapses must be
+ // judged against the completion time, not the moment its first byte arrived.
+ const slowKey = encode(random())
+ const slowMachine = await MachineClient.create(productOrigin, slowKey), slowIdentity = await MachineClient.identity(slowMachine)
+ const slowGrant = await owner.grantMachine(vault, objects[0], slowIdentity, slowIdentity.fingerprint)
+ assert.ok(await MachineClient.read(slowMachine, slowGrant, slowKey, { fetcher: fetchProduct }))
+ const profileKey = await cryptography.derive(decode(slowKey, 32), slowMachine.machine, 'runtime-profile')
+ let slowSigning
+ try { slowSigning = cryptography.json(await open(profileKey, slowMachine.bundle, { tenant: 'local', vault: 'machine', object: slowMachine.machine, purpose: 'runtime-profile', epoch: 1, version: 1 })).signing.privateKey } finally { profileKey.fill(0) }
+ const readPath = '/api/latchkey/runtime/read', readBody = JSON.stringify({ machine: slowMachine.machine })
+ const readNonce = id(), readTime = String(Date.now())
+ const readSignature = await sign(slowSigning, signingText('POST', readPath, slowGrant.token, readNonce, readTime, await digest(readBody)))
+ const grantExpiry = Date.now() + 1000
+ await productDb.prepare('UPDATE lky_machines SET expires_at=? WHERE id=?').bind(grantExpiry, slowIdentity.machine).run()
+ const bodyBytes = new TextEncoder().encode(readBody)
+ let releaseBody; const bodyReleased = new Promise(resolve => { releaseBody = resolve })
+ const gatedBody = new ReadableStream({ start(controller) { controller.enqueue(bodyBytes.subarray(0, 1)); bodyReleased.then(() => { controller.enqueue(bodyBytes.subarray(1)); controller.close() }) } })
+ const delayedRead = dispatchProduct(productOrigin + readPath, { method: 'POST', headers: { host: new URL(productOrigin).host, origin: productOrigin, 'content-type': 'application/json', 'x-latchkey-grant': slowGrant.token, 'x-latchkey-nonce': readNonce, 'x-latchkey-time': readTime, 'x-latchkey-signature': readSignature }, body: gatedBody, duplex: 'half' })
+ while (Date.now() <= grantExpiry + 300) await new Promise(resolve => setTimeout(resolve, 100))
+ releaseBody()
+ const delayedResponse = await delayedRead
+ assert.equal(delayedResponse.status, 401, `a body completed after grant expiry must be refused (got ${delayedResponse.status})`)
+ assert.equal((await delayedResponse.json()).error, 'machine_authority_expired')
+ console.log('Request expiry: a machine read whose body completes after its grant lapses is refused at completion time')
+
  const passwordChanged = await owner.changePassword('synthetic-latchkey-21')
  await rejected(new VaultClient(productOrigin, { fetcher: fetchProduct }).unlock(passwordChanged.profile, password), 'authentication_failed')
  await owner.unlock(passwordChanged.profile, 'synthetic-latchkey-21')
