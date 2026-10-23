@@ -3,6 +3,7 @@ import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { expect } from '@playwright/test';
 import { vaultFixture } from './fixture.mjs';
+import { VaultClient } from '../../src/latchkey/client.mjs';
 import { ApiClient } from '../../src/latchkey/api/client.mjs';
 import { FleetClient,createProviderIdentity,publicProviderIdentity } from '../../src/latchkey/msp/client.mjs';
 import { captureExpiry } from '../../src/latchkey/msp/posture-client.mjs';
@@ -12,6 +13,11 @@ const output=process.env.LATCHKEY_SCREENSHOTS;
 if(output)await mkdir(output,{recursive:true});
 const refused=(promise,code)=>assert.rejects(promise,error=>error.code===code);
 const strict={externalEnabled:false,domains:[],defaultDays:1,maxDays:1};
+async function enrollAnalyst(f,n){
+ await new ApiClient(f.owner).inviteUser({email:`synthetic-latchkey-${n}@example.test`,displayName:'Finance operations analyst',role:'member'});
+ const link=f.mail.at(-1).content.find(c=>c.type==='text/plain').value.match(/https:\/\/[^\s<>]+/)[0];
+ const member=new VaultClient(f.origin,{fetcher:f.fetcher});await member.confirmIdentity(new URL(link).searchParams.get('token'));const enrolled=await member.register(`synthetic-latchkey-${n+1}`);await member.unlock(enrolled.profile,`synthetic-latchkey-${n+1}`);return member;
+}
 async function grant(owner,identity,scopes=['summary','template','posture']){
  return new ApiClient(owner).request('POST','/msp/delegations',{...publicProviderIdentity(identity),scopes,expiresAt:Date.now()+86400000,confirmed:true});
 }
@@ -29,6 +35,12 @@ export async function mspJourney(width,{scale=false}={}){
    const f=await vaultFixture({browserEnabled:i===0});fixtures.push(f);
    const vault=(await f.owner.createVault()).vault,secret=`synthetic-latchkey-${8000+i}`;
    const object=(await f.owner.put(vault,createItem('login',{title:`Client ${i+1} finance system`,values:{password:secret},fields:[{id:'expiry',label:'Expiry',type:'date',secret:false,value:'2020-01-01'}]}))).object;
+   const analyst=await enrollAnalyst(f,9000+i*10);
+   await f.owner.share(vault,analyst.profile.account,await analyst.identity().fingerprint,['read']);
+   await analyst.pinAccount(f.owner.profile.account,await f.owner.identity().fingerprint);assert.equal((await analyst.readItem(vault,object)).versions.length,1);
+   const privateWork=(await analyst.createVault({kind:'private-work'})).vault;
+   await analyst.put(privateWork,createItem('secure-note',{title:'Private client work draft',values:{note:`synthetic-latchkey-${9002+i*10}`}}));analyst.lock();
+   await new ApiClient(f.owner).inviteUser({email:`synthetic-latchkey-${9003+i*10}@example.test`,displayName:'Invited project contractor',role:'member'});
    await captureExpiry(f.owner,vault,{confirmed:true});
    secrets.push({vault,object,secret,recipientKey:f.owner.profile.recipientKey,authorityKey:f.owner.profile.authorityKey});
    await new ApiClient(f.owner).setSharingPolicy({externalEnabled:true,domains:['example.test'],defaultDays:7,maxDays:30});
@@ -40,7 +52,7 @@ export async function mspJourney(width,{scale=false}={}){
   const fleet=new FleetClient(identity,{fetcher:network,consoleOrigin:first.origin});
   const summaries=await Promise.all(grants.map(g=>fleet.summary(g)));assert.equal(new Set(summaries.map(s=>s.tenant)).size,count);
   for(let i=0;i<count;i++){
-   const s=summaries[i];assert.equal(s.onboarding.active,1);assert.equal(s.onboarding.enrolled,1);assert.equal(s.health.coverage,'current-observed-company-expiry');assert.equal(s.health.atRiskMembers.length,1);assert.equal(s.health.atRiskMembers[0].expiredItems,1);assert.equal(s.adoption.coverage,'observed-password-authentication');assert.equal(s.adoption.authenticatedMembers,1);assert.equal(s.members[0].enrolled,true);assert.equal(s.commercial.reference,`synthetic-latchkey-${8100+i}`);
+   const s=summaries[i];assert.equal(s.onboarding.active,2);assert.equal(s.onboarding.invited,1);assert.equal(s.onboarding.enrolled,2);assert.equal(s.health.coverage,'current-observed-company-expiry');assert.equal(s.health.atRiskMembers.length,2);assert.equal(s.health.atRiskMembers[0].expiredItems,1);assert.equal(s.adoption.coverage,'observed-password-authentication');assert.equal(s.adoption.authenticatedMembers,2);assert.equal(s.members[0].enrolled,true);assert.equal(s.commercial.reference,`synthetic-latchkey-${8100+i}`);
    const encoded=JSON.stringify(s);for(const secret of secrets.flatMap(s=>[s.secret,s.vault,s.object,s.recipientKey,s.authorityKey]))assert.ok(!encoded.includes(secret));assert.ok(!encoded.includes('@example.test'));assert.ok(!encoded.includes(first.owner.profile.account));
   }
   // Unsigned, foreign-key, expired-time, replay and cross-client substitution
