@@ -2923,7 +2923,7 @@
       "executable": false
     },
     "tests/browser/msp.mjs": {
-      "sha256": "44d60690d928490a75e72576a27a2755a0cf23f4596347f6b43f9731b5450856",
+      "sha256": "f776c1e016b189230df0dc9bfcfb44d93996e9944800a20355af1175b3d7fb2f",
       "executable": false
     },
     "tests/browser/organization.mjs": {
