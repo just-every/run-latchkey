@@ -1,4 +1,8 @@
 import assert from 'node:assert/strict';
+import {mkdtemp,writeFile,readFile,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join,resolve} from 'node:path';
+import {spawn} from 'node:child_process';
 import { createPortability } from '@runeditrun/rer/modules/portability';
 import { VaultClient } from '../../src/latchkey/client.mjs';
 import { ApiClient } from '../../src/latchkey/api/client.mjs';
@@ -24,6 +28,7 @@ export async function mspLifecycleJourney(){
   assert.equal((await post('/auth/confirm',{token:stepToken})).status,303);
   otherOwner=await enrolled(source,8410,'owner');
   const grant=await otherOwner.call('msp/grant',input);await otherOwner.call('msp/commercial',{status:'active',reference:'synthetic-latchkey-8410@example.test',confirmed:true});
+  await mspCliJourney(source,identity,grant);
   assert.equal((await fleet.summary(grant)).onboarding.active,3);await fleet.preview(grant,{externalEnabled:false,domains:[],defaultDays:1,maxDays:1});
   const records=await createPortability({db:source.db,policy:archivePolicy}),job=await records.exports.create('synthetic-latchkey-8420');while((await records.exports.advance(job,{maxParts:100})).phase!=='complete'){}
   const raw=await new Response(await records.exports.download(job)).text(),lines=raw.trim().split('\n').map(line=>JSON.parse(line)),manifest=lines[0],end=lines.at(-1);
@@ -42,5 +47,15 @@ export async function mspLifecycleJourney(){
   const clean=await new Response(await records.exports.download(after)).text();for(const value of[otherOwner.profile.account,'synthetic-latchkey-8410@example.test',grant.delegation])assert.ok(!clean.includes(value));
   console.log('MSP lifecycle: non-owner and missing consent refusal, real inactive archive restore, delegated-request refusal and erased-owner disclosure removal passed');
  }finally{otherOwner?.lock();member?.lock();await destination.close();await source.close()}
+}
+async function mspCliJourney(source,identity,delegation){
+ const directory=await mkdtemp(join(tmpdir(),'latchkey-msp-cli-'));
+ try{
+  const identityPath=join(directory,'provider.json'),delegationPath=join(directory,'delegation.json'),output=join(directory,'summary.json');
+  await writeFile(identityPath,JSON.stringify(identity),{mode:0o600});await writeFile(delegationPath,JSON.stringify(delegation),{mode:0o600});
+  const child=spawn(process.execPath,[resolve('scripts/latchkey.mjs'),'msp-provider'],{env:{...process.env,NODE_EXTRA_CA_CERTS:source.caFile},stdio:['pipe','pipe','pipe']});let stdout='',stderr='';child.stdout.on('data',chunk=>stdout+=chunk);child.stderr.on('data',chunk=>stderr+=chunk);
+  child.stdin.end(JSON.stringify({identity:identityPath,delegation:delegationPath,output,consoleOrigin:identity.origin,action:'summary'}));
+  const exit=await new Promise((resolve,reject)=>{child.once('error',reject);child.once('close',resolve)});assert.equal(exit,0,stderr);assert.equal(JSON.parse(stdout).written,true);assert.ok(!stdout.includes(identity.privateKey)&&!stderr.includes(identity.privateKey));assert.equal(JSON.parse(await readFile(output,'utf8')).tenant,delegation.tenant);
+ }finally{await rm(directory,{recursive:true,force:true})}
 }
 if(import.meta.url===new URL(process.argv[1],'file:').href)await mspLifecycleJourney();
