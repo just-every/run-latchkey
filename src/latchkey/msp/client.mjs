@@ -52,7 +52,8 @@ export class FleetClient {
   requireValue(action === 'summary' || grant.scopes.includes('template'), 'scope_denied');
   const body = JSON.stringify({ delegation: grant.delegation, provider: this.identity.provider, nonce: id(), time: Date.now(), action, input });
   const signature = await sign(this.identity.privateKey, JSON.stringify(['latchkey/msp/v1', grant.origin, body]));
-  const response = await this.fetcher(grant.origin + '/api/latchkey/msp/provider', { method: 'POST', headers: { origin: this.identity.origin, 'content-type': 'application/json', 'x-latchkey-provider-signature': signature }, body, credentials: 'omit', mode: 'cors', redirect: 'error' });
+  let response;
+  try { response = await this.fetcher(grant.origin + '/api/latchkey/msp/provider', { method: 'POST', headers: { origin: this.identity.origin, 'content-type': 'application/json', 'x-latchkey-provider-signature': signature }, body, credentials: 'omit', mode: 'cors', redirect: 'error' }); } catch { throw new FleetError('company_connection_unavailable'); }
   let result;
   try { result = await response.json(); } catch { throw new FleetError('service_unavailable', response.status); }
   if (!response.ok) throw new FleetError(typeof result?.error === 'string' && /^[a-z_]{1,64}$/.test(result.error) ? result.error : 'request_refused', response.status);

@@ -12,7 +12,7 @@ import { VaultClient } from '../../src/latchkey/client.mjs';
 const require = createRequire(import.meta.resolve('wrangler/package.json'));
 const { Miniflare, convertV4MiniflareOptions, Log, LogLevel } = require('miniflare');
 const { Agent } = require('undici');
-export async function vaultFixture({webhook=false,browserEnabled=true}={}) {
+export async function vaultFixture({webhook=false,browserEnabled=true,enrollOwner=true}={}) {
  const socket=createServer();await new Promise(r=>socket.listen(0,'127.0.0.1',r));const port=socket.address().port;await new Promise(r=>socket.close(r));
  const directory=await mkdtemp(join(tmpdir(),'latchkey-browser-'));
  execFileSync('openssl',['req','-x509','-newkey','rsa:2048','-nodes','-keyout',join(directory,'key.pem'),'-out',join(directory,'cert.pem'),'-days','1','-subj','/CN=localhost','-addext','subjectAltName=IP:127.0.0.1,DNS:localhost'],{stdio:'pipe'});
@@ -30,7 +30,8 @@ export async function vaultFixture({webhook=false,browserEnabled=true}={}) {
  const context=browser?await browser.newContext({ignoreHTTPSErrors:true}):null;
  try {
  const bootstrapInput={token:bindings.SETUP_TOKEN,displayName:'Northstar Finance owner'};
- let cookie;
+ let cookie='';
+ if(enrollOwner){
  if(context){
   const response=await context.request.post(origin+'/auth/bootstrap',{headers:{origin},data:bootstrapInput,maxRedirects:0});assert.equal(response.status(),303,await response.text());
   cookie=(await context.cookies()).map(c=>`${c.name}=${c.value}`).join('; ');
@@ -38,7 +39,8 @@ export async function vaultFixture({webhook=false,browserEnabled=true}={}) {
   const response=await fetcher(origin+'/auth/bootstrap',{method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify(bootstrapInput),redirect:'manual'});assert.equal(response.status,303);
   cookie=response.headers.get('set-cookie').split(';')[0];
  }
- const owner=new VaultClient(origin,{cookie,fetcher}),password='synthetic-latchkey-1107',enrolled=await owner.register(password);await owner.unlock(enrolled.profile,password);
+ }
+ const owner=new VaultClient(origin,{cookie,fetcher}),password='synthetic-latchkey-1107',enrolled=enrollOwner?await owner.register(password):null;if(enrolled)await owner.unlock(enrolled.profile,password);
  const page=context?await context.newPage():null;
  return {caFile:join(directory,'cert.pem'),origin,db,owner,password,enrolled,page,context,browser,mail,webhooks,fetcher,
   archiveDatabase:()=>worker.getD1Database('ARCHIVE'),

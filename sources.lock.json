@@ -1451,7 +1451,7 @@
       "executable": false
     },
     "src/latchkey/msp/client.mjs": {
-      "sha256": "4a8d5fb300b429a93c7d0704dec78ef9963d55cd1bf6994a8dd75c34b075da12",
+      "sha256": "860b572d21a314d521584c89080bae7d7f32cd3f47c5156285e2cd6c264c9b3e",
       "executable": false
     },
     "src/latchkey/msp/common.d.mts": {
@@ -1807,7 +1807,7 @@
       "executable": false
     },
     "src/latchkey/ui/vault.tsx": {
-      "sha256": "7075b732a3fb4e7822dea62891207e3d333e07505cb0a795f3aa31d4040ae93d",
+      "sha256": "b262ce9836aa25d1d636ab8a54482b154cc2aafd3e1b4f284cecfd3414115b94",
       "executable": false
     },
     "src/mail.server.d.mts": {
@@ -2895,11 +2895,11 @@
       "executable": false
     },
     "tests/browser/fixture.mjs": {
-      "sha256": "8a9fa0c7ff4f2400b57547896017d7e38c2a0cb64a17ae877c471dda1e845242",
+      "sha256": "e508e52c4fa81b2f74ce76f67918066da1322b4eeebba387d01a6dc1d1208c28",
       "executable": false
     },
     "tests/browser/msp.mjs": {
-      "sha256": "1a4b4195e1313b4d138e7ea40236387e01c3f03ba93011d5a859bf9b606ccb4d",
+      "sha256": "b79390e9612fa7b65f9e1bffa2531f370b310b97c5cd03a509a935cfaffd356f",
       "executable": false
     },
     "tests/browser/organization.mjs": {
@@ -2987,7 +2987,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "f9979266d88b41d6eac37bad37308be804a5b258ee8fc1184ee1e25bd3e6b852",
+      "sha256": "1d761681688c7a82eb00b6d5241362ad9545d27e18f933f2c9f0ff7ce4aa14fd",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {

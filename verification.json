@@ -72,7 +72,8 @@
       "hosted": false,
       "commands": [
         "pnpm run build",
-        "node tests/browser/msp.mjs"
+        "node tests/browser/msp.mjs",
+        "node tests/browser/msp-lifecycle.mjs"
       ]
     }
   ],
