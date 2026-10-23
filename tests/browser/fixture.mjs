@@ -12,7 +12,7 @@ import { VaultClient } from '../../src/latchkey/client.mjs';
 const require = createRequire(import.meta.resolve('wrangler/package.json'));
 const { Miniflare, convertV4MiniflareOptions, Log, LogLevel } = require('miniflare');
 const { Agent } = require('undici');
-export async function vaultFixture({webhook=false}={}) {
+export async function vaultFixture({webhook=false,browserEnabled=true}={}) {
  const socket=createServer();await new Promise(r=>socket.listen(0,'127.0.0.1',r));const port=socket.address().port;await new Promise(r=>socket.close(r));
  const directory=await mkdtemp(join(tmpdir(),'latchkey-browser-'));
  execFileSync('openssl',['req','-x509','-newkey','rsa:2048','-nodes','-keyout',join(directory,'key.pem'),'-out',join(directory,'cert.pem'),'-days','1','-subj','/CN=localhost','-addext','subjectAltName=IP:127.0.0.1,DNS:localhost'],{stdio:'pipe'});
@@ -26,17 +26,24 @@ export async function vaultFixture({webhook=false}={}) {
  }}));
  const db=await worker.getD1Database('DB');for(const name of (await readdir('migrations/core')).filter(n=>n.endsWith('.sql')).sort())await db.batch(unstable_splitSqlQuery(await readFile(join('migrations/core',name),'utf8')).map(sql=>db.prepare(sql)));
  const dispatcher=new Agent({connect:{ca:tls.httpsCert}}),fetcher=(url,init)=>fetch(url,{...init,dispatcher});
- const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});
- const context=await browser.newContext({ignoreHTTPSErrors:true});
+ const browser=browserEnabled?await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']}):null;
+ const context=browser?await browser.newContext({ignoreHTTPSErrors:true}):null;
  try {
- const response=await context.request.post(origin+'/auth/bootstrap',{headers:{origin},data:{token:bindings.SETUP_TOKEN,displayName:'Northstar Finance owner'},maxRedirects:0});assert.equal(response.status(),303,await response.text());
- const cookies=await context.cookies(),cookie=cookies.map(c=>`${c.name}=${c.value}`).join('; ');
+ const bootstrapInput={token:bindings.SETUP_TOKEN,displayName:'Northstar Finance owner'};
+ let cookie;
+ if(context){
+  const response=await context.request.post(origin+'/auth/bootstrap',{headers:{origin},data:bootstrapInput,maxRedirects:0});assert.equal(response.status(),303,await response.text());
+  cookie=(await context.cookies()).map(c=>`${c.name}=${c.value}`).join('; ');
+ }else{
+  const response=await fetcher(origin+'/auth/bootstrap',{method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify(bootstrapInput),redirect:'manual'});assert.equal(response.status,303);
+  cookie=response.headers.get('set-cookie').split(';')[0];
+ }
  const owner=new VaultClient(origin,{cookie,fetcher}),password='synthetic-latchkey-1107',enrolled=await owner.register(password);await owner.unlock(enrolled.profile,password);
- const page=await context.newPage();
+ const page=context?await context.newPage():null;
  return {caFile:join(directory,'cert.pem'),origin,db,owner,password,enrolled,page,context,browser,mail,webhooks,fetcher,
   archiveDatabase:()=>worker.getD1Database('ARCHIVE'),
   schedule:async(time=Date.now())=>(await worker.getWorker()).scheduled({scheduledTime:new Date(time),cron:'* * * * *'}),
   code:()=>{const value=mail.at(-1).content.find(c=>c.type==='text/plain').value.match(/Latchkey verification code: (\d{6})/);assert.ok(value);return value[1]},
-  close:async()=>{owner.lock();await browser.close();await worker.dispose();await dispatcher.close();await rm(directory,{recursive:true,force:true})}};
- } catch(error) {await browser.close();await worker.dispose();await dispatcher.close();await rm(directory,{recursive:true,force:true});throw error}
+  close:async()=>{owner.lock();await browser?.close();await worker.dispose();await dispatcher.close();await rm(directory,{recursive:true,force:true})}};
+ } catch(error) {await browser?.close();await worker.dispose();await dispatcher.close();await rm(directory,{recursive:true,force:true});throw error}
 }

@@ -40,6 +40,12 @@ export async function subjectPlan(ctx, subject) {
  await select('lky_bulk_operations',`actor=? OR instr(plan,?)>0`,[accountId,accountId]);
  const credentials=await select('lky_mcp_credentials',`owner=? OR vault_id IN (${own})`,[accountId,...ownArgs]);
  await select('lky_mcp_requests',`owner=? OR account_id=? OR credential_id IN(SELECT value FROM json_each(?))`,[accountId,accountId,JSON.stringify(credentials.map(r=>r.id))]);
+ const mspDelegations=await select('lky_msp_delegations','owner=?',[accountId]);
+ const mspIds=JSON.stringify(mspDelegations.map(row=>row.id));
+ await select('lky_msp_previews','delegation IN(SELECT value FROM json_each(?))',[mspIds]);
+ await select('lky_msp_nonces','delegation IN(SELECT value FROM json_each(?))',[mspIds]);
+ await select('lky_msp_commercial','owner=?',[accountId]);
+ await select('lky_msp_commercial',`owner<>? AND (${identity.map(()=> 'instr(lower(reference),lower(?))>0').join(' OR ')})`,[accountId,...identity],'redact',row=>({...row,reference:'Reference removed by person erasure'}));
  const subscriptions=await select('lky_webhook_subscriptions','owner=?',[accountId]);const subscriptionIds=JSON.stringify(subscriptions.map(r=>r.id));
  const deliveries=await select('lky_webhook_deliveries','subscription_id IN(SELECT value FROM json_each(?))',[subscriptionIds]);
  await select('lky_webhook_attempts','delivery_id IN(SELECT value FROM json_each(?))',[JSON.stringify(deliveries.map(r=>r.id))]);
@@ -94,7 +100,7 @@ export async function subjectPlan(ctx, subject) {
  const markerArgs=identity.flatMap(term=>[term]),matches=column=>identity.map(()=>`instr(lower(CAST(${column} AS TEXT)),lower(?))>0`).join(' OR ');
  await select('rer_mail_development_outbox',matches('message'),markerArgs);
  await select('rer_command_receipts',`${matches('actor')} OR ${matches('result')} OR ${matches('once')}`,[...markerArgs,...markerArgs,...markerArgs]);
- const auditIds=[...identity,...ownedVaults.map(row=>row.id),...ownedVersions.map(row=>row.object_id),...machines.map(row=>row.id),...groups.map(row=>row.id),...shares.map(row=>row.id),...links.map(row=>row.id),...erased.map(row=>row.receipt_id)];
+ const auditIds=[...identity,...mspDelegations.map(row=>row.id),...ownedVaults.map(row=>row.id),...ownedVersions.map(row=>row.object_id),...machines.map(row=>row.id),...groups.map(row=>row.id),...shares.map(row=>row.id),...links.map(row=>row.id),...erased.map(row=>row.receipt_id)];
  const anon='__SUBJECT_ANON__',same=value=>identity.includes(value),ref=value=>auditIds.includes(value)?anon:value;
  const redact=async(table,predicate,convert)=>{
   const rows=await all(`SELECT * FROM ${table}`),selected=rows.filter(predicate);if(!selected.length)return;

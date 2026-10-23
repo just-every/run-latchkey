@@ -1,3 +1,6 @@
+import {mspAuthenticated} from './msp/owner.mjs'
+import {mspResponse} from './msp/http.mjs'
+import {MspError} from './msp/common.mjs'
 import {apiRequest,apiAuthenticated,rateApi,ApiError,type ApiMetadata} from './api/http.mjs'
 import {automationAuthenticated,automationPublic,AutomationError} from './automation/index.mjs'
 import {projectsAuthenticated} from './projects/service.mjs'
@@ -39,6 +42,7 @@ const envString = (value: unknown) => JSON.stringify(value)
 export async function latchkeyResponse(request: Request, env: Bindings, auth: OperatorAuth, meta?: ApiMetadata): Promise<Response | null> {
  const url = new URL(request.url)
  if (!url.pathname.startsWith('/api/latchkey/')) return null
+ if(url.pathname==='/api/latchkey/msp/provider')return mspResponse(request,env)
  if(!meta&&url.pathname.startsWith('/api/latchkey/v1/'))return apiRequest(request,(wire,metadata)=>latchkeyResponse(wire,env,auth,metadata) as Promise<Response>)
  const db = env.DB, now = Date.now()
  const first = (sql: string, ...args: any[]) => db.prepare(sql).bind(...args).first<Row>()
@@ -233,6 +237,8 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
   }
   const ctx={db,env,now,actor,device,tenant,session,fence,fenceArgs,auth,request}
   if(meta)await rateApi(ctx)
+  const mspResult=grant.recovery===0?await mspAuthenticated(route,input,ctx):null
+  if(mspResult!==null)return response(mspResult)
   const apiResult=grant.recovery===0?await apiAuthenticated(route,input,ctx):null
   if(apiResult!==null)return response(apiResult)
   const automationResult=grant.recovery===0?await automationAuthenticated(route,input,ctx):null
@@ -399,7 +405,7 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
   }
   refuse('not_found', 404)
  } catch (error) {
-  if (error instanceof ApiError || error instanceof AutomationError || error instanceof RuntimeError || error instanceof BulkError || error instanceof LifecycleError || error instanceof ReviewError || error instanceof Refusal || error instanceof SharingError || error instanceof RecordsError || error instanceof ItemErasureError || error instanceof GeneratorPolicyError || error instanceof SubjectErasureError) return response({ error: error.code }, error.status)
+  if (error instanceof MspError || error instanceof ApiError || error instanceof AutomationError || error instanceof RuntimeError || error instanceof BulkError || error instanceof LifecycleError || error instanceof ReviewError || error instanceof Refusal || error instanceof SharingError || error instanceof RecordsError || error instanceof ItemErasureError || error instanceof GeneratorPolicyError || error instanceof SubjectErasureError) return response({ error: error.code }, error.status)
   // Neither input, exception messages, cryptographic state nor SQL is logged.
   return response({ error: 'request_refused' }, 400)
  }

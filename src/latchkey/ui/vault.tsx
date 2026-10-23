@@ -1,3 +1,4 @@
+import { MspOwnerPanel } from '../msp/owner-ui';
 import {EvidenceWorkspace} from '../evidence/workspace';
 import {AutomationPanel} from '../automation/ui';
 import {ProjectsPanel} from '../projects/ui';
@@ -83,7 +84,7 @@ export function VaultScreen() {
   return JSON.stringify(safe).toLocaleLowerCase().includes(query.toLocaleLowerCase());
  });
  const row = items.find(row => row.object === selected), templates = records.filter(row => row.value.schema === 'latchkey/template/v1');
- const current = vaults.find(v => v.id === vault), vaultView = !['received', 'people-erasure', 'reviews', 'projects', 'automation', 'evidence'].includes(panel);
+ const current = vaults.find(v => v.id === vault), vaultView = !['received', 'people-erasure', 'reviews', 'projects', 'automation', 'evidence', 'provider'].includes(panel);
  const show = (next: string, toggle = false) => { setPanel(toggle && panel === next ? '' : next); setCreate(false); if (menu.current) menu.current.open = false; };
  const editor = (panel === 'new' || panel === 'edit' && row) && <ItemEditor key={panel === 'new' ? `new:${vault}` : `${row!.object}:${row!.version}`} row={panel === 'edit' ? row : undefined} client={client} typed={typed} vault={vault} vaultKind={current?.kind ?? 'company'} templates={templates} run={run} busy={pending > 0} onSave={save} onCancel={() => setPanel('')}/>;
  return <div className="lk"><style>{vaultCss}</style><a className="skip" href="#vault-main">Skip to vault</a>
@@ -98,6 +99,7 @@ export function VaultScreen() {
     <button type="button" disabled={!vault} onClick={() => show('sharing', true)}>Share vault</button>
     <button type="button" onClick={() => show('people-erasure')}>Erase a person</button>
     <button type="button" onClick={() => { download('latchkey-profile.json', JSON.stringify(client.profile)); if (menu.current) menu.current.open = false; }}>Save updated profile</button>
+    <button type="button" onClick={() => show('provider')}>Service provider</button><a href="/app/fleet">Company fleet</a>
     <a href="/contract">Documentation</a>
    </div></details>
    <button type="button" className="lock" onClick={lock}>Lock vault</button></> : <><span className="locked">Vault locked</span><a className="docs" href="/contract">Documentation</a></>}
@@ -110,6 +112,7 @@ export function VaultScreen() {
     <div className="head-text"><h1>{vaultLabel(current ?? { id: vault })}</h1><p className="subline">{kindLabel(current?.kind)} · {items.length === 1 ? '1 item' : `${items.length} items`}</p></div>
     <div className="head-actions"><button disabled={pending > 0} onClick={() => void run(refresh)}>Refresh</button><button className="primary" disabled={pending > 0 || !!ownerTrust} onClick={() => { setPanel('new'); setCreate(false); }}><Icon name="plus"/>New item</button></div></header>}
    {create && <form className="new-vault notice" onSubmit={e => { e.preventDefault(); void run(async () => { const name = vaultName.trim(); if (!name) throw { code: 'vault_name_required' }; const created = await client.createVault({kind:vaultKind}); await client.put(created.vault, { schema: 'latchkey/vault-meta/v1', title: name }); const list = await client.call('vaults', {}); setVaults(list); await load(client, created.vault); setCreate(false); setVaultName(''); }); }}><h2>New vault</h2><div className="form-grid"><label>Vault name<input required maxLength={500} value={vaultName} onChange={e => setVaultName(e.target.value)}/></label><label>Vault kind<select value={vaultKind} onChange={e=>setVaultKind(e.target.value)}><option value="company">Company</option><option value="private-work">Private work</option><option value="family">Family</option></select></label></div><p className="muted">Archive keeps history indefinitely. Moving an item to trash requires confirmation and permanently erases it after 30 days.</p><button className="primary" disabled={pending > 0}>Create vault</button></form>}
+   {panel==='provider'&&<MspOwnerPanel client={client} run={run}/>}
    {panel==='automation'&&<AutomationPanel client={client} vault={vault} run={run}/>}
    {panel==='projects'&&<ProjectsPanel client={client} run={run}/>}
    {panel==='organize'&&<OrganizationPanel client={client} vault={vault} run={run} names={Object.fromEntries(vaults.filter(v => v.title).map(v => [v.id, v.title]))} onNamed={(id: string, title: string) => setVaults(previous => previous.map(v => v.id === id ? { ...v, title } : v))} onChanged={async()=>{const fresh=await client.readVault(vault);const latest=new Map<string,ItemRecord>();for(const row of fresh.versions)if(!latest.has(row.object)||latest.get(row.object)!.version<row.version)latest.set(row.object,row);setRecords([...latest.values()]);setLifecycle((await client.call('lifecycle/list',{vault})).items)}}/>}
@@ -117,7 +120,7 @@ export function VaultScreen() {
    {panel === 'reviews' && <ReviewsPanel client={client} vault={vault} run={run}/>}
    {panel === 'people-erasure' && <PeopleErasure client={client} run={run}/>}
    {panel === 'received' && <ReceivedShares client={client}/>}
-   {!vault && !['received','reviews','projects','automation','evidence'].includes(panel) && !pending && <section className="detail empty"><h1>Your vault starts here</h1><p>Create a vault to keep your logins, documents and other private items together.</p><button className="primary" onClick={() => setCreate(true)}>Create your first vault</button></section>}
+   {!vault && !['received','reviews','projects','automation','evidence','provider'].includes(panel) && !pending && <section className="detail empty"><h1>Your vault starts here</h1><p>Create a vault to keep your logins, documents and other private items together.</p><button className="primary" onClick={() => setCreate(true)}>Create your first vault</button></section>}
    {!!pending && !records.length && vault && <div className="notice" role="status">Opening encrypted vault…</div>}
    {vault && !['received','people-erasure','reviews','organize','projects','automation','evidence'].includes(panel) && <>{ownerTrust ? <OwnerTrust owner={ownerTrust} client={client} run={run} onConfirmed={async () => { setOwnerTrust(null); await load(client, vault); }}/>: panel === 'generator' ? <Generator client={client} run={run}/> : panel === 'sharing' ? <section className="detail section" id="sharing"><h1>Share vault</h1><SharingPanel client={client} vault={vault}/></section> : panel === 'templates' ? <Templates templates={templates} typed={typed} vault={vault} run={run} onSaved={refresh} onClose={() => setPanel('')}/> : <>
     {panel === 'new' && editor}

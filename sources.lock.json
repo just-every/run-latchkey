@@ -875,11 +875,11 @@
       "executable": false
     },
     "scripts/latchkey.mjs": {
-      "sha256": "6fa53223aeec10ab758094af6d05ac471c659588e579d800f920d6c7d10ad84a",
+      "sha256": "5bb93bae58fa1c7434959ad9fe799766a130497dada1f71e13aa51f5ab4fbbc6",
       "executable": false
     },
     "scripts/latchkey/archive-policy.mjs": {
-      "sha256": "21dc3381de369c192f2a9ced8b2292a7ceac0fd5fee8728b60222abfee3b858f",
+      "sha256": "aa53a9815562624d44dd98c02ce63f6633513b2b10617638fec245b4621ca9fc",
       "executable": false
     },
     "scripts/latchkey/items-commands.mjs": {
@@ -1087,7 +1087,7 @@
       "executable": false
     },
     "src/latchkey/api/catalogue.mjs": {
-      "sha256": "e9c9729d4314b1ea3378b26ddfdff95639b9d902f9fab506095afefa0fe8f78b",
+      "sha256": "4e9ad9b76ebb99dd659295df42d4931f9745cef99375d61b9c0e46a7eac9876c",
       "executable": false
     },
     "src/latchkey/api/client.d.mts": {
@@ -1111,7 +1111,7 @@
       "executable": false
     },
     "src/latchkey/api/openapi.json": {
-      "sha256": "1072baaf9df1de32a7bc370db1f4b99345453d4e98e2d41728ddc36c92af8557",
+      "sha256": "4ae6ef7338bec08b071acc74de33e3d5209662dd372b5fabc45203b3bc835bc8",
       "executable": false
     },
     "src/latchkey/api/pagination.mjs": {
@@ -1271,11 +1271,11 @@
       "executable": false
     },
     "src/latchkey/erasure/subject-plan.mjs": {
-      "sha256": "ed8bb4717e72e292dd439c0996fdb99a82032a7a27ff8848ffbbc520a43cad81",
+      "sha256": "ff20484e685b3b147b9960d2b703d8c133547cc2fcfbafd352eb68171100568c",
       "executable": false
     },
     "src/latchkey/erasure/subject-schema.mjs": {
-      "sha256": "5c51331d4c27c32de513a98a01a27a520a6f632c70f9e074431312f58bc1c53d",
+      "sha256": "a06239b39c4524b186bcaa887daa1a53ebdbfd5d83b78182f942b8f398ffb610",
       "executable": false
     },
     "src/latchkey/erasure/subject.d.mts": {
@@ -1607,7 +1607,7 @@
       "executable": false
     },
     "src/latchkey/service.ts": {
-      "sha256": "2c828d6f1814a0eb94538a445b2b102e8be2898b7d10955342c87e263e8fb9d0",
+      "sha256": "3c4b9488d83d3747a2946fe9b6b670469294175b8de555f47dbe9ba753bb8eae",
       "executable": false
     },
     "src/latchkey/sharing/client.d.mts": {
@@ -1671,7 +1671,7 @@
       "executable": false
     },
     "src/latchkey/ui/detail.tsx": {
-      "sha256": "f99644dbd00c066034fc8ffeecdf72902faedda3138a966a5697b6af10bbca85",
+      "sha256": "75ffae764d43c4eff7da1eb8dbe246b7eab883b53266e193e305093b7e883789",
       "executable": false
     },
     "src/latchkey/ui/editor.tsx": {
@@ -1751,7 +1751,7 @@
       "executable": false
     },
     "src/latchkey/ui/vault.tsx": {
-      "sha256": "54058092500fb9744ab105d457573da45508b9c5a449c0a344d65b232ff3496f",
+      "sha256": "7075b732a3fb4e7822dea62891207e3d333e07505cb0a795f3aa31d4040ae93d",
       "executable": false
     },
     "src/mail.server.d.mts": {
@@ -2835,7 +2835,7 @@
       "executable": false
     },
     "tests/browser/fixture.mjs": {
-      "sha256": "6ac3b5d8059e7a201bf55553b0b4c9ac99d8977a1acf9c26b919e4191a2c94a1",
+      "sha256": "8a9fa0c7ff4f2400b57547896017d7e38c2a0cb64a17ae877c471dda1e845242",
       "executable": false
     },
     "tests/browser/organization.mjs": {
@@ -2923,7 +2923,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "92da7ecac3755ea615a733801927f72c6c766ae41020ddbd79906d2c3cc2909f",
+      "sha256": "f9979266d88b41d6eac37bad37308be804a5b258ee8fc1184ee1e25bd3e6b852",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {

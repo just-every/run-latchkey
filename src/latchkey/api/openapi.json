@@ -12720,6 +12720,222 @@
           }
         }
       }
+    },
+    "/msp/delegations": {
+      "get": {
+        "operationId": "get_msp_list",
+        "summary": "GET /msp/delegations",
+        "x-latchkey-canonical-route": "msp/list",
+        "security": [
+          {
+            "operatorSession": [],
+            "grant": [],
+            "deviceSignature": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current owner-consented client metadata result."
+          },
+          "403": {
+            "description": "Owner or explicit consent required."
+          },
+          "409": {
+            "description": "Current authority changed."
+          }
+        }
+      },
+      "post": {
+        "operationId": "post_msp_grant",
+        "summary": "POST /msp/delegations",
+        "x-latchkey-canonical-route": "msp/grant",
+        "security": [
+          {
+            "operatorSession": [],
+            "grant": [],
+            "deviceSignature": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current owner-consented client metadata result."
+          },
+          "403": {
+            "description": "Owner or explicit consent required."
+          },
+          "409": {
+            "description": "Current authority changed."
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "provider",
+                  "publicKey",
+                  "consoleOrigin",
+                  "scopes",
+                  "expiresAt",
+                  "confirmed"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "provider": {},
+                  "publicKey": {},
+                  "consoleOrigin": {},
+                  "scopes": {},
+                  "expiresAt": {},
+                  "confirmed": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/msp/delegations/{delegation}": {
+      "delete": {
+        "operationId": "delete_msp_revoke",
+        "summary": "DELETE /msp/delegations/{delegation}",
+        "x-latchkey-canonical-route": "msp/revoke",
+        "security": [
+          {
+            "operatorSession": [],
+            "grant": [],
+            "deviceSignature": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current owner-consented client metadata result."
+          },
+          "403": {
+            "description": "Owner or explicit consent required."
+          },
+          "409": {
+            "description": "Current authority changed."
+          }
+        },
+        "parameters": [
+          {
+            "name": "delegation",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "confirmed"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "confirmed": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/msp/independent": {
+      "post": {
+        "operationId": "post_msp_independent",
+        "summary": "POST /msp/independent",
+        "x-latchkey-canonical-route": "msp/independent",
+        "security": [
+          {
+            "operatorSession": [],
+            "grant": [],
+            "deviceSignature": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current owner-consented client metadata result."
+          },
+          "403": {
+            "description": "Owner or explicit consent required."
+          },
+          "409": {
+            "description": "Current authority changed."
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "confirmed"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "confirmed": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/msp/commercial": {
+      "put": {
+        "operationId": "put_msp_commercial",
+        "summary": "PUT /msp/commercial",
+        "x-latchkey-canonical-route": "msp/commercial",
+        "security": [
+          {
+            "operatorSession": [],
+            "grant": [],
+            "deviceSignature": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current owner-consented client metadata result."
+          },
+          "403": {
+            "description": "Owner or explicit consent required."
+          },
+          "409": {
+            "description": "Current authority changed."
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "status",
+                  "reference",
+                  "confirmed"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "status": {},
+                  "reference": {},
+                  "confirmed": {}
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

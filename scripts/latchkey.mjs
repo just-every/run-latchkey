@@ -56,6 +56,8 @@ try {
  } else if(command==='accounts-link'){
   const accounts=await accountRegistry(input); await accounts.link({name:input.name,kind:input.kind,profile:await readPrivate(input.profile)},input.password,{confirmed:input.confirmed === true});
   await writePrivate(input.accountRegistry,await accounts.encrypt(input.registryKey),true); result={linked:true,accounts:accounts.list()};
+ } else if(['msp-identity','msp-provider'].includes(command)){
+  const {mspCommand}=await import('./latchkey/msp-commands.mjs');result=await mspCommand(command,input,{readPrivate,writePrivate});
  } else if(command==='run'){
   const {runConsumer}=await import('./latchkey/run-command.mjs');result=await runConsumer(input,process.argv.slice(3));process.exitCode=result.exitCode;
  } else if (command === 'records-restore') {
