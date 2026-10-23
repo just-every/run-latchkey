@@ -14,6 +14,4 @@ export const siteLinks = [
 
 export type SiteLinkKey = (typeof siteLinks)[number]['key']
 
-// There is no hosted Latchkey demo yet (demo.run-latchkey.com does not resolve),
-// so "Try the demo" opens the Run page, where Latchkey starts on your computer.
-export const demoHref = paths.run
+export const demoHref = 'https://demo.run-latchkey.com/'
