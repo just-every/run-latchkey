@@ -55,7 +55,7 @@ async function erase(input, ctx, retention = null) {
    stmt('UPDATE lky_vaults SET revision=revision+1,mutation=? WHERE id=?', operation, vaultId),
    ...journal, ...transfers,
    stmt('INSERT INTO lky_erased_items(vault_id,object_id,tenant,receipt_id,erased_by,erased_device,erased_at,revision,counts,proof) VALUES(?,?,?,?,?,?,?,?,?,?)', vaultId, object, ctx.tenant, operation, ctx.actor, ctx.device, ctx.now, input.revision + 1, JSON.stringify(counts), JSON.stringify(input.proof)),
-   ...(retention?[stmt("UPDATE lky_events SET actor='retention-policy',device='scheduled',object_id=? WHERE object_id=?",operation,object),stmt("INSERT INTO lky_events VALUES(?,?,?,?,?,?)",id(),'retention-policy','scheduled','item_retention_erased',operation,ctx.now)]:[event(object)]), stmt('DELETE FROM lky_erasure_guard'),
+   ...(retention?[stmt("UPDATE lky_events SET actor='retention-policy',device='scheduled',object_id=? WHERE object_id=? AND action IN('item_written','item_erased','item_trash','item_archived','item_active','runtime_read','runtime_written','project_resource_created')",operation,object),stmt("INSERT INTO lky_events VALUES(?,?,?,?,?,?)",id(),'retention-policy','scheduled','item_retention_erased',operation,ctx.now)]:[event(object)]), stmt('DELETE FROM lky_erasure_guard'),
   ]);
  } catch {
   // A lost acknowledgement can safely return the original durable result;

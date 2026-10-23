@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { VaultClient } from '../src/latchkey/client.mjs';
 import { SharingClient, PublicLinkClient } from '../src/latchkey/sharing/client.mjs';
 import { MachineClient } from '../src/latchkey/machine.mjs';
+import { ProjectClient } from '../src/latchkey/projects/client.mjs';
 import { createAttachment } from '../src/latchkey/items/attachments.mjs';
 import { digest, encode, random } from '../src/latchkey/crypto/envelope.mjs';
 
@@ -94,6 +95,24 @@ export async function runItemErasureJourneys({ owner, member, db, records, mail,
  assert.ok(!archiveRows.some(item => item.table === 'lky_versions' && item.row.object_id === object));
  assert.ok(!archiveRows.some(item => item.table === 'lky_links' && item.row.object_id === object));
  assert.ok(archiveRows.some(item => item.table === 'lky_erased_items' && item.row.object_id === object));
+
+ // Erasing an item in a vault the caller owns must not reach into another
+ // vault's project mappings that happen to reuse the same catalog object UUID.
+ const projects = new ProjectClient(owner);
+ const foreignProject = await projects.create({ name: 'synthetic-latchkey-960' });
+ const foreignEnvironment = await projects.createEnvironment(foreignProject.project, { name: 'synthetic-latchkey-961' });
+ await projects.set(foreignEnvironment.environment, 'SERVICE_SECRET', 'synthetic-latchkey-962'); privateValues.push('synthetic-latchkey-962');
+ const sharedCatalog = foreignEnvironment.object;
+ const callerVault = (await member.createVault()).vault;
+ await member.put(callerVault, { title: 'synthetic-latchkey-963', secret: 'synthetic-latchkey-964' }, sharedCatalog); privateValues.push('synthetic-latchkey-964');
+ const callerRevision = (await member.readVault(callerVault)).revision;
+ const callerErasure = await member.eraseItem(callerVault, sharedCatalog, { confirmed: true, revision: callerRevision });
+ assert.equal(callerErasure.deleted.lky_project_environments, 0);
+ assert.equal(callerErasure.deleted.lky_project_resources, 0);
+ assert.equal((await owner.call('project/environment/read', { environment: foreignEnvironment.environment })).object, sharedCatalog);
+ assert.equal((await projects.resolve(foreignEnvironment.environment, ['SERVICE_SECRET'])).SERVICE_SECRET, 'synthetic-latchkey-962');
+ console.log('Item erasure cross-vault: erasing an item that reuses another vault’s catalog object UUID leaves that vault’s project environment and resource intact');
+
  console.log('Item erasure: explicit owner confirmation, stale-revision refusal, all histories/attachments/link copies/wraps/runtime deletion, value-free attributed receipt, idempotency, same-object replay fence and in-flight Base transfer invalidation passed');
  return { privateValues, erasedArchive: before.text, laterJournal, vault, object };
 }
