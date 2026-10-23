@@ -1839,7 +1839,7 @@
       "executable": false
     },
     "src/latchkey/ui/unlock.tsx": {
-      "sha256": "82b7059afb2dd5801e0d1dd4d1cbd6e6e869f496afeee2425f7a775cb8885bf9",
+      "sha256": "80c9abf1fe676f5b504c8e884f90ac16328a378ea669a6877a2f4c73b3f43b90",
       "executable": false
     },
     "src/latchkey/ui/vault.tsx": {

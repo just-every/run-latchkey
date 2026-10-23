@@ -8,9 +8,9 @@ export function Unlock({ run, busy, onUnlock }: { run: Task; busy: boolean; onUn
  const [ready, setReady] = useState(false);
  useEffect(() => setReady(true), []);
  const [mode, setMode] = useState<'unlock' | 'register'>('unlock');
- const [profile, setProfile] = useState<any>(null), [password, setPassword] = useState(''), [confirm, setConfirm] = useState('');
+ const [password, setPassword] = useState(''), [confirm, setConfirm] = useState('');
  const [staged, setStaged] = useState<any>(null), [saved, setSaved] = useState(false), [downloaded, setDownloaded] = useState({ profile: false, kit: false }), [finishing, setFinishing] = useState(false);
- const loadingProfile=useRef<Promise<any>|null>(null);
+ const profileFile = useRef<HTMLInputElement>(null);
  const mounted = useRef(true), registering = useRef(false), attempt = useRef(0), custody = useRef<{ resolve: () => void; reject: (reason: unknown) => void } | null>(null);
  useEffect(() => {
   mounted.current = true;
@@ -39,15 +39,23 @@ export function Unlock({ run, busy, onUnlock }: { run: Task; busy: boolean; onUn
       if (!mounted.current || ticket !== attempt.current) throw cancelledRegistration;
      } });
      if (!mounted.current) return;
-     setMode('unlock'); setProfile(result.profile);
+     setMode('unlock');
      await client.unlock(result.profile, password);
      if (mounted.current) await onUnlock(client); else client.lock();
     } catch (error) { if (error !== cancelledRegistration) throw error; }
     finally { registering.current = false; custody.current = null; if (mounted.current) { setStaged(null); setSaved(false); setFinishing(false); setPassword(''); setConfirm(''); } }
    }
-   else { const selected=loadingProfile.current?await loadingProfile.current:profile;if (!selected) throw { code: 'choose_profile_file' }; await client.unlock(selected, password); setPassword(''); await onUnlock(client); }
+   else {
+    // Read the selected file at submission, including a selection retained while
+    // the page hydrated. A missed change event must not discard that selection.
+    const file = profileFile.current?.files?.[0];
+    if (!file) throw { code: 'choose_profile_file' };
+    if (file.size > 16 * 1024 * 1024) throw { code: 'profile_too_large' };
+    const selected = JSON.parse(await file.text());
+    await client.unlock(selected, password); setPassword(''); await onUnlock(client);
+   }
   }); }}>
-   {mode === 'unlock' && <label>Profile file<input required type="file" accept=".json,application/json" onChange={e => { const file = e.target.files?.[0];setProfile(null);loadingProfile.current=file?(async()=>{if(file.size>16*1024*1024)throw{code:'profile_too_large'};return JSON.parse(await file.text())})():null;const pending=loadingProfile.current;if(pending)void run(async()=>{const value=await pending;if(loadingProfile.current===pending)setProfile(value)}); }}/></label>}
+   {mode === 'unlock' && <label>Profile file<input ref={profileFile} required type="file" accept=".json,application/json"/></label>}
    <label>Master password<input required type="password" autoComplete={passwordAutocomplete[mode]} value={password} onChange={e => setPassword(e.target.value)}/></label>
    {mode === 'register' && <label>Confirm master password<input required type="password" autoComplete="new-password" value={confirm} onChange={e => setConfirm(e.target.value)}/></label>}
    <button className="primary" type="submit" disabled={busy}>{busy ? 'Working…' : mode === 'unlock' ? 'Unlock vault' : 'Create account'}</button>
