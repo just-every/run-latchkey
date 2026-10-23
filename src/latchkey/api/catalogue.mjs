@@ -1,5 +1,6 @@
 // Canonical handlers remain the sole authority for rights, encryption and CAS.
 export const routes = [
+ ['POST','/msp/posture','msp/posture/capture',['vault','epoch','revision','observedAt','totalActiveItems','withExpiry','expiredCount','confirmed']],
  ['GET','/msp/delegations','msp/list',[]],
  ['POST','/msp/delegations','msp/grant',['provider','publicKey','consoleOrigin','scopes','expiresAt','confirmed']],
  ['DELETE','/msp/delegations/{delegation}','msp/revoke',['confirmed']],

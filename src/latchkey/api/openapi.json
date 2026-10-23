@@ -12936,6 +12936,62 @@
           }
         }
       }
+    },
+    "/msp/posture": {
+      "post": {
+        "operationId": "post_msp_posture_capture",
+        "summary": "POST /msp/posture",
+        "x-latchkey-canonical-route": "msp/posture/capture",
+        "security": [
+          {
+            "operatorSession": [],
+            "grant": [],
+            "deviceSignature": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "vault",
+                  "epoch",
+                  "revision",
+                  "observedAt",
+                  "totalActiveItems",
+                  "withExpiry",
+                  "expiredCount",
+                  "confirmed"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "vault": {},
+                  "epoch": {},
+                  "revision": {},
+                  "observedAt": {},
+                  "totalActiveItems": {},
+                  "withExpiry": {},
+                  "expiredCount": {},
+                  "confirmed": {}
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Exact owner-consented current company expiry counts."
+          },
+          "403": {
+            "description": "Owner, company scope or explicit consent required."
+          },
+          "409": {
+            "description": "The company source changed."
+          }
+        }
+      }
     }
   }
 }

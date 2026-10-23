@@ -35,7 +35,7 @@ export function parseDelegation(value, identity) {
  requireValue(value?.schema === 'latchkey/delegation/v1' && uuid.test(value.delegation) && uuid.test(value.tenant), 'invalid_delegation');
  origin(value.origin);
  requireValue(value.provider === identity.provider && value.publicKey === identity.publicKey && value.consoleOrigin === identity.origin, 'provider_mismatch');
- requireValue(Array.isArray(value.scopes) && value.scopes.includes('summary') && value.scopes.every(scope => ['summary', 'template'].includes(scope)) && new Set(value.scopes).size === value.scopes.length, 'invalid_scopes');
+ requireValue(Array.isArray(value.scopes) && value.scopes.includes('summary') && value.scopes.every(scope => ['summary', 'template', 'posture'].includes(scope)) && new Set(value.scopes).size === value.scopes.length, 'invalid_scopes');
  requireValue(Number.isSafeInteger(value.expiresAt) && value.expiresAt > Date.now(), 'delegation_expired');
  return { schema: value.schema, origin: value.origin, tenant: value.tenant, delegation: value.delegation, provider: value.provider, publicKey: value.publicKey, consoleOrigin: value.consoleOrigin, scopes: [...value.scopes], expiresAt: value.expiresAt };
 }

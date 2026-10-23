@@ -1,3 +1,4 @@
+import {providerPosture} from './posture.mjs';
 import { digest, id } from '../crypto/envelope.mjs';
 import { access, currentPolicy, event, exact, liveSql, need, policyInput, previewHash, restrictive, uuid } from './common.mjs';
 
@@ -9,7 +10,7 @@ async function summary(ctx,delegation){
  need(people.length<=10000,'summary_requires_pagination',409);
  const members=await Promise.all(people.map(async row=>({reference:await digest(`${ctx.tenant}/member/${row.id}`),status:row.status,enrolled:!!row.enrolled})));
  return{tenant:ctx.tenant,delegation:delegation.id,revision:snapshot.mutation,observedAt:ctx.now,onboarding:{active:people.filter(p=>p.status==='active').length,invited:people.filter(p=>p.status==='invited').length,suspended:people.filter(p=>p.status==='inactive').length,enrolled:people.filter(p=>p.status==='active'&&p.enrolled).length},members,
- health:{coverage:'unknown',reason:'No credential-health source is connected to this delegation.'},adoption:{coverage:'unknown',reason:'Device enrollment does not measure actual usage or adoption.'},
+ ...(JSON.parse(delegation.scopes).includes('posture')?await providerPosture(ctx,people):{health:{coverage:'unknown',reason:'No credential-health source is connected to this delegation.'},adoption:{coverage:'unknown',reason:'Device enrollment does not measure actual usage or adoption.'}}),
  commercial:await first('SELECT status,reference,recorded_at AS recordedAt FROM lky_msp_commercial WHERE tenant=?',ctx.tenant)??{status:'not_recorded'},policy:snapshot.policy,exceptions:[]};
 }
 async function preview(ctx,delegation,input){

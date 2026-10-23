@@ -1,3 +1,4 @@
+import {capturePosture,captureList} from './posture.mjs';
 import { id, publicKey } from '../crypto/envelope.mjs';
 import { access, event, exact, need, origin, uuid } from './common.mjs';
 export async function mspAuthenticated(route,input,ctx){
@@ -5,14 +6,15 @@ export async function mspAuthenticated(route,input,ctx){
  need(ctx.session.operator.role==='owner','owner_required',403);
  const{stmt,first,all}=access(ctx);
  need(await first(`SELECT 1 AS allowed WHERE ${ctx.fence}`,...ctx.fenceArgs),'authority_expired',401);
+ if(route==='msp/posture/capture')return capturePosture(input,ctx);
  if(route==='msp/list'){
   exact(input,[]);
-  return{events:await all("SELECT e.id,e.action,e.object_id AS operation,e.created_at AS occurredAt,d.provider FROM lky_events e JOIN lky_msp_delegations d ON d.id=e.device WHERE d.tenant=? AND e.actor='msp-provider' ORDER BY e.created_at,e.id LIMIT 1000",ctx.tenant),delegations:(await all('SELECT * FROM lky_msp_delegations WHERE tenant=? ORDER BY created_at,id',ctx.tenant)).map(row=>({id:row.id,provider:row.provider,consoleOrigin:row.console_origin,scopes:JSON.parse(row.scopes),expiresAt:row.expires_at,revokedAt:row.revoked_at})),commercial:await first('SELECT status,reference,recorded_at AS recordedAt FROM lky_msp_commercial WHERE tenant=?',ctx.tenant)??{status:'not_recorded'}};
+  return{captures:await captureList(ctx),events:await all("SELECT e.id,e.action,e.object_id AS operation,e.created_at AS occurredAt,d.provider FROM lky_events e JOIN lky_msp_delegations d ON d.id=e.device WHERE d.tenant=? AND e.actor='msp-provider' ORDER BY e.created_at,e.id LIMIT 1000",ctx.tenant),delegations:(await all('SELECT * FROM lky_msp_delegations WHERE tenant=? ORDER BY created_at,id',ctx.tenant)).map(row=>({id:row.id,provider:row.provider,consoleOrigin:row.console_origin,scopes:JSON.parse(row.scopes),expiresAt:row.expires_at,revokedAt:row.revoked_at})),commercial:await first('SELECT status,reference,recorded_at AS recordedAt FROM lky_msp_commercial WHERE tenant=?',ctx.tenant)??{status:'not_recorded'}};
  }
  if(route==='msp/grant'){
   exact(input,['provider','publicKey','consoleOrigin','scopes','expiresAt','confirmed']);need(input.confirmed===true,'owner_consent_required',403);
   uuid(input.provider);await publicKey(input.publicKey,'sign');origin(input.consoleOrigin);
-  need(Array.isArray(input.scopes)&&input.scopes.includes('summary')&&new Set(input.scopes).size===input.scopes.length&&input.scopes.every(scope=>['summary','template'].includes(scope)),'invalid_delegation_scope');
+  need(Array.isArray(input.scopes)&&input.scopes.includes('summary')&&new Set(input.scopes).size===input.scopes.length&&input.scopes.every(scope=>['summary','template','posture'].includes(scope)),'invalid_delegation_scope');
   need(Number.isSafeInteger(input.expiresAt)&&input.expiresAt>ctx.now&&input.expiresAt<=ctx.now+90*86400000,'invalid_delegation_expiry');
   const account=await first('SELECT generation FROM lky_accounts WHERE id=? AND tenant=?',ctx.actor,ctx.tenant),delegation=id();
   const guard=`${ctx.fence} AND EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND status='active' AND role='owner' AND version=?)`,args=[...ctx.fenceArgs,ctx.session.operator.id,ctx.session.operator.version];

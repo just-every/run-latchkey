@@ -3,7 +3,9 @@ export interface PublicProviderIdentity { provider: string; publicKey: string; c
 export interface Delegation { schema: 'latchkey/delegation/v1'; origin: string; tenant: string; delegation: string; provider: string; publicKey: string; consoleOrigin: string; scopes: string[]; expiresAt: number }
 export interface FleetPolicy { externalEnabled: boolean; domains: string[]; defaultDays: number; maxDays: number }
 export interface FleetPreview { id: string; hash: string; tenant: string; delegation: string; revision: string | null; before: FleetPolicy; after: FleetPolicy; expiresAt: number; exceptions: unknown[] }
-export interface FleetSummary { tenant: string; delegation: string; revision: string | null; observedAt: number; onboarding: { active: number; invited: number; suspended: number; enrolled: number }; members: { reference: string; status: string; enrolled: boolean }[]; health: { coverage: string; reason: string }; adoption: { coverage: string; reason: string }; commercial: { status: string; reference?: string }; policy: FleetPolicy; exceptions: unknown[] }
+export interface FleetHealth { coverage: string; reason: string; capturedVaults?: number; staleVaults?: number; atRiskMembers?: { reference: string; expiredItems: number }[]; expiredItems?: number }
+export interface FleetAdoption { coverage: string; reason: string; activeMembers?: number; authenticatedMembers?: number; windowStart?: number; observedAt?: number }
+export interface FleetSummary { tenant: string; delegation: string; revision: string | null; observedAt: number; onboarding: { active: number; invited: number; suspended: number; enrolled: number }; members: { reference: string; status: string; enrolled: boolean }[]; health: FleetHealth; adoption: FleetAdoption; commercial: { status: string; reference?: string }; policy: FleetPolicy; exceptions: unknown[] }
 export class FleetError extends Error { code: string; status: number; constructor(code: string, status?: number) }
 export function createProviderIdentity(consoleOrigin: string): Promise<ProviderIdentity>;
 export function publicProviderIdentity(identity: ProviderIdentity): PublicProviderIdentity;

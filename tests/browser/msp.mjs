@@ -5,13 +5,14 @@ import { expect } from '@playwright/test';
 import { vaultFixture } from './fixture.mjs';
 import { ApiClient } from '../../src/latchkey/api/client.mjs';
 import { FleetClient,createProviderIdentity,publicProviderIdentity } from '../../src/latchkey/msp/client.mjs';
+import { captureExpiry } from '../../src/latchkey/msp/posture-client.mjs';
 import { createItem } from '../../src/latchkey/items/types.mjs';
 import { id,sign } from '../../src/latchkey/crypto/envelope.mjs';
 const output=process.env.LATCHKEY_SCREENSHOTS;
 if(output)await mkdir(output,{recursive:true});
 const refused=(promise,code)=>assert.rejects(promise,error=>error.code===code);
 const strict={externalEnabled:false,domains:[],defaultDays:1,maxDays:1};
-async function grant(owner,identity,scopes=['summary','template']){
+async function grant(owner,identity,scopes=['summary','template','posture']){
  return new ApiClient(owner).request('POST','/msp/delegations',{...publicProviderIdentity(identity),scopes,expiresAt:Date.now()+86400000,confirmed:true});
 }
 async function request(f,identity,delegation,action,input={},overrides={}){
@@ -27,7 +28,8 @@ export async function mspJourney(width,{scale=false}={}){
   for(let i=0;i<count;i++){
    const f=await vaultFixture({browserEnabled:i===0});fixtures.push(f);
    const vault=(await f.owner.createVault()).vault,secret=`synthetic-latchkey-${8000+i}`;
-   const object=(await f.owner.put(vault,createItem('login',{title:`Client ${i+1} finance system`,values:{password:secret}}))).object;
+   const object=(await f.owner.put(vault,createItem('login',{title:`Client ${i+1} finance system`,values:{password:secret},fields:[{id:'expiry',label:'Expiry',type:'date',secret:false,value:'2020-01-01'}]}))).object;
+   await captureExpiry(f.owner,vault,{confirmed:true});
    secrets.push({vault,object,secret,recipientKey:f.owner.profile.recipientKey,authorityKey:f.owner.profile.authorityKey});
    await new ApiClient(f.owner).setSharingPolicy({externalEnabled:true,domains:['example.test'],defaultDays:7,maxDays:30});
    await new ApiClient(f.owner).request('PUT','/msp/commercial',{status:i%2?'trial':'active',reference:`synthetic-latchkey-${8100+i}`,confirmed:true});
@@ -38,7 +40,7 @@ export async function mspJourney(width,{scale=false}={}){
   const fleet=new FleetClient(identity,{fetcher:network,consoleOrigin:first.origin});
   const summaries=await Promise.all(grants.map(g=>fleet.summary(g)));assert.equal(new Set(summaries.map(s=>s.tenant)).size,count);
   for(let i=0;i<count;i++){
-   const s=summaries[i];assert.equal(s.onboarding.active,1);assert.equal(s.onboarding.enrolled,1);assert.equal(s.health.coverage,'unknown');assert.equal(s.adoption.coverage,'unknown');assert.equal(s.members[0].enrolled,true);assert.equal(s.commercial.reference,`synthetic-latchkey-${8100+i}`);
+   const s=summaries[i];assert.equal(s.onboarding.active,1);assert.equal(s.onboarding.enrolled,1);assert.equal(s.health.coverage,'current-observed-company-expiry');assert.equal(s.health.atRiskMembers.length,1);assert.equal(s.health.atRiskMembers[0].expiredItems,1);assert.equal(s.adoption.coverage,'observed-password-authentication');assert.equal(s.adoption.authenticatedMembers,1);assert.equal(s.members[0].enrolled,true);assert.equal(s.commercial.reference,`synthetic-latchkey-${8100+i}`);
    const encoded=JSON.stringify(s);for(const secret of secrets.flatMap(s=>[s.secret,s.vault,s.object,s.recipientKey,s.authorityKey]))assert.ok(!encoded.includes(secret));assert.ok(!encoded.includes('@example.test'));assert.ok(!encoded.includes(first.owner.profile.account));
   }
   // Unsigned, foreign-key, expired-time, replay and cross-client substitution
@@ -52,7 +54,7 @@ export async function mspJourney(width,{scale=false}={}){
   await refused(second.owner.readVault(secrets[0].vault),'not_found');
   const preflight=await second.fetcher(second.origin+'/api/latchkey/msp/provider',{method:'OPTIONS',headers:{origin:first.origin,'access-control-request-method':'POST','access-control-request-headers':'content-type,x-latchkey-provider-signature'}});assert.equal(preflight.status,204);assert.equal(preflight.headers.get('access-control-allow-origin'),first.origin);
   const deniedOrigin=await second.fetcher(second.origin+'/api/latchkey/msp/provider',{method:'OPTIONS',headers:{origin:'https://unapproved.example.test','access-control-request-method':'POST'}});assert.equal(deniedOrigin.status,403);assert.equal(deniedOrigin.headers.get('access-control-allow-origin'),null);
-  const readonly=await grant(first.owner,other,['summary']),readonlyFleet=new FleetClient(other,{fetcher:network,consoleOrigin:first.origin});assert.equal((await readonlyFleet.summary(readonly)).tenant,grants[0].tenant);
+  const readonly=await grant(first.owner,other,['summary']),readonlyFleet=new FleetClient(other,{fetcher:network,consoleOrigin:first.origin});const limitedSummary=await readonlyFleet.summary(readonly);assert.equal(limitedSummary.tenant,grants[0].tenant);assert.equal(limitedSummary.health.coverage,'unknown');assert.equal(limitedSummary.adoption.coverage,'unknown');assert.equal(limitedSummary.health.atRiskMembers,undefined);
   const readWire=await request(first,other,readonly,'preview',{policy:strict});assert.equal((await(await first.fetcher(first.origin+'/api/latchkey/msp/provider',readWire.init)).json()).error,'template_not_delegated');
   await refused(fleet.preview(grants[0],{externalEnabled:true,domains:['example.test','outside.example.test'],defaultDays:7,maxDays:30}),'template_would_broaden_access');
   let plans=await Promise.all(grants.map(g=>fleet.preview(g,strict)));
@@ -85,8 +87,13 @@ async function mspScreens(first,second,identity,other,width){
  const reveal=page.getByRole('button',{name:'Reveal Password',exact:true});await reveal.hover();await expect(page.getByRole('tooltip')).toHaveText('Reveal field');await page.mouse.move(0,0);await expect(page.getByRole('tooltip')).toHaveCount(0);await reveal.focus();await expect(page.getByRole('tooltip')).toBeVisible();
  if(output)await page.screenshot({path:join(output,`msp-vault-tooltip-${width}.png`),fullPage:true});await reveal.press('Escape');await expect(page.getByRole('tooltip')).toHaveCount(0);
  await page.locator('summary').filter({hasText:/^More$/}).click();await page.getByRole('button',{name:'Service provider',exact:true}).click();await expect(page.getByRole('heading',{name:'Service provider',exact:true})).toBeVisible();
+
+ const ownedCompany=(await first.owner.call('vaults',{})).find(v=>v.kind==='company'&&v.owner===first.owner.profile.account);
+ await page.getByLabel('Company vault you own').selectOption(ownedCompany.id);await expect(page.getByRole('button',{name:'Capture company expiry metadata',exact:true})).toBeDisabled();
+ const captureConsent=page.getByRole('checkbox',{name:/I approve this local expiry scan/});await captureConsent.focus();await captureConsent.press('Space');await page.getByRole('button',{name:'Capture company expiry metadata',exact:true}).click();await expect(page.getByText('Company expiry metadata captured. Review observed counts and unknown coverage below.',{exact:true})).toBeVisible();
+ await page.locator('summary').filter({hasText:/^Company expiry captures/}).click();await expect(page.getByText(/Expired at capture: 1/)).toBeVisible();if(output)await page.screenshot({path:join(output,`msp-owner-expiry-${width}.png`),fullPage:true});
  await page.getByLabel('Provider public identity JSON').setInputFiles({name:'provider-public.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(publicProviderIdentity(identity)))});
- await page.getByLabel('Also allow template scope:',{exact:false}).check();await expect(page.getByRole('button',{name:'Create delegation',exact:true})).toBeDisabled();
+ await page.getByLabel('Also allow template scope:',{exact:false}).check();await page.getByLabel('Also allow observed company expiry',{exact:false}).check();await expect(page.getByRole('button',{name:'Create delegation',exact:true})).toBeDisabled();
  await page.getByRole('checkbox',{name:/I authorize this provider/}).check();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
  if(output)await page.screenshot({path:join(output,`msp-owner-consent-${width}.png`),fullPage:true});await page.getByRole('button',{name:'Create delegation',exact:true}).click();await expect(page.getByRole('button',{name:'Download delegation file',exact:true})).toBeVisible();
  const pending=page.waitForEvent('download');await page.getByRole('button',{name:'Download delegation file',exact:true}).click();const download=await pending;const stream=await download.createReadStream();let value='';for await(const chunk of stream)value+=chunk;const localGrant=JSON.parse(value);assert.equal(localGrant.provider,identity.provider);
@@ -95,7 +102,7 @@ async function mspScreens(first,second,identity,other,width){
  await page.goto(first.origin+'/app/fleet');await expect(page.getByRole('heading',{name:'No provider identity loaded',exact:true})).toBeVisible();
  await page.getByLabel('Import provider private identity JSON').setInputFiles({name:'provider-private.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(identity))});await expect(page.getByRole('heading',{name:'No companies loaded',exact:true})).toBeVisible();
  await page.getByLabel('Import company delegation JSON files').setInputFiles([localGrant,remoteGrant].map((g,i)=>({name:`client-${i+1}.json`,mimeType:'application/json',buffer:Buffer.from(JSON.stringify(g))})));
- await page.getByRole('button',{name:'Refresh all companies',exact:true}).click();await expect(page.getByText('All 2 company summaries refreshed.',{exact:true})).toBeVisible();await expect(page.getByText(/Health coverage: unknown/)).toHaveCount(2);
+ await page.getByRole('button',{name:'Refresh all companies',exact:true}).click();await expect(page.getByText('All 2 company summaries refreshed.',{exact:true})).toBeVisible();await expect(page.getByText(/Health coverage: current-observed-company-expiry/)).toHaveCount(2);await expect(page.getByText(/Observed expired items: 1/)).toHaveCount(2);
  if(output)await page.screenshot({path:join(output,`msp-fleet-summary-${width}.png`),fullPage:true});
  for(const checkbox of await page.getByRole('checkbox',{name:/Select this company for restrictive policy preview/}).all())await checkbox.check();
  await page.getByRole('button',{name:'Refresh and preview selected companies',exact:true}).click();await expect(page.getByRole('heading',{name:'Exact policy preview',exact:true})).toHaveCount(2);await expect(page.getByRole('button',{name:'Apply approved previews',exact:true})).toBeDisabled();

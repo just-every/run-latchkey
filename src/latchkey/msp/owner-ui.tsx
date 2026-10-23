@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { parsePublicProviderIdentity, type PublicProviderIdentity } from './client.mjs';
+import { captureExpiry, type ExpiryCapture } from './posture-client.mjs';
 import { download, message } from '../ui/types';
 
 type Grant = { id: string; provider: string; consoleOrigin: string; scopes: string[]; expiresAt: number; revokedAt: number | null };
@@ -9,18 +10,20 @@ const when = (value: number) => new Date(value).toLocaleString();
 export function MspOwnerPanel({ client, run }: Props) {
  const [events, setEvents] = useState<any[]>([]);
  const [grants, setGrants] = useState<Grant[]>([]), [identity, setIdentity] = useState<PublicProviderIdentity | null>(null);
- const [template, setTemplate] = useState(false), [consent, setConsent] = useState(false), [days, setDays] = useState(30), [delegation, setDelegation] = useState<unknown>(null);
+ const [template, setTemplate] = useState(false), [posture, setPosture] = useState(false), [consent, setConsent] = useState(false), [days, setDays] = useState(30), [delegation, setDelegation] = useState<unknown>(null);
+ const [companyVaults, setCompanyVaults] = useState<{ id: string }[]>([]), [captureVault, setCaptureVault] = useState(''), [captureConsent, setCaptureConsent] = useState(false), [captures, setCaptures] = useState<ExpiryCapture[]>([]);
  const [commercial, setCommercial] = useState<{ status: string; reference?: string }>({ status: 'not_recorded' }), [commercialStatus, setCommercialStatus] = useState('trial'), [reference, setReference] = useState(''), [commercialConsent, setCommercialConsent] = useState(false);
  const [revoke, setRevoke] = useState(''), [independent, setIndependent] = useState(false), [busy, setBusy] = useState(false), [loading, setLoading] = useState(true), [error, setError] = useState(''), [status, setStatus] = useState('');
  const generation = useRef(0), identityRequest = useRef(0);
  const refresh = async (token = generation.current) => {
-  const result = await client.call('msp/list', {});
+  const [result, vaults] = await Promise.all([client.call('msp/list', {}), client.call('vaults', {})]);
   if (token !== generation.current) return;
   setGrants(result.delegations); setCommercial(result.commercial); setEvents(result.events);
+  setCompanyVaults(vaults.filter((vault: any) => vault.kind === 'company' && vault.owner === client.profile.account)); setCaptures(result.captures);
  };
  useEffect(() => {
   const token = ++generation.current;
-  identityRequest.current++; setLoading(true); setGrants([]); setIdentity(null); setDelegation(null); setError(''); setStatus(''); setConsent(false); setIndependent(false); setRevoke(''); setCommercialConsent(false);
+  identityRequest.current++; setLoading(true); setGrants([]); setIdentity(null); setDelegation(null); setError(''); setStatus(''); setConsent(false); setPosture(false); setIndependent(false); setRevoke(''); setCommercialConsent(false); setCaptures([]); setCompanyVaults([]); setCaptureVault(''); setCaptureConsent(false);
   void refresh(token).catch(cause => { if (generation.current === token) setError(message(cause)); }).finally(() => { if (generation.current === token) setLoading(false); });
   return () => { generation.current++; };
  }, [client]);
@@ -41,7 +44,7 @@ export function MspOwnerPanel({ client, run }: Props) {
   <form className="tool-box" onSubmit={event => {
    event.preventDefault(); if (!identity || !consent) return;
    void act(async () => {
-    const result = await client.call('msp/grant', { ...identity, scopes: template ? ['summary', 'template'] : ['summary'], expiresAt: Date.now() + days * 86400000, confirmed: true });
+    const result = await client.call('msp/grant', { ...identity, scopes: ['summary', ...(template ? ['template'] : []), ...(posture ? ['posture'] : [])], expiresAt: Date.now() + days * 86400000, confirmed: true });
     setDelegation(result); setConsent(false);
    }, 'Delegation created. Download its file and give it to the named provider.');
   }}>
@@ -53,10 +56,18 @@ export function MspOwnerPanel({ client, run }: Props) {
    {identity && <div className="notice fingerprint"><p>Provider: {identity.provider}</p><p>Console: {identity.consoleOrigin}</p><p>Public signing key: {identity.publicKey}</p><p>Verify this public identity with the provider through a trusted channel before authorizing it.</p></div>}
    <label>Delegation duration (days, maximum 90)<input type="number" required min={1} max={90} step={1} value={days} disabled={busy} onChange={event => { setDays(Number(event.target.value)); setConsent(false); }}/></label>
    <label className="check"><input type="checkbox" checked={template} disabled={busy} onChange={event => { setTemplate(event.target.checked); setConsent(false); }}/>Also allow template scope: preview and apply only stricter external sharing policy.</label>
-   <label className="check"><input type="checkbox" checked={consent} disabled={busy || !identity} onChange={event => setConsent(event.target.checked)}/>I authorize this provider’s summary scope to read company membership, enrollment, policy and commercial metadata{template ? ', and template scope to tighten external sharing policy' : ''} for {days} days.</label>
+   <label className="check"><input type="checkbox" checked={posture} disabled={busy} onChange={event => { setPosture(event.target.checked); setConsent(false); }}/>Also allow observed company expiry and password-authentication activity metadata.</label>
+   <label className="check"><input type="checkbox" checked={consent} disabled={busy || !identity} onChange={event => setConsent(event.target.checked)}/>I authorize this provider’s summary scope to read company membership, enrollment, policy and commercial metadata{template ? ', template scope to tighten external sharing policy' : ''}{posture ? ', and posture scope to read observed company expiry counts, pseudonymous member risk and password-authentication activity' : ''} for {days} days.</label>
    <button className="primary" disabled={busy || loading || !identity || !consent || !Number.isInteger(days) || days < 1 || days > 90}>Create delegation</button>
   </form>
   {delegation != null && <div className="notice"><p>Delegation file ready. This file identifies the permitted company and scopes; the provider must also hold its matching private signing key.</p><button onClick={() => download('latchkey-provider-delegation.json', JSON.stringify(delegation, null, 2))}>Download delegation file</button></div>}
+  <form className="tool-box" onSubmit={event => { event.preventDefault(); if (!captureConsent || !captureVault) return; void act(async () => { await captureExpiry(client, captureVault, { confirmed: true }); setCaptureConsent(false); }, 'Company expiry metadata captured. Review observed counts and unknown coverage below.'); }}>
+   <h2>Observed company expiry</h2><p>This scans the selected company vault locally. Only counts and the source revision are recorded; titles, field values and item references remain in your client. Providers with posture scope can see expiry observations for current company recipients. Existing summary-only delegations receive no expiry or authentication observations.</p>
+   {companyVaults.length ? <label>Company vault you own<select className="vault-select" required disabled={busy || loading} value={captureVault} onChange={event => { setCaptureVault(event.target.value); setCaptureConsent(false); }}><option value="">Choose a company vault</option>{companyVaults.map(vault => <option key={vault.id} value={vault.id}>{vault.id}</option>)}</select></label> : !loading && <p className="empty">No owned company vaults are available to capture.</p>}
+   <p className="muted">Coverage includes active company items with an explicit, non-secret expiry date. Missing or invalid expiry dates, uncaptured vaults and other credential risks remain unknown.</p>
+   <label className="check"><input type="checkbox" disabled={busy || loading || !captureVault} checked={captureConsent} onChange={event => setCaptureConsent(event.target.checked)}/>I approve this local expiry scan and recording its company metadata counts for sharing under separately granted posture scope.</label><button disabled={busy || loading || !captureVault || !captureConsent}>Capture company expiry metadata</button>
+  </form>
+  <details><summary>Company expiry captures ({captures.length})</summary>{captures.length ? captures.map(capture => <div className="definition" key={capture.id}><p className="fingerprint">Vault: {capture.vault} · Revision: {capture.revision}</p><p>Observed {when(capture.observedAt)}. {capture.active ? 'Active source capture.' : 'Inactive or stale source capture; excluded from current coverage.'}</p><p>Active company items: {capture.totalActiveItems}. Valid expiry dates: {capture.withExpiry}. Expired at capture: {capture.expiredCount}. Expiry unknown: {capture.totalActiveItems - capture.withExpiry}.</p></div>) : <p>No company expiry captures recorded.</p>}</details>
   <details><summary>Provider policy audit ({events.length})</summary>{events.map(event => <p className="fingerprint" key={event.id}>{event.action} · {when(event.occurredAt)} · Operation {event.operation} · Provider {event.provider}</p>)}</details>
   <h2>Delegations</h2>
   {!loading && grants.length === 0 && <p className="empty">No provider delegations.</p>}

@@ -463,7 +463,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "5f66b40f626c54da7094bd20e3aef5bb0af652738a3074a596f883936bcf16c3",
+      "sha256": "057022ded4410780c42c547f0840234323c84f84ace03ae76917ad2777c2dd83",
       "executable": false
     },
     "deploy-demo.json": {
@@ -887,7 +887,7 @@
       "executable": false
     },
     "scripts/latchkey/archive-policy.mjs": {
-      "sha256": "aa53a9815562624d44dd98c02ce63f6633513b2b10617638fec245b4621ca9fc",
+      "sha256": "deec7da14d592714fa2c5db0672f99d36f9ca66493d70866c08654b1670411e4",
       "executable": false
     },
     "scripts/latchkey/items-commands.mjs": {
@@ -1099,7 +1099,7 @@
       "executable": false
     },
     "src/latchkey/api/catalogue.mjs": {
-      "sha256": "4e9ad9b76ebb99dd659295df42d4931f9745cef99375d61b9c0e46a7eac9876c",
+      "sha256": "6cba6249cae5eeaefe7d6f9cbfcfeeab344ca95a72f4cdc19358ae6d039df030",
       "executable": false
     },
     "src/latchkey/api/client.d.mts": {
@@ -1123,7 +1123,7 @@
       "executable": false
     },
     "src/latchkey/api/openapi.json": {
-      "sha256": "4ae6ef7338bec08b071acc74de33e3d5209662dd372b5fabc45203b3bc835bc8",
+      "sha256": "45efaebffdf28bc82126fa42b13e76becb3b62d2d21da3d12d4f3a1b5cf16740",
       "executable": false
     },
     "src/latchkey/api/pagination.mjs": {
@@ -1283,11 +1283,11 @@
       "executable": false
     },
     "src/latchkey/erasure/subject-plan.mjs": {
-      "sha256": "ff20484e685b3b147b9960d2b703d8c133547cc2fcfbafd352eb68171100568c",
+      "sha256": "ca0633248d041707ca0841e385a6d92dccf0c66c725e8c8d7e4afe9974442e9a",
       "executable": false
     },
     "src/latchkey/erasure/subject-schema.mjs": {
-      "sha256": "a06239b39c4524b186bcaa887daa1a53ebdbfd5d83b78182f942b8f398ffb610",
+      "sha256": "161e4abfe7ace0a6defc0432082f4530f5d64d056049fa4753325a9c5233f581",
       "executable": false
     },
     "src/latchkey/erasure/subject.d.mts": {
@@ -1451,11 +1451,11 @@
       "executable": false
     },
     "src/latchkey/msp/client.d.mts": {
-      "sha256": "90b6c45b1f6016be561b1e5fcdef897888c3e85eb6cd234a67c4cf5e26455be6",
+      "sha256": "bc70d4e13b92d15a1549636ff88c28e1e8b95ed4d7d10fc5d6e6de07a6499441",
       "executable": false
     },
     "src/latchkey/msp/client.mjs": {
-      "sha256": "860b572d21a314d521584c89080bae7d7f32cd3f47c5156285e2cd6c264c9b3e",
+      "sha256": "65bd32f7625dfb27f99b8146b5f57c0de367ad340b44ec28d5b79d5dcab279b2",
       "executable": false
     },
     "src/latchkey/msp/common.d.mts": {
@@ -1475,7 +1475,7 @@
       "executable": false
     },
     "src/latchkey/msp/owner-ui.tsx": {
-      "sha256": "bbf67c62cc8d0848282feebdd2e4a30054c612a1716bf2bac564ca2bd51d1f72",
+      "sha256": "a6256060c02ae410938b47a0c4eced936be472c15f700d3aca920a27cb76e107",
       "executable": false
     },
     "src/latchkey/msp/owner.d.mts": {
@@ -1483,15 +1483,15 @@
       "executable": false
     },
     "src/latchkey/msp/owner.mjs": {
-      "sha256": "bdb8e3264642369e7d16d766eadf5b05bb9a21e38f384abaaff53bd0e2ac79ef",
+      "sha256": "386a80bc4880f37d0443136c028a7a8b92771b5e6e8d5a58544bad1be2927266",
       "executable": false
     },
     "src/latchkey/msp/provider.mjs": {
-      "sha256": "003f38804c93eca7c51c958691dffdf84d78ae76ed96a23189ad9a97caf49e9c",
+      "sha256": "b467d524f766db4b291e2800955a7b01fe411007f565a03237659a634129b157",
       "executable": false
     },
     "src/latchkey/msp/ui.tsx": {
-      "sha256": "fd05c09f20e0dd7932fc89a89137899b8d66aab5ce59a9c582406a0e59140800",
+      "sha256": "be453fdbb51b049780709c31712c73025153ac4c6d071e7992fc85f962347a52",
       "executable": false
     },
     "src/latchkey/portability/archive.mjs": {
@@ -2903,11 +2903,11 @@
       "executable": false
     },
     "tests/browser/msp-lifecycle.mjs": {
-      "sha256": "4a27eb100625d8aea36a8cea818a6d67b919736d231bbb93cab1c5548b194708",
+      "sha256": "a28aa4df7f85a89c94cb8f4ee2f44068965eea885df19b98c434876b7bb6c9da",
       "executable": false
     },
     "tests/browser/msp.mjs": {
-      "sha256": "553cd3ff7d7d479358665c8b0bd2afe8da13070b4cac5d482f6e3331709104e7",
+      "sha256": "72b511291cb10cc5f49703e9731de3041c8b827f6a9abd830b7e7351d6ffbdbf",
       "executable": false
     },
     "tests/browser/organization.mjs": {
