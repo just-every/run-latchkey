@@ -435,7 +435,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "21423c1250119fcd9c2af558f4889008cd001706b6d2964064400d88132fcdcb",
+      "sha256": "ddce687ab1fcba5c872fce26a053637a3d355c7322590352bbe8e40f4a283111",
       "executable": false
     },
     "AGENTS.md": {
@@ -463,7 +463,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "212ba7e0e0d1c2910857d39ca60e44a5e88169add0b1c2933412e5415b8bb549",
+      "sha256": "5f66b40f626c54da7094bd20e3aef5bb0af652738a3074a596f883936bcf16c3",
       "executable": false
     },
     "deploy-demo.json": {
@@ -500,6 +500,10 @@
     },
     "docs/machine-runtimes.md": {
       "sha256": "ac40468a0f812fb377aa51b17fa344d3ebd192060c00514b030fcbf66862d6fc",
+      "executable": false
+    },
+    "docs/msp.md": {
+      "sha256": "4d1af9e1a20ae09de1270d95955bcd068277c9d8fdfe84e8c6833c79aa6ceb6b",
       "executable": false
     },
     "docs/security/protocol.md": {

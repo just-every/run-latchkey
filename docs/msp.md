@@ -19,7 +19,7 @@ into the fleet and refresh to retrieve its current metadata.
 
 Summary scope exposes pseudonymous member references, operator status and device
 enrollment counts, current external-sharing policy and the owner-recorded
-commercial status/reference. It exposes no names, email addresses, item metadata,
+commercial status/reference. It projects no member names or email fields, item metadata,
 values, keys, personal/family content or company audit. Enrollment is not actual
 usage, MFA coverage or credential health: those views explicitly remain unknown.
 Owner-entered commercial records do not establish a paid subscription, quantity,
