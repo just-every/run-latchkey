@@ -18,6 +18,10 @@ export async function mspLifecycleJourney(){
   const input={...publicProviderIdentity(identity),scopes:['summary','template'],expiresAt:Date.now()+86400000,confirmed:true};
   await refused(source.owner.call('msp/grant',{...input,confirmed:false}),'owner_consent_required');
   member=await enrolled(source,8400,'admin');await refused(member.call('msp/grant',input),'owner_required');await refused(member.call('msp/independent',{confirmed:true}),'owner_required');
+  const post=(path,input)=>source.fetcher(source.origin+path,{method:'POST',headers:{origin:source.origin,'content-type':'application/json',cookie:source.owner.cookie},body:JSON.stringify(input),redirect:'manual'});
+  assert.equal((await post('/auth/step-up',{action:'owner:transfer',returnTo:'/app'})).status,202);
+  const stepToken=new URL(source.mail.at(-1).content.find(c=>c.type==='text/plain').value.match(/https:\/\/[^\s<>]+/)[0]).searchParams.get('token');
+  assert.equal((await post('/auth/confirm',{token:stepToken})).status,303);
   otherOwner=await enrolled(source,8410,'owner');
   const grant=await otherOwner.call('msp/grant',input);await otherOwner.call('msp/commercial',{status:'active',reference:'synthetic-latchkey-8410@example.test',confirmed:true});
   assert.equal((await fleet.summary(grant)).onboarding.active,3);await fleet.preview(grant,{externalEnabled:false,domains:[],defaultDays:1,maxDays:1});
