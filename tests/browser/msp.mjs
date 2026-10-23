@@ -74,11 +74,12 @@ export async function mspJourney(width,{scale=false}={}){
   assert.equal((await first.owner.readItem(secrets[0].vault,secrets[0].object)).versions[0].value.fields[0].value,secrets[0].secret);assert.equal(first.owner.profile.recipientKey,secrets[0].recipientKey);assert.equal(first.owner.profile.authorityKey,secrets[0].authorityKey);
   const audit=await first.owner.call('audit',{});const companyAudit=(await new ApiClient(first.owner).request('GET','/msp/delegations')).events;assert.ok(companyAudit.some(e=>e.action==='msp_template_applied'));for(const secret of secrets)assert.ok(!JSON.stringify(companyAudit).includes(secret.secret));assert.ok(audit.some(e=>e.action==='msp_independent_owner_confirmed'));for(const secret of secrets)assert.ok(!JSON.stringify(audit).includes(secret.secret));
   // The actual fleet UI and owner consent screens are exercised below.
-  await mspScreens(first,second,identity,other,width);
+  await mspScreens(first,second,identity,other,width,scale?grants.slice(2):[]);
   console.log(`MSP journey ${width}: ${count} isolated clients, scoped signed delegation, exact restrictive templates, individual failures, revocation and independent custody passed`);
  }finally{for(const f of fixtures.reverse())await f.close()}
 }
-async function mspScreens(first,second,identity,other,width){
+async function mspScreens(first,second,identity,other,width,additional=[]){
+ const count=2+additional.length;
  const page=first.page;
  await page.setViewportSize({width,height:1000});await page.goto(first.origin+'/app/vault');
  if(new URL(page.url()).pathname==='/setup'){await page.getByLabel('I confirm this owner account is ready to use.').check();await page.getByRole('button',{name:'Finish setup',exact:true}).click()}
@@ -101,19 +102,19 @@ async function mspScreens(first,second,identity,other,width){
  await new ApiClient(first.owner).setSharingPolicy({externalEnabled:true,domains:['example.test'],defaultDays:4,maxDays:10});
  await page.goto(first.origin+'/app/fleet');await expect(page.getByRole('heading',{name:'No provider identity loaded',exact:true})).toBeVisible();
  await page.getByLabel('Import provider private identity JSON').setInputFiles({name:'provider-private.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(identity))});await expect(page.getByRole('heading',{name:'No companies loaded',exact:true})).toBeVisible();
- await page.getByLabel('Import company delegation JSON files').setInputFiles([localGrant,remoteGrant].map((g,i)=>({name:`client-${i+1}.json`,mimeType:'application/json',buffer:Buffer.from(JSON.stringify(g))})));
- await page.getByRole('button',{name:'Refresh all companies',exact:true}).click();await expect(page.getByText('All 2 company summaries refreshed.',{exact:true})).toBeVisible();await expect(page.getByText(/Health coverage: current-observed-company-expiry/)).toHaveCount(2);await expect(page.getByText(/Observed expired items: 1/)).toHaveCount(2);
+ await page.getByLabel('Import company delegation JSON files').setInputFiles([localGrant,remoteGrant,...additional].map((g,i)=>({name:`client-${i+1}.json`,mimeType:'application/json',buffer:Buffer.from(JSON.stringify(g))})));
+ await page.getByRole('button',{name:'Refresh all companies',exact:true}).click();await expect(page.getByText(`All ${count} company summaries refreshed.`,{exact:true})).toBeVisible();await expect(page.getByText(/Health coverage: current-observed-company-expiry/)).toHaveCount(count);await expect(page.getByText(/Observed expired items: 1/)).toHaveCount(count);
  if(output)await page.screenshot({path:join(output,`msp-fleet-summary-${width}.png`),fullPage:true});
  for(const checkbox of await page.getByRole('checkbox',{name:/Select this company for restrictive policy preview/}).all())await checkbox.check();
- await page.getByRole('button',{name:'Refresh and preview selected companies',exact:true}).click();await expect(page.getByRole('heading',{name:'Exact policy preview',exact:true})).toHaveCount(2);await expect(page.getByRole('button',{name:'Apply approved previews',exact:true})).toBeDisabled();
+ await page.getByRole('button',{name:'Refresh and preview selected companies',exact:true}).click();await expect(page.getByRole('heading',{name:'Exact policy preview',exact:true})).toHaveCount(count);await expect(page.getByRole('button',{name:'Apply approved previews',exact:true})).toBeDisabled();
  if(output)await page.screenshot({path:join(output,`msp-fleet-preview-${width}.png`),fullPage:true});
  await new ApiClient(second.owner).request('DELETE',`/msp/delegations/${remoteGrant.delegation}`,{confirmed:true});
  const approval=page.getByRole('checkbox',{name:/I reviewed each before and after policy below/});await approval.focus();await approval.press('Space');await page.getByRole('button',{name:'Apply approved previews',exact:true}).click();
- await expect(page.getByText('1 of 2 approved companies applied successfully. Review each failure below and refresh before another preview.',{exact:true})).toBeVisible();await expect(page.getByText(/Policy application was not verified/)).toBeVisible();assert.equal((await new ApiClient(second.owner).policies()).sharing.externalEnabled,true);assert.equal((await new ApiClient(first.owner).policies()).sharing.externalEnabled,false);
+ await expect(page.getByText(`${count-1} of ${count} approved companies applied successfully. Review each failure below and refresh before another preview.`,{exact:true})).toBeVisible();await expect(page.getByText(/Policy application was not verified/)).toBeVisible();assert.equal((await new ApiClient(second.owner).policies()).sharing.externalEnabled,true);assert.equal((await new ApiClient(first.owner).policies()).sharing.externalEnabled,false);
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(output)await page.screenshot({path:join(output,`msp-fleet-partial-${width}.png`),fullPage:true});
  // An incompatible provider identity cannot import this portfolio.
  await page.locator('summary').filter({hasText:/^Provider signing identity$/}).click();await page.getByRole('button',{name:'Clear identity and portfolio',exact:true}).click();await expect(page.getByRole('heading',{name:'No provider identity loaded',exact:true})).toBeVisible();
  await page.getByLabel('Import provider private identity JSON').setInputFiles({name:'other-provider.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(other))});await page.getByLabel('Import company delegation JSON files').setInputFiles({name:'foreign-delegation.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(localGrant))});await expect(page.getByRole('alert')).toContainText('provider mismatch');await expect(page.getByRole('heading',{name:'No companies loaded',exact:true})).toBeVisible();
  if(output)await page.screenshot({path:join(output,`msp-fleet-refusal-${width}.png`),fullPage:true});
 }
-if(import.meta.url===new URL(process.argv[1],'file:').href){for(const width of process.argv.includes('--scale')?[1440]:[1440,390])await mspJourney(width,{scale:process.argv.includes('--scale')})}
+if(import.meta.url===new URL(process.argv[1],'file:').href){for(const width of [1440,390])await mspJourney(width,{scale:process.argv.includes('--scale')})}
