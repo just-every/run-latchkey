@@ -65,6 +65,8 @@ export async function specialistBoundaryJourney(f, width) {
  const document = await items.save(vault, createItem('document', { title: 'Expiring recovery document', values: { description: 'synthetic-latchkey-6100', expiry: '2020-01-02' }, attachments: [await createAttachment('recovery.txt', new TextEncoder().encode('synthetic-latchkey-6101'))] }));
  assert.equal(await items.field(vault, cert.object, 'privateKey', 'reveal'), privateKey);
  assert.equal(new TextDecoder().decode((await items.attachment(vault, cert.object, (await items.current(vault, cert.object)).value.attachments[0].id)).data), certificate);
+ const ordinary=await items.save(vault,createItem('secure-note',{title:'Unleased temporary item',values:{note:'synthetic-latchkey-6106'}}));
+ await owner.eraseItem(vault,ordinary.object,{confirmed:true});await refused(items.current(vault,ordinary.object),'not_found');
  const alerts = await handoffs.expiry(vault);
  assert.deepEqual(alerts.alerts.map(row => row.object).sort(), [cert.object, document.object].sort());
  assert.ok(alerts.alerts.every(row => row.delivery === 'received-in-client' && row.state === 'expired'));
@@ -111,6 +113,11 @@ export async function specialistBoundaryJourney(f, width) {
   const unrelated=(await member.createVault()).vault;
   await refused(owner.call('checkout' + '/status',{vault:unrelated,object:credential.object}), 'not_found');
   const next=await requestApi(owner,'POST',`/vaults/${vault}/items/${credential.object}/checkout`,{expiresAt:Date.now()+60000,confirmed:true}); assert.ok(next.checkout);
+  assert.equal(await new TypedItems(member).field(vault,credential.object,'password','reveal'),'synthetic-latchkey-6111');
+  const sharedRotation=await items.save(vault,createItem('login',{title:'Shared privileged account',values:{password:'synthetic-latchkey-6112'},fields:[{id:'sessionReference',label:'Specialist session reference',type:'text',secret:true,value:opened.find(row=>row.category==='session').destination}]}),credential.object);
+  assert.equal((await requestApi(owner,'POST',`/vaults/${vault}/items/${credential.object}/checkout/complete`,{checkout:next.checkout,version:sharedRotation.version,confirmed:true})).providerState,'unchanged');
+  assert.equal(await new TypedItems(member).field(vault,credential.object,'password','reveal'),'synthetic-latchkey-6112');
+  await owner.call('checkout' + '/acquire',{...leaseInput,expiresAt:Date.now()+60000});
   await owner.eraseItem(vault,credential.object,{confirmed:true});
   assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM lky_checkouts WHERE vault_id=? AND object_id=?').bind(vault,credential.object).first()).n,0);
   await refused(owner.call('checkout' + '/status',{vault,object:credential.object}), 'not_found');

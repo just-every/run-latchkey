@@ -6,8 +6,8 @@ import { access } from './common.mjs';
 export async function inventory(ctx, vault, object) {
  const { all } = access(ctx);
  const entries = [
-  {table:'lky_checkouts',keys:['vault_id','object_id'],select:'SELECT vault_id,object_id FROM lky_checkouts WHERE vault_id=? AND object_id=?',args:[vault,object]},
   { table: 'lky_versions', keys: ['vault_id', 'object_id', 'version'], select: 'SELECT vault_id,object_id,version FROM lky_versions WHERE vault_id=? AND object_id=?', args: [vault, object] },
+  {table:'lky_checkouts',keys:['vault_id','object_id'],select:'SELECT vault_id,object_id FROM lky_checkouts WHERE vault_id=? AND object_id=?',args:[vault,object]},
   {table:'lky_lifecycle',keys:['vault_id','object_id'],select:'SELECT vault_id,object_id FROM lky_lifecycle WHERE vault_id=? AND object_id=?',args:[vault,object]},
   {table:'lky_bulk_operations',keys:['id'],select:'SELECT id FROM lky_bulk_operations WHERE tenant=? AND instr(plan,?)>0',args:[ctx.tenant,object]},
   { table: 'lky_link_challenges', keys: ['id'], select: 'SELECT c.id FROM lky_link_challenges c JOIN lky_links l ON l.id=c.link_id WHERE l.tenant=? AND l.vault_id=? AND l.object_id=?', args: [ctx.tenant, vault, object] },

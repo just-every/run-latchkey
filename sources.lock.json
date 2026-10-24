@@ -1514,7 +1514,7 @@
       "executable": false
     },
     "src/latchkey/erasure/inventory.mjs": {
-      "sha256": "7d497e3c40e87b711bb6f54e9a03c440ea0f834aff2d44b1192a8b8d31a4eb60",
+      "sha256": "2b6fa0cd51a4f42a6deb5be00dc3a21b59edec1b1572b50d71496f5af24f99ee",
       "executable": false
     },
     "src/latchkey/erasure/native-admission.d.mts": {
@@ -3250,7 +3250,7 @@
       "executable": false
     },
     "tests/browser/projects.mjs": {
-      "sha256": "9e7635c3ef4b28463e9eb6966372c95b98f8a48a929e17d0d78b3f2df00399ba",
+      "sha256": "27af405af11668deeb18a23de175acfd894ba1409efd9f186a684ed143bbe9d0",
       "executable": false
     },
     "tests/browser/reviews.mjs": {
