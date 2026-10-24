@@ -30,7 +30,7 @@
     },
     "base": {
       "repository": "runeditrun/base",
-      "commit": "d1249b3d696c4011e9c72de2097f3757436074a6"
+      "commit": "11f94fec479228d71ba6d7dd6ea7796c0d42c544"
     }
   },
   "assemblyTool": {
@@ -422,7 +422,7 @@
   "familyManifestSha256": "f8e10e1a3a090dbe826d034ac27965bfcfc14c4325967e683ec6afe1fca5857f",
   "files": {
     ".github/workflows/verify-nightly.yml": {
-      "sha256": "d04f294627153e6995c4b01abdb7f01d04ab494e6e1a1f3fe6d47ac67a7098c1",
+      "sha256": "dd4c13eeeaf81f9c3bba8c20e4508f486e2285c46081c522712d305db03ef48a",
       "mode": 420,
       "component": "latchkey",
       "repository": "family",
@@ -527,7 +527,7 @@
       "source": "export/SEED-COMMAND-CONTRACT.md"
     },
     "VERIFY-WORKFLOW.md": {
-      "sha256": "97d25a60dabe02ab4c30efbe226c8967b8fbac25b39f61467c2ef5a26186261d",
+      "sha256": "7d9e29a787387ce643e96f74e4b1764332b94733ceea1541c84e4633be1cf85e",
       "mode": 420,
       "component": "base",
       "repository": "base",
@@ -779,7 +779,7 @@
       "source": "editions/latchkey/scripts/verify-app.mjs"
     },
     "scripts/verify-ci.mjs": {
-      "sha256": "8f248fba8173ab34bd9db3b9288e0d48205cbd61326839a16f368a4f0240a9c7",
+      "sha256": "869b3eb0dd41a034002133d4c18ad20a345c752571989f087b5902fed3485984",
       "mode": 420,
       "component": "latchkey",
       "repository": "family",
@@ -828,14 +828,14 @@
       "source": "foundation/runtime/contract-filter.ts"
     },
     "src/base/contract-page.ts": {
-      "sha256": "aee83fd5243c8ccf267048a31de0b5d04099de8ee9a912b1bfa03f314bda975b",
+      "sha256": "7304a6ff58dc2fa11f1b8aaf47013b4a0fc8793ecae61a85b2602bb8443962ac",
       "mode": 420,
       "component": "base",
       "repository": "base",
       "source": "foundation/runtime/contract-page.ts"
     },
     "src/base/contract-style.ts": {
-      "sha256": "f4d420ed0749ad5d90937ce6fda7484aaba3336cd5192cb7763c0826d4d4f26d",
+      "sha256": "915ec4aeb742e883cb5c041fffb96b156a6a07ce37d19402a47742beb2efeb37",
       "mode": 420,
       "component": "base",
       "repository": "base",
@@ -912,7 +912,7 @@
       "source": "foundation/runtime/identity.ts"
     },
     "src/base/lobby.ts": {
-      "sha256": "9b43f26b89276e0551d8a1b0b10c7f98dece6ae0d0220b5f199a460c0f637636",
+      "sha256": "ca827c50f357a110153d94d5afa5116c99303abf2c2b5a292d4467636f134b07",
       "mode": 420,
       "component": "base",
       "repository": "base",
@@ -933,7 +933,7 @@
       "source": "foundation/runtime/rejected-response.ts"
     },
     "src/base/run-site.ts": {
-      "sha256": "bd85ff68d78fb8439821dcea6e6bff0f8279e1f086df7f7fabac0b65a02fc739",
+      "sha256": "882ae74d0ec50bcbf13a2ac722420ba8e7d464c7619ad592fe02f987877e0aa2",
       "mode": 420,
       "component": "base",
       "repository": "base",
@@ -1129,7 +1129,7 @@
       "source": "modules/ai/package.json"
     },
     "src/modules/demo/README.md": {
-      "sha256": "8fb9b98295fa59c8d4bdd6bd0d0b9940dc1113bb4a6d01813e76b5c878a445fc",
+      "sha256": "5d6dbd49a11d39876075d82c5e7b6a0ca9135de3bcc7bc6f52ecd080a9b84b82",
       "mode": 420,
       "component": "demo",
       "repository": "base",
@@ -1157,14 +1157,14 @@
       "source": "modules/demo/index.mjs"
     },
     "src/modules/demo/label.d.mts": {
-      "sha256": "96a4692d568cfb6fd5593c9d7d4296bced338e0f54c2d17f80ae1da105287285",
+      "sha256": "f6f859527d589be2104a82348adfce8bfc8f59076e49e5e545c4274be6af4918",
       "mode": 420,
       "component": "demo",
       "repository": "base",
       "source": "modules/demo/label.d.mts"
     },
     "src/modules/demo/label.mjs": {
-      "sha256": "5a879dba78bcebfa5f12ce79856998ac1f54706955a0346b94babed7da5a8cf5",
+      "sha256": "7ca757507f3d3495a8777f3058dfa55d946b1656d6e31bec1c9c774dde1f3fb3",
       "mode": 420,
       "component": "demo",
       "repository": "base",
@@ -1185,21 +1185,21 @@
       "source": "modules/demo/sockets.mjs"
     },
     "src/modules/demo/vite.d.mts": {
-      "sha256": "f43b152b4a993feaf96afdbc276922bfa20d64725ea0150a12ec6ec805a7c7b3",
+      "sha256": "6dc5833ed7bd9b1f60813bde8735cdc73d375afdeca4979105f1608ecba403b7",
       "mode": 420,
       "component": "demo",
       "repository": "base",
       "source": "modules/demo/vite.d.mts"
     },
     "src/modules/demo/vite.mjs": {
-      "sha256": "e38556e50c954814ee8e12278babd627d5cdd051a7ea2c242a61d6c5d84d12f8",
+      "sha256": "e9d55fc14de56dd3fdc5a3c3aee4db4b4f29b1fc5b6bbefbab882f0233dc605f",
       "mode": 420,
       "component": "demo",
       "repository": "base",
       "source": "modules/demo/vite.mjs"
     },
     "src/modules/dependencies/README.md": {
-      "sha256": "d60674a6d0f221787bdd5b46a9a4fa0e0cf916e5927ca78c7e5003390aa9d69b",
+      "sha256": "79e0eef431e8211ed74a14198a39ba201ad67db3de5e03310ac297834c691d22",
       "mode": 420,
       "component": "dependencies",
       "repository": "base",
@@ -1213,7 +1213,7 @@
       "source": "modules/dependencies/approval.mjs"
     },
     "src/modules/dependencies/auth.mjs": {
-      "sha256": "c1e864461c204731395555b0235a9cb058a8979fde84ae58abce559053ba27f0",
+      "sha256": "6dd0ee20fff4a25af3d5657a1c139af184b92f18776a21fac8906b99ee60957b",
       "mode": 420,
       "component": "dependencies",
       "repository": "base",
@@ -1227,21 +1227,21 @@
       "source": "modules/dependencies/authority.mjs"
     },
     "src/modules/dependencies/crypto.mjs": {
-      "sha256": "8dc3397e90b6f8ec1dad81ba68da6e1a5e966ddd8c1b9ace943e964098fea950",
+      "sha256": "2df5bdc44e90b067e8c44514d32e4a67672765a9641d345ebe99cb520dc05040",
       "mode": 420,
       "component": "dependencies",
       "repository": "base",
       "source": "modules/dependencies/crypto.mjs"
     },
     "src/modules/dependencies/index.d.mts": {
-      "sha256": "667f8fd42fb7319b5d43c5cced539ad0ad13bfca46887c45b52c1bee19ef7a22",
+      "sha256": "0528c460eb7f012bae6853bf2d9464aa381e8e1c66d0bd93cb41998eb063198d",
       "mode": 420,
       "component": "dependencies",
       "repository": "base",
       "source": "modules/dependencies/index.d.mts"
     },
     "src/modules/dependencies/index.mjs": {
-      "sha256": "6ce61db101b89b60fd69ea1eaa62da4226b18fcea5dd1ec46e42a73282309e89",
+      "sha256": "27a0aa745fdacac6deae5a58b35744e1db4db6ca3765bc95adffa21e1afa11ab",
       "mode": 420,
       "component": "dependencies",
       "repository": "base",
@@ -1283,7 +1283,7 @@
       "source": "modules/dependencies/schema/dependencies.sql"
     },
     "src/modules/dependencies/store.mjs": {
-      "sha256": "1d102b080d60634fe28da383c80d32a191b9b99cd94600168d6071ac25f0a606",
+      "sha256": "cd3c17373565ff5e4ffd1222299bcc9f8f018ec476db7def8d6d3aef52fa610f",
       "mode": 420,
       "component": "dependencies",
       "repository": "base",
@@ -1304,7 +1304,7 @@
       "source": "modules/mail/LICENSE"
     },
     "src/modules/mail/README.md": {
-      "sha256": "7a041dddfa7161acfb2d53c7fd4522551c5e0c8a6061a8001eefaf9d0539be33",
+      "sha256": "00154803c5caf2fa952b4b1a26f849dc44fd9fbbc23db18a5715eb592f63fef9",
       "mode": 420,
       "component": "mail",
       "repository": "base",
@@ -1346,7 +1346,7 @@
       "source": "modules/mail/package.json"
     },
     "src/modules/mail/pnpm-lock.yaml": {
-      "sha256": "0a2e74e7c7f6e3a92636845c04f8c9a8cad9005fbbcc5f4cc9d772b4831c4372",
+      "sha256": "4b8846fd11bb799afabcb07e44e9a3297086144ef18521fcfc458718233941e6",
       "mode": 420,
       "component": "mail",
       "repository": "base",
@@ -1822,7 +1822,7 @@
       "source": "modules/operator-auth/accounts/native.d.mts"
     },
     "src/modules/operator-auth/accounts/native.mjs": {
-      "sha256": "e1f15e6ef75b90c343af0a491ff45d342fe46ce027fb370eb045e80bf43947ef",
+      "sha256": "e5b05cdac03d401a9c1660c9100969780d1f5bcf30eb4e9a0024ad2182d1ea7d",
       "mode": 420,
       "component": "operator-auth",
       "repository": "base",
@@ -1850,7 +1850,7 @@
       "source": "modules/operator-auth/accounts/owner-signin.mjs"
     },
     "src/modules/operator-auth/accounts/provider-control.mjs": {
-      "sha256": "2fcd981aff97943e71d29a10ab09dfa879dc4707261df9953c7b25a0f22b9650",
+      "sha256": "4bb01cf08c3d7ebeb7eeb4068f11ba10d0c55e3f3bb7aeb336dfbf2b90e50efe",
       "mode": 420,
       "component": "operator-auth",
       "repository": "base",
@@ -1948,7 +1948,7 @@
       "source": "modules/operator-auth/accounts/schema/scheduled-policy.sql"
     },
     "src/modules/operator-auth/accounts/settings-page.mjs": {
-      "sha256": "1f7bfcbceb4c7fbc95a42b23fb62f869aaf02e0b5590ce75419c14235b48af8d",
+      "sha256": "63d7214adcdd9d706794f1eed57d79a143b1081aa61ce125e00593574a3fe544",
       "mode": 420,
       "component": "operator-auth",
       "repository": "base",
@@ -1983,7 +1983,7 @@
       "source": "modules/operator-auth/config.mjs"
     },
     "src/modules/operator-auth/conformance/README.md": {
-      "sha256": "523074b440f372c3f0c53b856ab25394b9be09711b2bbccb4b971b6d08dc56d8",
+      "sha256": "e8701354df0890f30629c6f4d965ba2503f6a4ef9cc696f37f93038608d7cd26",
       "mode": 420,
       "component": "operator-auth",
       "repository": "base",
@@ -2060,7 +2060,7 @@
       "source": "modules/operator-auth/dev/index.d.mts"
     },
     "src/modules/operator-auth/dev/index.mjs": {
-      "sha256": "7ebbdf35008281a0fbeb6a0783243b25b7302ebd414ff8c4af9e6db31f304f21",
+      "sha256": "fdf32e07f34130fd1a16ab0870bf8c73fb85c63575397e17d65a9761f9a8e2e3",
       "mode": 420,
       "component": "operator-auth",
       "repository": "base",
@@ -2088,28 +2088,28 @@
       "source": "modules/operator-auth/dev/sign-in-as.mjs"
     },
     "src/modules/operator-auth/docs/README.md": {
-      "sha256": "098a5dfc2f761b962a0dae818a6130931789efe34376cc4efbd92cfc50d6fb2e",
+      "sha256": "fb67546feb7e63ef53608e88bf8a937abb3db31d497291734c5e7c99ac70e649",
       "mode": 420,
       "component": "operator-auth",
       "repository": "base",
       "source": "modules/operator-auth/docs/README.md"
     },
     "src/modules/operator-auth/docs/native-accounts.md": {
-      "sha256": "068f1c664d3e6ac55942f2ea0db5791dd9656b3607b456aacb69c8c8480d701c",
+      "sha256": "9aca0b540aff3f134cef296d48267e4dd1536e5631119c5c49b4dc59e6ba6df0",
       "mode": 420,
       "component": "operator-auth",
       "repository": "base",
       "source": "modules/operator-auth/docs/native-accounts.md"
     },
     "src/modules/operator-auth/docs/tanstack-start.md": {
-      "sha256": "52557d15e2c9840fc92d0ef148d9f7f67ba7f5d718eabd5b7dbb80ab8dbff9e1",
+      "sha256": "d4ab9098ba759feb75a81ee76829af2e66a0b08cf0ef96a6f13aa6fd5e964f35",
       "mode": 420,
       "component": "operator-auth",
       "repository": "base",
       "source": "modules/operator-auth/docs/tanstack-start.md"
     },
     "src/modules/operator-auth/docs/vite-spa.md": {
-      "sha256": "ba684430f1a5adeae8bb7c28d02ca11a95a666242048a33256ab427d8fbce781",
+      "sha256": "37e2d7aab9fd1987c7c381c7c0a91724109e2e1a6c0af7f4fbbb528e2b603f3b",
       "mode": 420,
       "component": "operator-auth",
       "repository": "base",
@@ -2228,7 +2228,7 @@
       "source": "modules/operator-auth/identity/oidc/config.mjs"
     },
     "src/modules/operator-auth/identity/oidc/crypto.mjs": {
-      "sha256": "968787aa4d88b2d5323ef55dce0755d50e32502a6753505eaf3f6a0298078ff8",
+      "sha256": "51fa925f5467544784514f727ab4d27797e2486533c9edca896623566da93db2",
       "mode": 420,
       "component": "operator-auth",
       "repository": "base",
@@ -2298,7 +2298,7 @@
       "source": "modules/operator-auth/identity/principal.mjs"
     },
     "src/modules/operator-auth/index.d.mts": {
-      "sha256": "234369e19398f5dd19db672f239e836012ddbc7702f2f4d7c034d0e7128af36c",
+      "sha256": "2415587207b4e96e8d815cdeb16b8d0152e6d05247365a66f147e9f2a114c1e9",
       "mode": 420,
       "component": "operator-auth",
       "repository": "base",
@@ -2340,7 +2340,7 @@
       "source": "modules/operator-auth/owner-signin-grant.mjs"
     },
     "src/modules/operator-auth/page.mjs": {
-      "sha256": "29615dcd137433f9119085de757dd331662b9e0ef2130678658a54dcc63c2359",
+      "sha256": "546ff9279dcd282c7d4f2444e48297961634cfb03d7a2c0416fd63f15d342a42",
       "mode": 420,
       "component": "operator-auth",
       "repository": "base",
@@ -2368,7 +2368,7 @@
       "source": "modules/operator-auth/rejected-response.mjs"
     },
     "src/modules/operator-auth/routes.mjs": {
-      "sha256": "4f534707648a72d7fbe5b15bcbc10985a14de2f6872a0d8e7853d6fa782a838a",
+      "sha256": "e7544cc70c2f6e933630d6848af102b957002bdec9cf112227f2c163b96e10fd",
       "mode": 420,
       "component": "operator-auth",
       "repository": "base",
@@ -2611,6 +2611,34 @@
       "component": "latchkey",
       "repository": "family",
       "source": "editions/latchkey/wrangler.jsonc"
+    },
+    "src/modules/operator-auth/accounts/provider-setup.mjs": {
+      "source": "modules/operator-auth/accounts/provider-setup.mjs",
+      "sha256": "ea40b86f6698e75f32e85d3ef14ff722b7c6b5e09c48c43b0bd2bf6f4193fdc7",
+      "mode": 420,
+      "component": "operator-auth",
+      "repository": "base"
+    },
+    "src/modules/operator-auth/dev/refusal.mjs": {
+      "source": "modules/operator-auth/dev/refusal.mjs",
+      "sha256": "8769e0122454322bc3ab1854d053b26f5ef82a3eb5576108955d30f571e34eed",
+      "mode": 420,
+      "component": "operator-auth",
+      "repository": "base"
+    },
+    "src/modules/operator-auth/identity/oidc/aes-gcm.mjs": {
+      "source": "modules/operator-auth/identity/oidc/aes-gcm.mjs",
+      "sha256": "afe49eda22b936c7582c2db203c529861f16492fd96267fe6daca91683aee103",
+      "mode": 420,
+      "component": "operator-auth",
+      "repository": "base"
+    },
+    "src/modules/operator-auth/representation.mjs": {
+      "source": "modules/operator-auth/representation.mjs",
+      "sha256": "206c3ae542e00687c2ee6c09a2e3466827c7eb58a97d10779cbeca1af945dcb3",
+      "mode": 420,
+      "component": "operator-auth",
+      "repository": "base"
     }
   }
 }

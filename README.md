@@ -22,6 +22,6 @@ If the installer prints a PATH command, run it before the second line. Already h
 
 Open the private sign-in link printed by rer on this computer. Finish first-run setup at `/setup`. The installed `/` is Base's shared Lobby. `RER_SITE` names the separate static site with its homepage, `/run`, `/docs` (built from `docs/`) and `/contract`; the contract page reads the root CONTRACT.md through Base's parser.
 
-This checkout pins `@runeditrun/rer` **0.2.79**, Node **22.20.0** and pnpm **10.12.4**. Read [RUN-LOCALLY.md](RUN-LOCALLY.md), [OPERATIONS.md](OPERATIONS.md) and [SOURCE.md](SOURCE.md). Local mail is suppressed. Private runtime state and credentials stay outside Git. MIT licensed.
+This checkout pins `@runeditrun/rer` **0.2.80**, Node **22.20.0** and pnpm **10.12.4**. Read [RUN-LOCALLY.md](RUN-LOCALLY.md), [OPERATIONS.md](OPERATIONS.md) and [SOURCE.md](SOURCE.md). Local mail is suppressed. Private runtime state and credentials stay outside Git. MIT licensed.
 
 The hosted installation entry is https://run-latchkey.com/run.
