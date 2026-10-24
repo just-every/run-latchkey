@@ -54,13 +54,18 @@ old copies. Delegated checkout and provider verification are not implemented.
    `unchanged`; Latchkey does not claim a successful provider login or rotation.
 
 `checkout-status` reports checked-out, expired-rotation-required or available.
-Expiry never silently releases a credential. Completion after expiry still needs
+Expiry never silently releases a credential; expired status also reports `stale: true`. Completion after expiry still needs
 a replacement version. Interrupted replacement can be inspected and completed;
-repeated or stale completion refuses. Checkout metadata contains only identifiers,
+repeated or stale completion refuses. The owner can explicitly release an active
+or expired lease with `checkout-release`, supplying `vault`, `object`, `checkout`,
+`confirmed: true` and a `reason` of `ceremony-cancelled`, `holder-unavailable` or
+`replacement-pending`. These fixed reasons prevent accidental secret disclosure
+in audit. The attributed audit action records `checkout_released:` followed by
+the reason. Release does not claim a replacement version or provider rotation. Checkout metadata contains only identifiers,
 a version and a deadline. Item erasure removes it, and installation archives
 exclude live checkout authority.
 
 The matching REST resources are documented by the installed API catalogue:
 `GET` and `POST` on `./api/latchkey/v1/vaults/{vault}/items/{object}/checkout`,
-and `POST` on the same resource followed by `./complete`. Existing signed device
+and `POST` on the same resource followed by `./complete` or `./release`. Existing signed device
 authentication, current authority checks and transaction fences apply.

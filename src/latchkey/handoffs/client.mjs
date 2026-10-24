@@ -20,7 +20,7 @@ function reference(input) {
 export class HandoffClient {
  constructor(client) { this.client = client; this.items = new TypedItems(client); }
  async record(vault, input, { confirmed = false } = {}) {
-  check(confirmed, 'handoff_confirmation_required');
+  check(confirmed === true, 'handoff_confirmation_required');
   input = reference(input);
   const descriptor = (await this.client.call('vaults', {})).find(row => row.id === vault);
   check(descriptor?.owner === this.client.profile.account && descriptor.kind === 'company', 'handoff_owner_required');

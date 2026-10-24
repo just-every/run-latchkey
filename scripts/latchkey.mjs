@@ -120,6 +120,7 @@ try {
    case 'item-expiry': { const { HandoffClient } = await import('../src/latchkey/handoffs/client.mjs'); result=await new HandoffClient(client).expiry(input.vault,{withinDays:input.withinDays ?? 30}); break; }
    case 'checkout-status': result=await client.call('checkout' + '/status',{vault:input.vault,object:input.object}); break;
    case 'checkout-acquire': result=await client.call('checkout' + '/acquire',{vault:input.vault,object:input.object,expiresAt:input.expiresAt,confirmed:input.confirmed}); break;
+   case 'checkout-release': result=await client.call('checkout' + '/release',{vault:input.vault,object:input.object,checkout:input.checkout,reason:input.reason,confirmed:input.confirmed}); break;
    case 'checkout-complete': result=await client.call('checkout' + '/complete',{vault:input.vault,object:input.object,checkout:input.checkout,version:input.version,confirmed:input.confirmed}); break;
    case 'identity': result = { ...client.identity(), fingerprint: await client.identity().fingerprint, serverKey: profile.serverKey }; break;
    case 'vault-create': result = await client.createVault({kind: input.kind ?? 'company'}); break;

@@ -82,10 +82,13 @@ export async function specialistBoundaryJourney(f, width) {
  await refused(handoffs.record(vault, { ...refs, category: 'pki', provider: 'venafi', source: 'synthetic-latchkey-6103' }, { confirmed: true }), 'opaque_reference_required');
  await refused(handoffs.record(vault, { ...refs, category: 'pki', provider: 'venafi', origin: refs.origin + '/?secret=synthetic-latchkey-6104' }, { confirmed: true }), 'handoff_origin_required');
  await refused(handoffs.record(vault, { ...refs, category: 'pki', provider: 'venafi' }), 'handoff_confirmation_required');
+ await refused(handoffs.record(vault, { ...refs, category: 'pki', provider: 'venafi' }, { confirmed: 'true' }), 'handoff_confirmation_required');
  const tampered=opened.find(row=>row.category==='spend');const tamperedRecord=await items.current(vault,tampered.object);tamperedRecord.value.fields.push({id:'payrollData',label:'Payroll data',type:'secret',secret:true,value:'synthetic-latchkey-6105'});await items.save(vault,tamperedRecord.value,tampered.object);await refused(handoffs.open(vault,tampered.object),'handoff_not_found');
  const payloads = JSON.stringify(opened); for (const secret of [privateKey, certificate, 'synthetic-latchkey-6101']) assert.ok(!payloads.includes(secret));
  const credential = await items.save(vault, createItem('login', { title: 'Shared privileged account', values: { password: 'synthetic-latchkey-6110' } }));
  const leaseInput = { vault, object: credential.object, expiresAt: Date.now() + 60000, confirmed: true };
+ await refused(owner.call('checkout' + '/acquire', {...leaseInput, confirmed:false}), 'checkout_confirmation_required');
+ await refused(owner.call('checkout' + '/acquire', {...leaseInput, expiresAt:Date.now()+3700000}), 'invalid_checkout_expiry');
  const races = await Promise.allSettled([owner.call('checkout' + '/acquire', leaseInput), owner.call('checkout' + '/acquire', leaseInput)]);
  assert.equal(races.filter(row => row.status === 'fulfilled').length, 1);
  const lease = races.find(row => row.status === 'fulfilled').value;
@@ -93,7 +96,8 @@ export async function specialistBoundaryJourney(f, width) {
  assert.equal((await requestApi(owner,'GET',`/vaults/${vault}/items/${credential.object}/checkout`)).checkout,lease.checkout);
  await refused(owner.call('checkout' + '/complete', { vault, object: credential.object, checkout: lease.checkout, version: 1, confirmed: true }), 'checkout_rotation_required');
  await f.db.prepare('UPDATE lky_checkouts SET expires_at=? WHERE id=?').bind(Date.now()-1, lease.checkout).run();
- assert.equal((await owner.call('checkout' + '/status', { vault, object: credential.object })).state, 'expired-rotation-required');
+ const expired = await owner.call('checkout' + '/status', { vault, object: credential.object });
+ assert.equal(expired.state, 'expired-rotation-required'); assert.equal(expired.stale,true); assert.equal(expired.checkout,lease.checkout);
  await refused(owner.call('checkout' + '/acquire', { ...leaseInput, expiresAt: Date.now()+60000 }), 'checkout_rotation_required');
  const changed = await items.save(vault, createItem('login', { title: 'Shared privileged account', values: { password: 'synthetic-latchkey-6111' }, fields: [{id:'sessionReference',label:'Specialist session reference',type:'text',secret:true,value:opened.find(row=>row.category==='session').destination}] }), credential.object);
  const completed = await requestApi(owner,'POST',`/vaults/${vault}/items/${credential.object}/checkout/complete`,{checkout:lease.checkout,version:changed.version,confirmed:true});
@@ -114,8 +118,22 @@ export async function specialistBoundaryJourney(f, width) {
   await refused(owner.call('checkout' + '/status',{vault:unrelated,object:credential.object}), 'not_found');
   const next=await requestApi(owner,'POST',`/vaults/${vault}/items/${credential.object}/checkout`,{expiresAt:Date.now()+60000,confirmed:true}); assert.ok(next.checkout);
   assert.equal(await new TypedItems(member).field(vault,credential.object,'password','reveal'),'synthetic-latchkey-6111');
+  await f.db.prepare('UPDATE lky_checkouts SET expires_at=? WHERE id=?').bind(Date.now()-1,next.checkout).run();
+  assert.equal((await owner.call('checkout' + '/status',{vault,object:credential.object})).stale,true);
+  assert.equal(await new TypedItems(member).field(vault,credential.object,'password','reveal'),'synthetic-latchkey-6111');
+  const releaseInput={vault,object:credential.object,checkout:next.checkout,reason:'holder-unavailable',confirmed:true};
+  await refused(member.call('checkout' + '/release',releaseInput),'checkout_owner_required');
+  await refused(owner.call('checkout' + '/release',{...releaseInput,confirmed:false}),'checkout_confirmation_required');
+  await refused(owner.call('checkout' + '/release',{...releaseInput,reason:'synthetic-latchkey-6113'}),'checkout_release_reason_required');
+  assert.equal((await owner.call('checkout' + '/status',{vault,object:credential.object})).checkout,next.checkout);
+  const released=await requestApi(owner,'POST',`/vaults/${vault}/items/${credential.object}/checkout/release`,{checkout:next.checkout,reason:releaseInput.reason,confirmed:true});
+  assert.equal(released.state,'available'); assert.equal(released.providerState,'unchanged');
+  const releaseAudit=(await requestApi(owner,'GET','/events')).find(row=>row.action==='checkout_released:holder-unavailable'&&row.object===credential.object);
+  assert.ok(releaseAudit);assert.equal(releaseAudit.actor,owner.profile.account);assert.equal(releaseAudit.device,owner.profile.device);
+  await refused(owner.call('checkout' + '/release',releaseInput),'checkout_changed');
+  const renewed=await requestApi(owner,'POST',`/vaults/${vault}/items/${credential.object}/checkout`,{expiresAt:Date.now()+60000,confirmed:true});
   const sharedRotation=await items.save(vault,createItem('login',{title:'Shared privileged account',values:{password:'synthetic-latchkey-6112'},fields:[{id:'sessionReference',label:'Specialist session reference',type:'text',secret:true,value:opened.find(row=>row.category==='session').destination}]}),credential.object);
-  assert.equal((await requestApi(owner,'POST',`/vaults/${vault}/items/${credential.object}/checkout/complete`,{checkout:next.checkout,version:sharedRotation.version,confirmed:true})).providerState,'unchanged');
+  assert.equal((await requestApi(owner,'POST',`/vaults/${vault}/items/${credential.object}/checkout/complete`,{checkout:renewed.checkout,version:sharedRotation.version,confirmed:true})).providerState,'unchanged');
   assert.equal(await new TypedItems(member).field(vault,credential.object,'password','reveal'),'synthetic-latchkey-6112');
   await owner.call('checkout' + '/acquire',{...leaseInput,expiresAt:Date.now()+60000});
   await owner.eraseItem(vault,credential.object,{confirmed:true});
@@ -132,8 +150,8 @@ export async function specialistBoundaryJourney(f, width) {
   const profile=join(directory,'profile.json'); await writeFile(profile,JSON.stringify(owner.profile),{mode:0o600});
   const cli = input => new Promise((resolve,reject)=>{ const child=spawn(process.execPath,['scripts/latchkey.mjs','item-expiry'],{env:{...process.env,NODE_EXTRA_CA_CERTS:f.caFile},stdio:['pipe','pipe','pipe']}); let stdout='',stderr=''; child.stdout.on('data',part=>stdout+=part);child.stderr.on('data',part=>stderr+=part);child.on('error',reject);child.on('close',code=>code===0?resolve(JSON.parse(stdout)):reject(Error('CLI expiry failed: '+stderr)));child.stdin.end(JSON.stringify(input)); });
   assert.equal((await cli({profile,password:f.password,vault})).alerts.length,2);
-  const stored=JSON.stringify((await f.db.prepare('SELECT envelope FROM lky_versions WHERE vault_id=?').bind(vault).all()).results);
-  for(const secret of [privateKey,certificate,'synthetic-latchkey-6101',refs.origin])assert.ok(!stored.includes(secret));
+  const stored=JSON.stringify({read:await requestApi(owner,'GET',`/vaults/${vault}/items`),audit:await requestApi(owner,'GET','/events'),archive});
+  for(const secret of [privateKey,certificate,'synthetic-latchkey-6101',refs.origin,refs.destination,refs.owner])assert.ok(!stored.includes(secret));
   await f.page.setViewportSize({width,height:1000}); await f.page.goto(f.origin+'/app/vault');
   if(new URL(f.page.url()).pathname==='/setup'){await f.page.getByLabel('I confirm this owner account is ready to use.').check();await f.page.getByRole('button',{name:'Finish setup',exact:true}).click();await f.page.goto(f.origin+'/app/vault');}
   await f.page.getByLabel('Profile file').setInputFiles({name:'profile.json',mimeType:'application' + '/json',buffer:Buffer.from(JSON.stringify(owner.profile))});await f.page.getByLabel('Master password',{exact:true}).fill(f.password);await f.page.getByRole('button',{name:'Unlock vault',exact:true}).click();await f.page.getByLabel('Vault',{exact:true}).selectOption(vault);

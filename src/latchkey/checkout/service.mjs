@@ -11,7 +11,7 @@ export async function checkoutAuthenticated(route, input, ctx) {
  const latest = await first('SELECT MAX(version) AS version FROM lky_versions WHERE vault_id=? AND object_id=?', vault.id, object);
  need(latest?.version, 'not_found', 404);
  const current = await first('SELECT * FROM lky_checkouts WHERE vault_id=? AND object_id=?', vault.id, object);
- const view = row => row ? { checkout: row.id, holder: row.holder, version: row.version, expiresAt: row.expires_at, state: row.expires_at <= ctx.now ? 'expired-rotation-required' : 'checked-out', providerState: 'unchanged', pastCopies: 'cannot-be-recalled' } : { state: 'available', providerState: 'unchanged' };
+ const view = row => row ? { checkout: row.id, holder: row.holder, version: row.version, expiresAt: row.expires_at, state: row.expires_at <= ctx.now ? 'expired-rotation-required' : 'checked-out', stale: row.expires_at <= ctx.now, providerState: 'unchanged', pastCopies: 'cannot-be-recalled' } : { state: 'available', providerState: 'unchanged' };
  if (route === 'checkout' + '/status') { exact(input, ['vault', 'object']); return view(current); }
  need(input.confirmed === true, 'checkout_confirmation_required', 403);
  if (route === 'checkout' + '/acquire') {
@@ -21,6 +21,15 @@ export async function checkoutAuthenticated(route, input, ctx) {
   const row = { id: id(), holder: ctx.actor, version: latest.version, expires_at: input.expiresAt };
   await guarded(ctx, [vault], [stmt('INSERT INTO lky_checkouts VALUES(?,?,?,?,?,?)', vault.id, object, row.id, ctx.actor, latest.version, row.expires_at), event('credential_checked_out', object)], [guard('NOT EXISTS(SELECT 1 FROM lky_checkouts WHERE vault_id=? AND object_id=?)', [vault.id, object])]);
   return view(row);
+ }
+ if (route === 'checkout' + '/release') {
+  exact(input, ['vault', 'object', 'checkout', 'reason', 'confirmed']);
+  need(current && current.id === uuid(input.checkout), 'checkout_changed', 409);
+  // Fixed reasons keep credential values and free-form identifiers out of audit.
+  need(['ceremony-cancelled', 'holder-unavailable', 'replacement-pending'].includes(input.reason), 'checkout_release_reason_required');
+  const action = 'checkout_released:' + input.reason;
+  await guarded(ctx, [vault], [stmt('DELETE FROM lky_checkouts WHERE vault_id=? AND object_id=?', vault.id, object), event(action, object)], [guard('EXISTS(SELECT 1 FROM lky_checkouts WHERE vault_id=? AND object_id=? AND id=?)', [vault.id, object, current.id])]);
+  return { state: 'available', providerState: 'unchanged', verification: 'owner-release-without-provider-verification', reason: input.reason };
  }
  if (route === 'checkout' + '/complete') {
   exact(input, ['vault', 'object', 'checkout', 'version', 'confirmed']);
