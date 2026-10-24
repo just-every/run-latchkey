@@ -2,6 +2,7 @@ import { access, need } from './subject-common.mjs';
 // Reviewed source inventory, not an allow-all prefix. A new domain or column
 // needs an erasure mapping before person erasure can honestly proceed.
 const schema = {
+ lky_checkouts:'vault_id object_id id holder version expires_at',
  lky_msp_captures:'id tenant vault owner device generation operator_version epoch revision observed_at total_active_items with_expiry expired_count active',
  lky_msp_delegations:'id tenant provider public_key console_origin scopes owner device generation operator_version expires_at created_at revoked_at',
  lky_msp_nonces:'delegation nonce expires_at',lky_msp_previews:'id delegation tenant hash before_policy after_policy policy_mutation expires_at operation',lky_msp_commercial:'tenant owner status reference recorded_at',

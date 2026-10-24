@@ -1,5 +1,8 @@
 // Canonical handlers remain the sole authority for rights, encryption and CAS.
 export const routes = [
+ ['GET','/vaults/{vault}/items/{object}/checkout','checkout' + '/status',[]],
+ ['POST','/vaults/{vault}/items/{object}/checkout','checkout' + '/acquire',['expiresAt','confirmed']],
+ ['POST','/vaults/{vault}/items/{object}/checkout/complete','checkout' + '/complete',['checkout','version','confirmed']],
  ['POST','/msp/posture','msp/posture/capture',['vault','epoch','revision','observedAt','totalActiveItems','withExpiry','expiredCount','confirmed']],
  ['GET','/msp/delegations','msp/list',[]],
  ['POST','/msp/delegations','msp/grant',['provider','publicKey','consoleOrigin','scopes','expiresAt','confirmed']],

@@ -13,7 +13,8 @@ export const itemTypes = Object.freeze({
  server: [field('host'), field('port', 'number'), field('username'), secret('password'), secret('privateKey')],
  wifi: [field('ssid'), field('security'), secret('password')],
  'software-license': [field('product'), field('licensedTo'), secret('licenseKey'), field('expiry', 'date')],
- document: [field('description', 'multiline')],
+ certificate: [field('certificate', 'multiline', true), secret('privateKey'), secret('passphrase'), field('expiry', 'date')],
+ document: [field('description', 'multiline'), field('expiry', 'date')],
 });
 for (const definitions of Object.values(itemTypes)) { for (const definition of definitions) Object.freeze(definition); Object.freeze(definitions); }
 export function createItem(type, input = {}) {

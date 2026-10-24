@@ -115,6 +115,12 @@ try {
    case 'project-create': {const {ProjectClient}=await import('../src/latchkey/projects/client.mjs');result=await new ProjectClient(client).create({name:input.name,vault:input.vault});break;}
    case 'project-environment': {const {ProjectClient}=await import('../src/latchkey/projects/client.mjs');result=await new ProjectClient(client).createEnvironment(input.project,input.environment);break;}
    case 'project-set': {const {ProjectClient}=await import('../src/latchkey/projects/client.mjs');result=await new ProjectClient(client).set(input.environment,input.path,input.value,{expectedVersion:input.expectedVersion});break;}
+   case 'handoff-record': { const { HandoffClient } = await import('../src/latchkey/handoffs/client.mjs'); result = await new HandoffClient(client).record(input.vault,input.handoff,{confirmed:input.confirmed}); break; }
+   case 'handoff-open': { const { HandoffClient } = await import('../src/latchkey/handoffs/client.mjs'); await writePrivate(input.output,await new HandoffClient(client).open(input.vault,input.object)); result={written:true}; break; }
+   case 'item-expiry': { const { HandoffClient } = await import('../src/latchkey/handoffs/client.mjs'); result=await new HandoffClient(client).expiry(input.vault,{withinDays:input.withinDays ?? 30}); break; }
+   case 'checkout-status': result=await client.call('checkout' + '/status',{vault:input.vault,object:input.object}); break;
+   case 'checkout-acquire': result=await client.call('checkout' + '/acquire',{vault:input.vault,object:input.object,expiresAt:input.expiresAt,confirmed:input.confirmed}); break;
+   case 'checkout-complete': result=await client.call('checkout' + '/complete',{vault:input.vault,object:input.object,checkout:input.checkout,version:input.version,confirmed:input.confirmed}); break;
    case 'identity': result = { ...client.identity(), fingerprint: await client.identity().fingerprint, serverKey: profile.serverKey }; break;
    case 'vault-create': result = await client.createVault({kind: input.kind ?? 'company'}); break;
    case 'put': result = await client.put(input.vault, input.value, input.object); break;

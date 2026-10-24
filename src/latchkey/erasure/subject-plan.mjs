@@ -35,6 +35,7 @@ export async function subjectPlan(ctx, subject) {
  const received=await all('SELECT DISTINCT s.vault_id FROM lky_shares s JOIN lky_share_keys k ON k.share_id=s.id WHERE k.account_id=?',accountId);
  for(const row of received)affectedIds.add(row.vault_id);
  await select('lky_vault_capabilities',`account_id=? OR vault_id IN (${own})`,[accountId,...ownArgs]);
+ await select('lky_checkouts',`holder=? OR vault_id IN (${own})`,[accountId,...ownArgs]);
  await select('lky_lifecycle',`vault_id IN (${own})`,ownArgs);
  await select('lky_lifecycle',`vault_id NOT IN (${own}) AND instr(proof,?)>0`,[...ownArgs,accountId],'redact',row=>({...row,proof:null,retention_active:0}));
  await select('lky_bulk_operations',`actor=? OR instr(plan,?)>0`,[accountId,accountId]);
