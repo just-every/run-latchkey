@@ -1,19 +1,18 @@
 # Getting started
 
-Latchkey runs on your own computer with two lines. You become its owner, and its data stays on that computer.
+Latchkey runs on your own computer with one line. You become its owner, and its data stays on that computer.
 
 ## Run Latchkey on your computer
 
-Install `rer`, the command that runs Latchkey, then start Latchkey:
+Open a terminal and run this line. It installs `rer`, the command that runs Latchkey, then starts Latchkey:
 
 ```sh
-curl -fsSL https://runeditrun.com/install.sh | sh
-rer dev just-every/run-latchkey
+curl -fsSL https://runeditrun.com/install.sh | sh -s -- dev just-every/run-latchkey
 ```
 
-The installer puts `rer` in your home folder, with its own Node if you have no Node 22 or later. If its last line is a command that puts `rer` on your PATH, run that command before the second line.
+Git is required; rer brings Node and pnpm. The installer puts `rer` in your home folder, with its own Node if you have no Node 22 or later. If its last line is a command that puts `rer` on your PATH, run that command too.
 
-Already have Node 22 or later? This one line does both steps:
+Already have Node 22 or later? This does the same:
 
 ```sh
 npx -y @runeditrun/rer dev just-every/run-latchkey
@@ -21,7 +20,7 @@ npx -y @runeditrun/rer dev just-every/run-latchkey
 
 `rer dev` clones Latchkey into a folder named `run-latchkey`, installs everything, makes you the owner and starts it. When it is ready it prints the address it serves and a private link that opens Latchkey signed in as you. Open that link only on this computer, and keep it to yourself: anyone who has it is signed in as the owner.
 
-The first run takes a few minutes. Runs on macOS, Linux or Windows with WSL2, with git.
+The first run takes a few minutes. Runs on macOS, Linux or Windows with WSL2.
 
 ## Finish setup
 
@@ -31,7 +30,7 @@ The first time you sign in, Latchkey opens `/setup`: review the owner account's 
 
 ## Start it again later
 
-In a terminal, `rer dev` stays in the foreground; press Ctrl-C to stop it. To start the same installation again:
+In a terminal, `rer dev` stays in the foreground; press Ctrl-C to stop it. To start the same installation again, run the same line from the same folder, or:
 
 ```sh
 cd run-latchkey && rer dev
