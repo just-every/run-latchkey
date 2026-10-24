@@ -1,3 +1,4 @@
+import { canonicalJson } from '../reviews/common.mjs';
 // Client-side transport only. The caller owns preview, signature verification,
 // authorization, erasure checks and durable delivery obligations.
 const providers = {
@@ -49,19 +50,22 @@ function failed(response, stage, reference = null) {
  * A transport failure/invalid success body is ambiguous: inspect the provider
  * before another dispatch (retryable=false), since POSTs are not idempotent.
  */
-export async function deliverEvidence({ destination, endpoint, credential, target, workspace, packageValue, coveredFrom, coveredTo, fetcher = fetch, resume }) {
+export async function deliverEvidence({ destination, endpoint, credential, target, workspace, packageValue, coveredFrom, coveredTo, fetcher = fetch, resume, beforeMutation, checkpoint }) {
   let stage = { name: 'validate' }, reference = null;
   try {
     const base = baseUrl(destination, endpoint), auth = authorization(destination, credential);
     if (!present(target) || !date(coveredFrom) || !date(coveredTo) || coveredFrom > coveredTo) throw new Error('Invalid target or period');
     if (!packageValue || typeof packageValue !== 'object' || Array.isArray(packageValue)) throw new Error('Invalid signed package');
     if (destination === 'Drata' && (!Number.isSafeInteger(Number(workspace)) || Number(workspace) <= 0)) throw new Error('Invalid workspace');
-    const bytes = JSON.stringify(packageValue);
+    const bytes = canonicalJson(packageValue);
     const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(bytes))), b => b.toString(16).padStart(2, '0')).join('');
     const binding = JSON.stringify([destination, base, target, workspace ?? null, coveredFrom, coveredTo, digest]);
     if (resume && (resume.binding !== binding || !present(resume.uploadReference) || !['Vanta', 'Drata'].includes(destination) || resume.name !== (destination === 'Vanta' ? 'submit' : 'create'))) throw new Error('Invalid checkpoint');
     stage = { name: 'upload', binding, ...(resume ? { uploadReference: resume.uploadReference } : {}) };
-    const post = (path, body, contentType) => fetcher(base + path, { method: 'POST', redirect: 'error', credentials: 'omit', referrerPolicy: 'no-referrer', headers: { Authorization: auth, ...(contentType ? { 'Content-Type': contentType } : {}) }, ...(body === undefined ? {} : { body }) });
+    const post = async (path, body, contentType) => {
+      await beforeMutation?.({ ...stage });
+      return fetcher(base + path, { method: 'POST', redirect: 'error', credentials: 'omit', referrerPolicy: 'no-referrer', headers: { Authorization: auth, ...(contentType ? { 'Content-Type': contentType } : {}) }, ...(body === undefined ? {} : { body }) });
+    };
     const id = encodeURIComponent(target);
     if (destination === 'Evidence') {
       const body = form(bytes);
@@ -81,6 +85,7 @@ export async function deliverEvidence({ destination, endpoint, credential, targe
         const value = await json(response);
         if (![200, 201].includes(response.status) || !present(value?.id) || !present(value.fileName) || !present(value.mimeType) || !present(value.creationDate)) return result('backlog', response.status, { ...stage, name: 'unverified-response' });
         stage.uploadReference = value.id;
+        await checkpoint?.({ ...stage });
       }
       reference = stage.uploadReference; stage = { ...stage, name: 'submit' };
       const response = await post('/v1/documents/' + id + '/submit');
@@ -96,6 +101,7 @@ export async function deliverEvidence({ destination, endpoint, credential, targe
         const value = await json(response);
         if (response.status !== 201 || !present(value?.fileKey)) return result('backlog', response.status, { ...stage, name: 'unverified-response' });
         stage.uploadReference = value.fileKey;
+        await checkpoint?.({ ...stage });
       }
       stage = { ...stage, name: 'create' };
       const response = await post(path + '/evidence', JSON.stringify({ name: target.slice(0, 191), artifacts: [{ type: 'S3_FILE', artifactName: filename, fileKey: stage.uploadReference, filedAt: coveredTo }] }), 'application/json');
@@ -115,4 +121,45 @@ export async function deliverEvidence({ destination, endpoint, credential, targe
   } catch {
     return result(stage.name === 'validate' ? 'rejected' : 'backlog', null, stage, reference, false);
   }
+}
+
+
+const timestamp = value => typeof value === 'string' && Number.isFinite(Date.parse(value));
+const nullableText = value => value === null || typeof value === 'string';
+const uploadedFile = row => row && present(row.id) && nullableText(row.fileName) && typeof row.title === 'string'
+ && nullableText(row.description) && typeof row.mimeType === 'string' && typeof row.url === 'string'
+ && timestamp(row.creationDate) && timestamp(row.updatedDate)
+ && (row.deletionDate === null || timestamp(row.deletionDate)) && (row.effectiveDate === null || timestamp(row.effectiveDate))
+ && (row.uploadedBy === null || present(row.uploadedBy?.id) && ['USER', 'APPLICATION'].includes(row.uploadedBy.type));
+// Read-only, bounded inspection. Finding a retained upload does not prove that
+// a later submit succeeded, and never authorizes repeating that mutation.
+export async function inspectVantaUpload({ endpoint, credential, target, uploadReference, fetcher = fetch, beforeRead }) {
+ let cursor = null, pages = 0; const seen = new Set();
+ try {
+  const base = baseUrl('Vanta', endpoint), auth = authorization('Vanta', credential);
+  if (!present(target) || !present(uploadReference)) throw Error();
+  for (let page = 0; page < 10; page++) {
+   await beforeRead?.();
+   const query = new URLSearchParams({ pageSize: '100', ...(cursor ? { pageCursor: cursor } : {}) });
+   pages++;
+   const response = await fetcher(base + '/v1/documents/' + encodeURIComponent(target) + '/uploads?' + query, {
+    method: 'GET', redirect: 'error', credentials: 'omit', referrerPolicy: 'no-referrer', headers: { Authorization: auth },
+   });
+   if (response.status !== 200) return { presence: 'unknown', status: response.status, pages: page + 1 };
+   const value = await json(response), data = value?.results?.data, info = value?.results?.pageInfo;
+   if (!Array.isArray(data) || data.length > 100 || !data.every(uploadedFile) || typeof info?.hasNextPage !== 'boolean'
+    || typeof info.hasPreviousPage !== 'boolean' || !nullableText(info.startCursor) || !nullableText(info.endCursor)) throw Error();
+   const matches = data.filter(row => row?.id === uploadReference);
+   if (matches.length > 1) throw Error();
+   if (matches.length === 1) {
+    const row = matches[0];
+    return { presence: row.fileName === filename && row.mimeType === 'application/json' && row.deletionDate === null ? 'found' : 'unknown',
+     providerReference: uploadReference, status: 200, pages: page + 1, observedAt: Date.now(), provesSubmit: false };
+   }
+   if (!info.hasNextPage) return { presence: 'not-found', status: 200, pages: page + 1, provesSubmit: false };
+   if (!present(info.endCursor) || info.endCursor.length > 2000 || seen.has(info.endCursor)) throw Error();
+   cursor = info.endCursor; seen.add(cursor);
+  }
+ } catch { /* Keep missing, malformed, denied and interrupted observations unknown. */ }
+ return { presence: 'unknown', status: null, pages, provesSubmit: false };
 }

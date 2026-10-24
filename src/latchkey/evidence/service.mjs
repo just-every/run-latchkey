@@ -1,11 +1,12 @@
+import { evidenceRoutes } from './routes.mjs';
 import { access,canonicalJson,digest,exact,id,need,text,uuid } from '../reviews/common.mjs';
 import { transact } from '../reviews/state.mjs';
 import {evidenceSource,evidenceSourcesAuthenticated} from './sources.mjs';
 import {evidenceDeletionAuthenticated} from './deletions.mjs';
 import {verifyDisclosure} from './signing.mjs';
+import {deliveryOutput,evidenceAttemptAuthenticated} from './attempts.mjs';
 const names=['evidence','vanta','drata','secureframe'];
 const hosts={vanta:['https://api.vanta.com','https://api.vanta-gov.com'],drata:['https://public-api.drata.com','https://public-api.eu.drata.com','https://public-api.apac.drata.com'],secureframe:['https://api.secureframe.com']};
-const deliveryOutput=row=>({...row,state:row.phase,sourceTimestamp:row.source_timestamp,providerReference:row.provider_reference,retryable:!!row.retryable,stage:JSON.parse(row.stage),signedPackage:row.signed_package?JSON.parse(row.signed_package):null});
 const output=row=>({...row,active:!!row.active,maxAgeSeconds:row.max_age_seconds});
 async function destination(ctx,value){const row=await access(ctx).first('SELECT * FROM lky_evidence_destinations WHERE id=? AND tenant=? AND owner=?',uuid(value),ctx.tenant,ctx.actor);need(row,'evidence_destination_not_found',404);return row}
 async function preview(ctx,review,destinationId){
@@ -15,6 +16,7 @@ async function preview(ctx,review,destinationId){
 }
 export async function evidenceAuthenticated(route,input,ctx){
  if(!route.startsWith('evidence/'))return null;
+ const attempt=await evidenceAttemptAuthenticated(route,input,ctx);if(attempt!==null)return attempt;
  const sources=await evidenceSourcesAuthenticated(route,input,ctx);if(sources!==null)return sources;
  const deletions=await evidenceDeletionAuthenticated(route,input,ctx);if(deletions!==null)return deletions;
  const {all,first,stmt,event,guard}=access(ctx);
@@ -31,17 +33,23 @@ export async function evidenceAuthenticated(route,input,ctx){
  }
  if(route==='evidence/preview'){exact(input,['review','destination']);return preview(ctx,input.review,input.destination)}
  if(route==='evidence/deliveries'){exact(input,['review']);await evidenceSource(ctx,input.review);return (await all('SELECT * FROM lky_evidence_deliveries WHERE review_id=? AND tenant=? AND owner=? ORDER BY created_at DESC,id',input.review,ctx.tenant,ctx.actor)).map(deliveryOutput)}
- if(route==='evidence/begin'){
-  exact(input,['review','destination','revision','packageHash','signedPackage','confirmed']);need(input.confirmed===true,'evidence_consent_required',403);const value=await preview(ctx,input.review,input.destination);need(value.destination.revision===input.revision&&value.packageHash===input.packageHash,'evidence_preview_changed',409);need(!value.stale,'evidence_source_stale',409);
+ if(route===evidenceRoutes.begin){
+  exact(input,['delivery','review','destination','revision','packageHash','signedPackage','confirmed']);need(input.confirmed===true,'evidence_consent_required',403);const value=await preview(ctx,input.review,input.destination);need(value.destination.revision===input.revision&&value.packageHash===input.packageHash,'evidence_preview_changed',409);need(!value.stale,'evidence_source_stale',409);
   const signed=input.signedPackage;exact(signed,['schema','destination','package','signer','authorityKey','signature']);const identity=await first('SELECT authority_key FROM lky_accounts WHERE id=? AND tenant=?',ctx.actor,ctx.tenant);
   need(signed&&canonicalJson(signed.package)===canonicalJson(value.package)&&signed.destination===value.destination.destination&&signed.signer===ctx.actor&&await verifyDisclosure(signed,identity.authority_key),'evidence_signature_invalid',403);
-  const source=await evidenceSource(ctx,input.review),delivery=id();
+  const source=await evidenceSource(ctx,input.review),delivery=uuid(input.delivery);
+  const existing=await first('SELECT * FROM lky_evidence_deliveries WHERE id=?',delivery);
+  if(existing){need(existing.tenant===ctx.tenant&&existing.owner===ctx.actor&&existing.review_id===input.review&&existing.destination_id===input.destination&&existing.destination_revision===input.revision&&existing.package_hash===input.packageHash&&existing.signed_package===canonicalJson(signed),'evidence_delivery_conflict',409);return deliveryOutput(existing)}
   await transact(ctx,source.vault,[stmt("INSERT INTO lky_evidence_deliveries VALUES(?,?,?,?,?,?,?,?,'pending',NULL,0,NULL,'{}',?,?,?)",delivery,ctx.tenant,ctx.actor,input.review,input.destination,input.revision,input.packageHash,value.sourceTimestamp,ctx.now,ctx.now,canonicalJson(signed)),event('evidence_dispatch_authorized',delivery)],[guard('EXISTS(SELECT 1 FROM lky_evidence_destinations WHERE id=? AND active=1 AND revision=?)',[input.destination,input.revision]),guard(source.guard.sql,source.guard.args)]);
   return {id:delivery,phase:'pending',sourceTimestamp:value.sourceTimestamp};
  }
- if(route==='evidence/result'){
+ if(route===evidenceRoutes.result){
   exact(input,['delivery','state','providerReference','retryable','status','stage']);const row=await first('SELECT * FROM lky_evidence_deliveries WHERE id=? AND tenant=? AND owner=?',uuid(input.delivery),ctx.tenant,ctx.actor);need(row,'evidence_delivery_not_found',404);need(['accepted','rejected','backlog'].includes(input.state)&&typeof input.retryable==='boolean');need(input.providerReference===null||typeof input.providerReference==='string'&&input.providerReference.length<=1000);need(input.status===null||Number.isSafeInteger(input.status)&&input.status>=100&&input.status<=599);need(input.stage&&Object.keys(input.stage).every(key=>['name','binding','uploadReference','referenceAvailable'].includes(key))&&canonicalJson(input.stage).length<=3000,'invalid_evidence_result');
-  const changed=await ctx.db.batch([stmt(`UPDATE lky_evidence_deliveries SET phase=?,provider_reference=?,retryable=?,status=?,stage=?,updated_at=? WHERE id=? AND phase='pending' AND ${ctx.fence}`,input.state,input.providerReference,Number(input.retryable),input.status,canonicalJson(input.stage),ctx.now,row.id,...ctx.fenceArgs),event('evidence_client_reported_'+input.state,row.id)]);need(changed[0].meta.changes,'evidence_result_already_recorded',409);return deliveryOutput(await first('SELECT * FROM lky_evidence_deliveries WHERE id=?',row.id));
+  const same=saved=>saved.phase===input.state&&saved.provider_reference===input.providerReference&&saved.retryable===Number(input.retryable)&&saved.status===input.status&&canonicalJson(JSON.parse(saved.stage).outcomeStage??JSON.parse(saved.stage))===canonicalJson(input.stage);
+  if(row.phase!=='pending'){need(same(row),'evidence_result_already_recorded',409);return deliveryOutput(row)}
+  const priorStage=JSON.parse(row.stage),finalStage={...priorStage,...input.stage,state:input.state==='backlog'?'reconciliation-required':'result-recorded',outcomeStage:input.stage,attempts:(priorStage.attempts??[]).map(attempt=>attempt.id===priorStage.attempt?{...attempt,outcome:input.state,status:input.status,providerReference:input.providerReference}:attempt)};
+  await ctx.db.batch([stmt(`UPDATE lky_evidence_deliveries SET phase=?,provider_reference=?,retryable=?,status=?,stage=?,updated_at=? WHERE id=? AND phase='pending' AND stage=? AND ${ctx.fence}`,input.state,input.providerReference,Number(input.retryable),input.status,canonicalJson(finalStage),ctx.now,row.id,row.stage,...ctx.fenceArgs),stmt(`INSERT INTO lky_events SELECT ?,?,?,?,?,? WHERE changes()=1`,id(),ctx.actor,ctx.device,'evidence_client_reported_'+input.state,row.id,ctx.now)]);
+  const saved=await first('SELECT * FROM lky_evidence_deliveries WHERE id=? AND tenant=? AND owner=?',row.id,ctx.tenant,ctx.actor);need(saved&&same(saved),'evidence_result_already_recorded',409);return deliveryOutput(saved);
  }
  need(false,'evidence_route_not_found',404);
 }

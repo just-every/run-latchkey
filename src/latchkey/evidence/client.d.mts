@@ -13,6 +13,9 @@ export class EvidenceClient {
  destinations():Promise<EvidenceDestination[]>;
  configure(value:Pick<EvidenceDestination,'destination'|'endpoint'|'target'> & {workspace?:string|number|null;maxAgeSeconds?:number}):Promise<EvidenceDestination>;
  revoke(destination:EvidenceDestination):Promise<EvidenceDestination>;
+ delivery(delivery:string):Promise<EvidenceDelivery>;
+ inspectUpload(delivery:string,credential:EvidenceCredential,options?:{fetcher?:typeof fetch}):Promise<any>;
+ resumeUpload(delivery:string,credential:EvidenceCredential,confirmed:boolean,options?:{fetcher?:typeof fetch}):Promise<EvidenceDelivery>;
  deliveries(review:string):Promise<EvidenceDelivery[]>;
  preview(review:string,destination:EvidenceDestination):Promise<EvidencePreview>;
  send(preview:EvidencePreview,credential:EvidenceCredential,confirmed:boolean,options?:{fetcher?:typeof fetch}):Promise<EvidenceDelivery>;

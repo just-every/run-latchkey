@@ -1,10 +1,12 @@
+import { evidenceRoutes } from '../src/latchkey/evidence/routes.mjs';
 import { createPortability } from '@runeditrun/rer/modules/portability';
 import archivePolicy from '../scripts/latchkey/archive-policy.mjs';
 import { readFile,readdir } from 'node:fs/promises';
 import { unstable_splitSqlQuery } from 'wrangler';
 import assert from 'node:assert/strict';
+import { id } from '../src/latchkey/crypto/envelope.mjs';
 import { EvidenceClient } from '../src/latchkey/evidence/client.mjs';
-export async function runEvidenceJourneys({owner,review}){
+export async function runEvidenceJourneys({owner,review,outsider}){
  const client=new EvidenceClient(owner),sent=[],credential='synthetic-latchkey-2050';
  const configs=[['evidence','https://evidence.example.test'],['vanta','https://api.vanta.com'],['drata','https://public-api.drata.com'],['secureframe','https://api.secureframe.com']];
  const edge=async(url,init)=>{
@@ -23,7 +25,7 @@ export async function runEvidenceJourneys({owner,review}){
  for(const[destination,endpoint]of configs){
   const config=await client.configure({destination,endpoint,target:'Finance quarterly review',workspace:destination==='drata'?'1':null});
   const preview=await client.preview(review,config);assert.deepEqual(preview.fields,Object.keys(preview.package).sort());
-  if(destination==='evidence'){const tampered=structuredClone(preview.signedPackage);tampered.package.completeness.total++;await assert.rejects(owner.call('evidence/begin',{review,destination:config.id,revision:config.revision,packageHash:preview.packageHash,signedPackage:tampered,confirmed:true}),error=>error.code==='evidence_signature_invalid');assert.equal(sent.length,0);}
+  if(destination==='evidence'){const tampered=structuredClone(preview.signedPackage);tampered.package.completeness.total++;await assert.rejects(owner.call(evidenceRoutes.begin,{delivery:id(),review,destination:config.id,revision:config.revision,packageHash:preview.packageHash,signedPackage:tampered,confirmed:true}),error=>error.code==='evidence_signature_invalid');assert.equal(sent.length,0);}
   await assert.rejects(client.send(preview,credential,false,{fetcher:edge}),e=>e.code==='evidence_consent_required');
   const result=await client.send(preview,destination==='secureframe'?{apiKey:'synthetic-latchkey-2051',keySecret:'synthetic-latchkey-2052'}:credential,true,{fetcher:edge});assert.equal(result.state,'accepted');assert.ok(result.providerReference);assert.ok(result.sourceTimestamp);assert.ok(!JSON.stringify(result).includes(credential));
  }
@@ -32,6 +34,68 @@ export async function runEvidenceJourneys({owner,review}){
  for(const[status,state,retryable]of [[403,'rejected',false],[503,'backlog',true],[429,'backlog',true]]){const preview=await client.preview(review,target);const result=await client.send(preview,credential,true,{fetcher:async()=>new Response(null,{status})});assert.equal(result.state,state);assert.equal(result.retryable,retryable)}
  const preview=await client.preview(review,target);await client.revoke(target);let calls=0;await assert.rejects(client.send(preview,credential,true,{fetcher:async()=>{calls++;throw Error('must not dispatch')}}),e=>e.code==='evidence_destination_revoked');assert.equal(calls,0);
  const history=await client.deliveries(review);assert.equal(history.length,7);assert.equal(history.filter(r=>r.state==='accepted').length,4);assert.ok(history.every(r=>r.sourceTimestamp===sent[0].value.package.closedAt));
+ // Provider acknowledgements and local acknowledgements fail independently.
+ // Recreate the client after each interruption instead of reusing memory.
+ const configured = () => client.configure({destination:'vanta',endpoint:'https://api.vanta.com',target:'Finance quarterly review'});
+ let config=await configured(), uploads=0, submits=0, pending;
+ const beginPreview=await client.preview(review,config), beginInput={delivery:id(),review,destination:config.id,revision:config.revision,packageHash:beginPreview.packageHash,signedPackage:beginPreview.signedPackage,confirmed:true};
+ const begun=await owner.call(evidenceRoutes.begin,beginInput), beforeReplay=(await client.deliveries(review)).length;
+ assert.equal((await owner.call(evidenceRoutes.begin,beginInput)).id,begun.id);
+ assert.equal((await client.deliveries(review)).length,beforeReplay);
+ await assert.rejects(owner.call(evidenceRoutes.begin,{...beginInput,packageHash:'synthetic-latchkey-2063'}),error=>error.code==='evidence_preview_changed');
+ const acknowledged=Object.create(owner);
+ acknowledged.call=async(route,input)=>{
+  const result=await owner.call(route,input);
+  if(route===evidenceRoutes.checkpointAttempt){pending=input.delivery;throw Error('synthetic-latchkey-2060')}
+  return result;
+ };
+ const interrupted=new EvidenceClient(acknowledged);
+ const checkpointEdge=async(url,init)=>{if(url.endsWith('/uploads'))uploads++;else submits++;return edge(url,init)};
+ await assert.rejects(interrupted.send(await interrupted.preview(review,config),credential,true,{fetcher:checkpointEdge}),/synthetic-latchkey-2060/);
+ const restarted=new EvidenceClient(owner), checkpoint=await restarted.delivery(pending);
+ assert.equal(checkpoint.stage.state,'upload-acknowledged');assert.equal(checkpoint.stage.attempts.length,1);assert.equal(checkpoint.stage.attempts[0].outcome,'upload-acknowledged');assert.equal(checkpoint.stage.uploadReference,'synthetic-latchkey-2054');
+ assert.equal(uploads,1);assert.equal(submits,0);
+ if(outsider){
+  await assert.rejects(new EvidenceClient(outsider).delivery(pending),error=>error.code==='evidence_delivery_not_found');
+  for(const[route,input]of [[evidenceRoutes.startAttempt,{delivery:pending,stage:{name:'submit',binding:checkpoint.stage.binding,uploadReference:checkpoint.stage.uploadReference}}],[evidenceRoutes.checkpointAttempt,{delivery:pending,attempt:checkpoint.stage.attempt,uploadReference:checkpoint.stage.uploadReference}],[evidenceRoutes.inspectAttempt,{delivery:pending}]])await assert.rejects(outsider.call(route,input),error=>error.code==='evidence_delivery_not_found');
+ }
+ const racing=await Promise.allSettled([restarted.resumeUpload(pending,credential,true,{fetcher:checkpointEdge}),new EvidenceClient(owner).resumeUpload(pending,credential,true,{fetcher:checkpointEdge})]);
+ assert.equal(racing.filter(row=>row.status==='fulfilled').length,1);assert.equal(racing.find(row=>row.status==='fulfilled').value.state,'accepted');assert.equal(uploads,1);assert.equal(submits,1);assert.equal((await restarted.delivery(pending)).stage.attempts.length,2);
+ // A provider accepted the write, but the process disappeared before saving it.
+ config=await configured();let lost;
+ const disconnected=Object.create(owner);
+ disconnected.call=async(route,input)=>{if(route===evidenceRoutes.result)throw Error('synthetic-latchkey-2061');return owner.call(route,input)};
+ const crashed=new EvidenceClient(disconnected);
+ try{await crashed.send(await crashed.preview(review,config),credential,true,{fetcher:checkpointEdge})}catch(error){lost=error.delivery}
+ assert.ok(lost?.delivery);const unknown=await restarted.delivery(lost.delivery);
+ assert.equal(unknown.phase,'pending');assert.equal(unknown.requiresReconciliation,true);assert.equal(unknown.stage.name,'submit');assert.ok(unknown.stage.leaseUntil>0);
+ const writesBefore=uploads+submits;
+ await assert.rejects(restarted.resumeUpload(lost.delivery,credential,true,{fetcher:checkpointEdge}),error=>error.code==='evidence_reconciliation_required');
+ await assert.rejects(owner.call(evidenceRoutes.startAttempt,{delivery:lost.delivery,stage:{name:'submit',binding:unknown.stage.binding,uploadReference:unknown.stage.uploadReference}}),error=>error.code==='evidence_reconciliation_required');
+ assert.equal(uploads+submits,writesBefore);
+ let reads=0;
+ const observation=await restarted.inspectUpload(lost.delivery,credential,{fetcher:async(url,init)=>{
+  assert.equal(init.method,'GET');assert.equal(init.redirect,'error');assert.equal(init.credentials,'omit');assert.equal(init.headers.Authorization,`Bearer ${credential}`);reads++;
+  const query=new URL(url).searchParams;assert.equal(query.get('pageSize'),'100');assert.equal(query.get('pageCursor'),reads===1?null:'synthetic-latchkey-2064');
+  return Response.json({results:{data:reads===1?[]:[{id:'synthetic-latchkey-2054',fileName:'latchkey-signed-evidence.json',title:'synthetic-latchkey-2066',description:null,mimeType:'application/json',deletionDate:null,effectiveDate:null,creationDate:'2026-10-24T00:00:00.000Z',updatedDate:'2026-10-24T00:00:00.000Z',uploadedBy:{type:'APPLICATION',id:'synthetic-latchkey-2067'},url:'https://api.vanta.com/v1/documents/synthetic-latchkey-2066'}],pageInfo:{hasNextPage:reads===1,hasPreviousPage:reads>1,startCursor:null,endCursor:reads===1?'synthetic-latchkey-2064':null}}});
+ }});
+ assert.equal(observation.presence,'found');assert.equal(observation.provesSubmit,false);assert.equal(reads,2);assert.equal(uploads+submits,writesBefore);
+ assert.equal((await restarted.delivery(lost.delivery)).requiresReconciliation,true);
+ assert.equal((await restarted.inspectUpload(lost.delivery,credential,{fetcher:async()=>new Response(null,{status:429})})).presence,'unknown');
+ assert.equal((await restarted.inspectUpload(lost.delivery,credential,{fetcher:async()=>Response.json({results:{data:[],pageInfo:{hasNextPage:true,hasPreviousPage:true,startCursor:null,endCursor:'synthetic-latchkey-2065'}}})})).presence,'unknown');
+ const payload=Object.fromEntries(['delivery','state','providerReference','retryable','status','stage'].map(key=>[key,lost[key]]));
+ const saved=await owner.call(evidenceRoutes.result,payload), eventsBefore=(await owner.call('audit',{})).filter(row=>row.object_id===lost.delivery).length;
+ assert.deepEqual(await owner.call(evidenceRoutes.result,payload),saved);
+ assert.equal((await owner.call('audit',{})).filter(row=>row.object_id===lost.delivery).length,eventsBefore);
+ await assert.rejects(owner.call(evidenceRoutes.result,{...payload,providerReference:'synthetic-latchkey-2062'}),error=>error.code==='evidence_result_already_recorded');
+ // Revocation after an upload prevents the very next provider mutation.
+ config=await configured();let revokedWrites=0;
+ const revokeEdge=async(url,init)=>{revokedWrites++;const response=await edge(url,init);await client.revoke(config);return response};
+ await assert.rejects(client.send(await client.preview(review,config),credential,true,{fetcher:revokeEdge}),error=>error.code==='evidence_destination_changed');
+ assert.equal(revokedWrites,1);
+ let revokedReads=0;await assert.rejects(restarted.inspectUpload(lost.delivery,credential,{fetcher:async()=>{revokedReads++;throw Error()}}),error=>error.code==='evidence_destination_changed');assert.equal(revokedReads,0);
+ await configured();
+ console.log('Evidence attempts: durable upload reference, fresh-client resume, racing resume refusal, ambiguous write fence, idempotent result acknowledgement and revoke before the next provider mutation passed');
  return history;
 }
 

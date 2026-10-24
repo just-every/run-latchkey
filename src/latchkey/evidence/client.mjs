@@ -1,7 +1,8 @@
-import {sign} from '../crypto/envelope.mjs';
+import { evidenceRoutes } from './routes.mjs';
+import {id,sign} from '../crypto/envelope.mjs';
 import {disclosureText,verifyDisclosure} from './signing.mjs';
 import { canonicalJson, need } from '../reviews/common.mjs';
-import { deliverEvidence } from './adapters.mjs';
+import { deliverEvidence, inspectVantaUpload } from './adapters.mjs';
 
 const names = { evidence: 'Evidence', vanta: 'Vanta', drata: 'Drata', secureframe: 'Secureframe' };
 const day = value => { const date = new Date(value); need(Number.isFinite(date.getTime()), 'invalid_evidence_period'); return date.toISOString().slice(0, 10); };
@@ -21,6 +22,7 @@ export class EvidenceClient {
   return this.client.call('evidence/configure', { destination: value.destination, endpoint: value.endpoint, target: value.target, workspace: value.workspace ?? null,maxAgeSeconds:value.maxAgeSeconds??86400 });
  }
  revoke(destination) { return this.client.call('evidence/revoke', { destination: destination.id, revision: destination.revision }); }
+ delivery(delivery) { return this.client.call(evidenceRoutes.delivery, { delivery }); }
  deliveries(review) { return this.client.call('evidence/deliveries', { review }); }
  async preview(review, destination) {
   const value = await this.client.call('evidence/preview', { review, destination: destination.id });
@@ -30,26 +32,50 @@ export class EvidenceClient {
   signedPackage.signature=await sign(this.client.bundle.root.authority.privateKey,disclosureText(signedPackage));
   const preview = { ...value, signedPackage };
   // Sending uses this immutable snapshot, not mutable form state.
-  this.#previews.set(preview, JSON.parse(JSON.stringify(preview)));
+  this.#previews.set(preview, { snapshot: JSON.parse(JSON.stringify(preview)), delivery: id() });
   return preview;
  }
  async send(preview, credential, confirmed, { fetcher } = {}) {
   need(confirmed === true, 'evidence_consent_required');
-  const snapshot = this.#previews.get(preview);
+  const prepared = this.#previews.get(preview), snapshot = prepared?.snapshot;
   need(snapshot && canonicalJson(snapshot) === canonicalJson(preview), 'evidence_preview_required');
   const destination = snapshot.destination;
-  const coveredFrom = day(snapshot.package.asOf??snapshot.sourceTimestamp), coveredTo = day(snapshot.package.closedAt??snapshot.sourceTimestamp);
-  const delivery = await this.client.call('evidence/begin', { review: snapshot.review, destination: destination.id, revision: destination.revision, packageHash: snapshot.packageHash, signedPackage:snapshot.signedPackage,confirmed: true });
+  const delivery = await this.client.call(evidenceRoutes.begin, { delivery: prepared.delivery, review: snapshot.review, destination: destination.id, revision: destination.revision, packageHash: snapshot.packageHash, signedPackage:snapshot.signedPackage,confirmed: true });
   this.#previews.delete(preview);
-  let outcome;
-  try {
-   outcome = await deliverEvidence({ destination: names[destination.destination], endpoint: destination.endpoint, credential, target: destination.target, workspace: destination.workspace, packageValue: snapshot.signedPackage, coveredFrom, coveredTo, ...(fetcher ? { fetcher } : {}) });
-  } catch {
-   outcome = { state: 'backlog', providerReference: null, retryable: false, status: null, stage: { name: 'dispatch-unknown' } };
-  }
+  return this.dispatch(delivery, snapshot, credential, { fetcher });
+ }
+ async inspectUpload(deliveryId, credential, { fetcher } = {}) {
+  const inspect = () => this.client.call(evidenceRoutes.inspectAttempt, { delivery: deliveryId });
+  const delivery = await inspect();
+  need(delivery.destination.destination === 'vanta', 'evidence_inspection_unavailable');
+  need(delivery.stage.uploadReference, 'evidence_provider_reference_required');
+  return inspectVantaUpload({ endpoint: delivery.destination.endpoint, target: delivery.destination.target, credential,
+   uploadReference: delivery.stage.uploadReference, ...(fetcher ? { fetcher } : {}), beforeRead: inspect });
+ }
+ async resumeUpload(deliveryId, credential, confirmed, { fetcher } = {}) {
+  need(confirmed === true, 'evidence_consent_required');
+  const delivery = await this.delivery(deliveryId), stage = delivery.stage;
+  need(delivery.phase === 'pending' && stage.state === 'upload-acknowledged', 'evidence_reconciliation_required');
+  const destination = (await this.destinations()).find(row => row.id === delivery.destination_id);
+  need(destination?.active && destination.revision === delivery.destination_revision, 'evidence_destination_changed');
+  need(await EvidenceClient.verify(delivery.signedPackage, this.client.profile.authorityKey), 'evidence_signature_invalid');
+  return this.dispatch(delivery, { destination, signedPackage: delivery.signedPackage, sourceTimestamp: delivery.sourceTimestamp }, credential,
+   { fetcher, resume: { name: destination.destination === 'vanta' ? 'submit' : 'create', binding: stage.binding, uploadReference: stage.uploadReference } });
+ }
+ async dispatch(delivery, snapshot, credential, { fetcher, resume } = {}) {
+  const destination = snapshot.destination, packageValue = snapshot.signedPackage.package;
+  const coveredFrom = day(packageValue.asOf ?? snapshot.sourceTimestamp), coveredTo = day(packageValue.closedAt ?? snapshot.sourceTimestamp);
+  let attempt, hookError;
+  const checked = work => async stage => { try { return await work(stage); } catch (error) { hookError = error; throw error; } };
+  const outcome = await deliverEvidence({ destination: names[destination.destination], endpoint: destination.endpoint, credential, target: destination.target,
+   workspace: destination.workspace, packageValue: snapshot.signedPackage, coveredFrom, coveredTo, resume, ...(fetcher ? { fetcher } : {}),
+   beforeMutation: checked(async stage => { const next = await this.client.call(evidenceRoutes.startAttempt, { delivery: delivery.id, stage }); attempt = next.stage.attempt; }),
+   checkpoint: checked(stage => this.client.call(evidenceRoutes.checkpointAttempt, { delivery: delivery.id, attempt, uploadReference: stage.uploadReference })),
+  });
+  if (hookError) throw hookError;
   // Only transport outcome fields cross back to the server; credentials never do.
   const payload = { delivery: delivery.id, state: outcome.state, providerReference: outcome.providerReference, retryable: outcome.retryable, status: outcome.status, stage: outcome.stage };
-  try { return await this.client.call('evidence/result', payload); }
+  try { return await this.client.call(evidenceRoutes.result, payload); }
   catch {
    const error = new Error('evidence_result_not_saved');
    error.delivery = { ...delivery, ...payload, sourceTimestamp: snapshot.sourceTimestamp };
