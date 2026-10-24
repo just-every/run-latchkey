@@ -13,3 +13,6 @@ dist/
 
 .rer/
 exports/
+
+rer-package/
+delivery-artifact/

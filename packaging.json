@@ -1,0 +1,92 @@
+{
+  "schema": 1,
+  "project": {
+    "schema": 1,
+    "projectId": "just-every/latchkey",
+    "name": "Latchkey",
+    "sourceRepository": "https://github.com/just-every/run-latchkey",
+    "license": "MIT",
+    "deployment": {
+      "target": "cloudflare-workers",
+      "artifactFile": "rer-worker-artifact.json"
+    },
+    "operations": {
+      "setup": "pnpm install --frozen-lockfile && pnpm exec rer install",
+      "build": "pnpm run build",
+      "verify": "pnpm run verify:agent && pnpm check:deployment-spec && pnpm run verify",
+      "artifact": "node scripts/delivery/base/cli.mjs artifact --config packaging.json",
+      "recovery": "Follow OPERATIONS.md: stop owned processes and preserve private installation settings and buyer-held vault and archive keys separately. Use rer export before a reset, restore the archive into an empty installation with rer import, establish the receiving owner with rer setup, then compare encrypted records and attachment digests before enabling access. Keep applied migration names and bytes unchanged."
+    },
+    "verification": {
+      "migrationDirectories": [
+        "migrations/core"
+      ],
+      "guidanceFiles": [
+        "AGENTS.md",
+        "OPERATIONS.md",
+        "RUN-LOCALLY.md"
+      ]
+    },
+    "verifyWorkflow": "verify.yml"
+  },
+  "managed": {
+    "workflowRef": "runeditrun/delivery/.github/workflows/trusted-build.yml@34cf6c23b5cb86eff0068049bc39feeb38c8ffa9",
+    "artifactFile": "rer-worker-artifact.json",
+    "buildProfile": "project",
+    "verificationProfiles": [
+      "full"
+    ]
+  },
+  "artifact": {
+    "specInputs": {
+      "publicVariableNames": [
+        "AUTH_LOCAL",
+        "AUTH_ORIGIN",
+        "MAIL_PROVIDER",
+        "MAIL_FROM",
+        "MAIL_RELAY_URL",
+        "MAIL_ACCOUNT_ID"
+      ],
+      "secretNames": [
+        "OWNER_EMAIL",
+        "SESSION_SECRET",
+        "SETUP_TOKEN"
+      ],
+      "optionalSecretNames": [
+        "MAIL_API_KEY",
+        "LATCHKEY_ERASURE_SECRET"
+      ],
+      "healthPath": "/health",
+      "recovery": "Preserve the encrypted archive, buyer-held recovery keys and private installation settings. Restore only into an empty installation, establish a fresh owner, and verify records and attachments before restoring access. Follow OPERATIONS.md.",
+      "providerEffects": [
+        "outbound-mail"
+      ],
+      "surfaces": {
+        "app": {
+          "path": "/",
+          "originVariable": "AUTH_ORIGIN",
+          "signIn": {
+            "path": "/signin",
+            "loginHint": true,
+            "ownerSignIn": "/auth/owner-signin"
+          }
+        }
+      },
+      "mail": {
+        "providers": [
+          "rer",
+          "resend",
+          "sendgrid",
+          "cloudflare"
+        ]
+      }
+    }
+  },
+  "edition": {
+    "manifestFile": "edition.json",
+    "componentId": "just-every/latchkey"
+  },
+  "setup": {
+    "manifestFile": "rer-setup.json"
+  }
+}

@@ -9,14 +9,7 @@
     "record": "No domain record selected"
   },
   "description": "Business password and secrets management. New seed: the product target is entirely missing.",
-  "capabilities": [
-    {
-      "id": "http-dispatch",
-      "clauses": [
-        "HTTP-001"
-      ]
-    }
-  ],
+  "capabilities": [],
   "nonGoals": [
     "Finished product functionality",
     "Speculative domain data"
@@ -81,5 +74,11 @@
       "operator-auth",
       "owner-claim"
     ]
-  }
+  },
+  "replaces": [
+    "1Password Business",
+    "Bitwarden",
+    "Keeper",
+    "LastPass Business"
+  ]
 }

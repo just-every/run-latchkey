@@ -38,7 +38,8 @@ export interface Bindings {
  LATCHKEY_ERASURE_SECRET?: string
  SESSION_SECRET: string
  SETUP_TOKEN?: string
- MAIL_PROVIDER?: 'development' | 'resend' | 'sendgrid' | 'cloudflare'
+ MAIL_PROVIDER?: 'development' | 'later' | 'rer' | 'resend' | 'sendgrid' | 'cloudflare'
+ MAIL_RELAY_URL?: string
  MAIL_FROM?: string
  MAIL_API_KEY?: string
  MAIL_ACCOUNT_ID?: string

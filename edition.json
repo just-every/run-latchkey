@@ -374,6 +374,48 @@
           ]
         }
       }
+    },
+    {
+      "id": "just-every/latchkey-delivery-setup",
+      "role": "module",
+      "source": {
+        "kind": "local",
+        "paths": [
+          "scripts/delivery/base/setup-manifest.mjs"
+        ],
+        "origin": {
+          "repository": "https://github.com/runeditrun/base.git",
+          "revision": "4280971d7c0295b8a88c3e1179048efcbbe14f30",
+          "path": "modules/delivery-producer/setup-manifest.mjs"
+        },
+        "mappings": [
+          {
+            "path": "scripts/delivery/base/setup-manifest.mjs",
+            "originPath": "setup-manifest.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "id": "just-every/latchkey-mail",
+      "role": "module",
+      "source": {
+        "kind": "local",
+        "paths": [
+          "src/mail.server.mjs"
+        ],
+        "origin": {
+          "repository": "https://github.com/runeditrun/base.git",
+          "revision": "d1249b3d696c4011e9c72de2097f3757436074a6",
+          "path": "foundation/template/src/mail.server.mjs"
+        },
+        "mappings": [
+          {
+            "path": "src/mail.server.mjs",
+            "originPath": "mail.server.mjs"
+          }
+        ]
+      }
     }
   ]
 }

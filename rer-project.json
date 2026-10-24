@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "projectId": "just-every/latchkey",
+  "name": "Latchkey",
+  "sourceRepository": "https://github.com/just-every/run-latchkey",
+  "license": "MIT",
+  "deployment": {
+    "target": "cloudflare-workers",
+    "artifactFile": "rer-worker-artifact.json"
+  },
+  "operations": {
+    "setup": "pnpm install --frozen-lockfile && pnpm exec rer install",
+    "build": "pnpm run build",
+    "verify": "pnpm run verify:agent && pnpm check:deployment-spec && pnpm run verify",
+    "artifact": "node scripts/delivery/base/cli.mjs artifact --config packaging.json",
+    "recovery": "Follow OPERATIONS.md: stop owned processes and preserve private installation settings and buyer-held vault and archive keys separately. Use rer export before a reset, restore the archive into an empty installation with rer import, establish the receiving owner with rer setup, then compare encrypted records and attachment digests before enabling access. Keep applied migration names and bytes unchanged."
+  },
+  "verification": {
+    "migrationDirectories": [
+      "migrations/core"
+    ],
+    "guidanceFiles": [
+      "AGENTS.md",
+      "OPERATIONS.md",
+      "RUN-LOCALLY.md"
+    ]
+  },
+  "verifyWorkflow": "verify.yml",
+  "setup": {
+    "path": "rer-setup.json",
+    "sha256": "4453def22bbb920fc1c884e309abd9a87bec8a74ebc2b034cdad0245e0a6c85d"
+  }
+}

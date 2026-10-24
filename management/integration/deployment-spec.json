@@ -1,0 +1,254 @@
+{
+  "schema": 1,
+  "resources": [
+    {
+      "kind": "d1",
+      "binding": "DB"
+    }
+  ],
+  "migrations": [
+    {
+      "binding": "DB",
+      "name": "0001_owner.sql",
+      "sha256": "e4cf66f7258c5b85876c16f18fb78fe3c9bd998244634ee267bb921403d01912",
+      "sql": "-- Additive schema draft. Integrator assigns the next migration number; never\n-- replace an applied migration. All epoch timestamps are milliseconds.\nCREATE TABLE oa_operators (\n id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, display_name TEXT NOT NULL,\n role TEXT NOT NULL CHECK(role IN ('owner','admin','member')),\n status TEXT NOT NULL CHECK(status IN ('invited','active','inactive')),\n version INTEGER NOT NULL DEFAULT 1, created_at INTEGER NOT NULL, last_signin_at INTEGER\n);\nCREATE TABLE oa_bootstrap (singleton INTEGER PRIMARY KEY CHECK(singleton=1), claim_id TEXT NOT NULL UNIQUE, claimed_at INTEGER NOT NULL);\nCREATE TABLE oa_tokens (\n id TEXT PRIMARY KEY, token_hash TEXT NOT NULL UNIQUE,\n kind TEXT NOT NULL CHECK(kind IN ('magic','invite')),\n operator_id TEXT NOT NULL REFERENCES oa_operators(id), operator_version INTEGER NOT NULL,\n issuer_id TEXT REFERENCES oa_operators(id), issuer_version INTEGER,\n return_to TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL,\n consumed_at INTEGER, revoked_at INTEGER,\n CHECK((kind='invite' AND issuer_id IS NOT NULL AND issuer_version IS NOT NULL)\n    OR (kind='magic' AND issuer_id IS NULL AND issuer_version IS NULL))\n);\nCREATE TABLE oa_sessions (\n id TEXT PRIMARY KEY, token_hash TEXT NOT NULL UNIQUE,\n operator_id TEXT NOT NULL REFERENCES oa_operators(id), operator_version INTEGER NOT NULL,\n kind TEXT NOT NULL CHECK(kind IN ('native','review','oidc','password','dev')),\n source_token_id TEXT UNIQUE REFERENCES oa_tokens(id),\n created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, revoked_at INTEGER\n);\nCREATE INDEX oa_sessions_operator ON oa_sessions(operator_id);\n-- Admission history survives credential expiry, revocation and portability scrubbing.\n-- Existing stores apply schema/last-signin.sql after session rebuild migrations.\nCREATE TRIGGER oa_record_last_signin AFTER INSERT ON oa_sessions\n BEGIN UPDATE oa_operators SET last_signin_at=NEW.created_at\n WHERE id=NEW.operator_id AND (last_signin_at IS NULL OR last_signin_at<NEW.created_at); END;\nCREATE TABLE oa_external_identities (\n issuer TEXT NOT NULL, subject TEXT NOT NULL, operator_id TEXT NOT NULL REFERENCES oa_operators(id),\n PRIMARY KEY(issuer, subject)\n);\nCREATE TABLE oa_limits (key TEXT PRIMARY KEY, window INTEGER NOT NULL, count INTEGER NOT NULL);\nCREATE TRIGGER oa_preserve_last_owner_update BEFORE UPDATE OF status,role ON oa_operators\n WHEN OLD.role='owner' AND OLD.status='active' AND (NEW.role!='owner' OR NEW.status!='active')\n AND (SELECT COUNT(*) FROM oa_operators WHERE role='owner' AND status='active') <= 1\n BEGIN SELECT RAISE(ABORT, 'last_owner'); END;\nCREATE TRIGGER oa_preserve_last_owner_delete BEFORE DELETE ON oa_operators\n WHEN OLD.role='owner' AND OLD.status='active'\n AND (SELECT COUNT(*) FROM oa_operators WHERE role='owner' AND status='active') <= 1\n BEGIN SELECT RAISE(ABORT, 'last_owner'); END;\n-- A status/role change invalidates every preexisting session and link, including\n-- after a later reactivation. Keep this invariant for direct administrative SQL.\nCREATE TRIGGER oa_operator_version AFTER UPDATE OF status,role ON oa_operators\n WHEN OLD.status != NEW.status OR OLD.role != NEW.role\n BEGIN UPDATE oa_operators SET version=OLD.version+1 WHERE id=NEW.id; END;\n\n-- Fresh installs include local dev identity. Apply schema/dev-sessions.sql as a\n-- NEW numbered migration in existing stores; it is also safe after this file.\n-- A credential minted while signed in with a dev session is recorded here and,\n-- like the dev session itself, counts only behind the local key gate.\nCREATE TABLE IF NOT EXISTS oa_dev_credentials (\n credential TEXT NOT NULL, id TEXT NOT NULL, created_at INTEGER NOT NULL,\n PRIMARY KEY(credential, id)\n);\n\n-- Fresh installs include the additive invitation cancellation ledger.\n-- Apply as a NEW numbered migration after operator-auth.sql in existing stores.\n-- This durable record is admission state, not an expiring credential. Never prune it.\n-- Existing active/inactive operators retain their recorded status: no historical\n-- acceptance is inferred. Only a witnessed invited -> inactive transition records\n-- an unaccepted cancellation, including direct administrative SQL transitions.\nCREATE TABLE oa_invitation_cancellations (\n operator_id TEXT PRIMARY KEY REFERENCES oa_operators(id),\n operator_version INTEGER NOT NULL\n);\nCREATE TRIGGER oa_record_invitation_cancellation AFTER UPDATE OF status ON oa_operators\n WHEN OLD.status='invited' AND NEW.status='inactive'\n BEGIN INSERT INTO oa_invitation_cancellations(operator_id,operator_version)\n VALUES(NEW.id,OLD.version+1)\n ON CONFLICT(operator_id) DO UPDATE SET operator_version=excluded.operator_version; END;\nCREATE TRIGGER oa_reject_cancelled_invitation_reactivation BEFORE UPDATE OF status ON oa_operators\n WHEN NEW.status='active' AND EXISTS(SELECT 1 FROM oa_invitation_cancellations WHERE operator_id=OLD.id)\n BEGIN SELECT RAISE(ABORT, 'invitation_required'); END;\n\n-- Fresh installs include domain rules and step-up proofs. Apply\n-- schema/domain-rules-step-up.sql as a NEW numbered migration in existing\n-- stores; it is also safe after this file.\n-- A required sign-in provider for an email domain. Sign-ins for that domain by\n-- any other route are refused; app owners are exempt.\nCREATE TABLE IF NOT EXISTS oa_domain_rules (\n domain TEXT PRIMARY KEY, provider_id TEXT NOT NULL,\n created_by TEXT NOT NULL REFERENCES oa_operators(id), created_at INTEGER NOT NULL\n);\n-- A step-up proof: an app-local email link sent to the operator's own address,\n-- bound to the session that asked and completed only in that session. No\n-- foreign key names oa_sessions, which schema/dev-sessions.sql rebuilds.\nCREATE TABLE IF NOT EXISTS oa_step_up_challenges (\n id TEXT PRIMARY KEY, token_hash TEXT NOT NULL UNIQUE,\n session_id TEXT NOT NULL, operator_id TEXT NOT NULL REFERENCES oa_operators(id),\n operator_version INTEGER NOT NULL, action TEXT NOT NULL, return_to TEXT NOT NULL,\n created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, consumed_at INTEGER\n);\nCREATE INDEX IF NOT EXISTS oa_step_up_session ON oa_step_up_challenges(session_id);\n\n-- Additive provider controls. An absent setting means off, including upgrades.\nCREATE TABLE IF NOT EXISTS oa_auth_settings (\n singleton INTEGER PRIMARY KEY CHECK(singleton=1), idp_sign_in INTEGER NOT NULL CHECK(idp_sign_in IN (0,1)), generation INTEGER NOT NULL DEFAULT 0, first_setup INTEGER NOT NULL DEFAULT 0\n);\nCREATE TABLE IF NOT EXISTS oa_auth_audit (\n id TEXT PRIMARY KEY, actor_id TEXT NOT NULL, action TEXT NOT NULL, value TEXT NOT NULL, created_at INTEGER NOT NULL\n);\nCREATE TABLE IF NOT EXISTS oa_provider_sessions (\n session_id TEXT PRIMARY KEY, issuer TEXT NOT NULL, subject TEXT NOT NULL, sid TEXT, generation INTEGER NOT NULL\n);\nCREATE INDEX IF NOT EXISTS oa_provider_session_identity ON oa_provider_sessions(issuer,subject,sid);\nCREATE TABLE IF NOT EXISTS oa_logout_events (\n issuer TEXT NOT NULL, jti TEXT NOT NULL, consumed_at INTEGER NOT NULL CHECK(consumed_at>=0), PRIMARY KEY(issuer,jti)\n);\n\nCREATE TRIGGER IF NOT EXISTS oa_first_setup_provider_setting AFTER INSERT ON oa_bootstrap BEGIN\n INSERT INTO oa_auth_settings(singleton,idp_sign_in,generation,first_setup) VALUES(1,0,0,1) ON CONFLICT DO NOTHING;\nEND;\n\nCREATE TABLE IF NOT EXISTS oa_credentials (\n id TEXT PRIMARY KEY, token_hash TEXT NOT NULL UNIQUE, operator_id TEXT NOT NULL REFERENCES oa_operators(id),\n operator_version INTEGER, kind TEXT NOT NULL, expires_at INTEGER NOT NULL, revoked_at INTEGER\n);\n\n-- Session provenance for OIDC pins. Apply as a new migration on existing stores.\n-- External admission has no OIDC pin and does not require OIDC protocol tables.\nCREATE TABLE IF NOT EXISTS oa_provider_session_pins (\n session_id TEXT PRIMARY KEY, provider_id TEXT NOT NULL, issuer TEXT NOT NULL,\n client_id TEXT NOT NULL, linked_at INTEGER NOT NULL\n);\n\n-- Ephemeral app-local setup attempts are never exported. A native claim binds\n-- only attempts opened before that claim to its exact owner/session authority,\n-- in its own bootstrap transaction.\nCREATE TABLE IF NOT EXISTS oa_setup_links (\n interface TEXT PRIMARY KEY, attempt_id TEXT NOT NULL, expires_at INTEGER NOT NULL,\n owner_id TEXT, owner_version INTEGER, session_id TEXT,\n completed INTEGER NOT NULL DEFAULT 0 CHECK(completed IN (0,1))\n);\nCREATE TRIGGER IF NOT EXISTS oa_native_claim_closes_provider_setup AFTER INSERT ON oa_sessions\nWHEN NEW.kind='native' AND NOT EXISTS(SELECT 1 FROM oa_sessions WHERE operator_id=NEW.operator_id AND id!=NEW.id) AND EXISTS(SELECT 1 FROM oa_bootstrap WHERE claim_id=NEW.operator_id AND claimed_at=NEW.created_at)\nBEGIN\n UPDATE oa_auth_settings SET first_setup=0 WHERE singleton=1 AND NOT EXISTS(\n  SELECT 1 FROM oa_setup_links WHERE interface='oidc-provider@1' AND completed=0 AND owner_id IS NULL AND expires_at>NEW.created_at\n );\n UPDATE oa_setup_links SET owner_id=NEW.operator_id,owner_version=NEW.operator_version,session_id=NEW.id\n WHERE owner_id IS NULL AND completed=0 AND expires_at>NEW.created_at;\nEND;\n\n-- Apply as a NEW numbered migration. Authority and audit are durable, not sessions.\nCREATE TABLE IF NOT EXISTS oa_policy_approvals (\n id TEXT PRIMARY KEY, policy_id TEXT NOT NULL, version_hash TEXT NOT NULL,\n definition TEXT NOT NULL, actions TEXT NOT NULL,\n owner_id TEXT NOT NULL REFERENCES oa_operators(id), owner_version INTEGER NOT NULL,\n approved_at INTEGER NOT NULL, revoked_at INTEGER,\n session_kind TEXT NOT NULL, revoke_reason TEXT\n);\nCREATE UNIQUE INDEX IF NOT EXISTS oa_policy_live ON oa_policy_approvals(policy_id) WHERE revoked_at IS NULL;\nCREATE TABLE IF NOT EXISTS oa_policy_runs (\n id TEXT PRIMARY KEY, policy_id TEXT NOT NULL, version_hash TEXT,\n approval_id TEXT REFERENCES oa_policy_approvals(id), approved_by TEXT,\n started_at INTEGER NOT NULL, finished_at INTEGER,\n status TEXT NOT NULL CHECK(status IN ('running','completed','refused','failed')), error TEXT,\n admitted INTEGER NOT NULL DEFAULT 0, repeats INTEGER NOT NULL DEFAULT 1, last_seen_at INTEGER\n);\nCREATE INDEX IF NOT EXISTS oa_policy_runs_time ON oa_policy_runs(started_at DESC);\nCREATE INDEX IF NOT EXISTS oa_policy_action_run ON oa_auth_audit(CASE WHEN json_valid(value) THEN json_extract(value,'$.runId') END,action);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0002_outbox.sql",
+      "sha256": "45d6b03eadfe1e91737763ae85cdff74e7216f859869e34431550bba48294996",
+      "sql": "-- Additive local-development storage. Apply explicitly to the local D1 database.\nCREATE TABLE IF NOT EXISTS rer_mail_development_outbox (\n  sequence INTEGER PRIMARY KEY AUTOINCREMENT,\n  id TEXT NOT NULL UNIQUE,\n  created_at INTEGER NOT NULL,\n  message TEXT NOT NULL\n);\nCREATE INDEX IF NOT EXISTS rer_mail_development_outbox_order\n  ON rer_mail_development_outbox(created_at DESC, sequence DESC);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0003_portability.sql",
+      "sha256": "c7db9042f6d5c571e10297c02df858ad2f3466beb4fa85649fee407cc228747b",
+      "sql": "CREATE TABLE rer_portability_state (\n  id INTEGER PRIMARY KEY CHECK(id=1), source_identity TEXT NOT NULL, epoch INTEGER NOT NULL DEFAULT 0,\n  import_job TEXT, applying INTEGER NOT NULL DEFAULT 0\n);\nCREATE TABLE rer_portability_jobs (\n  id TEXT PRIMARY KEY, kind TEXT NOT NULL, actor TEXT NOT NULL, phase TEXT NOT NULL,\n  completed INTEGER NOT NULL DEFAULT 0, metadata TEXT NOT NULL\n);\nCREATE TABLE rer_portability_parts (\n  job TEXT NOT NULL REFERENCES rer_portability_jobs(id) ON DELETE CASCADE,\n  idx INTEGER NOT NULL, sha256 TEXT NOT NULL, PRIMARY KEY(job,idx)\n);\nCREATE TABLE rer_portability_segments (\n  job TEXT NOT NULL REFERENCES rer_portability_jobs(id) ON DELETE CASCADE,\n  part INTEGER NOT NULL, segment INTEGER NOT NULL, data TEXT NOT NULL, PRIMARY KEY(job,part,segment)\n);\nCREATE TABLE rer_portability_owned (\n  job TEXT NOT NULL REFERENCES rer_portability_jobs(id) ON DELETE CASCADE,\n  bucket TEXT NOT NULL, key TEXT NOT NULL, PRIMARY KEY(job,bucket,key)\n);\nCREATE TABLE rer_portability_journal (\n  source TEXT NOT NULL, tombstone TEXT NOT NULL, PRIMARY KEY(source,tombstone)\n);\nCREATE TABLE rer_portability_epochs (source TEXT PRIMARY KEY, epoch INTEGER NOT NULL);\nCREATE TABLE rer_portability_guard (value INTEGER NOT NULL CHECK(value=1));\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0004_first_run.sql",
+      "sha256": "aef92de36233195e5a03cce67b192c5c0c38033b695f7ebce6062fc89152c2a9",
+      "sql": "-- First-run confirmation belongs to this installation, not portable domain data.\n-- Additive: preserve all existing owners, sessions and application rows.\nCREATE TABLE oa_first_run (\n  singleton INTEGER PRIMARY KEY CHECK (singleton = 1),\n  completed_by TEXT NOT NULL REFERENCES oa_operators(id),\n  completed_at INTEGER NOT NULL\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0005_identity_providers.sql",
+      "sha256": "f879fb86b079e591dfe4a8513752a8e0394e252b940aa35d3f7430f27b7382c6",
+      "sql": "-- Identity providers (OpenID Connect). Apply as a NEW numbered migration after\n-- the accounts schema. Every statement is IF NOT EXISTS, so a store that applied\n-- an earlier version of this file applies the current one again as its next\n-- migration and gains only what it lacks.\nCREATE TABLE IF NOT EXISTS oa_oidc_transactions (\n  state_hash TEXT PRIMARY KEY,\n  binding_hash TEXT NOT NULL,\n  config_hash TEXT NOT NULL,\n  payload TEXT NOT NULL,\n  expires_at INTEGER NOT NULL\n);\nCREATE INDEX IF NOT EXISTS oa_oidc_transactions_expiry ON oa_oidc_transactions(expires_at);\nCREATE TABLE IF NOT EXISTS oa_oidc_limits (\n  bucket TEXT PRIMARY KEY,\n  count INTEGER NOT NULL,\n  expires_at INTEGER NOT NULL\n);\n-- One pinned link per configured provider. Linking stores the issuer, JWKS URI,\n-- client id, endpoints and allowed algorithms; a changed configuration only\n-- records a pending re-link, which the owner completes with a step-up proof.\nCREATE TABLE IF NOT EXISTS oa_identity_providers (\n  provider_id TEXT PRIMARY KEY,\n  preset TEXT NOT NULL,\n  status TEXT NOT NULL CHECK(status IN ('linked','unlinked')),\n  issuer TEXT NOT NULL,\n  client_id TEXT NOT NULL,\n  jwks_uri TEXT NOT NULL,\n  authorization_endpoint TEXT NOT NULL,\n  token_endpoint TEXT NOT NULL,\n  algorithms TEXT NOT NULL,\n  token_auth_method TEXT NOT NULL,\n  response_iss INTEGER NOT NULL,\n  interface_version TEXT,\n  linked_at INTEGER NOT NULL,\n  pending_issuer TEXT,\n  pending_client_id TEXT,\n  pending_preset TEXT,\n  pending_at INTEGER,\n  jwks TEXT,\n  jwks_fetched_at INTEGER\n);\n-- Reachability per configured provider, linked or not. A provider that has\n-- failed discovery or JWKS for 5 minutes, or answered 404 or a DNS failure, is\n-- hidden from the sign-in page until a later check succeeds.\nCREATE TABLE IF NOT EXISTS oa_identity_provider_health (\n  provider_id TEXT PRIMARY KEY,\n  failing_since INTEGER,\n  hard_failure_at INTEGER,\n  checked_at INTEGER NOT NULL\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0006_provider_control.sql",
+      "sha256": "f19cc7a792538a8ff36d87760a3cad58fccab0316984488d1834af14fbf37cfe",
+      "sql": "-- Additive provider controls. An absent setting means off, including upgrades.\nCREATE TABLE IF NOT EXISTS oa_auth_settings (\n singleton INTEGER PRIMARY KEY CHECK(singleton=1), idp_sign_in INTEGER NOT NULL CHECK(idp_sign_in IN (0,1)), generation INTEGER NOT NULL DEFAULT 0, first_setup INTEGER NOT NULL DEFAULT 0\n);\nCREATE TABLE IF NOT EXISTS oa_auth_audit (\n id TEXT PRIMARY KEY, actor_id TEXT NOT NULL, action TEXT NOT NULL, value TEXT NOT NULL, created_at INTEGER NOT NULL\n);\nCREATE TABLE IF NOT EXISTS oa_provider_sessions (\n session_id TEXT PRIMARY KEY, issuer TEXT NOT NULL, subject TEXT NOT NULL, sid TEXT, generation INTEGER NOT NULL\n);\nCREATE INDEX IF NOT EXISTS oa_provider_session_identity ON oa_provider_sessions(issuer,subject,sid);\nCREATE TABLE IF NOT EXISTS oa_logout_events (\n issuer TEXT NOT NULL, jti TEXT NOT NULL, consumed_at INTEGER NOT NULL CHECK(consumed_at>=0), PRIMARY KEY(issuer,jti)\n);\n\nCREATE TRIGGER IF NOT EXISTS oa_first_setup_provider_setting AFTER INSERT ON oa_bootstrap BEGIN\n INSERT INTO oa_auth_settings(singleton,idp_sign_in,generation,first_setup) VALUES(1,0,0,1) ON CONFLICT DO NOTHING;\nEND;\n\nCREATE TABLE IF NOT EXISTS oa_credentials (\n id TEXT PRIMARY KEY, token_hash TEXT NOT NULL UNIQUE, operator_id TEXT NOT NULL REFERENCES oa_operators(id),\n operator_version INTEGER, kind TEXT NOT NULL, expires_at INTEGER NOT NULL, revoked_at INTEGER\n);\n\n-- Session provenance for OIDC pins. Apply as a new migration on existing stores.\n-- External admission has no OIDC pin and does not require OIDC protocol tables.\nCREATE TABLE IF NOT EXISTS oa_provider_session_pins (\n session_id TEXT PRIMARY KEY, provider_id TEXT NOT NULL, issuer TEXT NOT NULL,\n client_id TEXT NOT NULL, linked_at INTEGER NOT NULL\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0007_dependencies.sql",
+      "sha256": "3481d8aef870a9eda153a1617e99bb71a408e61a25dea92bb132efa7dd1c2526",
+      "sql": "CREATE TABLE IF NOT EXISTS rer_dependency_installation (\n singleton INTEGER PRIMARY KEY CHECK(singleton=1), sector_id TEXT NOT NULL UNIQUE\n);\nCREATE TABLE IF NOT EXISTS rer_dependency_link (\n interface TEXT PRIMARY KEY, issuer TEXT NOT NULL, client_id TEXT NOT NULL, metadata TEXT NOT NULL,\n needs_relink INTEGER NOT NULL DEFAULT 0, linked_at INTEGER NOT NULL\n);\nCREATE TABLE IF NOT EXISTS rer_dependency_pending (\n interface TEXT PRIMARY KEY, issuer TEXT NOT NULL, approved_by TEXT NOT NULL, expires_at INTEGER NOT NULL, approved_session TEXT NOT NULL, approved_version INTEGER NOT NULL, callbacks TEXT NOT NULL\n);\nCREATE TABLE IF NOT EXISTS rer_dependency_codes (\n digest TEXT PRIMARY KEY, created_at INTEGER NOT NULL CHECK(created_at>=0)\n);\n\nCREATE TABLE IF NOT EXISTS rer_dependency_keys (interface TEXT PRIMARY KEY, private_key TEXT NOT NULL);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0008_owner_claim.sql",
+      "sha256": "c3ffe653727bb4867b064dc2489df5013613f08f4b5998d2fe2b6a8485cdb815",
+      "sql": "-- Apply after operator-auth.sql as a new numbered migration. Never prune this ledger.\nCREATE TABLE oc_owner_claims (\n  singleton INTEGER PRIMARY KEY CHECK(singleton=1),\n  jti TEXT NOT NULL UNIQUE,\n  installation_id TEXT NOT NULL,\n  email TEXT NOT NULL,\n  issued_at INTEGER NOT NULL,\n  expires_at INTEGER NOT NULL,\n  consumed_at INTEGER NOT NULL CHECK(consumed_at<expires_at),\n  operator_id TEXT NOT NULL,\n  session_id TEXT NOT NULL,\n  completed INTEGER NOT NULL DEFAULT 0 CHECK(completed IN (0,1))\n);\nCREATE TRIGGER oc_owner_claim_empty_store BEFORE INSERT ON oc_owner_claims\nWHEN EXISTS(SELECT 1 FROM oa_bootstrap) OR EXISTS(SELECT 1 FROM oa_operators)\nBEGIN\n  SELECT RAISE(ABORT, 'owner_claim_already_initialized');\nEND;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0009_idp_owner.sql",
+      "sha256": "a870102648a2226b18a2fe8168d096389b698af88333d112fa8137e582fc2b33",
+      "sql": "CREATE TABLE IF NOT EXISTS oc_idp_grants (\n issuer TEXT NOT NULL, client_id TEXT NOT NULL, jti TEXT NOT NULL, subject TEXT NOT NULL, sector_id TEXT NOT NULL,\n PRIMARY KEY(issuer,client_id), UNIQUE(issuer,jti)\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0010_provider_pins.sql",
+      "sha256": "f0cfb6b3740869fd098ee449efb25807f8b1ef51c353fd07bafeb00ce38aeb63",
+      "sql": "-- Session provenance for OIDC pins. Apply as a new migration on existing stores.\n-- External admission has no OIDC pin and does not require OIDC protocol tables.\nCREATE TABLE IF NOT EXISTS oa_provider_session_pins (\n session_id TEXT PRIMARY KEY, provider_id TEXT NOT NULL, issuer TEXT NOT NULL,\n client_id TEXT NOT NULL, linked_at INTEGER NOT NULL\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0011_dependency_setup.sql",
+      "sha256": "7b36f7e1fb0991fe3e808613d911393bbad3386ead06427082c69a48c5738108",
+      "sql": "-- Ephemeral app-local setup attempts are never exported. A native claim binds\n-- only attempts opened before that claim to its exact owner/session authority,\n-- in its own bootstrap transaction.\nCREATE TABLE IF NOT EXISTS oa_setup_links (\n interface TEXT PRIMARY KEY, attempt_id TEXT NOT NULL, expires_at INTEGER NOT NULL,\n owner_id TEXT, owner_version INTEGER, session_id TEXT,\n completed INTEGER NOT NULL DEFAULT 0 CHECK(completed IN (0,1))\n);\nCREATE TRIGGER IF NOT EXISTS oa_native_claim_closes_provider_setup AFTER INSERT ON oa_sessions\nWHEN NEW.kind='native' AND NOT EXISTS(SELECT 1 FROM oa_sessions WHERE operator_id=NEW.operator_id AND id!=NEW.id) AND EXISTS(SELECT 1 FROM oa_bootstrap WHERE claim_id=NEW.operator_id AND claimed_at=NEW.created_at)\nBEGIN\n UPDATE oa_auth_settings SET first_setup=0 WHERE singleton=1 AND NOT EXISTS(\n  SELECT 1 FROM oa_setup_links WHERE interface='oidc-provider@1' AND completed=0 AND owner_id IS NULL AND expires_at>NEW.created_at\n );\n UPDATE oa_setup_links SET owner_id=NEW.operator_id,owner_version=NEW.operator_version,session_id=NEW.id\n WHERE owner_id IS NULL AND completed=0 AND expires_at>NEW.created_at;\nEND;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0012_dependency_approval.sql",
+      "sha256": "7d3742369189b69ea28bdc000097f150f83221c6474f7e177c7b5590691b67e9",
+      "sql": "-- Existing pending approvals predate attempt fencing and must be renewed.\nALTER TABLE rer_dependency_pending ADD COLUMN attempt_id TEXT;\nDELETE FROM rer_dependency_pending;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0013_erasure.sql",
+      "sha256": "44fd4fac1aee4fda0d1d580373cbed9ef3da837e0186e7fe2130fb68dfceadbe",
+      "sql": "CREATE TABLE rer_erasure_operations (\n  id TEXT PRIMARY KEY NOT NULL,\n  entity TEXT NOT NULL,\n  subject TEXT,\n  label TEXT NOT NULL,\n  phase TEXT NOT NULL CHECK(phase IN ('deleting','blobs','complete')),\n  step INTEGER NOT NULL DEFAULT 0,\n  planned TEXT NOT NULL,\n  deleted TEXT NOT NULL DEFAULT '{}',\n  retained TEXT NOT NULL,\n  blobs_total INTEGER NOT NULL DEFAULT 0,\n  blobs_deleted INTEGER NOT NULL DEFAULT 0,\n  requested_at TEXT NOT NULL,\n  committed_at TEXT,\n  completed_at TEXT\n);\nCREATE UNIQUE INDEX rer_erasure_active_subject ON rer_erasure_operations(entity,subject) WHERE subject IS NOT NULL;\nCREATE TABLE rer_erasure_blobs (\n  operation TEXT NOT NULL, bucket TEXT NOT NULL, key TEXT NOT NULL, PRIMARY KEY(operation,bucket,key)\n);\nCREATE TABLE rer_erasure_guard (value INTEGER NOT NULL CHECK(value=1),\n  scope INTEGER NOT NULL DEFAULT 1 CONSTRAINT erasure_scope_changed CHECK(scope=1),\n  retained INTEGER NOT NULL DEFAULT 1 CONSTRAINT erasure_retained_missing CHECK(retained=1));\nCREATE TABLE rer_erasure_scope (\n  operation TEXT NOT NULL, kind TEXT NOT NULL, table_name TEXT NOT NULL, key_json TEXT NOT NULL, row_json TEXT NOT NULL,\n  PRIMARY KEY(operation,kind,table_name,key_json,row_json)\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0014_owner_signin.sql",
+      "sha256": "98da904e768e35b43fb1be83d9dcc9c9b5d86ab3a795234ed5223c4fddc567d9",
+      "sql": "-- One-time owner sign-in links minted by `rer signin` with the deployment's own\n-- Cloudflare credentials, written straight into this table through the D1 API.\n-- Apply as a NEW numbered migration under the seed's next unused number; never\n-- rewrite an applied migration. Additive only. token_hash is the SHA-256 of the\n-- link token (owner-signin-grant.mjs); the token itself is never stored.\nCREATE TABLE IF NOT EXISTS oa_owner_signins (\n id TEXT PRIMARY KEY, token_hash TEXT NOT NULL UNIQUE,\n operator_id TEXT NOT NULL REFERENCES oa_operators(id), operator_version INTEGER NOT NULL,\n created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, consumed_at INTEGER\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0015_command_receipts.sql",
+      "sha256": "8064fe877c22bf0500ff5c20d274cbd4e8b2e0dea986fa9e3e4fef4faf2c54a0",
+      "sql": "-- Refresh-safe writes (command-receipts.ts): one row per actor and form command\n-- key. A seed applies this as its next numbered migration; archives leave it out.\nCREATE TABLE rer_command_receipts (\n  actor TEXT NOT NULL,\n  command_key TEXT NOT NULL,\n  command TEXT NOT NULL,\n  state TEXT NOT NULL CHECK(state IN ('running','done')),\n  result TEXT,\n  once TEXT,\n  created_at INTEGER NOT NULL,\n  PRIMARY KEY(actor, command_key)\n);\nCREATE INDEX rer_command_receipts_created ON rer_command_receipts(created_at);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0016_latchkey.sql",
+      "sha256": "1299c682b3a623c6830544d15f40292639401bae0abe6ed59ba9e1cbb3f56d4d",
+      "sql": "-- Edition-owned encrypted product state. No item type, title, field, seed,\n-- filename, password, device secret or private decryption key is stored here.\nCREATE TABLE lky_accounts (\n id TEXT PRIMARY KEY, operator_id TEXT NOT NULL UNIQUE REFERENCES oa_operators(id),\n tenant TEXT NOT NULL, generation INTEGER NOT NULL DEFAULT 1,\n opaque_setup TEXT NOT NULL, opaque_record TEXT NOT NULL,\n recipient_key TEXT NOT NULL, recovery_key TEXT NOT NULL, recovery_wrap TEXT NOT NULL, mutation TEXT NOT NULL\n);\nCREATE TABLE lky_devices (\n id TEXT PRIMARY KEY, account_id TEXT NOT NULL REFERENCES lky_accounts(id),\n public_key TEXT NOT NULL, bundle TEXT NOT NULL, generation INTEGER NOT NULL, revoked_at INTEGER\n);\nCREATE TABLE lky_exchanges (\n id TEXT PRIMARY KEY, account_id TEXT NOT NULL, device_id TEXT NOT NULL,\n state TEXT NOT NULL, generation INTEGER NOT NULL, operator_version INTEGER NOT NULL,\n expires_at INTEGER NOT NULL, used_at INTEGER\n);\nCREATE TABLE lky_grants (\n token_hash TEXT PRIMARY KEY, account_id TEXT NOT NULL REFERENCES lky_accounts(id),\n device_id TEXT NOT NULL, session_id TEXT NOT NULL, generation INTEGER NOT NULL,\n expires_at INTEGER NOT NULL, recovery INTEGER NOT NULL DEFAULT 0\n);\nCREATE TABLE lky_nonces (grant_hash TEXT NOT NULL, nonce TEXT NOT NULL, expires_at INTEGER NOT NULL, PRIMARY KEY(grant_hash,nonce));\nCREATE TABLE lky_limits (key TEXT PRIMARY KEY, window INTEGER NOT NULL, count INTEGER NOT NULL);\nCREATE TABLE lky_registrations (\n id TEXT PRIMARY KEY, operator_id TEXT NOT NULL, session_id TEXT NOT NULL,\n tenant TEXT NOT NULL, setup TEXT NOT NULL, expires_at INTEGER NOT NULL\n);\nCREATE TABLE lky_vaults (\n id TEXT PRIMARY KEY, tenant TEXT NOT NULL, owner TEXT NOT NULL REFERENCES lky_accounts(id),\n epoch INTEGER NOT NULL, revision INTEGER NOT NULL, mutation TEXT NOT NULL\n);\nCREATE TABLE lky_recipients (\n vault_id TEXT NOT NULL REFERENCES lky_vaults(id), account_id TEXT NOT NULL REFERENCES lky_accounts(id),\n rights TEXT NOT NULL, wrapped_key TEXT NOT NULL, PRIMARY KEY(vault_id,account_id)\n);\nCREATE TABLE lky_versions (\n vault_id TEXT NOT NULL REFERENCES lky_vaults(id), object_id TEXT NOT NULL,\n version INTEGER NOT NULL, envelope TEXT NOT NULL,\n PRIMARY KEY(vault_id,object_id,version)\n);\nCREATE TABLE lky_enrollments (\n id TEXT PRIMARY KEY, account_id TEXT NOT NULL REFERENCES lky_accounts(id),\n public_key TEXT NOT NULL, transfer_key TEXT NOT NULL, generation INTEGER NOT NULL,\n expires_at INTEGER NOT NULL, approved_wrap TEXT, consumed_at INTEGER, approved_nonce TEXT\n);\nCREATE TABLE lky_events (\n id TEXT PRIMARY KEY, actor TEXT NOT NULL, device TEXT NOT NULL,\n action TEXT NOT NULL, object_id TEXT NOT NULL, created_at INTEGER NOT NULL\n);\nCREATE TABLE lky_installation (singleton INTEGER PRIMARY KEY CHECK(singleton=1), id TEXT NOT NULL);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0017_latchkey_runtime.sql",
+      "sha256": "b47784f4e6741a47a5708945c7c6485b0d5b520d13870ea8259803aa39e90045",
+      "sql": "CREATE TABLE lky_password_changes (\n id TEXT PRIMARY KEY, account_id TEXT NOT NULL REFERENCES lky_accounts(id),\n device_id TEXT NOT NULL, generation INTEGER NOT NULL, setup TEXT NOT NULL, expires_at INTEGER NOT NULL\n);\nCREATE TABLE lky_machines (\n id TEXT PRIMARY KEY, token_hash TEXT NOT NULL UNIQUE, account_id TEXT NOT NULL REFERENCES lky_accounts(id),\n device_id TEXT NOT NULL, generation INTEGER NOT NULL, operator_version INTEGER NOT NULL,\n vault_id TEXT NOT NULL REFERENCES lky_vaults(id), object_id TEXT NOT NULL, epoch INTEGER NOT NULL,\n public_key TEXT NOT NULL, recipient_key TEXT NOT NULL, wrapped_key TEXT NOT NULL,\n expires_at INTEGER NOT NULL, revoked_at INTEGER, mutation TEXT NOT NULL\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0018_latchkey_authority.sql",
+      "sha256": "3cdc7ba0a388f384a4d9d6ca69133ef6b40a6f036adcf556e1e171360e9debff",
+      "sql": "-- The encrypted root holds the corresponding private signing key. A separate\n-- public anchor authenticates key distribution, including a malicious store.\nALTER TABLE lky_accounts ADD COLUMN authority_key TEXT NOT NULL DEFAULT '';\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0020_latchkey_sharing.sql",
+      "sha256": "9183af7c4291879d28ce9dbafce3473671c63910c36db9385590291253e0027e",
+      "sql": "-- Only encrypted values and delivery verifiers. URL fragments and passwords\n-- never cross the client boundary. Grants are snapshots, not future key grants.\nCREATE TABLE lky_sharing_policy (\n tenant TEXT PRIMARY KEY, external_enabled INTEGER NOT NULL DEFAULT 0,\n domains TEXT NOT NULL DEFAULT '[]', default_days INTEGER NOT NULL DEFAULT 7,\n max_days INTEGER NOT NULL DEFAULT 30, mutation TEXT NOT NULL\n);\nCREATE TABLE lky_share_groups (id TEXT PRIMARY KEY,tenant TEXT NOT NULL,created_by TEXT NOT NULL);\nCREATE TABLE lky_share_group_members (\n group_id TEXT NOT NULL REFERENCES lky_share_groups(id),account_id TEXT NOT NULL REFERENCES lky_accounts(id),\n PRIMARY KEY(group_id,account_id)\n);\nCREATE TABLE lky_shares (\n id TEXT PRIMARY KEY,tenant TEXT NOT NULL,vault_id TEXT NOT NULL REFERENCES lky_vaults(id),\n source_account TEXT NOT NULL,source_device TEXT NOT NULL,source_generation INTEGER NOT NULL,\n source_operator_version INTEGER NOT NULL,epoch INTEGER NOT NULL,scope TEXT NOT NULL,\n group_id TEXT,rights TEXT NOT NULL,starts_at INTEGER NOT NULL,expires_at INTEGER NOT NULL,\n approved_at INTEGER,revoked_at INTEGER,created_at INTEGER NOT NULL,mutation TEXT NOT NULL\n);\nCREATE TABLE lky_share_keys (\n share_id TEXT NOT NULL REFERENCES lky_shares(id),account_id TEXT NOT NULL,\n recipient_generation INTEGER NOT NULL,object_id TEXT NOT NULL,version INTEGER NOT NULL,\n wrapped_key TEXT NOT NULL,PRIMARY KEY(share_id,account_id,object_id)\n);\nCREATE TABLE lky_links (\n id TEXT PRIMARY KEY,tenant TEXT NOT NULL,vault_id TEXT NOT NULL REFERENCES lky_vaults(id),\n object_id TEXT NOT NULL,source_version INTEGER NOT NULL,epoch INTEGER NOT NULL,\n source_account TEXT NOT NULL,source_device TEXT NOT NULL,source_generation INTEGER NOT NULL,\n source_operator_version INTEGER NOT NULL,verifier_hash TEXT NOT NULL,\n password_salt TEXT NOT NULL,password_required INTEGER NOT NULL,recipient_email TEXT NOT NULL,\n envelope TEXT NOT NULL,starts_at INTEGER NOT NULL,expires_at INTEGER NOT NULL,\n max_views INTEGER NOT NULL,views INTEGER NOT NULL DEFAULT 0,revoked_at INTEGER,\n created_at INTEGER NOT NULL,mutation TEXT NOT NULL\n);\nCREATE TABLE lky_link_challenges (\n id TEXT PRIMARY KEY,link_id TEXT NOT NULL REFERENCES lky_links(id),code_hash TEXT NOT NULL,\n expires_at INTEGER NOT NULL,attempts INTEGER NOT NULL DEFAULT 0,consumed_at INTEGER\n);\nCREATE INDEX lky_share_source ON lky_shares(vault_id,created_at);\nCREATE INDEX lky_link_source ON lky_links(vault_id,object_id,created_at);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0021_latchkey_restore.sql",
+      "sha256": "fb8c91cfe2c00c1894c4e3436cdb2f8801ac7963403bc82fb163b147ee5228b1",
+      "sql": "-- Destination-local approval capabilities never travel through Records.\nCREATE TABLE lky_restore_preparations (\n id TEXT PRIMARY KEY, actor TEXT NOT NULL, tenant TEXT NOT NULL,\n import_id TEXT NOT NULL, plan_hash TEXT NOT NULL, approval_hash TEXT NOT NULL,\n plan TEXT NOT NULL, approval TEXT NOT NULL, expires_at INTEGER NOT NULL,\n phase TEXT NOT NULL CHECK(phase IN ('prepared','activated')),\n prepared_at INTEGER NOT NULL, activated_at INTEGER, activation TEXT,\n UNIQUE(actor,plan_hash,approval_hash)\n);\nCREATE TABLE lky_restore_guard (value INTEGER NOT NULL CHECK(value=1));\n-- Durable operation history contains no approval signature or usable wrap.\nCREATE TABLE lky_restore_history (\n restore_id TEXT PRIMARY KEY, source_identity TEXT NOT NULL,\n content_hash TEXT NOT NULL, archive_hash TEXT NOT NULL,\n source_account TEXT NOT NULL, destination_account TEXT NOT NULL,\n plan_hash TEXT NOT NULL, vaults TEXT NOT NULL, activation TEXT NOT NULL,\n activated_at INTEGER NOT NULL\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0022_latchkey_erasure.sql",
+      "sha256": "8c65a1abbe82a949e42732ecdbaba6cfece4d2e7511f20d3c6ac6da8c2c9f8a4",
+      "sql": "-- Durable, value-free object fences travel with Records. No credential,\n-- attachment, key wrap, recipient email or encrypted value belongs here.\nCREATE TABLE lky_erased_items (\n vault_id TEXT NOT NULL REFERENCES lky_vaults(id), object_id TEXT NOT NULL,\n tenant TEXT NOT NULL, receipt_id TEXT NOT NULL UNIQUE,\n erased_by TEXT NOT NULL, erased_device TEXT NOT NULL, erased_at INTEGER NOT NULL,\n revision INTEGER NOT NULL, counts TEXT NOT NULL,\n PRIMARY KEY(vault_id,object_id)\n);\n-- This empty CHECK table makes authority/inventory failures roll back the\n-- entire D1 batch, including unconditional Base journal statements.\nCREATE TABLE lky_erasure_guard (value INTEGER NOT NULL CHECK(value=1));\nCREATE INDEX lky_machine_object ON lky_machines(vault_id,object_id);\nCREATE INDEX lky_share_key_object ON lky_share_keys(object_id,share_id);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0023_latchkey_generator_policy.sql",
+      "sha256": "593e52b23370d71921e8c9edcaf9123a78442fb5e8180878e9aa47a5fa0120df",
+      "sql": "-- Generator policy contains constraints only. Generated values and history\n-- remain encrypted in each client and never enter these tables.\nCREATE TABLE lky_generator_policies (\n tenant TEXT NOT NULL, scope TEXT NOT NULL, group_id TEXT REFERENCES lky_share_groups(id),\n policy TEXT NOT NULL, mutation TEXT NOT NULL,\n PRIMARY KEY(tenant,scope),\n CHECK((scope='company' AND group_id IS NULL) OR (group_id IS NOT NULL AND scope=group_id))\n);\nCREATE TABLE lky_generator_policy_changes (\n id TEXT PRIMARY KEY,tenant TEXT NOT NULL,group_id TEXT,actor TEXT NOT NULL,device TEXT NOT NULL,\n reason TEXT NOT NULL,policy TEXT NOT NULL,created_at INTEGER NOT NULL\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0024_latchkey_subject_erasure.sql",
+      "sha256": "45f17c7f7fbe51d32566794402bf52e71ec475e3f9c625512be4c9bd02cfe202",
+      "sql": "-- Original person identifiers are never retained in these receipts/fences.\n-- HMAC custody is the separately held LATCHKEY_ERASURE_SECRET configuration.\nCREATE TABLE lky_subject_erasures (\n id TEXT PRIMARY KEY,tenant TEXT NOT NULL,label TEXT NOT NULL,\n phase TEXT NOT NULL CHECK(phase='control-plane-erased'),counts TEXT NOT NULL,\n outstanding TEXT NOT NULL,created_at INTEGER NOT NULL,proof TEXT NOT NULL\n);\nCREATE TABLE lky_subject_fences (\n tenant TEXT NOT NULL,kind TEXT NOT NULL,digest TEXT NOT NULL,\n operation TEXT NOT NULL REFERENCES lky_subject_erasures(id),created_at INTEGER NOT NULL,\n PRIMARY KEY(tenant,kind,digest)\n);\nCREATE TABLE lky_subject_invalidations (\n tenant TEXT NOT NULL,vault_id TEXT NOT NULL REFERENCES lky_vaults(id),\n operation TEXT NOT NULL REFERENCES lky_subject_erasures(id),epoch INTEGER NOT NULL,\n status TEXT NOT NULL CHECK(status IN ('pending','rotated')),\n PRIMARY KEY(vault_id,operation)\n);\nCREATE TABLE lky_subject_audit (\n operation TEXT NOT NULL REFERENCES lky_subject_erasures(id),position INTEGER NOT NULL,\n facts TEXT NOT NULL,previous_hash TEXT NOT NULL,hash TEXT NOT NULL,\n PRIMARY KEY(operation,position)\n);\nCREATE TABLE lky_subject_guard(value INTEGER NOT NULL CHECK(value=1));\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0025_latchkey_signed_erasure.sql",
+      "sha256": "37717541baa44a8a0c91ed11120f3a9473c2dc52a64b0e7c239ea2fa6b0c33c2",
+      "sql": "-- Connected clients accept history removal only with the vault owner's\n-- independently pinned authority signature. The proof contains no item value.\nALTER TABLE lky_erased_items ADD COLUMN proof TEXT NOT NULL DEFAULT '{}';\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0026_latchkey_reviews.sql",
+      "sha256": "81c5b09e22f7e9138321e312c850d65f7e19217cff177ce66120187c3338ef72",
+      "sql": "-- Access metadata only. Item values, wraps, link capabilities and provider keys\n-- never enter review snapshots or signed evidence.\nCREATE TABLE lky_reviews (\n id TEXT PRIMARY KEY,tenant TEXT NOT NULL,vault_id TEXT NOT NULL,owner TEXT NOT NULL,\n reviewer TEXT NOT NULL,period TEXT NOT NULL,phase TEXT NOT NULL,\n scheduled_at INTEGER NOT NULL,due_at INTEGER NOT NULL,created_at INTEGER NOT NULL,\n as_of INTEGER,policy_version TEXT NOT NULL,snapshot TEXT NOT NULL,\n closed_at INTEGER,package TEXT\n);\nCREATE TABLE lky_review_rows (\n review_id TEXT NOT NULL,key TEXT NOT NULL,snapshot TEXT NOT NULL,\n reviewer TEXT NOT NULL,decision TEXT,reason TEXT,decided_at INTEGER,\n superseded INTEGER NOT NULL DEFAULT 0,\n PRIMARY KEY(review_id,key)\n);\nCREATE TABLE lky_review_reminders (\n review_id TEXT NOT NULL,reviewer TEXT NOT NULL,day INTEGER NOT NULL,\n created_at INTEGER NOT NULL,PRIMARY KEY(review_id,reviewer,day)\n);\nCREATE TABLE lky_review_guard (value INTEGER NOT NULL CHECK(value=1));\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0027_latchkey_evidence.sql",
+      "sha256": "e4e7eb8eb5d9988c71459a9c8801f1d55db1f53e998627264207b7b6f2b73024",
+      "sql": "-- Destination credentials stay in the authorized owner's client, never here.\nCREATE TABLE lky_evidence_destinations (\n id TEXT PRIMARY KEY,tenant TEXT NOT NULL,owner TEXT NOT NULL,\n destination TEXT NOT NULL,endpoint TEXT NOT NULL,target TEXT NOT NULL,\n workspace TEXT,active INTEGER NOT NULL,revision INTEGER NOT NULL,\n UNIQUE(tenant,owner,destination)\n);\nCREATE TABLE lky_evidence_deliveries (\n id TEXT PRIMARY KEY,tenant TEXT NOT NULL,owner TEXT NOT NULL,\n review_id TEXT NOT NULL,destination_id TEXT NOT NULL,destination_revision INTEGER NOT NULL,\n package_hash TEXT NOT NULL,source_timestamp INTEGER NOT NULL,\n phase TEXT NOT NULL,provider_reference TEXT,retryable INTEGER NOT NULL,\n status INTEGER,stage TEXT NOT NULL,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0028_latchkey_lifecycle.sql",
+      "sha256": "ac9d8d09b8e83280706e623a62b33bfed1ebf2debb9fa7bf724472f70a75eb6f",
+      "sql": "ALTER TABLE lky_vaults ADD COLUMN kind TEXT NOT NULL DEFAULT 'company';\nALTER TABLE lky_vaults ADD COLUMN trash_policy TEXT;\n-- Restore and delete are independently delegated; inactive imported recipients\n-- stay inactive. Existing active owners receive the new owner capabilities.\nUPDATE lky_recipients SET rights=json_insert(json_insert(rights,'$[#]','delete'),'$[#]','restore')\n WHERE account_id=(SELECT owner FROM lky_vaults WHERE id=vault_id) AND json_array_length(rights)>0;\nCREATE TABLE lky_vault_capabilities (\n vault_id TEXT NOT NULL,account_id TEXT NOT NULL,capability TEXT NOT NULL,\n PRIMARY KEY(vault_id,account_id)\n);\nCREATE TABLE lky_lifecycle (\n vault_id TEXT NOT NULL,object_id TEXT NOT NULL,state TEXT NOT NULL,\n state_version INTEGER NOT NULL,nonce TEXT NOT NULL,\n trashed_at INTEGER,expires_at INTEGER,proof TEXT,retention_active INTEGER NOT NULL DEFAULT 0,\n PRIMARY KEY(vault_id,object_id)\n);\nCREATE TABLE lky_bulk_operations (\n id TEXT PRIMARY KEY,tenant TEXT NOT NULL,actor TEXT NOT NULL,\n plan TEXT NOT NULL,result TEXT NOT NULL,active INTEGER NOT NULL DEFAULT 1,\n undone_at INTEGER,created_at INTEGER NOT NULL\n);\nCREATE TABLE lky_lifecycle_guard (value INTEGER NOT NULL CHECK(value=1));\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0029_latchkey_projects.sql",
+      "sha256": "08e27c27a94cf101ad35cc29ba0eb1c05be6defd2550ce6c466e7ddc5155ca73",
+      "sql": "-- Opaque scope identifiers only. Catalogs, paths and values remain encrypted\n-- in client-produced lky_versions envelopes; runtime profiles never arrive here.\nCREATE TABLE lky_projects (\n id TEXT PRIMARY KEY,tenant TEXT NOT NULL,vault_id TEXT NOT NULL REFERENCES lky_vaults(id),\n owner TEXT NOT NULL,metadata_object TEXT NOT NULL,created_at INTEGER NOT NULL\n);\nCREATE TABLE lky_project_environments (\n id TEXT PRIMARY KEY,project_id TEXT NOT NULL REFERENCES lky_projects(id),\n catalog_object TEXT NOT NULL,created_at INTEGER NOT NULL\n);\nCREATE TABLE lky_project_resources (\n id TEXT PRIMARY KEY,environment_id TEXT NOT NULL REFERENCES lky_project_environments(id),\n vault_id TEXT NOT NULL REFERENCES lky_vaults(id),object_id TEXT NOT NULL,\n UNIQUE(vault_id,object_id)\n);\nCREATE TABLE lky_runtime_grants (\n id TEXT PRIMARY KEY,tenant TEXT NOT NULL,account_id TEXT NOT NULL,device_id TEXT NOT NULL,\n machine_id TEXT NOT NULL,token_hash TEXT NOT NULL UNIQUE,public_key TEXT NOT NULL,\n recipient_key TEXT NOT NULL,authority_key TEXT NOT NULL,generation INTEGER NOT NULL,\n operator_version INTEGER NOT NULL,expires_at INTEGER NOT NULL,max_uses INTEGER,\n uses INTEGER NOT NULL DEFAULT 0,revoked_at INTEGER,created_at INTEGER NOT NULL\n);\nCREATE TABLE lky_runtime_scopes (\n id TEXT PRIMARY KEY,grant_id TEXT NOT NULL REFERENCES lky_runtime_grants(id),\n kind TEXT NOT NULL CHECK(kind IN ('project','field')),vault_id TEXT NOT NULL,\n object_id TEXT NOT NULL,epoch INTEGER NOT NULL,project_id TEXT,environment_id TEXT,\n path_hash TEXT NOT NULL,can_read INTEGER NOT NULL,can_write INTEGER NOT NULL,\n wrapped_key TEXT NOT NULL,payload TEXT,source_version INTEGER,\n UNIQUE(grant_id,kind,vault_id,object_id,path_hash)\n);\nCREATE TABLE lky_runtime_dependencies (\n grant_id TEXT NOT NULL REFERENCES lky_runtime_grants(id),vault_id TEXT NOT NULL,\n object_id TEXT NOT NULL,epoch INTEGER NOT NULL,version INTEGER NOT NULL,\n PRIMARY KEY(grant_id,vault_id,object_id)\n);\nCREATE TABLE lky_runtime_guard(value INTEGER NOT NULL CHECK(value=1));\nCREATE INDEX lky_runtime_scope_object ON lky_runtime_scopes(vault_id,object_id);\nCREATE INDEX lky_runtime_dependency_object ON lky_runtime_dependencies(vault_id,object_id);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0030_latchkey_automation.sql",
+      "sha256": "332f98f4f9e82f36237d005e9328fe29718d2fd3284643e8492b98b0e2b138ea",
+      "sql": "CREATE TABLE lky_automation_guard (valid INTEGER NOT NULL CHECK(valid=1));\nCREATE TABLE lky_mcp_credentials (\n id TEXT PRIMARY KEY, tenant TEXT NOT NULL, owner TEXT NOT NULL,\n vault_id TEXT NOT NULL REFERENCES lky_vaults(id), token_hash TEXT NOT NULL UNIQUE,\n public_key TEXT NOT NULL, scopes TEXT NOT NULL, source_device TEXT NOT NULL,\n generation INTEGER NOT NULL, operator_version INTEGER NOT NULL,\n expires_at INTEGER NOT NULL, revoked_at INTEGER, created_at INTEGER NOT NULL\n);\nCREATE TABLE lky_mcp_requests (\n id TEXT PRIMARY KEY,tenant TEXT NOT NULL,credential_id TEXT NOT NULL,\n owner TEXT NOT NULL,vault_id TEXT NOT NULL,account_id TEXT NOT NULL,\n recipient_generation INTEGER NOT NULL,fingerprint TEXT NOT NULL,\n objects TEXT NOT NULL,rights TEXT NOT NULL,expires_at INTEGER NOT NULL,\n epoch INTEGER NOT NULL,vault_revision INTEGER NOT NULL,preview_hash TEXT NOT NULL,\n phase TEXT NOT NULL CHECK(phase IN ('pending','approved','denied','fulfilled')),\n revision INTEGER NOT NULL,created_at INTEGER NOT NULL,decided_at INTEGER,share_id TEXT\n);\nCREATE INDEX lky_mcp_requests_owner ON lky_mcp_requests(tenant,owner,created_at,id);\nCREATE TABLE lky_webhook_subscriptions (\n id TEXT PRIMARY KEY,tenant TEXT NOT NULL,owner TEXT NOT NULL,endpoint TEXT NOT NULL,\n events TEXT NOT NULL,secret TEXT NOT NULL,source_device TEXT NOT NULL,\n generation INTEGER NOT NULL,operator_version INTEGER NOT NULL,\n revision INTEGER NOT NULL,active INTEGER NOT NULL,created_at INTEGER NOT NULL\n);\nCREATE TABLE lky_webhook_deliveries (\n id TEXT PRIMARY KEY,subscription_id TEXT NOT NULL REFERENCES lky_webhook_subscriptions(id),\n event_id TEXT NOT NULL,payload TEXT NOT NULL,phase TEXT NOT NULL,\n attempts INTEGER NOT NULL DEFAULT 0,lease_until INTEGER,\n status INTEGER,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL,\n UNIQUE(subscription_id,event_id)\n);\nCREATE TABLE lky_webhook_attempts (\n id TEXT PRIMARY KEY,delivery_id TEXT NOT NULL REFERENCES lky_webhook_deliveries(id),\n subscription_revision INTEGER NOT NULL,started_at INTEGER NOT NULL,\n completed_at INTEGER,status INTEGER,outcome TEXT NOT NULL\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0031_latchkey_posture_evidence.sql",
+      "sha256": "6b4a73cb46b06e160026593045b28d24bf5c1729a44fe157536f5c5acb3d25e4",
+      "sql": "ALTER TABLE lky_evidence_destinations ADD COLUMN max_age_seconds INTEGER NOT NULL DEFAULT 86400;\nALTER TABLE lky_evidence_deliveries ADD COLUMN signed_package TEXT;\nCREATE TABLE lky_evidence_sources (\n id TEXT PRIMARY KEY, tenant TEXT NOT NULL, owner TEXT NOT NULL,\n vault_id TEXT NOT NULL, kind TEXT NOT NULL, body TEXT NOT NULL,\n source_timestamp INTEGER NOT NULL, created_at INTEGER NOT NULL, active INTEGER NOT NULL\n);\nCREATE TABLE lky_evidence_deletions (\n id TEXT PRIMARY KEY, tenant TEXT NOT NULL, owner TEXT NOT NULL,\n delivery_id TEXT UNIQUE, source_id TEXT, destination TEXT NOT NULL,\n provider_reference TEXT NOT NULL, request_reference TEXT NOT NULL,\n state TEXT NOT NULL, confirmation_reference TEXT,\n requested_at INTEGER NOT NULL, confirmed_at INTEGER\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0032_latchkey_msp.sql",
+      "sha256": "597b14dacf8c680b298578f7ef7e01353a65e0110e7d86ca4e234cb36bf9a739",
+      "sql": "-- Each client installation retains its own owner, keys and consent ledger.\nCREATE TABLE lky_msp_delegations (\n id TEXT PRIMARY KEY, tenant TEXT NOT NULL, provider TEXT NOT NULL,\n public_key TEXT NOT NULL, console_origin TEXT NOT NULL, scopes TEXT NOT NULL,\n owner TEXT NOT NULL, device TEXT NOT NULL, generation INTEGER NOT NULL,\n operator_version INTEGER NOT NULL, expires_at INTEGER NOT NULL,\n created_at INTEGER NOT NULL, revoked_at INTEGER\n);\nCREATE TABLE lky_msp_nonces (\n delegation TEXT NOT NULL, nonce TEXT NOT NULL, expires_at INTEGER NOT NULL,\n PRIMARY KEY(delegation,nonce)\n);\nCREATE TABLE lky_msp_previews (\n id TEXT PRIMARY KEY, delegation TEXT NOT NULL, tenant TEXT NOT NULL,\n hash TEXT NOT NULL, before_policy TEXT NOT NULL, after_policy TEXT NOT NULL,\n policy_mutation TEXT, expires_at INTEGER NOT NULL, operation TEXT\n);\nCREATE TABLE lky_msp_commercial (\n tenant TEXT PRIMARY KEY, owner TEXT NOT NULL, status TEXT NOT NULL,\n reference TEXT NOT NULL, recorded_at INTEGER NOT NULL\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0033_latchkey_msp_posture.sql",
+      "sha256": "9f252dba72cc31dc0f2f8ff1eae30505a33702d7dcf9642e97d6e05b572f87ec",
+      "sql": "-- Owner-observed company expiry counts; no values, titles or expiry dates.\nCREATE TABLE lky_msp_captures (\n id TEXT PRIMARY KEY, tenant TEXT NOT NULL, vault TEXT NOT NULL,\n owner TEXT NOT NULL, device TEXT NOT NULL, generation INTEGER NOT NULL,\n operator_version INTEGER NOT NULL, epoch INTEGER NOT NULL, revision INTEGER NOT NULL,\n observed_at INTEGER NOT NULL, total_active_items INTEGER NOT NULL,\n with_expiry INTEGER NOT NULL, expired_count INTEGER NOT NULL, active INTEGER NOT NULL,\n UNIQUE(tenant,vault)\n);\n"
+    }
+  ],
+  "compatibilityDate": "2026-09-08",
+  "compatibilityFlags": [
+    "nodejs_compat"
+  ],
+  "durableObjects": [],
+  "durableObjectMigrations": [],
+  "publicVariables": {
+    "AUTH_LOCAL": "false",
+    "AUTH_ORIGIN": "",
+    "MAIL_PROVIDER": "",
+    "MAIL_FROM": "",
+    "MAIL_RELAY_URL": "",
+    "MAIL_ACCOUNT_ID": ""
+  },
+  "secretNames": [
+    "OWNER_EMAIL",
+    "SESSION_SECRET",
+    "SETUP_TOKEN"
+  ],
+  "optionalSecretNames": [
+    "MAIL_API_KEY",
+    "LATCHKEY_ERASURE_SECRET"
+  ],
+  "schedules": [
+    "* * * * *"
+  ],
+  "queueConsumers": [],
+  "healthPath": "/health",
+  "recovery": "Preserve the encrypted archive, buyer-held recovery keys and private installation settings. Restore only into an empty installation, establish a fresh owner, and verify records and attachments before restoring access. Follow OPERATIONS.md.",
+  "providerEffects": [
+    "outbound-mail"
+  ],
+  "surfaces": {
+    "app": {
+      "path": "/",
+      "originVariable": "AUTH_ORIGIN",
+      "signIn": {
+        "path": "/signin",
+        "loginHint": true,
+        "ownerSignIn": "/auth/owner-signin"
+      }
+    }
+  },
+  "mail": {
+    "providers": [
+      "rer",
+      "resend",
+      "sendgrid",
+      "cloudflare"
+    ]
+  }
+}
