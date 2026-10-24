@@ -1,7 +1,9 @@
 {
   "version": "0.1.0",
   "publicReleaseNotes": "Prepare Latchkey for hosted installation with a digest-bound setup manifest, deployment specification, dispatch-only Managed workflow and explicit hosted mail configuration. The complete password and secrets product remains the target described in CONTRACT.md.",
-  "migrations": [],
+  "migrations": [
+    "migrations/core/0034_dependency_keys_sealed.sql"
+  ],
   "breaking": false,
   "agentUpdateInstructions": "Install the locked dependencies, preserve applied migrations and buyer-held encryption keys, and follow OPERATIONS.md. This metadata prepares a future native release."
 }

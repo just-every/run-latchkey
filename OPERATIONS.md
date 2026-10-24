@@ -119,3 +119,5 @@ Local development suppresses outbound mail. Preserve buyer-held vault and archiv
 keys separately from the installation’s Cloudflare and domain access. Restore
 into an empty destination and verify encrypted records and attachment digests
 before enabling access; never overwrite applied migration bytes.
+
+The required INSTALLATION_KEY is a private generated 64-character hexadecimal value for sealing linked-provider credentials. Preserve it with private installation settings and backups. It is separate from buyer-held vault keys. Changing it without the prior key prevents opening existing provider credentials.

@@ -189,6 +189,17 @@
       }
     },
     {
+      "path": "migrations/core/0034_dependency_keys_sealed.sql",
+      "originPath": "default-seed/migrations/core/0032_dependency_keys_sealed.sql",
+      "revision": "11f94fec479228d71ba6d7dd6ea7796c0d42c544",
+      "files": {
+        "migrations/core/0034_dependency_keys_sealed.sql": "9c8fa5f94c48a230f326cd4d666cbc2bd1e7d5a18327b89e65b339ac6a533d9a"
+      },
+      "modes": {
+        "migrations/core/0034_dependency_keys_sealed.sql": "100644"
+      }
+    },
+    {
       "path": "public/fonts/outfit/LICENSE.txt",
       "originPath": "default-seed/public/fonts/outfit/LICENSE.txt",
       "revision": "11f94fec479228d71ba6d7dd6ea7796c0d42c544",

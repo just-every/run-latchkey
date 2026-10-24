@@ -198,6 +198,12 @@
       "name": "0033_latchkey_msp_posture.sql",
       "sha256": "9f252dba72cc31dc0f2f8ff1eae30505a33702d7dcf9642e97d6e05b572f87ec",
       "sql": "-- Owner-observed company expiry counts; no values, titles or expiry dates.\nCREATE TABLE lky_msp_captures (\n id TEXT PRIMARY KEY, tenant TEXT NOT NULL, vault TEXT NOT NULL,\n owner TEXT NOT NULL, device TEXT NOT NULL, generation INTEGER NOT NULL,\n operator_version INTEGER NOT NULL, epoch INTEGER NOT NULL, revision INTEGER NOT NULL,\n observed_at INTEGER NOT NULL, total_active_items INTEGER NOT NULL,\n with_expiry INTEGER NOT NULL, expired_count INTEGER NOT NULL, active INTEGER NOT NULL,\n UNIQUE(tenant,vault)\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0034_dependency_keys_sealed.sql",
+      "sha256": "9c8fa5f94c48a230f326cd4d666cbc2bd1e7d5a18327b89e65b339ac6a533d9a",
+      "sql": "ALTER TABLE rer_dependency_installation ADD COLUMN keys_sealed INTEGER NOT NULL DEFAULT 0 CHECK(keys_sealed IN (0,1));\n-- Nonsecret version history lets restored rows name an unavailable retired key\n-- without confusing ciphertext tampering or a wrong current secret with restore.\nALTER TABLE rer_dependency_installation ADD COLUMN key_ids TEXT NOT NULL DEFAULT '[]' CHECK(json_valid(key_ids) AND json_type(key_ids)='array');\n"
     }
   ],
   "compatibilityDate": "2026-09-08",
@@ -217,7 +223,8 @@
   },
   "secretNames": [
     "SESSION_SECRET",
-    "SETUP_TOKEN"
+    "SETUP_TOKEN",
+    "INSTALLATION_KEY"
   ],
   "optionalSecretNames": [
     "MAIL_API_KEY",

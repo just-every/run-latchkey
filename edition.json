@@ -416,6 +416,27 @@
           }
         ]
       }
+    },
+    {
+      "id": "just-every/latchkey-auth-host",
+      "role": "module",
+      "source": {
+        "kind": "local",
+        "paths": [
+          "src/auth.server.ts"
+        ],
+        "origin": {
+          "repository": "https://github.com/runeditrun/base.git",
+          "revision": "11f94fec479228d71ba6d7dd6ea7796c0d42c544",
+          "path": "foundation/template/src/auth.server.ts"
+        },
+        "mappings": [
+          {
+            "path": "src/auth.server.ts",
+            "originPath": "auth.server.ts"
+          }
+        ]
+      }
     }
   ]
 }
