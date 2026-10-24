@@ -893,11 +893,11 @@
       "executable": false
     },
     "rer-project.json": {
-      "sha256": "e5eb0616408bb7cfd89b988f95f5a01aa1a1504de55dc0a0903f69d5630cc1d3",
+      "sha256": "569d1ac797e8447886681f4dc6129cccc44d7e632ab97bf3f7caf295c7162890",
       "executable": false
     },
     "rer-setup.json": {
-      "sha256": "4453def22bbb920fc1c884e309abd9a87bec8a74ebc2b034cdad0245e0a6c85d",
+      "sha256": "6decea79d94867fefe92d5e8994df563093a3755ad3802446d19422cd97580bc",
       "executable": false
     },
     "RUN-LOCALLY.md": {
@@ -1141,7 +1141,7 @@
       "executable": false
     },
     "src/auth.server.ts": {
-      "sha256": "6a55aaf045aabdd0016b2237f607cb34fab14969f5760a3ca8a0b2f1e4205709",
+      "sha256": "1d1f1c911721c441b34c078b61264f0cf885b5cf7bd9cef1d508695e547b420b",
       "executable": false
     },
     "src/base/actor.ts": {
@@ -2025,7 +2025,7 @@
       "executable": false
     },
     "src/mail.server.mjs": {
-      "sha256": "4817b11ecb01660cb15acc2c03f5d6ce814418bc85d517ad5f4fdc4d49779c0a",
+      "sha256": "180302b71a131f6429f1ae11ddb6b637de9bc03f8295dea522cabb0212d687b4",
       "executable": false
     },
     "src/modules/ai/client.mjs": {
