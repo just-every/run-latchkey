@@ -597,7 +597,7 @@
       "executable": false
     },
     "management/integration/deployment-spec.json": {
-      "sha256": "cc82675a1bd0cff8840f7aaed19701669b9cdca5ad3fb1b3cc0f840f806d182e",
+      "sha256": "41f9779dd7ed82cc7a86dd599335ed76ec2187f9e5144a8a2cd66be0db597347",
       "executable": false
     },
     "migrations/core/0001_owner.sql": {
@@ -797,7 +797,7 @@
       "executable": false
     },
     "packaging.json": {
-      "sha256": "43c5dea7cbee3c523cd951a1733d976e2dfb8f8d6fe4f56b58393180a8301c59",
+      "sha256": "e14c8dfbbac2808c9a55f9ea8cc28cfed0a86fa7c21a2d74c42c600dfc9cb526",
       "executable": false
     },
     "pnpm-lock.yaml": {
@@ -965,7 +965,7 @@
       "executable": false
     },
     "scripts/delivery/base/packaging.json": {
-      "sha256": "43c5dea7cbee3c523cd951a1733d976e2dfb8f8d6fe4f56b58393180a8301c59",
+      "sha256": "e14c8dfbbac2808c9a55f9ea8cc28cfed0a86fa7c21a2d74c42c600dfc9cb526",
       "executable": false
     },
     "scripts/delivery/base/paths.mjs": {
@@ -2025,7 +2025,7 @@
       "executable": false
     },
     "src/mail.server.mjs": {
-      "sha256": "3141038b35c1dc195f228a6ac5eed5ade112290cff3d231877c81d9807d19d89",
+      "sha256": "4817b11ecb01660cb15acc2c03f5d6ce814418bc85d517ad5f4fdc4d49779c0a",
       "executable": false
     },
     "src/modules/ai/client.mjs": {
@@ -3225,7 +3225,7 @@
       "executable": false
     },
     "wrangler.jsonc": {
-      "sha256": "ecbce172250e9d7fcbfbc68797a1d1d5dfa92049a5b5352e9f7ae41a7c7d6691",
+      "sha256": "6a3c062248ca11d11e7a94875b386d2b38da9a744d5a1ed81f3dbd6472d0993d",
       "executable": false
     }
   }
