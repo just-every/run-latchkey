@@ -19,7 +19,11 @@ and master password using the normal CLI input boundary, never command arguments
 exactly `category`, `provider`, `source`, `destination`, `owner` and `origin`.
 Source, destination and responsible owner are opaque UUID references. Origin is
 an HTTPS origin without credentials, a path, query or fragment. The encrypted
-record preserves all of these fields.
+record preserves all of these fields. Owner confirmation is signed inside the
+ciphertext and bound to the company, vault, item and exact reference. Opening
+verifies that signature against the trusted vault owner. A copied, modified or
+unsigned older record cannot be opened as a confirmed handoff; record it again
+with explicit owner confirmation.
 
 Categories are pki (Venafi, Keyfactor, Infisical), session (CyberArk, Delinea,
 StrongDM, Teleport), mdm (Jamf, Kandji, Intune), spend (Zylo, Productiv), tls

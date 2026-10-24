@@ -1,3 +1,4 @@
+import { id, sign, verify } from '../crypto/envelope.mjs';
 import { TypedItems, createItem } from '../items/index.mjs';
 import { check } from '../items/fields.mjs';
 import { filterRecords } from '../collections/client.mjs';
@@ -15,6 +16,8 @@ function reference(input) {
  return Object.fromEntries(referenceKeys.map(key => [key,input[key]]));
 }
 
+const confirmationText = (tenant, vault, object, owner, input) => JSON.stringify(['latchkey-handoff-confirmation-v1', tenant, vault, object, owner, ...referenceKeys.map(key => input[key])]);
+
 // No connector is inferred from a link. This door never sends a network request
 // to a specialist and never records a successful provider response on its own.
 export class HandoffClient {
@@ -24,13 +27,18 @@ export class HandoffClient {
   input = reference(input);
   const descriptor = (await this.client.call('vaults', {})).find(row => row.id === vault);
   check(descriptor?.owner === this.client.profile.account && descriptor.kind === 'company', 'handoff_owner_required');
-  const value = createItem('custom', { title: 'Handoff to ' + input.provider, fields: Object.entries({ ...input, state: 'unresolved', result: 'adapter-unavailable', acknowledgement: 'none' }).map(([id, value]) => ({ id, label: id, type: 'text', secret: true, value })) });
-  return this.items.save(vault, value);
+  const object = id(), confirmation = await sign(this.client.bundle.root.authority.privateKey, confirmationText(this.client.profile.tenant, vault, object, descriptor.owner, input));
+  const value = createItem('custom', { title: 'Handoff to ' + input.provider, fields: Object.entries({ ...input, confirmation, state: 'unresolved', result: 'adapter-unavailable', acknowledgement: 'none' }).map(([id, value]) => ({ id, label: id, type: 'text', secret: true, value })) });
+  return this.items.save(vault, value, object);
  }
  async open(vault, object) {
   const row = await this.items.current(vault, object), value = fields(row.value);
-  check(row.value.title === 'Handoff to ' + value.provider && Object.keys(value).sort().join() === [...referenceKeys,'state','result','acknowledgement'].sort().join() && value.state === 'unresolved' && value.result === 'adapter-unavailable' && value.acknowledgement === 'none', 'handoff_not_found');
-  return { object, ...reference(Object.fromEntries(referenceKeys.map(key => [key,value[key]]))), state:'unresolved', result:'adapter-unavailable', acknowledgement:'none', url:value.origin, authority:'reference-only', providerVerified:false };
+  check(row.value.title === 'Handoff to ' + value.provider && Object.keys(value).sort().join() === [...referenceKeys,'confirmation','state','result','acknowledgement'].sort().join() && value.state === 'unresolved' && value.result === 'adapter-unavailable' && value.acknowledgement === 'none', 'handoff_not_found');
+  const descriptor = (await this.client.call('vaults', {})).find(row => row.id === vault);
+  const input = reference(Object.fromEntries(referenceKeys.map(key => [key,value[key]])));
+  const authority = this.client.profile.trusted[descriptor?.owner]?.authorityKey;
+  check(descriptor?.kind === 'company' && authority && await verify(authority, value.confirmation, confirmationText(this.client.profile.tenant, vault, object, descriptor.owner, input)), 'handoff_not_found');
+  return { object, ...input, state:'unresolved', result:'adapter-unavailable', acknowledgement:'none', url:value.origin, authority:'reference-only', providerVerified:false };
  }
  async expiry(vault, { now = Date.now(), withinDays = 30 } = {}) {
   check(Number.isSafeInteger(now) && Number.isSafeInteger(withinDays) && withinDays >= 0 && withinDays <= 365, 'invalid_expiry_window');

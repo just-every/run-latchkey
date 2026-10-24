@@ -83,6 +83,13 @@ export async function specialistBoundaryJourney(f, width) {
  await refused(handoffs.record(vault, { ...refs, category: 'pki', provider: 'venafi', origin: refs.origin + '/?secret=synthetic-latchkey-6104' }, { confirmed: true }), 'handoff_origin_required');
  await refused(handoffs.record(vault, { ...refs, category: 'pki', provider: 'venafi' }), 'handoff_confirmation_required');
  await refused(handoffs.record(vault, { ...refs, category: 'pki', provider: 'venafi' }, { confirmed: 'true' }), 'handoff_confirmation_required');
+ const originalReference=opened.find(row=>row.category==='task');
+ const copiedReference=await items.save(vault,(await items.current(vault,originalReference.object)).value);
+ await refused(handoffs.open(vault,copiedReference.object),'handoff_not_found');
+ const changedReference=(await items.current(vault,originalReference.object)).value;
+ changedReference.fields.find(field=>field.id==='destination').value=id();
+ await items.save(vault,changedReference,originalReference.object);
+ await refused(handoffs.open(vault,originalReference.object),'handoff_not_found');
  const tampered=opened.find(row=>row.category==='spend');const tamperedRecord=await items.current(vault,tampered.object);tamperedRecord.value.fields.push({id:'payrollData',label:'Payroll data',type:'secret',secret:true,value:'synthetic-latchkey-6105'});await items.save(vault,tamperedRecord.value,tampered.object);await refused(handoffs.open(vault,tampered.object),'handoff_not_found');
  const payloads = JSON.stringify(opened); for (const secret of [privateKey, certificate, 'synthetic-latchkey-6101']) assert.ok(!payloads.includes(secret));
  const credential = await items.save(vault, createItem('login', { title: 'Shared privileged account', values: { password: 'synthetic-latchkey-6110' } }));
@@ -110,6 +117,7 @@ export async function specialistBoundaryJourney(f, width) {
   await owner.share(vault, member.profile.account, await member.identity().fingerprint, ['read']); await member.pinAccount(owner.profile.account,await owner.identity().fingerprint);
   assert.equal(await new TypedItems(member).field(vault, cert.object, 'privateKey', 'reveal'), privateKey);
   assert.equal((await new HandoffClient(member).expiry(vault)).alerts.length,2);
+  assert.equal((await new HandoffClient(member).open(vault,opened.find(row=>row.category==='payroll').object)).acknowledgement,'none');
   const subject=(await f.db.prepare('SELECT operator_id FROM lky_accounts WHERE id=?').bind(member.profile.account).first()).operator_id;
   assert.equal((await owner.call('subject' + '/erase-preview',{subject})).requiresConfirmation,true);
   await refused(member.call('checkout' + '/acquire', { ...leaseInput, expiresAt:Date.now()+60000 }), 'checkout_owner_required');
@@ -128,7 +136,7 @@ export async function specialistBoundaryJourney(f, width) {
   assert.equal((await owner.call('checkout' + '/status',{vault,object:credential.object})).checkout,next.checkout);
   const released=await requestApi(owner,'POST',`/vaults/${vault}/items/${credential.object}/checkout/release`,{checkout:next.checkout,reason:releaseInput.reason,confirmed:true});
   assert.equal(released.state,'available'); assert.equal(released.providerState,'unchanged');
-  const releaseAudit=(await requestApi(owner,'GET','/events')).find(row=>row.action==='checkout_released:holder-unavailable'&&row.object===credential.object);
+  const releaseAudit=(await requestApi(owner,'GET','/events?limit=200')).data.find(row=>row.action==='checkout_released:holder-unavailable'&&row.object_id===credential.object);
   assert.ok(releaseAudit);assert.equal(releaseAudit.actor,owner.profile.account);assert.equal(releaseAudit.device,owner.profile.device);
   await refused(owner.call('checkout' + '/release',releaseInput),'checkout_changed');
   const renewed=await requestApi(owner,'POST',`/vaults/${vault}/items/${credential.object}/checkout`,{expiresAt:Date.now()+60000,confirmed:true});
@@ -156,6 +164,8 @@ export async function specialistBoundaryJourney(f, width) {
   if(new URL(f.page.url()).pathname==='/setup'){await f.page.getByLabel('I confirm this owner account is ready to use.').check();await f.page.getByRole('button',{name:'Finish setup',exact:true}).click();await f.page.goto(f.origin+'/app/vault');}
   await f.page.getByLabel('Profile file').setInputFiles({name:'profile.json',mimeType:'application' + '/json',buffer:Buffer.from(JSON.stringify(owner.profile))});await f.page.getByLabel('Master password',{exact:true}).fill(f.password);await f.page.getByRole('button',{name:'Unlock vault',exact:true}).click();await f.page.getByLabel('Vault',{exact:true}).selectOption(vault);
   await f.page.getByRole('button',{name:/Private certificate/}).click();
+  const copyControl=f.page.getByRole('button',{name:'Copy Private key',exact:true});await copyControl.hover();await expect(f.page.getByRole('tooltip',{name:'Copy field'})).toBeVisible();
+  const attachmentControl=f.page.getByRole('button',{name:'Download private-certificate.pem',exact:true});await attachmentControl.focus();await expect(f.page.getByRole('tooltip',{name:'Download attachment'})).toBeVisible();
   const reveal=f.page.getByRole('button',{name:'Reveal Private key',exact:true});await reveal.focus();await expect(f.page.getByRole('tooltip',{name:'Reveal field'})).toBeVisible();
   assert.ok(await f.page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(output)await f.page.screenshot({path:join(output,`specialist-certificate-${width}.png`),fullPage:true});
   await f.page.getByRole('button',{name:/Expiring recovery document/}).click();await expect(f.page.getByRole('heading',{name:'Expiring recovery document',exact:true})).toBeVisible();
