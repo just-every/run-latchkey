@@ -4,8 +4,19 @@ Open Settings, then Security rules in the unlocked vault console. Select an
 explicit item version and a currently authorized vault recipient. Preview the
 exact target, recipient, severity, maintenance window and effect bound. Save
 an inactive version, preview that saved version, then explicitly activate it.
-The current console uses fixed-duration recurrence, including a 90-day review
-preset; this does not claim calendar-quarter scheduling.
+The console offers fixed-duration recurrence or calendar-quarter recurrence.
+Calendar schedules start at midnight UTC on January 1, April 1, July 1 or
+October 1, then follow actual quarter boundaries, including leap years. The
+one-hour maintenance window starts at each boundary; late runs remain missed.
+
+An optional group constraint requires each explicitly selected recipient to
+remain a member of an owner-created group. An optional project constraint
+requires each target to remain a registered resource of that owned project
+in the selected vault, with active project and environment objects. These
+constraints never add targets, recipients or authority. Preview, activation,
+decisions and scheduling recheck them; scope loss leaves an inspectable
+suspended run. Cancellation remains available after scope loss. Scope options
+show opaque references only; encrypted project names remain client-held.
 
 The service accepts only expiry, review, rotation and owner-observed anomaly
 metadata. It cannot read encrypted values or independently detect an anomaly.
@@ -30,7 +41,7 @@ version does not repeat an already recorded slot.
 Rotation approval only prepares an exact proposal. Recording completion needs
 an observed newer encrypted item version and leaves provider verification
 unknown. Rule edits invalidate queued approvals. Actual provider execution,
-complete review outcomes and broader scoping remain in LKY-054’s Gap.
+complete review outcomes and provider scoping remain in LKY-054’s Gap.
 
 Records includes rules, immutable versions, runs and decisions. Import forces
 rules inactive and obligations inactive; it does not revive approval authority.

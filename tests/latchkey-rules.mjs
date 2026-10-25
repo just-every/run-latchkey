@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import { vaultFixture } from './browser/fixture.mjs';
 import { createItem } from '../src/latchkey/items/types.mjs';
 import { restoreDomainArchive } from './latchkey-evidence.mjs';
+import { LifecycleClient } from '../src/latchkey/lifecycle/client.mjs';
+import { SharingClient } from '../src/latchkey/sharing/client.mjs';
+import { ProjectClient } from '../src/latchkey/projects/client.mjs';
 import { VaultClient } from '../src/latchkey/client.mjs';
 import { mkdtemp,writeFile,rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -18,7 +21,7 @@ export async function ruleLifecycleJourney() {
   const invited=await f.fetcher(f.origin+'/auth/invite',{method:'POST',headers:{origin:f.origin,'content-type':'application/json',cookie:owner.cookie},body:JSON.stringify({email:'synthetic-latchkey-7993@example.test',displayName:'Finance member',role:'member'})});assert.equal(invited.status,202);
   const token=new URL(f.mail.at(-1).content.find(c=>c.type===['text','plain'].join('/')).value.match(/https:\/\/[^\s<>]+/)[0]).searchParams.get('token');
   const member=new VaultClient(f.origin,{fetcher:f.fetcher});await member.confirmIdentity(token);const enrolled=await member.register('synthetic-latchkey-7994');await member.unlock(enrolled.profile,'synthetic-latchkey-7994');
-  await refused(member.call(route('list'),{}),'rule_owner_required');assert.deepEqual(await member.call(route('inbox'),{}),[]);
+  await refused(member.call(route('list'),{}),'rule_owner_required');await refused(member.call(route('scopes'),{}),'rule_owner_required');assert.deepEqual(await member.call(route('inbox'),{}),[]);
   const startAt=2000000000000,definition={title:'Finance credential expiry',kind:'rotation',vault,targets:[{object,version:1,dueAt:startAt}],severity:'critical',recipients:[owner.profile.account],startAt,intervalMs:90*86400000,windowMs:3600000,maxEffects:1};
   for(const kind of ['grant-access','export','loosen-authentication','change-recovery-administrators'])await refused(call('save',{rule:null,version:0,definition:{...definition,kind}}),'forbidden_rule_effect');
   await refused(call('save',{rule:null,version:0,definition:{...definition,maxEffects:0}}),'invalid_rule_bound');
@@ -78,6 +81,34 @@ export async function ruleLifecycleJourney() {
   await owner.eraseItem(vault,object,{confirmed:true});
   await refused(call('get',{rule}),'rule_not_found');await f.schedule(startAt+3*definition.intervalMs);assert.deepEqual(await call('list',{}),[]);
   await refused(call('save',{rule:null,version:0,definition}),'rule_target_changed');
+  // Public-door scope checks and calendar recurrence share this lifecycle journey.
+  const projects=new ProjectClient(owner),sharing=new SharingClient(owner),project=await projects.create({name:'Finance scope'}),environment=await projects.createEnvironment(project.project,{name:'Production'});
+  const resource=await projects.set(environment.environment,'RULE_SECRET','synthetic-latchkey-8170'),group=(await sharing.createGroup([owner.profile.account])).group;
+  const quarter=Date.parse('2031-10-01T00:00:00Z'),quarterDefinition={...definition,vault:project.vault,targets:[{object:resource.object,version:1,dueAt:quarter}],startAt:quarter,recurrence:'calendar-quarter',scope:{group,project:project.project}};
+  await refused(call('preview',{definition:{...quarterDefinition,startAt:quarter+60000}}),'invalid_rule_quarter');
+  await refused(call('preview',{definition:{...quarterDefinition,scope:{group:id(),project:project.project}}}),'rule_scope_changed');
+  const unrelated=(await owner.put(project.vault,createItem('login',{title:'Outside project',values:{password:'synthetic-latchkey-8171'}}))).object;
+  await refused(call('preview',{definition:{...quarterDefinition,targets:[{object:unrelated,version:1,dueAt:quarter}]}}),'rule_scope_changed');
+  await refused(call('preview',{definition:{...quarterDefinition,scope:{group,project:id()}}}),'rule_scope_changed');
+  const scopeOptions=await call('scopes',{});assert.ok(scopeOptions.groups.some(g=>g.id===group));assert.ok(scopeOptions.projects.some(p=>p.id===project.project));
+  const quarterRule=(await call('save',{rule:null,version:0,definition:quarterDefinition})).id;
+  const quarterPreview=await call('preview',{definition:quarterDefinition});assert.equal(quarterPreview.recurrence,'calendar-quarter');assert.deepEqual(quarterPreview.scope,quarterDefinition.scope);
+  await call('activate',{rule:quarterRule,version:1,previewHash:quarterPreview.hash,confirmed:true});
+  await f.schedule(quarter-1);assert.equal((await call('get',{rule:quarterRule})).runs.length,0);
+  for(const [slot,date] of ['2031-10-01','2032-01-01','2032-04-01','2032-07-01'].entries()){
+   const time=Date.parse(date+'T00:00:00Z');await Promise.all([f.schedule(time),f.schedule(time)]);
+   const state=await call('get',{rule:quarterRule});assert.equal(state.runs.length,slot+1);assert.equal(state.runs.at(-1).slot,slot);assert.equal(state.runs.at(-1).state,'prepared');assert.equal(state.obligations.length,slot+1);
+  }
+  // A missing selected member must suspend, even after activation; cancellation remains available.
+  await sharing.setGroup(group,[]);await f.schedule(Date.parse('2032-10-01T00:00:00Z'));
+  let quarterState=await call('get',{rule:quarterRule});assert.equal(quarterState.runs.at(-1).state,'suspended-scope-changed');assert.equal(quarterState.obligations.length,4);
+  await refused(call('decide',{rule:quarterRule,version:1,obligation:quarterState.obligations[0].id,decision:'approve',confirmed:true}),'rule_scope_changed');
+  await call('cancel',{rule:quarterRule,version:1});
+  await refused(call('activate',{rule:quarterRule,version:1,previewHash:quarterPreview.hash,confirmed:true}),'rule_scope_changed');
+  await sharing.setGroup(group,[owner.profile.account]);await call('activate',{rule:quarterRule,version:1,previewHash:quarterPreview.hash,confirmed:true});
+  await f.schedule(Date.parse('2033-01-01T01:00:00Z'));quarterState=await call('get',{rule:quarterRule});assert.equal(quarterState.runs.at(-1).state,'missed-window');assert.equal(quarterState.obligations.length,4);
+  const environmentObject=(await projects.environment(environment.environment)).object;await new LifecycleClient(owner).change(project.vault,environmentObject,'archived',{confirmed:true});
+  await f.schedule(Date.parse('2033-04-01T00:00:00Z'));quarterState=await call('get',{rule:quarterRule});assert.equal(quarterState.runs.at(-1).state,'suspended-scope-changed');assert.equal(quarterState.obligations.length,4);
   console.log('PASS ruleLifecycleJourney: bounded versioned rules, exact approval, injected scheduling, replay and inactive Records restore');
  } finally {await f.close()}
 }
