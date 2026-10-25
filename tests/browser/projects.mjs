@@ -203,9 +203,25 @@ export async function specialistBoundaryJourney(f, width) {
   if(new URL(f.page.url()).pathname==='/setup'){await f.page.getByLabel('I confirm this owner account is ready to use.').check();await f.page.getByRole('button',{name:'Finish setup',exact:true}).click();await f.page.goto(f.origin+'/app/vault');}
   await f.page.getByLabel('Profile file').setInputFiles({name:'profile.json',mimeType:'application' + '/json',buffer:Buffer.from(JSON.stringify(owner.profile))});await f.page.getByLabel('Master password',{exact:true}).fill(f.password);await f.page.getByRole('button',{name:'Unlock vault',exact:true}).click();await f.page.getByLabel('Vault',{exact:true}).selectOption(vault);
   await f.page.getByRole('button',{name:/Private certificate/}).click();
-  const copyControl=f.page.getByRole('button',{name:'Copy Private key',exact:true});await copyControl.hover();await expect(f.page.getByRole('tooltip',{name:'Copy field'})).toBeVisible();
-  const attachmentControl=f.page.getByRole('button',{name:'Download private-certificate.pem',exact:true});await attachmentControl.focus();await expect(f.page.getByRole('tooltip',{name:'Download attachment'})).toBeVisible();
-  const reveal=f.page.getByRole('button',{name:'Reveal Private key',exact:true});await reveal.focus();await expect(f.page.getByRole('tooltip',{name:'Reveal field'})).toBeVisible();
+  const copyControl=f.page.getByRole('button',{name:'Copy Private key',exact:true});
+  const copyTooltip=f.page.getByRole('tooltip',{name:'Copy field'});
+  await f.page.mouse.move(0,0);
+  await copyControl.hover();
+  // Check the early state in the browser, before Playwright's retry window.
+  assert.equal(await copyControl.evaluate(button => getComputedStyle(button.nextElementSibling).visibility),'hidden');
+  await expect(copyTooltip).toBeVisible();
+  await f.page.mouse.move(0,0);await expect(copyTooltip).toBeHidden();
+  const attachmentControl=f.page.getByRole('button',{name:'Download private-certificate.pem',exact:true});
+  await attachmentControl.focus();
+  assert.equal(await attachmentControl.evaluate(button => getComputedStyle(button.nextElementSibling).visibility),'visible');
+  await expect(f.page.getByRole('tooltip',{name:'Download attachment'})).toBeVisible();
+  const reveal=f.page.getByRole('button',{name:'Reveal Private key',exact:true});await reveal.focus();
+  assert.equal(await reveal.evaluate(button => getComputedStyle(button.nextElementSibling).visibility),'visible');
+  await expect(f.page.getByRole('tooltip',{name:'Reveal field'})).toBeVisible();
+  await expect(f.page.getByRole('tooltip',{name:'Download attachment'})).toBeHidden();
+  await reveal.press('Escape');await expect(f.page.getByRole('tooltip',{name:'Reveal field'})).toBeHidden();
+  await attachmentControl.focus();await reveal.focus();
+  await expect(f.page.getByRole('tooltip',{name:'Reveal field'})).toBeVisible();
   assert.ok(await f.page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(output)await f.page.screenshot({path:join(output,`specialist-certificate-${width}.png`),fullPage:true});
   await f.page.getByRole('button',{name:/Expiring recovery document/}).click();await expect(f.page.getByRole('heading',{name:'Expiring recovery document',exact:true})).toBeVisible();
   assert.ok(await f.page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(output)await f.page.screenshot({path:join(output,`specialist-document-${width}.png`),fullPage:true});
