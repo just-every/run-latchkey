@@ -156,6 +156,16 @@ try {
  assert.ok(checkpoint.length>0);
  assert.equal((await auditApi('POST','/activity/verify',{checkpoint})).valid,true);
  await rejected(member.call('audit' + '/list',{filters:{},after:0,limit:10}),'audit_owner_required');
+ const {days:retentionThreshold,automaticExpiry}=await auditApi('GET','/activity/retention');
+ assert.equal(retentionThreshold,365);assert.equal(automaticExpiry,false);
+ const detailsBeforeRefusal=await productDb.prepare('SELECT * FROM lky_audit_details WHERE id=?').bind((await productDb.prepare('SELECT id FROM lky_audit_chain WHERE tenant=? ORDER BY sequence LIMIT 1').bind(owner.profile.tenant).first()).id).first();
+ await rejected(auditApi('POST','/activity/expiry',{confirmed:false}),'audit_expiry_confirmation_required');
+ assert.deepEqual(await productDb.prepare('SELECT * FROM lky_audit_details WHERE id=?').bind(detailsBeforeRefusal.id).first(),detailsBeforeRefusal);
+ await rejected(requestApi(member,'POST','/api/latchkey/v1/activity/query',{filters:{},after:0,limit:10}),'audit_owner_required');
+ const refusedReads=await auditApi('POST','/activity/query',{filters:{person:member.profile.account},after:0,limit:200});
+ assert.ok(refusedReads.entries.filter(row=>row.result==='refused'&&row.permission==='audit').length>=2);
+ const expiryRefusals=await auditApi('POST','/activity/query',{filters:{person:owner.profile.account},after:0,limit:200});
+ assert.ok(expiryRefusals.entries.some(row=>row.result==='refused'&&row.retentionDays===365&&row.expiryConfirmed===false));
  const auditPage=await auditApi('POST','/activity/query',{filters:{person:owner.profile.account,vault},after:0,limit:2});
  assert.equal(auditPage.entries.length,2);assert.ok(auditPage.next);
  const auditNext=await owner.call('audit' + '/list',{filters:{person:owner.profile.account,vault},after:auditPage.next,limit:2});

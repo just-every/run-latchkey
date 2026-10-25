@@ -243,7 +243,7 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
    if (!changed[0].meta.changes) refuse('not_found', 404)
    return response({ revoked: machine })
   }
-  if (!route.startsWith('audit/') && !route.startsWith('subject/')) {
+  if ((!route.startsWith('audit/') && !route.startsWith('subject/')) || route === 'audit' + '/expire' || (route.startsWith('audit/') && session.operator.role !== 'owner')) {
    auditContext = {db,env,now,actor,device,tenant,session,request}; auditRoute = route; auditInput = input; auditRequest = id();
    await appendAudit(auditContext, auditFacts(auditContext, route, input, 'attempted', auditRequest));
   }

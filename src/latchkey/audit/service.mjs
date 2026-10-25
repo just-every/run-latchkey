@@ -35,13 +35,13 @@ async function commitAudit(ctx,facts){
 const reference=value=>typeof value==='string'&&/^[0-9a-f-]{36}$/.test(value)?value:null;
 const actions={'vault\u002fread':'view','item\u002fread':'view','vault\u002fexport':'export','vault\u002fcreate':'create','item\u002fput':'edit','vault\u002fshare':'grant','vault\u002frotate':'rotate','device\u002frevoke':'revoke','machine\u002fgrant':'grant','machine\u002frevoke':'revoke'};
 export function auditFacts(ctx,route,input,result,requestId){
- const category=['vault','item','api','sharing','runtime','project','webhook','mcp','subject','recovery','enrollment','device','machine','generator','reviews','evidence','archive','checkout','people','admin'].find(value=>route.startsWith(value+'/'))??'authenticated';
+ const category=['audit','vault','item','api','sharing','runtime','project','webhook','mcp','subject','recovery','enrollment','device','machine','generator','reviews','evidence','archive','checkout','people','admin'].find(value=>route.startsWith(value+'/'))??'authenticated';
  const action=route==='item\u002fauthorize'&&['copy','reveal','fill','history','attachment'].includes(input.action)?input.action:actions[route]??category+'_action';
  const ip=ctx.request?.headers.get('cf-connecting-ip');
- return {schema:'latchkey-audit-fact-v1',request:requestId,actor:ctx.actor,sponsor:ctx.actor,serviceIdentity:null,agent:null,device:ctx.device,ip:ip&&/^[a-fA-F0-9:.]{3,45}$/.test(ip)?ip:null,time:ctx.now,receiptTime:ctx.now,vault:reference(input.vault),item:reference(input.object),target:reference(input.operator??input.account??input.device??input.subscription??input.operation),action,permission:category,policyVersion:'unrecorded',result,coverage:'connected authenticated human request; intent and outcome are separate records'};
+ return {schema:'latchkey-audit-fact-v1',request:requestId,actor:ctx.actor,sponsor:ctx.actor,serviceIdentity:null,agent:null,device:ctx.device,ip:ip&&/^[a-fA-F0-9:.]{3,45}$/.test(ip)?ip:null,time:ctx.now,receiptTime:ctx.now,vault:reference(input.vault),item:reference(input.object),target:reference(input.operator??input.account??input.device??input.subscription??input.operation),action,permission:category,policyVersion:'unrecorded',result,...(route==='audit' + '/expire'?{retentionDays,expiryConfirmed:input.confirmed===true}:{}),coverage:'connected authenticated human request; intent and outcome are separate records'};
 }
 export async function auditDisposition(ctx,row,reason){
- const disposition=canonicalJson({reason,at:ctx.now});
+ const disposition=canonicalJson({reason,at:ctx.now,...(reason==='retention'?{retentionDays}:{})});
  return {...row,facts:null,disposition,authorization:await auditMac(ctx,'disposition',[row.id,disposition])};
 }
 export async function auditCheckpoint(ctx){
