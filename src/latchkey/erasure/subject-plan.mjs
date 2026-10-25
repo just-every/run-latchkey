@@ -1,3 +1,4 @@
+import { auditDisposition } from '../audit/service.mjs';
 import { access, keyed, need, uuid } from './subject-common.mjs';
 import { subjectSchema } from './subject-schema.mjs';
 const contains = (value, terms) => typeof value === 'string' && terms.some(term => value.toLowerCase().includes(term.toLowerCase()));
@@ -7,6 +8,8 @@ export async function subjectPlan(ctx, subject) {
  const person=await first('SELECT * FROM oa_operators WHERE id=?',subject);
  need(person,'subject_not_found',404);
  need(subject!==ctx.session.operator.id,'self_erasure_forbidden',409);
+ need(!await first("SELECT 1 AS pending FROM lky_people_offboarding WHERE tenant=? AND operator=? AND handback='blocked-missing-enrolled-custody'",ctx.tenant,subject),'company_handback_pending',409);
+ need(!await first('SELECT 1 AS assigned FROM lky_people_offboarding p JOIN lky_accounts a ON a.id=p.custodian WHERE a.operator_id=?',subject),'offboarding_custodian_reassignment_required',409);
  const account=await first('SELECT * FROM lky_accounts WHERE operator_id=?',subject),accountId=account?.id??null;
  need(!account||account.tenant===ctx.tenant,'subject_not_found',404);
  need(person.role!=='owner' || !!await first("SELECT id FROM oa_operators WHERE role='owner' AND status='active' AND id<>?",subject),'last_owner',409);
@@ -110,6 +113,14 @@ export async function subjectPlan(ctx, subject) {
   const clauses=selected.map(()=>`(${keys.map(k=>`${k}=?`).join(' AND ')})`).join(' OR '),args=selected.flatMap(row=>keys.map(k=>row[k]));
   await select(table,clauses,args,'redact',convert);
  };
+ const auditRedactions=new Map();
+ for(const row of await all('SELECT d.* FROM lky_audit_details d JOIN lky_audit_chain c ON c.id=d.id WHERE c.tenant=? AND d.facts IS NOT NULL',ctx.tenant)){
+  if(contains(row.facts,auditIds))auditRedactions.set(row.id,await auditDisposition(ctx,row,'subject-erasure'));
+ }
+ await redact('lky_audit_details',row=>auditRedactions.has(row.id),row=>auditRedactions.get(row.id));
+ await select('lky_people_offboarding','operator=?',[subject],'redact',row=>({...row,operator:'__SUBJECT_ANON__',account:'__SUBJECT_ANON__'}));
+ await select('lky_people_batches',`actor=? OR (${identity.map(()=> 'instr(lower(result),lower(?))>0').join(' OR ')})`,[accountId,...identity]);
+ await select('lky_admin_permissions','account=? OR granted_by=?',[accountId,accountId]);
  await redact('lky_events',row=>same(row.actor)||same(row.device)||auditIds.includes(row.object_id),row=>({...row,actor:ref(row.actor),device:ref(row.device),object_id:ref(row.object_id)}));
  await redact('oa_auth_audit',row=>same(row.actor_id)||contains(row.value,identity),row=>({...row,actor_id:same(row.actor_id)?anon:row.actor_id,value:'{}'}));
  await redact('lky_generator_policy_changes',row=>same(row.actor)||same(row.device)||groupIds.includes(row.group_id)||contains(row.reason,identity),row=>({...row,actor:ref(row.actor),device:ref(row.device),group_id:groupIds.includes(row.group_id)?null:row.group_id,reason:'',policy:'{}'}));

@@ -1,3 +1,6 @@
+import { peopleAuthenticated } from './people/service.mjs'
+import { adminAuthenticated } from './people/permissions.mjs'
+import { appendAudit,auditFacts,auditAuthenticated } from './audit/service.mjs'
 import { checkoutAuthenticated } from './checkout/service.mjs'
 import {mspAuthenticated} from './msp/owner.mjs'
 import {mspResponse} from './msp/http.mjs'
@@ -46,6 +49,12 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
  if(url.pathname==='/api/latchkey/msp/provider')return mspResponse(request,env)
  if(!meta&&url.pathname.startsWith('/api/latchkey/v1/'))return apiRequest(request,(wire,metadata)=>latchkeyResponse(wire,env,auth,metadata) as Promise<Response>)
  const db = env.DB, now = Date.now()
+ let auditContext: any = null, auditRoute = '', auditInput: Row = {}, auditRequest = '';
+ const response = async (value: unknown, status = 200, cookie?: string) => {
+  const context = auditContext; auditContext = null;
+  if (context) await appendAudit(context, auditFacts(context, auditRoute, auditInput, status < 400 ? 'succeeded' : 'refused', auditRequest));
+  return Response.json(value, { status, headers: { ...headers, ...(cookie ? { 'set-cookie': cookie } : {}) } });
+ };
  const first = (sql: string, ...args: any[]) => db.prepare(sql).bind(...args).first<Row>()
  const checkWrap = async (value: unknown, accountId: string, expected: Context) => {
   const account = await first('SELECT authority_key FROM lky_accounts WHERE id=?', accountId)
@@ -233,6 +242,12 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
    if (!changed[0].meta.changes) refuse('not_found', 404)
    return response({ revoked: machine })
   }
+  if (!route.startsWith('audit/') && !route.startsWith('subject/')) {
+   auditContext = {db,env,now,actor,device,tenant,session,request}; auditRoute = route; auditInput = input; auditRequest = id();
+   await appendAudit(auditContext, auditFacts(auditContext, route, input, 'attempted', auditRequest));
+  }
+  const audited = grant.recovery === 0 ? await auditAuthenticated(route,input,{db,env,now,actor,device,tenant,session,request}) : null;
+  if (audited !== null) return response(audited);
   const subjectResult = grant.recovery === 0 ? await subjectErasureAuthenticated(route, input, { db, env, now, actor, device, tenant, session, fence, fenceArgs }) : null
   if (subjectResult !== null) return response(subjectResult)
   if (grant.recovery === 0) {
@@ -247,6 +262,10 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
   }
   const ctx={db,env,now,actor,device,tenant,session,fence,fenceArgs,auth,request}
   if(meta)await rateApi(ctx)
+  const admin = grant.recovery === 0 ? await adminAuthenticated(route,input,ctx) : null;
+  if(admin!==null)return response(admin);
+  const people = grant.recovery === 0 ? await peopleAuthenticated(route,input,ctx) : null;
+  if(people!==null)return response(people);
   const mspResult=grant.recovery===0?await mspAuthenticated(route,input,ctx):null
   if(mspResult!==null)return response(mspResult)
   const apiResult=grant.recovery===0?await apiAuthenticated(route,input,ctx):null

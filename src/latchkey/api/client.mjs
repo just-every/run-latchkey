@@ -61,6 +61,9 @@ export class ApiClient {
 }
 
 export const commands={
+ 'activity.query':['POST','/activity/query'],'activity.csv':['POST','/activity/csv'],'activity.checkpoint':['GET','/activity/checkpoint'],'activity.verify':['POST','/activity/verify'],'activity.retention':['GET','/activity/retention'],'activity.expire':['POST','/activity/expiry'],
+ 'admin.permissions':['GET','/admin/permissions'],'admin.set-permissions':['PUT','/admin/permissions'],
+ 'people.preview':['POST','/people/preview'],'people.invite':['POST','/people/invitations'],'people.member':['POST','/people/member'],'people.offboard':['POST','/people/offboard'],'people.offboarding':['POST','/people/offboarding'],
  'users.list':['GET','/users'],'users.get':['GET','/users/{operator}'],'users.invite':['POST','/users'],'users.role':['PUT','/users/{operator}/role'],'users.status':['PUT','/users/{operator}/status'],'users.cancel-invitation':['DELETE','/users/{operator}/invitation'],
  'groups.list':['GET','/groups'],'groups.create':['POST','/groups'],'groups.members':['GET','/groups/{group}/members'],'groups.set':['PUT','/groups/{group}/members'],
  'vaults.list':['GET','/vaults'],'vaults.get':['GET','/vaults/{vault}'],'vaults.create':['POST','/vaults'],'vaults.share':['POST','/vaults/{vault}/shares'],'vaults.rotate':['POST','/vaults/{vault}/rotations'],

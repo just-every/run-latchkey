@@ -148,6 +148,99 @@ try {
  await rejected(member.readVault(vault), 'recipient_confirmation_required')
  await member.pinAccount(enrolled.profile.account, await digest(JSON.stringify([enrolled.profile.recipientKey, enrolled.profile.authorityKey])))
  assert.deepEqual((await member.readVault(vault)).versions, read.versions)
+ // Audit proof uses signed public HTTP doors; raw-store writes model an attacker.
+ const {requestApi}=await import('../src/latchkey/api/client.mjs');
+ const auditApi=(method,path,value)=>requestApi(owner,method,'/api/latchkey/v1'+path,value);
+ await Promise.all(Array.from({length:8},()=>owner.call('vaults',{})));
+ const checkpoint=await auditApi('GET','/activity/checkpoint');
+ assert.ok(checkpoint.length>0);
+ assert.equal((await auditApi('POST','/activity/verify',{checkpoint})).valid,true);
+ await rejected(member.call('audit' + '/list',{filters:{},after:0,limit:10}),'audit_owner_required');
+ const auditPage=await auditApi('POST','/activity/query',{filters:{person:owner.profile.account,vault},after:0,limit:2});
+ assert.equal(auditPage.entries.length,2);assert.ok(auditPage.next);
+ const auditNext=await owner.call('audit' + '/list',{filters:{person:owner.profile.account,vault},after:auditPage.next,limit:2});
+ assert.ok(auditNext.entries.every(row=>row.sequence>auditPage.next));
+ const revealReceipt=await owner.call('item' + '/authorize',{vault,object:objects[0],action:'reveal'});
+ assert.equal(revealReceipt.authorized,'reveal');
+ const reveals=await owner.call('audit' + '/list',{filters:{person:owner.profile.account,vault,item:objects[0],action:'reveal',device:owner.profile.device,from:0,to:Date.now()+60000},after:0,limit:200});
+ assert.equal(reveals.entries.length,2);assert.deepEqual(reveals.entries.map(row=>row.result),['attempted','succeeded']);
+ const csv=await auditApi('POST','/activity/csv',{filters:{action:'reveal',vault},after:0,limit:200});
+ assert.equal(csv.count,reveals.entries.length);assert.equal(csv.csv.split('\r\n').length,csv.count+1);
+ assert.ok(!JSON.stringify(reveals).includes(values[0].value));
+ await rejected(owner.call('audit' + '/list',{filters:{secret:'synthetic-latchkey-90000'},after:0,limit:10}),'invalid_audit_filter');
+ for(const filter of ['serviceIdentity','agent','ip'])assert.deepEqual((await owner.call('audit' + '/list',{filters:{[filter]:'synthetic-latchkey-90001'},after:0,limit:10})).entries,[]);
+ const held=await owner.call('audit' + '/checkpoint',{});
+ const chainRows=(await productDb.prepare('SELECT * FROM lky_audit_chain WHERE tenant=? ORDER BY sequence').bind(owner.profile.tenant).all()).results;
+ const firstChain=chainRows[0],lastChain=chainRows.at(-1);
+ const damaged=async(mutate,restore)=>{await mutate();try{await rejected(owner.call('audit' + '/verify',{checkpoint:held}),'audit_tampered')}finally{await restore()}};
+ await damaged(()=>productDb.prepare("UPDATE lky_audit_chain SET commitment='changed' WHERE id=?").bind(firstChain.id).run(),()=>productDb.prepare('UPDATE lky_audit_chain SET commitment=? WHERE id=?').bind(firstChain.commitment,firstChain.id).run());
+ await damaged(()=>productDb.prepare('DELETE FROM lky_audit_chain WHERE id=?').bind(firstChain.id).run(),()=>productDb.prepare('INSERT INTO lky_audit_chain VALUES(?,?,?,?,?,?)').bind(...Object.values(firstChain)).run());
+ await damaged(()=>productDb.prepare('UPDATE lky_audit_chain SET sequence=sequence+100000 WHERE id=?').bind(firstChain.id).run(),()=>productDb.prepare('UPDATE lky_audit_chain SET sequence=? WHERE id=?').bind(firstChain.sequence,firstChain.id).run());
+ await damaged(()=>productDb.prepare('DELETE FROM lky_audit_chain WHERE id=?').bind(lastChain.id).run(),()=>productDb.prepare('INSERT INTO lky_audit_chain VALUES(?,?,?,?,?,?)').bind(...Object.values(lastChain)).run());
+ const insertedEvent=id();
+ await damaged(()=>productDb.prepare('INSERT INTO lky_audit_chain VALUES(?,?,?,?,?,?)').bind(owner.profile.tenant,lastChain.sequence+1,insertedEvent,lastChain.hash,'synthetic-latchkey-90002','synthetic-latchkey-90003').run(),()=>productDb.prepare('DELETE FROM lky_audit_chain WHERE id=?').bind(insertedEvent).run());
+ const details=await productDb.prepare('SELECT * FROM lky_audit_details WHERE id=?').bind(firstChain.id).first();
+ await damaged(()=>productDb.prepare("UPDATE lky_audit_details SET facts='{}' WHERE id=?").bind(firstChain.id).run(),()=>productDb.prepare('UPDATE lky_audit_details SET facts=? WHERE id=?').bind(details.facts,firstChain.id).run());
+ await rejected(owner.call('audit' + '/verify',{checkpoint:{...held,signature:'changed'}}),'audit_checkpoint_invalid');
+ assert.equal((await owner.call('audit' + '/verify',{checkpoint:held})).valid,true);
+ console.log('Audit HTTP journey: authenticated facts, every query field, bounded pagination, scoped CSV, owner refusal, altered, deleted and reordered history and checkpoint-anchored truncation passed');
+
+ // People rights are independent of vault grants and enforced at native doors.
+ await rejected(member.call('people' + '/preview',{csv:'email,displayName\nsynthetic-latchkey-90010@example.test,Synthetic member'}),'independent_admin_permission_required');
+ await owner.call('admin' + '/permissions/set',{account:member.profile.account,permissions:['people.read','people.invite'],confirmed:true});
+ assert.deepEqual((await member.call('admin' + '/permissions',{})).grants.map(row=>row.permission),['people.invite','people.read']);
+ const nativeList=await fetchProduct(productOrigin+'/auth/operators',{headers:{cookie:member.cookie}});
+ assert.equal(nativeList.status,200);
+ const peopleCsv='email,displayName\n'+Array.from({length:25},(_,n)=>`synthetic-latchkey-${90010+n}@example.test,Synthetic person ${n}`).join('\n')+'\nSYNTHETIC-LATCHKEY-90010@example.test,Duplicate\ninvalid,Invalid';
+ const peoplePlan=await member.call('people' + '/preview',{csv:peopleCsv});
+ assert.equal(peoplePlan.rows.filter(row=>row.status==='ready').length,25);
+ assert.equal(peoplePlan.rows.at(-2).status,'duplicate');assert.equal(peoplePlan.rows.at(-1).status,'invalid');
+ await rejected(member.call('people' + '/invite',{csv:peopleCsv,previewHash:peoplePlan.previewHash,confirmed:false}),'people_confirmation_required');
+ await owner.call('admin' + '/permissions/set',{account:member.profile.account,permissions:[],confirmed:true});
+ await rejected(member.call('people' + '/invite',{csv:peopleCsv,previewHash:peoplePlan.previewHash,confirmed:true}),'independent_admin_permission_required');
+ assert.equal((await fetchProduct(productOrigin+'/auth/operators',{headers:{cookie:member.cookie}})).status,403);
+ const oneCsv='email,displayName\nsynthetic-latchkey-2200@example.test,Synthetic invitation';
+ const onePreview=await owner.call('people' + '/preview',{csv:oneCsv});
+ const invitedPeople=await auditApi('POST','/people/invitations',{csv:oneCsv,previewHash:onePreview.previewHash,confirmed:true});
+ assert.equal(invitedPeople.rows[0].status,'accepted');
+ const firstInvitation=mail.at(-1).content.find(content=>content.type==='text/plain').value.match(/https:\/\/[^\s<>]+/)[0];
+ await rejected(owner.call('people' + '/invite',{csv:oneCsv,previewHash:onePreview.previewHash,confirmed:true}),'people_preview_changed');
+ const operators=await owner.call('api/users/list',{}),invitedOperator=operators.find(row=>row.email==='synthetic-latchkey-2200@example.test');
+ await owner.call('api/users/invite',{email:invitedOperator.email,displayName:'Synthetic invitation',role:'member',returnTo:'/app/vault'});
+ await owner.call('api/users/cancel-invitation',{operator:invitedOperator.id});
+ await assert.rejects(new VaultClient(productOrigin,{fetcher:fetchProduct}).confirmIdentity(new URL(firstInvitation).searchParams.get('token')));
+ console.log('People HTTP journey: 25-row CSV preview, duplicate and invalid rows, independent rights, live revocation at native and signed doors, explicit invite confirmation, replay refusal, resend and cancelled-link denial passed');
+
+ const offboardEmail='synthetic-latchkey-2300@example.test';
+ await owner.call('api/users/invite',{email:offboardEmail,displayName:'Synthetic leaver',role:'member',returnTo:'/app/vault'});
+ const offboardToken=new URL(mail.at(-1).content.find(content=>content.type==='text/plain').value.match(/https:\/\/[^\s<>]+/)[0]).searchParams.get('token');
+ const leaver=new VaultClient(productOrigin,{fetcher:fetchProduct});await leaver.confirmIdentity(offboardToken);
+ const leaverEnrollment=await leaver.register('synthetic-latchkey-2301');await leaver.unlock(leaverEnrollment.profile,'synthetic-latchkey-2301');
+ const workVault=(await leaver.createVault({kind:'private-work'})).vault;
+ const companyObject=(await leaver.put(workVault,{value:'synthetic-latchkey-2302'})).object;
+ const familyVault=(await leaver.createVault({kind:'family'})).vault;
+ const familyObject=(await leaver.put(familyVault,{value:'synthetic-latchkey-2303'})).object;
+ const leaverOperator=(await owner.call('api/users/list',{})).find(row=>row.email===offboardEmail).id;
+ const offboardInput={operator:leaverOperator,custodian:owner.profile.account,confirmed:true};
+ assert.deepEqual((await owner.call('people' + '/member',{operator:leaverOperator})).authoritativeSource,['manual']);
+ await rejected(member.call('people' + '/offboard',offboardInput),'independent_admin_permission_required');
+ await productDb.prepare('INSERT INTO oa_external_identities VALUES(?,?,?)').bind('https://synthetic-latchkey-2304.example.test','synthetic-latchkey-2305',leaverOperator).run();
+ const linkedPerson=await owner.call('people' + '/member',{operator:leaverOperator});
+ assert.equal(linkedPerson.requiresReconciliation,true);assert.equal(linkedPerson.authoritativeSource,null);assert.equal(linkedPerson.authorityStatus,'lifecycle-authority-unverified');
+ await rejected(owner.call('people' + '/offboard',offboardInput),'directory_reconciliation_required');
+ await productDb.prepare('DELETE FROM oa_external_identities WHERE operator_id=?').bind(leaverOperator).run();
+ const offboarded=await auditApi('POST','/people/offboard',offboardInput);
+ assert.equal(offboarded.status,'suspended');assert.equal(offboarded.handback,'blocked-missing-enrolled-custody');
+ assert.ok(offboarded.exposures.some(row=>row.vault===workVault&&row.item===companyObject&&row.custodian===owner.profile.account&&row.rotation==='pending-human-approval'));
+ assert.ok(offboarded.exposures.every(row=>row.vault!==familyVault));
+ assert.equal((await productDb.prepare('SELECT COUNT(*) AS n FROM lky_versions WHERE vault_id=? AND object_id=?').bind(familyVault,familyObject).first()).n,1);
+ await assert.rejects(leaver.readVault(workVault));
+ const again=await owner.call('people' + '/offboard',offboardInput);assert.equal(again.id,offboarded.id);
+ await rejected(owner.call('subject' + '/erase-preview',{subject:leaverOperator}),'company_handback_pending');
+ await assert.rejects(owner.call('api/users/status',{operator:leaverOperator,status:'active'}));
+ assert.ok(!JSON.stringify(offboarded).includes('synthetic-latchkey-2302'));
+ console.log('Manual offboarding HTTP journey: independent permission, authoritative-directory refusal, connected suspension, custodian-owned exposure, explicit missing-custody blocker, family preservation, replay and deletion and reactivation fences passed');
+
  await rejected(member.put(vault, values[0]), 'permission_denied')
  await rejected(member.exportVault(vault, archiveKey), 'permission_denied')
  const beforeRotation = await member.snapshot(vault)
@@ -344,6 +437,7 @@ try {
  const erasureProof = await runItemErasureJourneys({ owner, member, db: productDb, records, mail, ownerPassword: 'synthetic-latchkey-21', fetcher: fetchProduct })
  const { runSubjectErasureJourneys } = await import('./latchkey-subject-erasure.mjs');
  const subjectProof = await runSubjectErasureJourneys({ owner, db: productDb, records, mail, post, fetcher: fetchProduct, erasureSecret: bindings.LATCHKEY_ERASURE_SECRET });
+ assert.equal((await owner.call('audit' + '/verify',{checkpoint:held})).valid,true);
  // A member’s separately owned personal vault is archived as ciphertext,
  // without giving the company owner or a newly restored owner its keys.
  const personalVault = (await member.createVault()).vault;
@@ -447,7 +541,7 @@ try {
  // client API request/response payloads, and captured runtime error/log records.
  const serverState = JSON.stringify(await dump())
  const inspected = [serverState, restoredServerState, JSON.stringify(archive), JSON.stringify(traces), JSON.stringify(runtimeLogs), backup]
- const privateValues = ['synthetic-latchkey-1400', 'synthetic-latchkey-1401', 'synthetic-latchkey-1402', 'synthetic-latchkey-1403', 'synthetic-latchkey-1404', ...subjectProof.privateValues, ...policyPrivateValues, ...erasureProof.privateValues, ...sharingPrivateValues, ...typedPrivateValues, ...cliPrivateValues, runtimeKey, 'synthetic-latchkey-21', password, 'synthetic-latchkey-10', enrolled.profile.deviceSecret, enrolled.kit.recoverySecret, recovered.profile.deviceSecret, recovered.kit.recoverySecret, owner.bundle.root.recipient.privateKey, owner.bundle.root.recovery.privateKey, owner.bundle.root.authority.privateKey, owner.bundle.signing.privateKey, archiveKey, ...values.flatMap(value => [value.title, value.value, value.custom.label, value.custom.secret, value.attachment.name, value.attachment.content])]
+ const privateValues = ['synthetic-latchkey-2301','synthetic-latchkey-2302','synthetic-latchkey-2303','synthetic-latchkey-1400', 'synthetic-latchkey-1401', 'synthetic-latchkey-1402', 'synthetic-latchkey-1403', 'synthetic-latchkey-1404', ...subjectProof.privateValues, ...policyPrivateValues, ...erasureProof.privateValues, ...sharingPrivateValues, ...typedPrivateValues, ...cliPrivateValues, runtimeKey, 'synthetic-latchkey-21', password, 'synthetic-latchkey-10', enrolled.profile.deviceSecret, enrolled.kit.recoverySecret, recovered.profile.deviceSecret, recovered.kit.recoverySecret, owner.bundle.root.recipient.privateKey, owner.bundle.root.recovery.privateKey, owner.bundle.root.authority.privateKey, owner.bundle.signing.privateKey, archiveKey, ...values.flatMap(value => [value.title, value.value, value.custom.label, value.custom.secret, value.attachment.name, value.attachment.content])]
  for (const [index, secret] of privateValues.entries()) for (let channel = 0; channel < inspected.length; channel++) {
   const locations = channel === 0 && inspected[channel].includes(secret) ? Object.entries(JSON.parse(serverState)).flatMap(([table, rows]) => [...new Set(rows.flatMap(row => Object.entries(row).filter(([, value]) => String(value).includes(secret)).map(([column]) => `${table}.${column}`)))]) : [];
   assert.ok(!inspected[channel].includes(secret), `private fixture ${index} in channel ${channel}; columns ${locations.join(',')}`)

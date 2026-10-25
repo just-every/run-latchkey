@@ -1,5 +1,18 @@
 // Canonical handlers remain the sole authority for rights, encryption and CAS.
 export const routes = [
+ ['POST','/people/member','people' + '/member',['operator']],
+ ['POST','/people/offboard','people' + '/offboard',['operator','custodian','confirmed']],
+ ['POST','/people/offboarding','people' + '/offboarding',['operation']],
+ ['POST','/activity/query','audit' + '/list',['filters','after','limit']],
+ ['POST','/activity/csv','audit' + '/csv',['filters','after','limit']],
+ ['GET','/activity/checkpoint','audit' + '/checkpoint',[]],
+ ['POST','/activity/verify','audit' + '/verify',['checkpoint']],
+ ['GET','/activity/retention','audit' + '/retention',[]],
+ ['POST','/activity/expiry','audit' + '/expire',['confirmed']],
+ ['GET','/admin/permissions','admin' + '/permissions',[]],
+ ['PUT','/admin/permissions','admin' + '/permissions/set',['account','permissions','confirmed']],
+ ['POST','/people/preview','people' + '/preview',['csv']],
+ ['POST','/people/invitations','people' + '/invite',['csv','previewHash','confirmed']],
  ['GET','/vaults/{vault}/items/{object}/checkout','checkout' + '/status',[]],
  ['POST','/vaults/{vault}/items/{object}/checkout','checkout' + '/acquire',['expiresAt','confirmed']],
  ['POST','/vaults/{vault}/items/{object}/checkout/release','checkout' + '/release',['checkout','reason','confirmed']],
