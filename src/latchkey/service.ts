@@ -177,6 +177,15 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
   // Mutations recheck live authority within the same D1 transaction as writes.
   const fence = `EXISTS(SELECT 1 FROM lky_grants g JOIN lky_accounts a ON a.id=g.account_id JOIN oa_sessions s ON s.id=g.session_id JOIN oa_operators o ON o.id=a.operator_id LEFT JOIN lky_devices d ON d.id=g.device_id WHERE g.token_hash=? AND g.expires_at>? AND a.generation=g.generation AND s.revoked_at IS NULL AND s.expires_at>? AND s.operator_version=o.version AND o.status='active' AND (g.recovery IN (1,2) OR (d.account_id=a.id AND d.revoked_at IS NULL AND d.generation=a.generation)))`
   const fenceArgs = [hash, now, now]
+  if (route === 'recovery/preview') {
+   exact(input, [])
+   if (grant.recovery !== 1) refuse('recovery_required', 403)
+   const devices = await all('SELECT id,generation,revoked_at FROM lky_devices WHERE account_id=? ORDER BY id', actor)
+   const vaults = await all('SELECT v.id,v.kind FROM lky_vaults v JOIN lky_recipients r ON r.vault_id=v.id WHERE r.account_id=? AND v.tenant=? ORDER BY v.id', actor, tenant)
+   return response({ account: actor, generation: grant.generation, verifiedEmail: session.operator.email,
+    identityCheck: 'verified-account-session-and-password-and-kit-signature', devices, vaults,
+    mfa: 'not-reset-by-this-ceremony', offlineExposure: 'unreachable-caches-and-previous-copies-cannot-be-recalled' })
+  }
   if (route === 'recover') {
    exact(input, ['generation', 'device', 'deviceKey', 'bundle', 'recoveryKey', 'recoveryWrap'])
    if (grant.recovery !== 1 || integer(input.generation) !== grant.generation) refuse('recovery_required', 403)

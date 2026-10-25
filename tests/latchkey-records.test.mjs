@@ -235,3 +235,49 @@ test('Passbolt CSV command preserves quoted multiline values and recovers omitte
   await assert.rejects(stat(join(directory, 'bad.json')), { code: 'ENOENT' });
  } finally { await rm(directory, { recursive: true, force: true }); }
 });
+
+test('Posture inspection reads official inventory edges without confusing missing controls, identity or freshness with health', async () => {
+ const { readPosture } = await import('../src/latchkey/posture/read.mjs');
+ const now = Date.parse('2026-10-25T12:00:00Z'), at = '2026-10-25T11:59:00Z';
+ const device = 'synthetic-latchkey-2602', serial = 'synthetic-latchkey-2603', token = 'synthetic-latchkey-2601';
+ const cases = [
+  ['jamf', 'https://synthetic-latchkey-2604.jamfcloud.com', `/api/v3/computers-inventory-detail/${device}`, {id:device,hardware:{serialNumber:serial},general:{reportDate:at,remoteManagement:{managed:true}},diskEncryption:{fileVault2Enabled:true},operatingSystem:{version:'15.1'},security:{autoLoginDisabled:true,activationLockEnabled:true}}],
+  ['kandji', 'https://synthetic-latchkey-2604.api.kandji.io', `/api/v1/devices/${device}/details`, {general:{device_id:device,os_version:'15.1'},hardware_overview:{serial_number:serial},mdm:{mdm_enabled:'True',last_check_in:at},filevault:{filevault_enabled:true},recovery_information:{recovery_lock_enabled:true}}],
+  ['intune', 'https://graph.microsoft.com', `/v1.0/deviceManagement/managedDevices/${device}?$select=id,serialNumber,lastSyncDateTime,isEncrypted,osVersion,managementAgent`, {id:device,serialNumber:serial,lastSyncDateTime:at,isEncrypted:true,osVersion:'15.1',managementAgent:'mdm',complianceState:'compliant'}],
+ ];
+ for (const [source,origin,path,payload] of cases) {
+  const input = {source,origin,token,device,serial,maxAgeMs:3600000};
+  let calls = 0;
+  const edge = body => ({now,fetcher:async(url,options)=>{
+   calls++; assert.equal(url,origin+path); assert.equal(options.method,'GET'); assert.equal(options.redirect,'error');
+   assert.equal(options.credentials,'omit'); assert.equal(options.headers.authorization,`Bearer ${token}`);
+   return Response.json({...body,unrelatedSecret:token,ownerEmail:'synthetic-latchkey-2605@example.test'});
+  }});
+  const healthy = await readPosture(input,edge(payload));
+  assert.equal(healthy.matched,true); assert.equal(healthy.freshness,'fresh');
+  assert.deepEqual(healthy.controls,{encrypted:true,osVersion:'15.1',managed:true,screenLock:null});
+  assert.equal(healthy.observedAt,Date.parse(at));
+  assert.ok(!JSON.stringify(healthy).includes(token)); assert.ok(!JSON.stringify(healthy).includes('ownerEmail'));
+  const mismatch = await readPosture({...input,serial:'synthetic-latchkey-2606'},edge(payload));
+  assert.equal(mismatch.matched,false);assert.deepEqual(Object.values(mismatch.controls),[null,null,null,null]);assert.equal(mismatch.observedAt,null);
+  const stale = await readPosture(input,{...edge(payload),now:now+3600000});assert.equal(stale.freshness,'stale');
+  const future = await readPosture(input,{...edge(payload),now:now-120000});assert.equal(future.freshness,'unknown');
+  const absent = await readPosture(input,edge({}));assert.equal(absent.matched,false);assert.equal(absent.freshness,'unknown');
+  const unhealthy = structuredClone(payload);
+  if(source==='jamf'){unhealthy.diskEncryption.fileVault2Enabled=false;unhealthy.general.remoteManagement.managed=false;}
+  if(source==='kandji'){unhealthy.filevault.filevault_enabled=false;unhealthy.mdm.mdm_enabled='False';}
+  if(source==='intune'){unhealthy.isEncrypted=false;unhealthy.managementAgent='eas';}
+  assert.equal((await readPosture(input,edge(unhealthy))).controls.encrypted,false);
+  assert.equal((await readPosture(input,edge(unhealthy))).controls.managed,false);
+  for(const status of [302,401,403,429,503])await assert.rejects(readPosture(input,{now,fetcher:async()=>new Response(token,{status})}),error=>error.code.startsWith('posture_')&&!error.message.includes(token));
+  await assert.rejects(readPosture(input,{now,fetcher:async()=>{throw Error(token)}}),{code:'posture_source_unavailable'});
+  await assert.rejects(readPosture(input,{now,fetcher:async()=>new Response('x'.repeat(262145))}),{code:'posture_response_too_large'});
+  await assert.rejects(readPosture(input,{now,fetcher:async()=>new Response('{')}),{code:'posture_source_unavailable'});
+  const before = calls;
+  await assert.rejects(readPosture({...input,origin:'https://unapproved.example.test'},edge(payload)),{code:'unapproved_posture_origin'});
+  await assert.rejects(readPosture({...input,device:'../other'},edge(payload)),{code:'posture_identifier_required'});
+  await assert.rejects(readPosture({...input,token:'synthetic-latchkey-2601\n'},edge(payload)),{code:'posture_credential_required'});
+  assert.equal(calls,before);
+ }
+ await assert.rejects(readPosture({source:'linen'},{fetcher:()=>{throw Error('must not call')}}),{code:'linen_posture_schema_unavailable'});
+});

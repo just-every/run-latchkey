@@ -279,6 +279,17 @@ export class VaultClient {
   this.lock();
   return { profile, kit };
  }
+ async previewRecovery(kit, password) {
+  try {
+   const { result, admitted } = await this.exchange(kit, password, 'recovery');
+   requireValue(kit.generation === admitted.generation, 'kit_revoked');
+   const key = await unlockKey(result.exportKey, kit.recoverySecret, kit.account);
+   let root;
+   try { root = json(await open(key, admitted.bundle, binding(kit.tenant, 'account', kit.account, 'recovery', kit.generation))).root; } finally { key.fill(0); }
+   requireValue(root.recovery.publicKey === admitted.recoveryKey, 'kit_revoked');
+   return await this.request('recovery/preview', {}, root.recovery.privateKey);
+  } finally { this.lock(); }
+ }
  async recover(kit, password, { beforeCommit } = {}) {
   const { result, admitted } = await this.exchange(kit, password, 'recovery');
   requireValue(kit.generation === admitted.generation, 'kit_revoked');

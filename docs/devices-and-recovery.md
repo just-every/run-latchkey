@@ -40,17 +40,31 @@ Revoking cannot recall what the device already decrypted or copied. If a device 
 
 ## Recover with your kit
 
-If you lose your device, recover with the kit and your password, saving new files:
+If you lose your device, first run `recover-preview` with `kit` and `password`.
+The preview verifies your password, kit and account identity before listing the
+account, affected vault references and enrolled devices. It does not revoke
+anything or return item names, values or recovery material. A kit without its
+password, a password without the correct kit, and an old kit cannot preview.
+
+After reviewing the preview, recover with the kit and your password, saving new files:
 
 ```json
-{ "kit": "kit/latchkey-kit.json", "password": "your unlock password", "profile": "latchkey/new-profile.json", "newKit": "kit/new-kit.json" }
+{ "kit": "kit/latchkey-kit.json", "password": "your unlock password", "profile": "latchkey/new-profile.json", "newKit": "kit/new-kit.json", "confirmed": true }
 ```
 
 ```sh
 node scripts/latchkey.mjs recover < request.json
 ```
 
-Recovery needs both the password and the kit. It revokes every old device and the old kit, and gives you one new device and a new kit. Your vaults stay readable: the account's root keys do not change.
+Recovery needs both the password and the kit. It revokes every old device and the old kit, and gives you one new device and a new kit. Your vaults stay readable: the account's root keys do not change. The CLI
+requires explicit confirmation before it creates new files or revokes authority.
+Recovery does not reset MFA. An unreachable cache and already copied values
+cannot be recalled; keep their rotation obligations visible.
+
+This kit path is independent of company recovery administrators. Administrator
+recovery envelopes, self-recovery codes independent of the kit, emergency-contact
+waiting, notices, cancellation and expiry, separate MFA recovery and verified
+member notification are not implemented. LKY-009 remains partial.
 
 ## Change your password
 

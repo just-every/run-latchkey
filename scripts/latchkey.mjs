@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Secrets and values enter on stdin, never argv or environment. The caller
 // explicitly selects local files; no ambient credential file is discovered.
+import { PostureError } from '../src/latchkey/posture/read.mjs';
 import { AccountSwitcher } from '../src/latchkey/accounts/client.mjs';
 import { ApiError } from '../src/latchkey/api/catalogue.mjs';
 import { SharingError } from '../src/latchkey/sharing/index.mjs';
@@ -65,6 +66,8 @@ try {
  } else if (command === 'records-restore') {
   const { restoreLocalRecords } = await import('./latchkey/records-local.mjs');
   result = await restoreLocalRecords(input);
+ } else if (command === 'posture-inspect') {
+  const { readPosture } = await import('../src/latchkey/posture/read.mjs'); result = await readPosture(input);
  } else if (command === 'identity-request') {
   client = new VaultClient(input.origin); result = await client.requestIdentity(input.email);
  } else if (command === 'runtime-keygen') {
@@ -89,7 +92,11 @@ try {
   if (input.identityToken) await client.confirmIdentity(input.identityToken);
   const enrolled = await client.register(input.password, { beforeCommit: async ({ profile, kit }) => { await writePrivate(input.profile, profile); await writePrivate(input.kit, kit); } });
   result = { account: enrolled.profile.account, device: enrolled.profile.device, kitWritten: true };
+ } else if (command === 'recover-preview') {
+  const kit = await readPrivate(input.kit); client = new VaultClient(kit.origin);
+  result = await client.previewRecovery(kit, input.password);
  } else if (command === 'recover' || command === 'records-recover') {
+  if (input.confirmed !== true) throw new ClientError('recovery_confirmation_required');
   let kit = await readPrivate(input.kit);
   if (command === 'records-recover') { if (input.approvedOrigin !== input.origin) throw new ClientError('destination_origin_confirmation_required'); kit = { ...kit, origin: input.origin }; }
   client = new VaultClient(kit.origin);
@@ -160,7 +167,7 @@ try {
  process.stdout.write(JSON.stringify(result) + '\n');
 } catch (error) {
  // Never print stack, stdin, crypto exceptions, file contents or provider errors.
- process.stderr.write(JSON.stringify({ error: error instanceof ApiError || error instanceof ClientError || error instanceof ItemError || error instanceof RecordsError || error instanceof SharingError ? error.code : 'client_failed' }) + '\n');
+ process.stderr.write(JSON.stringify({ error: error instanceof ApiError || error instanceof PostureError || error instanceof ClientError || error instanceof ItemError || error instanceof RecordsError || error instanceof SharingError ? error.code : 'client_failed' }) + '\n');
  process.exitCode = 1;
 } finally {
  linkedAccounts?.lock();
