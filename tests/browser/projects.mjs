@@ -206,10 +206,20 @@ export async function specialistBoundaryJourney(f, width) {
   const copyControl=f.page.getByRole('button',{name:'Copy Private key',exact:true});
   const copyTooltip=f.page.getByRole('tooltip',{name:'Copy field'});
   await f.page.mouse.move(0,0);
-  await copyControl.hover();
-  // Check the early state in the browser, before Playwright's retry window.
-  assert.equal(await copyControl.evaluate(button => getComputedStyle(button.nextElementSibling).visibility),'hidden');
-  await expect(copyTooltip).toBeVisible();
+  // Sample in the mouse event, so a delayed test driver cannot miss the delay.
+  await copyControl.evaluate(button => {
+   button.tooltipHoverProof = new Promise(resolve => {
+    button.parentElement.addEventListener('mouseenter', () => {
+     const started=performance.now(), initial=getComputedStyle(button.nextElementSibling).visibility;
+     const sample=() => getComputedStyle(button.nextElementSibling).visibility==='visible'
+      ? resolve({initial,elapsed:performance.now()-started}) : requestAnimationFrame(sample);
+     requestAnimationFrame(sample);
+    }, {once:true});
+   });
+  });
+  await copyControl.hover();await expect(copyTooltip).toBeVisible();
+  const hoverProof=await copyControl.evaluate(button => button.tooltipHoverProof);
+  assert.equal(hoverProof.initial,'hidden');assert.ok(hoverProof.elapsed>=250);
   await f.page.mouse.move(0,0);await expect(copyTooltip).toBeHidden();
   const attachmentControl=f.page.getByRole('button',{name:'Download private-certificate.pem',exact:true});
   await attachmentControl.focus();

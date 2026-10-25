@@ -3258,7 +3258,7 @@
       "executable": false
     },
     "tests/browser/projects.mjs": {
-      "sha256": "85444d64cba73b32989e1ab33baee40c0d4614ce40f5c782046bedc98cd86568",
+      "sha256": "547d40629afc79ddf6c5e43da380c665e58b692f74ce4ee3b5ee969279d50e1e",
       "executable": false
     },
     "tests/browser/reviews.mjs": {
