@@ -2082,7 +2082,7 @@
       "executable": false
     },
     "src/latchkey/ui/styles.ts": {
-      "sha256": "4dd5d3fba62f96cfe915c863c404a45c002a400bb382bb3715878a5dc345a18a",
+      "sha256": "bdd71533b7a7704407f0c321053e38e2c0be7557e50639e86591e145a7d1da7f",
       "executable": false
     },
     "src/latchkey/ui/tabs.tsx": {
@@ -2094,7 +2094,7 @@
       "executable": false
     },
     "src/latchkey/ui/tooltip-button.tsx": {
-      "sha256": "62d45cb358d77df09b822a21871df5a67d3cec1c9cd2f5d2dba8b01cb1b9e97e",
+      "sha256": "f1201779abec147b4aab811c198808493bd06779f573aeacbd3996deb8f29095",
       "executable": false
     },
     "src/latchkey/ui/types.ts": {

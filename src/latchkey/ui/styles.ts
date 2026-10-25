@@ -3,6 +3,10 @@
 // active tab and primary buttons. Every colour and face is a --rer-* token from
 // public/rer-theme.css; the greys mix the ink into the page.
 export const vaultCss = `
+.lk .lk-tooltip-control{position:relative;display:inline-flex;flex-shrink:0}
+.lk .lk-tooltip-control>[role="tooltip"]{position:absolute;z-index:20;bottom:calc(100% + 6px);right:0;width:max-content;max-width:180px;padding:4px 8px;background:var(--ink);color:var(--page);font-size:13px;pointer-events:none;visibility:hidden;opacity:0;transition:visibility 0s,opacity 0s}
+.lk .lk-tooltip-control:not([data-tooltip-dismissed]):hover>[role="tooltip"]{visibility:visible;opacity:1;transition-delay:300ms}
+.lk .lk-tooltip-control:not([data-tooltip-dismissed]):focus-within>[role="tooltip"]{visibility:visible;opacity:1;transition-delay:0s}
 body:has(.lk){padding:0;background:var(--rer-page,#fff)}
 .lk{--ink:var(--rer-text,#000);--page:var(--rer-page,#fff);--muted:var(--rer-muted,#4d4d4d);--accent:var(--rer-accent,#fd6415);--accent-ink:var(--rer-accent-text,#000);--control:var(--rer-border,#8c8c8c);--rule:color-mix(in srgb,var(--ink) 11%,var(--page));--edge:color-mix(in srgb,var(--ink) 30%,var(--page));--tint:color-mix(in srgb,var(--ink) 3.5%,var(--page));--hover:color-mix(in srgb,var(--ink) 6%,var(--page));--ring:color-mix(in srgb,var(--accent) 35%,transparent);--ok:#157f3c;--danger:#b42318;--heading:var(--rer-font-heading,Geist,'Helvetica Neue',Arial,sans-serif);color:var(--ink);background:var(--page);font:15px/1.5 var(--rer-font-body,system-ui,sans-serif);min-height:100vh;-webkit-font-smoothing:antialiased}
 .lk *{box-sizing:border-box}.lk svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
