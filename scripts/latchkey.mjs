@@ -117,6 +117,16 @@ try {
    case 'project-set': {const {ProjectClient}=await import('../src/latchkey/projects/client.mjs');result=await new ProjectClient(client).set(input.environment,input.path,input.value,{expectedVersion:input.expectedVersion});break;}
    case 'handoff-record': { const { HandoffClient } = await import('../src/latchkey/handoffs/client.mjs'); result = await new HandoffClient(client).record(input.vault,input.handoff,{confirmed:input.confirmed}); break; }
    case 'handoff-open': { const { HandoffClient } = await import('../src/latchkey/handoffs/client.mjs'); await writePrivate(input.output,await new HandoffClient(client).open(input.vault,input.object)); result={written:true}; break; }
+   case 'item-expiry-watch': {
+    const { HandoffClient } = await import('../src/latchkey/handoffs/client.mjs');
+    try {
+     for await (const report of new HandoffClient(client).watchExpiry(input.vault, { intervalMs: input.intervalMs, checks: input.checks, withinDays: input.withinDays })) {
+      process.stdout.write(JSON.stringify(report) + '\n');
+     }
+     result = { completed: true };
+    } finally { client.lock(); }
+    break;
+   }
    case 'item-expiry': { const { HandoffClient } = await import('../src/latchkey/handoffs/client.mjs'); result=await new HandoffClient(client).expiry(input.vault,{withinDays:input.withinDays ?? 30}); break; }
    case 'checkout-status': result=await client.call('checkout' + '/status',{vault:input.vault,object:input.object}); break;
    case 'checkout-acquire': result=await client.call('checkout' + '/acquire',{vault:input.vault,object:input.object,expiresAt:input.expiresAt,confirmed:input.confirmed}); break;

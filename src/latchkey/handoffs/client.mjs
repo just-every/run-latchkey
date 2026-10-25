@@ -40,6 +40,22 @@ export class HandoffClient {
   check(descriptor?.kind === 'company' && authority && await verify(authority, value.confirmation, confirmationText(this.client.profile.tenant, vault, object, descriptor.owner, input)), 'handoff_not_found');
   return { object, ...input, state:'unresolved', result:'adapter-unavailable', acknowledgement:'none', url:value.origin, authority:'reference-only', providerVerified:false };
  }
+ // Scheduling lives in the unlocked client; the service receives no expiry dates.
+ async *watchExpiry(vault, { intervalMs = 60000, checks = 60, withinDays = 30 } = {}) {
+  check(Number.isSafeInteger(intervalMs) && intervalMs >= 1000 && intervalMs <= 86400000
+   && Number.isSafeInteger(checks) && checks >= 1 && checks <= 1440, 'invalid_expiry_schedule');
+  let previous = new Set();
+  for (let scan = 1; scan <= checks; scan++) {
+   if (scan > 1) await new Promise(resolve => setTimeout(resolve, intervalMs));
+   // Always read current authority and lifecycle state, including quiet scans.
+   // A failed read ends the watch rather than replaying cached notifications.
+   const report = await this.expiry(vault, { withinDays });
+   const key = alert => JSON.stringify([alert.object, alert.version, alert.expiresAt, alert.state]);
+   const alerts = report.alerts.filter(alert => !previous.has(key(alert)));
+   previous = new Set(report.alerts.map(key));
+   yield { ...report, alerts, check: scan, scheduling: 'connected-client' };
+  }
+ }
  async expiry(vault, { now = Date.now(), withinDays = 30 } = {}) {
   check(Number.isSafeInteger(now) && Number.isSafeInteger(withinDays) && withinDays >= 0 && withinDays <= 365, 'invalid_expiry_window');
   const lifecycle = await this.client.call('lifecycle' + '/list', { vault });

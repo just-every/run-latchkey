@@ -11,6 +11,25 @@ The report contains object IDs, versions, dates and expiry states; it contains n
 item titles, keys or document contents. This is a client report, with no configured
 mail delivery or disconnected-client scheduling.
 
+`item-expiry-watch` schedules the same report in an unlocked, connected CLI.
+It accepts the same private profile, password, vault and optional `withinDays`
+input as `item-expiry`, plus `intervalMs` (default 60000, minimum 1000, maximum
+86400000) and `checks` (default 60, maximum 1440). The first check is immediate;
+later checks wait the configured interval after the preceding report. Each line
+of standard output is JSON. A report contains only newly observed alerts for an
+item version, expiry date and state; quiet checks contain an empty alerts array.
+A changed version or a transition to expired produces a new alert. Archived or
+erased items stop reporting. Every check reads current authority, and any failed
+read ends the watch with an error instead of delivering cached alerts. The final
+line is `{"completed":true}` when all checks finish.
+
+Run this only in a private terminal: object identifiers and dates are visible to
+the recipient. Stop it with Ctrl-C. The process holds unlocked keys only while
+running and locks on normal completion or error; it never stores plaintext dates
+on the server, renews its authentication session, sends mail, or runs after exit.
+Session expiry, revoked authority or an unavailable service ends the watch.
+Restarting starts a new recipient session and can report the current alerts again.
+
 ## Record a specialist reference
 
 Every CLI command takes JSON on standard input. Supply the private profile path

@@ -8,6 +8,7 @@ import { readFile, writeFile, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname } from 'node:path';
 import { spawn } from 'node:child_process';
+import { createInterface } from 'node:readline';
 import {RuntimeTransport} from '../../src/latchkey/runtime/transport.mjs';
 import {createServer} from 'node:http';
 import {ReviewClient} from '../../src/latchkey/reviews/client.mjs';
@@ -147,6 +148,10 @@ export async function specialistBoundaryJourney(f, width) {
   await owner.eraseItem(vault,credential.object,{confirmed:true});
   assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM lky_checkouts WHERE vault_id=? AND object_id=?').bind(vault,credential.object).first()).n,0);
   await refused(owner.call('checkout' + '/status',{vault,object:credential.object}), 'not_found');
+  const watch = new HandoffClient(member).watchExpiry(vault, { intervalMs: 1000, checks: 2 });
+  assert.equal((await watch.next()).value.alerts.length, 2);
+  await member.call('device' + '/revoke', { device: member.profile.device });
+  await refused(watch.next(), 'authority_expired');
  } finally { member.lock(); }
  await owner.call('checkout' + '/acquire',{vault,object:cert.object,expiresAt:Date.now()+60000,confirmed:true});
  const records=await createPortability({db:f.db,policy:archivePolicy}),job=await records.exports.create('synthetic-latchkey-6130');
@@ -158,6 +163,37 @@ export async function specialistBoundaryJourney(f, width) {
   const profile=join(directory,'profile.json'); await writeFile(profile,JSON.stringify(owner.profile),{mode:0o600});
   const cli = input => new Promise((resolve,reject)=>{ const child=spawn(process.execPath,['scripts/latchkey.mjs','item-expiry'],{env:{...process.env,NODE_EXTRA_CA_CERTS:f.caFile},stdio:['pipe','pipe','pipe']}); let stdout='',stderr=''; child.stdout.on('data',part=>stdout+=part);child.stderr.on('data',part=>stderr+=part);child.on('error',reject);child.on('close',code=>code===0?resolve(JSON.parse(stdout)):reject(Error('CLI expiry failed: '+stderr)));child.stdin.end(JSON.stringify(input)); });
   assert.equal((await cli({profile,password:f.password,vault})).alerts.length,2);
+  const invalidWatch = handoffs.watchExpiry(vault, { intervalMs: 0 });
+  await refused(invalidWatch.next(), 'invalid_expiry_schedule');
+  const child = spawn(process.execPath, ['scripts/latchkey.mjs', 'item-expiry-watch'], { env: { ...process.env, NODE_EXTRA_CA_CERTS: f.caFile }, stdio: ['pipe', 'pipe', 'pipe'] });
+  const done = new Promise((resolve, reject) => { child.on('error', reject); child.on('close', code => resolve(code)); });
+  let stderr = ''; child.stderr.on('data', part => { stderr += part; });
+  child.stdin.end(JSON.stringify({ profile, password: f.password, vault, checks: 4, intervalMs: 1000 }));
+  const reports = [];
+  try {
+   for await (const line of createInterface({ input: child.stdout })) {
+    const report = JSON.parse(line); reports.push(report);
+    if (report.check === 2) {
+     const changedDocument = (await items.current(vault, document.object)).value;
+     changedDocument.fields.find(field => field.id === 'description').value = 'synthetic-latchkey-6131';
+     await items.save(vault, changedDocument, document.object);
+    }
+    if (report.check === 3) {
+     const archivedDocument = (await items.current(vault, document.object)).value;
+     archivedDocument.fields.find(field => field.id === 'description').value = 'synthetic-latchkey-6132';
+     await items.save(vault, archivedDocument, document.object);
+     await new LifecycleClient(owner).change(vault, document.object, 'archived', { confirmed: true });
+    }
+   }
+   assert.equal(await done, 0, stderr);
+  } finally { if (child.exitCode === null) { child.kill('SIGTERM'); await done; } }
+  assert.deepEqual(reports.map(report => report.alerts?.length), [2, 0, 1, 0, undefined]);
+  assert.equal(reports[2].alerts[0].object, document.object);
+  assert.equal(reports[2].alerts[0].version, 2);
+  assert.deepEqual(reports.at(-1), { completed: true });
+  for (const secret of [privateKey, certificate, 'synthetic-latchkey-6100', 'synthetic-latchkey-6131', 'synthetic-latchkey-6132']) assert.ok(!JSON.stringify(reports).includes(secret));
+  await new LifecycleClient(owner).change(vault, document.object, 'active', { confirmed: true });
+
   const stored=JSON.stringify({read:await requestApi(owner,'GET',`/vaults/${vault}/items`),audit:await requestApi(owner,'GET','/events'),archive});
   for(const secret of [privateKey,certificate,'synthetic-latchkey-6101',refs.origin,refs.destination,refs.owner])assert.ok(!stored.includes(secret));
   await f.page.setViewportSize({width,height:1000}); await f.page.goto(f.origin+'/app/vault');
