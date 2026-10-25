@@ -1,3 +1,4 @@
+import { rulesAuthenticated } from './rules/service.mjs'
 import { peopleAuthenticated } from './people/service.mjs'
 import { adminAuthenticated } from './people/permissions.mjs'
 import { appendAudit,auditFacts,auditAuthenticated } from './audit/service.mjs'
@@ -282,6 +283,8 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
   if(batch!==null)return response(batch)
   const lifecycle = grant.recovery === 0 ? await lifecycleAuthenticated(route,input,{db,env,now,actor,device,tenant,session,fence,fenceArgs}) : null
   if(lifecycle !== null)return response(lifecycle)
+  const ruled = grant.recovery === 0 ? await rulesAuthenticated(route,input,ctx) : null
+  if (ruled !== null) return response(ruled)
   const checkout = grant.recovery === 0 ? await checkoutAuthenticated(route, input, ctx) : null
   if (checkout !== null) return response(checkout)
   const evidence = grant.recovery === 0 ? await evidenceAuthenticated(route, input, { db, env, now, actor, device, tenant, session, fence, fenceArgs }) : null

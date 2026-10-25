@@ -37,6 +37,9 @@
         "pnpm run build",
         "node tests/browser/vault.mjs",
         "node tests/browser/reviews.mjs",
+        "node tests/latchkey-rules.mjs",
+        "node tests/latchkey-exit.mjs",
+        "node tests/browser/rules.mjs",
         "node --test tests/latchkey-records.test.mjs tests/latchkey-local-records.test.mjs"
       ]
     },

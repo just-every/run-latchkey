@@ -99,7 +99,7 @@ async function mspScreens(first,second,identity,other,width,additional=[]){
  await expect(page.getByRole('button',{name:'Reveal Password',exact:true})).toBeVisible();
  const reveal=page.getByRole('button',{name:'Reveal Password',exact:true});await reveal.hover();await expect(page.getByRole('tooltip')).toHaveText('Reveal field');await page.mouse.move(0,0);await expect(page.getByRole('tooltip')).toHaveCount(0);await reveal.focus();await expect(page.getByRole('tooltip')).toBeVisible();
  if(output)await page.screenshot({path:join(output,`msp-vault-tooltip-${width}.png`),fullPage:true});await reveal.press('Escape');await expect(page.getByRole('tooltip')).toHaveCount(0);
- await page.locator('summary').filter({hasText:/^More$/}).click();await page.getByRole('button',{name:'Service provider',exact:true}).click();await expect(page.getByRole('heading',{name:'Service provider',exact:true})).toBeVisible();
+ await page.locator('summary').filter({hasText:/^Settings$/}).click();await page.getByRole('button',{name:'Service provider',exact:true}).click();await expect(page.getByRole('heading',{name:'Service provider',exact:true})).toBeVisible();
 
  const ownedCompany=(await first.owner.call('vaults',{})).find(v=>v.kind==='company'&&v.owner===first.owner.profile.account);
  await page.getByLabel('Company vault you own').selectOption(ownedCompany.id);await expect(page.getByRole('button',{name:'Capture company expiry metadata',exact:true})).toBeDisabled();

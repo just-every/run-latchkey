@@ -119,6 +119,12 @@ try {
    const accounts = await accountRegistry(input); client = await accounts.switch(input.accountName,input.password); profile = client.profile; }
   else { profile = await readPrivate(input.profile); client = new VaultClient(profile.origin); await client.unlock(profile, input.password); }
   switch (command) {
+   case 'exit-plan': result=await client.call(['exit','plan'].join('/'),{});break;
+   case 'rules': {
+    const actions=['list','get','preview','save','activate','cancel','decide','complete','inbox'];
+    if(!actions.includes(input.action))throw new ClientError('invalid_rule_action');
+    result=await client.call(['rules',input.action].join('/'),input.input);break;
+   }
    case 'migration-import': {const {migrationCommand}=await import('./latchkey/migration-commands.mjs');result=await migrationCommand(command,input,client);break;}
    case 'passbolt-import': {const {passboltCommand}=await import('./latchkey/passbolt-commands.mjs');result=await passboltCommand(command,input,client);break;}
    case 'api': {const {apiCommand}=await import('../src/latchkey/api/client.mjs');result=await apiCommand(client,input.api);break;}

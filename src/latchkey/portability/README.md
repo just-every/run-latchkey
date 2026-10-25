@@ -33,3 +33,28 @@ The service requires a currently active installation owner with an unlocked, ind
 `tests/latchkey-restore.mjs` exports `exerciseRecordsRestore` for the emitted-Worker journey after actual Base import and independent destination owner enrollment. It checks public route refusals, inactive preparation, explicit activation, decoded values and idempotent audit. This helper does not manufacture a restore receipt or simulate an application route.
 
 Run the two real Base/D1 command tests with `node --test tests/latchkey-records.test.mjs` through the home's heavy-slot wrapper. The dedicated vault-browser Verify shard runs these command journeys and the bounded local restore tests.
+
+## Owner-run exit path
+
+`latchkey exit-plan` accepts the usual private profile and account password on
+standard input. It reports current owner vault export rights, the basis of any
+owner-recorded commercial status and the consequences of stopping infrastructure.
+An owner-recorded cancellation is not a processor cancellation or a managed
+entitlement receipt. The current record has no expired-entitlement state.
+
+Before stopping or deleting infrastructure, retain encrypted vault exports,
+installation archives sealed with the buyer-held export key, recovery material
+and required installation restore configuration independently. Connected service,
+scheduling and delivery stop with the infrastructure. Existing `latchkey export`
+and `latchkey archive-open` preserve buyer-side vault decryption. For installation
+archives use `rer export`, `latchkey records-seal`, `latchkey records-open` and
+`latchkey records-restore`. Active installation authority does not travel.
+
+The existing vault envelope decrypts to JSON containing `schema`, `sourceTenant`,
+`vault`, `versions` and `activeAuthority`. Each version contains its original
+object identifier, version number and complete value, including typed fields,
+TOTP metadata and embedded attachments. See [the client](../client.mjs) for the
+AES-GCM envelope and offline opening implementation. This existing encrypted
+archive proof is credited to LKY-033. Selected open-format exports with explicit
+counts and omissions and separately approved plaintext remain LKY-017 gaps.
+Managed parity depends on LKY-074’s actual operator and commercial decisions.

@@ -71,6 +71,13 @@ export async function subjectPlan(ctx, subject) {
  await select('lky_restore_preparations');
  // Campaign snapshots and signed packages contain historical reviewer/subject
  // identities. Erasure invalidates affected packages rather than re-signing them.
+ const rules=await all('SELECT c.*,v.definition FROM lky_rules c JOIN lky_rule_versions v ON v.rule_id=c.id WHERE c.tenant=?',ctx.tenant);
+ const ruleIds=JSON.stringify([...new Set(rules.filter(row=>contains(JSON.stringify(row),identity)||ownedVaults.some(v=>contains(row.definition,[v.id]))).map(row=>row.id))]);
+ await select('lky_rule_decisions','obligation IN(SELECT o.id FROM lky_rule_obligations o JOIN lky_rule_runs r ON r.id=o.run_id WHERE r.rule_id IN(SELECT value FROM json_each(?)))',[ruleIds]);
+ await select('lky_rule_obligations','run_id IN(SELECT id FROM lky_rule_runs WHERE rule_id IN(SELECT value FROM json_each(?)))',[ruleIds]);
+ await select('lky_rule_runs','rule_id IN(SELECT value FROM json_each(?))',[ruleIds]);
+ await select('lky_rule_versions','rule_id IN(SELECT value FROM json_each(?))',[ruleIds]);
+ await select('lky_rules','id IN(SELECT value FROM json_each(?))',[ruleIds]);
  const reviews=await all('SELECT * FROM lky_reviews');
  const reviewRows=await all('SELECT * FROM lky_review_rows');
  const affectedReviews=reviews.filter(row=>contains(JSON.stringify(row),identity)||reviewRows.some(r=>r.review_id===row.id&&contains(JSON.stringify(r),identity))).map(row=>row.id);

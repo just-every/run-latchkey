@@ -120,6 +120,12 @@ async function activate(input, ctx) {
  return receipt(await preparation(ctx, row.id));
 }
 export async function portabilityAuthenticated(route, input, ctx) {
+ if (route === ['exit','plan'].join('/')) {
+  exact(input, []); await owner(ctx);
+  const { first,all } = access(ctx), commercial=await first('SELECT status,recorded_at FROM lky_msp_commercial WHERE tenant=? AND owner=?',ctx.tenant,ctx.actor);
+  const vaults=await all("SELECT v.id,v.kind,r.rights FROM lky_vaults v JOIN lky_recipients r ON r.vault_id=v.id AND r.account_id=? WHERE v.tenant=? AND v.owner=? ORDER BY v.id",ctx.actor,ctx.tenant,ctx.actor);
+  return {schema:1,commercial:{state:commercial?.status??'not-recorded',basis:'Owner-recorded status; no processor cancellation or managed entitlement is inferred.'},vaults:vaults.map(v=>({vault:v.id,kind:v.kind,canExport:JSON.parse(v.rights).includes('export')})),exit:{encryptedVaultExport:'latchkey export',encryptedInstallationBackup:'rer export, then latchkey records-seal',offlineDecryption:'latchkey archive-open for vault exports; latchkey records-open for sealed installation archives',restore:'latchkey records-restore',recovery:'Keep the independently held recovery kit and account password. Neither is included in an ordinary vault export.'},shutdown:{beforeStopping:'Retain encrypted archives, buyer-held export keys, recovery material and the installation restore configuration independently before deleting infrastructure.',consequences:'Stopped infrastructure cannot serve connected clients, run schedules or deliver notifications. Downloaded archives and buyer-side decryption remain usable.',authority:'Installation sessions, device trust, active tokens and approvals do not travel. Restore requires separate reviewed activation.'},withheldForCommercialStatus:false};
+ }
  if (!route.startsWith('archive/')) return null;
  await owner(ctx);
  if (route === 'archive/prepare') return prepare(input, ctx);
