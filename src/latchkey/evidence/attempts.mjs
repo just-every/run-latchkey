@@ -15,10 +15,10 @@ async function owned(ctx, delivery) {
  need(row, 'evidence_delivery_not_found', 404); return row;
 }
 export async function evidenceAttemptAuthenticated(route, input, ctx) {
- if (![evidenceRoutes.delivery, evidenceRoutes.startAttempt, evidenceRoutes.checkpointAttempt, evidenceRoutes.inspectAttempt].includes(route)) return null;
+ if (![evidenceRoutes.delivery, evidenceRoutes.startAttempt, evidenceRoutes.checkpointAttempt, evidenceRoutes.inspectAttempt, evidenceRoutes.startInspection, evidenceRoutes.finishInspection].includes(route)) return null;
  if (route === evidenceRoutes.delivery) { exact(input, ['delivery']); return deliveryOutput(await owned(ctx, input.delivery)); }
- const checkpoint = route === evidenceRoutes.checkpointAttempt, inspecting = route === evidenceRoutes.inspectAttempt;
- exact(input, inspecting ? ['delivery'] : checkpoint ? ['delivery', 'attempt', 'uploadReference'] : ['delivery', 'stage']);
+ const checkpoint = route === evidenceRoutes.checkpointAttempt, starting = route === evidenceRoutes.startInspection, finishing = route === evidenceRoutes.finishInspection, inspecting = route === evidenceRoutes.inspectAttempt || starting || finishing;
+ exact(input, finishing ? ['delivery', 'inspection', 'status', 'presence', 'pages', 'retryAfterSeconds'] : route === evidenceRoutes.inspectAttempt && Object.hasOwn(input,'inspection') ? ['delivery','inspection'] : inspecting ? ['delivery'] : checkpoint ? ['delivery', 'attempt', 'uploadReference'] : ['delivery', 'stage']);
  const row = await owned(ctx, input.delivery), previous = JSON.parse(row.stage);
  need(inspecting || row.phase === 'pending', 'evidence_delivery_finished', 409);
  const source = await evidenceSource(ctx, row.review_id), { first, stmt, event, guard } = access(ctx);
@@ -26,7 +26,31 @@ export async function evidenceAttemptAuthenticated(route, input, ctx) {
  need(target?.active && target.revision === row.destination_revision, 'evidence_destination_changed', 409);
  const now = Math.max(ctx.now, Date.now());
  need(now < source.sourceTimestamp + target.max_age_seconds * 1000, 'evidence_source_stale', 409);
- if (inspecting) return { ...deliveryOutput(row), destination: { destination: target.destination, endpoint: target.endpoint, target: target.target } };
+ if (starting || finishing) {
+  need(target.destination === 'vanta' && previous.uploadReference, 'evidence_inspection_unavailable', 409);
+  const saved = previous.inspection;
+  let inspection;
+  if (starting) {
+   need(!saved || saved.nextAllowedAt <= now, 'evidence_inspection_backoff', 429);
+   inspection = {id:id(),state:'in-flight',startedAt:now,nextAllowedAt:now+60000};
+  } else {
+   need(saved?.id === input.inspection && saved.state === 'in-flight' && saved.nextAllowedAt > now, 'evidence_inspection_changed', 409);
+   need(['found','not-found','unknown'].includes(input.presence) && (input.status === null || Number.isSafeInteger(input.status) && input.status >= 100 && input.status <= 599) && Number.isSafeInteger(input.pages) && input.pages >= 0 && input.pages <= 10 && Number.isSafeInteger(input.retryAfterSeconds) && input.retryAfterSeconds >= 0 && input.retryAfterSeconds <= 86400, 'invalid_evidence_inspection');
+   const failures = input.presence === 'unknown' ? Math.min(10,(saved.failures ?? 0)+1) : 0;
+   inspection = {...saved,state:'client-reported',observedAt:now,status:input.status,presence:input.presence,pages:input.pages,failures,nextAllowedAt:now+Math.max(30, input.retryAfterSeconds, failures ? Math.min(3600,30*2**failures) : 30)*1000};
+  }
+  if (starting) inspection.failures = saved?.failures ?? 0;
+  const fresh = {...ctx,now,fenceArgs:ctx.fenceArgs.map(value=>value===ctx.now?now:value)};
+  await transact(fresh,source.vault,[stmt('UPDATE lky_evidence_deliveries SET stage=? WHERE id=?',canonicalJson({...previous,inspection}),row.id)],
+   [guard('EXISTS(SELECT 1 FROM lky_evidence_deliveries WHERE id=? AND stage=?)',[row.id,row.stage]),
+    guard('EXISTS(SELECT 1 FROM lky_evidence_destinations WHERE id=? AND tenant=? AND owner=? AND active=1 AND revision=?)',[target.id,ctx.tenant,ctx.actor,row.destination_revision]),
+    guard(source.guard.sql,source.guard.args)]);
+  return {...deliveryOutput(await owned(ctx,row.id)),destination:{destination:target.destination,endpoint:target.endpoint,target:target.target}};
+ }
+ if (inspecting) {
+  need(previous.inspection?.id === input.inspection && previous.inspection.state === 'in-flight' && previous.inspection.nextAllowedAt > now, 'evidence_inspection_changed', 409);
+  return { ...deliveryOutput(row), destination: { destination: target.destination, endpoint: target.endpoint, target: target.target } };
+ }
  let next;
  if (checkpoint) {
   uuid(input.attempt);

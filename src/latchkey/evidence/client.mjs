@@ -45,12 +45,13 @@ export class EvidenceClient {
   return this.dispatch(delivery, snapshot, credential, { fetcher });
  }
  async inspectUpload(deliveryId, credential, { fetcher } = {}) {
-  const inspect = () => this.client.call(evidenceRoutes.inspectAttempt, { delivery: deliveryId });
-  const delivery = await inspect();
-  need(delivery.destination.destination === 'vanta', 'evidence_inspection_unavailable');
-  need(delivery.stage.uploadReference, 'evidence_provider_reference_required');
-  return inspectVantaUpload({ endpoint: delivery.destination.endpoint, target: delivery.destination.target, credential,
+  const inspect = () => this.client.call(evidenceRoutes.inspectAttempt, { delivery: deliveryId, inspection: delivery.stage.inspection.id });
+  const delivery = await this.client.call(evidenceRoutes.startInspection, {delivery:deliveryId});
+  const observation = await inspectVantaUpload({ endpoint: delivery.destination.endpoint, target: delivery.destination.target, credential,
    uploadReference: delivery.stage.uploadReference, ...(fetcher ? { fetcher } : {}), beforeRead: inspect });
+  await this.client.call(evidenceRoutes.finishInspection, {delivery:deliveryId,inspection:delivery.stage.inspection.id,
+   presence:observation.presence,status:observation.status,pages:observation.pages,retryAfterSeconds:observation.retryAfterSeconds??0});
+  return observation;
  }
  async resumeUpload(deliveryId, credential, confirmed, { fetcher } = {}) {
   need(confirmed === true, 'evidence_consent_required');

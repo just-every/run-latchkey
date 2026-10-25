@@ -64,7 +64,7 @@ export async function reviewCampaignJourney(f,width){
  await f.page.getByRole('button',{name:'Close review',exact:true}).click();await expect(f.page.getByRole('heading',{name:'Completed review'})).toBeVisible();
  assert.ok(await f.page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'review horizontal overflow');
  if(output)await f.page.screenshot({path:join(output,`reviews-completed-${width}.png`),fullPage:true});
- await runEvidenceJourneys({owner,review,outsider:reviewer});
+ await runEvidenceJourneys({owner,review,outsider:reviewer,db:f.db});
  await f.page.getByRole('button',{name:'Refresh evidence deliveries',exact:true}).click();
  await expect(f.page.getByRole('region',{name:'Evidence delivery'})).toContainText('accepted');
  if(output){await f.page.screenshot({path:join(output,`reviews-evidence-${width}.png`),fullPage:true});await f.page.getByRole('region',{name:'Evidence delivery'}).screenshot({path:join(output,`evidence-panel-${width}.png`)});}

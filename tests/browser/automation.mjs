@@ -12,6 +12,9 @@ import {signWebhook} from '../../src/latchkey/automation/webhooks.mjs';
 import {SharingClient} from '../../src/latchkey/sharing/client.mjs';
 import {ProjectClient} from '../../src/latchkey/projects/client.mjs';
 import {bytes,digest,encode,id,itemKey,keypair,random,seal,sign,signingText} from '../../src/latchkey/crypto/envelope.mjs';
+import {OrganizationClient} from '../../src/latchkey/collections/client.mjs';
+import {createAttachment} from '../../src/latchkey/items/attachments.mjs';
+import {EvidenceClient} from '../../src/latchkey/evidence/client.mjs';
 import {createItem} from '../../src/latchkey/items/types.mjs';
 const output=process.env.LATCHKEY_SCREENSHOTS;if(output)await mkdir(output,{recursive:true});
 const refused=(promise,code)=>assert.rejects(promise,error=>error.code===code);
@@ -64,4 +67,71 @@ export async function administrationJourney(f,width){
  const denied=burst.filter(result=>result.status==='rejected');assert.ok(denied.length>=1,'121 signed calls in one minute must be refused');
  for(const result of denied){assert.equal(result.reason.code,'rate_limited');assert.equal(result.reason.status,429)}recipient.lock();console.log(`Administration journey ${width}: signed REST/CLI pagination/CAS, machine MCP exact owner gate and signed webhook failure/replay/rotation/revoke passed`);
 }
-if(import.meta.url===new URL(process.argv[1],'file:').href){const cli=await vaultFixture();try{await cliAdministrationJourney(cli)}finally{await cli.close()}for(const width of[1440,390]){const f=await vaultFixture({webhook:true});try{await administrationJourney(f,width)}catch(error){if(output)await f.page.screenshot({path:join(output,`automation-failure-${width}.png`),fullPage:true});throw error}finally{await f.close()}}}
+// One public-door coverage journey; existing item and person journeys own the
+// confirmation and deletion cases. This adds derivatives and replay coverage.
+export async function erasureCoverageJourney(f,width,{timed=false}={}){
+ const owner=f.owner,api=new ApiClient(owner),automation=new AutomationClient(owner),organization=new OrganizationClient(owner);
+ const recipient=await member(f,5400),title='synthetic-latchkey-5410',secret='synthetic-latchkey-5411';
+ try{
+ const vault=(await owner.createVault()).vault;
+ const attachment=await createAttachment('synthetic-latchkey-5412',new TextEncoder().encode('synthetic-latchkey-5413'));
+ const created=await owner.put(vault,createItem('login',{title,values:{password:secret},healthFindings:['synthetic-latchkey-5414'],attachments:[attachment]}));
+ const before=await owner.snapshot(vault),oldEnvelope=before.result.versions.find(row=>row.object_id===created.object);before.key.fill(0);
+ const subscription=await automation.subscribe({endpoint:'https://receiver.example.test/hook',events:['vault_shared'],secret:encode(random()),confirmed:true});
+ await owner.share(vault,recipient.profile.account,await digest(JSON.stringify([recipient.profile.recipientKey,recipient.profile.authorityKey])),['read']);
+ const event=(await owner.call('audit',{})).find(row=>row.action==='vault_shared'&&row.object_id===vault);
+ const queued=await automation.enqueue(subscription.id,subscription.revision,event.id,true);
+ const signing=await keypair('sign'),credential=await automation.issueCredential({vault,publicKey:signing.publicKey,scopes:['posture:read','access:request'],expiresAt:Date.now()+3600000,confirmed:true});
+ const agent=new McpClient({origin:f.origin,token:credential.token,privateKey:signing.privateKey,fetcher:f.fetcher});
+ const requestInput={vault,account:recipient.profile.account,objects:[created.object],rights:['read'],expiresAt:Date.now()+1800000};
+ const requested=await agent.requestAccess(requestInput),request=requested.result.structuredContent.request;
+ assert.ok(request);assert.equal((await organization.search(vault,{query:title})).length,1);assert.equal((await organization.search(vault,{health:'findings'})).length,1);
+ const evidence=new EvidenceClient(owner),source=await evidence.capture(vault,true);
+ const operator=(await f.db.prepare('SELECT operator_id FROM lky_accounts WHERE id=?').bind(recipient.profile.account).first()).operator_id;
+ await f.page.setViewportSize({width,height:1000});await f.page.goto(f.origin+'/app/vault');if(new URL(f.page.url()).pathname==='/setup'){await f.page.getByLabel('I confirm this owner account is ready to use.').check();await f.page.getByRole('button',{name:'Finish setup',exact:true}).click();await f.page.goto(f.origin+'/app/vault')}
+ await f.page.getByLabel('Profile file').setInputFiles({name:'profile.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(owner.profile))});await f.page.getByLabel('Master password',{exact:true}).fill(f.password);await f.page.getByRole('button',{name:'Unlock vault',exact:true}).click();await f.page.getByLabel('Vault',{exact:true}).selectOption(vault);
+ await f.page.getByRole('button',{name:new RegExp(title)}).click();await expect(f.page.getByRole('heading',{name:title,exact:true})).toBeVisible();
+ const reveal=f.page.getByRole('button',{name:'Reveal Password',exact:true});await reveal.hover();await expect(f.page.getByRole('tooltip',{name:'Reveal field',exact:true})).toBeVisible();
+ await f.page.getByRole('button',{name:'Copy Password',exact:true}).focus();await expect(f.page.getByRole('tooltip',{name:'Copy field',exact:true})).toBeVisible();
+ await f.page.getByRole('button',{name:'Download synthetic-latchkey-5412',exact:true}).focus();await expect(f.page.getByRole('tooltip',{name:'Download attachment',exact:true})).toBeVisible();
+ if(output)await f.page.screenshot({path:join(output,`erasure-controls-${width}.png`),fullPage:true});await f.page.getByRole('button',{name:'Lock vault',exact:true}).click();
+ await owner.eraseItem(vault,created.object,{confirmed:true,revision:(await owner.readVault(vault)).revision});
+ const preview=await owner.call('subject/erase-preview',{subject:operator}),receipt=await owner.call('subject/erase',{subject:operator,confirmed:true,planHash:preview.planHash});
+ await owner.rotate(vault);const erasedAt=Date.now();
+ // The exact-candidate mode observes the five-minute boundary outside Verify.
+ // A timer yields the process and imposes no CPU load or clock substitution.
+ if(timed)await new Promise(resolve=>setTimeout(resolve,Math.max(0,erasedAt+300000-Date.now())));
+ const modelCapture=[];const capture=value=>{modelCapture.push(JSON.stringify(value));return value};
+ assert.equal((await organization.search(vault,{query:title})).length,0);assert.equal((await organization.search(vault,{health:'findings'})).length,0);
+ await refused(owner.readItem(vault,created.object,true),'not_found');await refused(api.encryptedItem(vault,created.object),'not_found');
+ const exportKey=encode(random()),exported=await VaultClient.openExport(await owner.exportVault(vault,exportKey),exportKey);capture(exported);
+ assert.ok(!JSON.stringify(exported).includes(attachment.id));
+ assert.ok(!(await automation.requests()).some(row=>row.id===request));await refused(automation.preview(request),'not_found');
+ assert.ok(!(await evidence.sources(vault)).some(row=>row.id===source.id));
+ const posture=capture(await agent.posture(vault));assert.equal(posture.result.structuredContent.openAccessRequests,0);
+ capture(await mcpRequest({origin:f.origin,route:'mcp/posture',input:{vault},token:credential.token,privateKey:signing.privateKey,fetcher:f.fetcher}));
+ const replay=capture(await agent.requestAccess(requestInput));assert.equal(replay.result.isError,true);
+ // Both the direct tool route and the JSON-RPC model door must refuse replay.
+ await refused(mcpRequest({origin:f.origin,route:'mcp/requestaccess',input:requestInput,token:credential.token,privateKey:signing.privateKey,fetcher:f.fetcher}),'recipient_mismatch');
+ await refused(owner.call('item/put',{vault,object:created.object,version:oldEnvelope.version+1,revision:(await owner.readVault(vault)).revision,envelope:JSON.parse(oldEnvelope.envelope)}),'item_erased');
+ await refused(api.putEncryptedItem(vault,created.object,{version:oldEnvelope.version+1,revision:(await owner.readVault(vault)).revision,envelope:JSON.parse(oldEnvelope.envelope)}),'item_erased');
+ await refused(owner.put(vault,createItem('login',{title,values:{password:secret}}),created.object),'item_erased');
+ const checkpoint=receipt.outstanding.find(row=>row.domain==='audit-checkpoint');
+ assert.equal((await owner.call('subject/audit-verify',{operation:receipt.operation,checkpoint:{root:checkpoint.root,length:checkpoint.length,signature:checkpoint.signature}})).valid,true);
+ const pending=await automation.webhookStatus(subscription.id);assert.equal(pending.deliveries.length,1);
+ assert.equal((await automation.enqueue(subscription.id,subscription.revision,event.id,true)).id,queued.id);
+ await automation.dispatch(subscription.id,subscription.revision,queued.id,true);
+ assert.equal(f.webhooks.length,1);capture(f.webhooks[0].body);
+ // Source-event replay deduplicates the existing secret-free notification;
+ // neither it nor a dispatch can recreate content or access requests.
+ assert.equal((await automation.webhookStatus(subscription.id)).deliveries.length,1);
+ for(const value of [title,secret,attachment.name,attachment.data,recipient.profile.account,operator])assert.ok(!modelCapture.join('').includes(value),'erased data absent from export, model and notification output');
+ assert.equal((await organization.search(vault,{})).length,0);assert.equal((await automation.requests()).length,0);
+ assert.equal(receipt.complete,false);assert.ok(receipt.outstanding.some(row=>row.domain==='disconnected-device-cache'));
+ await f.page.setViewportSize({width,height:1000});await f.page.goto(f.origin+'/app/vault');if(new URL(f.page.url()).pathname==='/setup'){await f.page.getByLabel('I confirm this owner account is ready to use.').check();await f.page.getByRole('button',{name:'Finish setup',exact:true}).click();await f.page.goto(f.origin+'/app/vault')}
+ await f.page.getByLabel('Profile file').setInputFiles({name:'profile.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(owner.profile))});await f.page.getByLabel('Master password',{exact:true}).fill(f.password);await f.page.getByRole('button',{name:'Unlock vault',exact:true}).click();await f.page.getByLabel('Vault',{exact:true}).selectOption(vault);await expect(f.page.getByRole('heading',{name:title,exact:true})).toHaveCount(0);
+ assert.ok(await f.page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(output)await f.page.screenshot({path:join(output,`erasure-coverage-${width}.png`),fullPage:true});
+ console.log(`Erasure coverage ${width}: search, health, encrypted attachment door, export, pending evidence and MCP requests, model capture, source-event and queued notification replay passed${timed?' after five minutes':''}`);
+ }finally{recipient.lock()}
+}
+if(import.meta.url===new URL(process.argv[1],'file:').href){if(process.argv.includes('--erasure')){for(const width of[1440,390]){const f=await vaultFixture({webhook:true});try{await erasureCoverageJourney(f,width,{timed:process.argv.includes('--five-minute')})}finally{await f.close()}}}else{const cli=await vaultFixture();try{await cliAdministrationJourney(cli)}finally{await cli.close()}for(const width of[1440,390]){const coverage=await vaultFixture({webhook:true});try{await erasureCoverageJourney(coverage,width)}finally{await coverage.close()}const f=await vaultFixture({webhook:true});try{await administrationJourney(f,width)}catch(error){if(output)await f.page.screenshot({path:join(output,`automation-failure-${width}.png`),fullPage:true});throw error}finally{await f.close()}}}}

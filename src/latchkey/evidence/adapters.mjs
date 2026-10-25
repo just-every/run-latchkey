@@ -134,7 +134,7 @@ const uploadedFile = row => row && present(row.id) && nullableText(row.fileName)
 // Read-only, bounded inspection. Finding a retained upload does not prove that
 // a later submit succeeded, and never authorizes repeating that mutation.
 export async function inspectVantaUpload({ endpoint, credential, target, uploadReference, fetcher = fetch, beforeRead }) {
- let cursor = null, pages = 0; const seen = new Set();
+ let cursor = null, pages = 0; const seen = new Set(), signal = AbortSignal.timeout(15000);
  try {
   const base = baseUrl('Vanta', endpoint), auth = authorization('Vanta', credential);
   if (!present(target) || !present(uploadReference)) throw Error();
@@ -143,9 +143,14 @@ export async function inspectVantaUpload({ endpoint, credential, target, uploadR
    const query = new URLSearchParams({ pageSize: '100', ...(cursor ? { pageCursor: cursor } : {}) });
    pages++;
    const response = await fetcher(base + '/v1/documents/' + encodeURIComponent(target) + '/uploads?' + query, {
-    method: 'GET', redirect: 'error', credentials: 'omit', referrerPolicy: 'no-referrer', headers: { Authorization: auth },
+    method: 'GET', signal, redirect: 'error', credentials: 'omit', referrerPolicy: 'no-referrer', headers: { Authorization: auth },
    });
-   if (response.status !== 200) return { presence: 'unknown', status: response.status, pages: page + 1 };
+   if (response.status !== 200) {
+    const retry = response.headers.get('retry-after');
+    const seconds = /^\d+$/.test(retry ?? '') ? Number(retry) : Math.ceil((Date.parse(retry)-Date.now())/1000);
+    await response.body?.cancel();
+    return { presence:'unknown',status:response.status,pages:page+1,retryAfterSeconds:Number.isFinite(seconds)?Math.max(0,Math.min(86400,seconds)):0,provesSubmit:false };
+   }
    const value = await json(response), data = value?.results?.data, info = value?.results?.pageInfo;
    if (!Array.isArray(data) || data.length > 100 || !data.every(uploadedFile) || typeof info?.hasNextPage !== 'boolean'
     || typeof info.hasPreviousPage !== 'boolean' || !nullableText(info.startCursor) || !nullableText(info.endCursor)) throw Error();

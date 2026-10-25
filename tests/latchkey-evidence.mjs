@@ -6,7 +6,7 @@ import { unstable_splitSqlQuery } from 'wrangler';
 import assert from 'node:assert/strict';
 import { id } from '../src/latchkey/crypto/envelope.mjs';
 import { EvidenceClient } from '../src/latchkey/evidence/client.mjs';
-export async function runEvidenceJourneys({owner,review,outsider}){
+export async function runEvidenceJourneys({owner,review,outsider,db}){
  const client=new EvidenceClient(owner),sent=[],credential='synthetic-latchkey-2050';
  const configs=[['evidence','https://evidence.example.test'],['vanta','https://api.vanta.com'],['drata','https://public-api.drata.com'],['secureframe','https://api.secureframe.com']];
  const edge=async(url,init)=>{
@@ -74,6 +74,13 @@ export async function runEvidenceJourneys({owner,review,outsider}){
  await assert.rejects(owner.call(evidenceRoutes.startAttempt,{delivery:lost.delivery,stage:{name:'submit',binding:unknown.stage.binding,uploadReference:unknown.stage.uploadReference}}),error=>error.code==='evidence_reconciliation_required');
  assert.equal(uploads+submits,writesBefore);
  let reads=0;
+ let releaseRead;const reading=new Promise(resolve=>{releaseRead=resolve});let signalRead;
+ const firstRead=new Promise(resolve=>{signalRead=resolve});
+ const observing=restarted.inspectUpload(lost.delivery,credential,{fetcher:async()=>{signalRead();await reading;return Response.json({results:{data:[],pageInfo:{hasNextPage:false,hasPreviousPage:false,startCursor:null,endCursor:null}}})}});
+ await firstRead;
+ await assert.rejects(owner.call(evidenceRoutes.inspectAttempt,{delivery:lost.delivery,inspection:id()}),error=>error.code==='evidence_inspection_changed');
+ let overlappingReads=0;await assert.rejects(new EvidenceClient(owner).inspectUpload(lost.delivery,credential,{fetcher:async()=>{overlappingReads++;throw Error()}}),error=>error.code==='evidence_inspection_backoff');assert.equal(overlappingReads,0);releaseRead();assert.equal((await observing).presence,'not-found');
+ const released=await restarted.delivery(lost.delivery);released.stage.inspection.nextAllowedAt=0;await db.prepare('UPDATE lky_evidence_deliveries SET stage=? WHERE id=?').bind(JSON.stringify(released.stage),lost.delivery).run();
  const observation=await restarted.inspectUpload(lost.delivery,credential,{fetcher:async(url,init)=>{
   assert.equal(init.method,'GET');assert.equal(init.redirect,'error');assert.equal(init.credentials,'omit');assert.equal(init.headers.Authorization,`Bearer ${credential}`);reads++;
   const query=new URL(url).searchParams;assert.equal(query.get('pageSize'),'100');assert.equal(query.get('pageCursor'),reads===1?null:'synthetic-latchkey-2064');
@@ -81,8 +88,23 @@ export async function runEvidenceJourneys({owner,review,outsider}){
  }});
  assert.equal(observation.presence,'found');assert.equal(observation.provesSubmit,false);assert.equal(reads,2);assert.equal(uploads+submits,writesBefore);
  assert.equal((await restarted.delivery(lost.delivery)).requiresReconciliation,true);
- assert.equal((await restarted.inspectUpload(lost.delivery,credential,{fetcher:async()=>new Response(null,{status:429})})).presence,'unknown');
+ let deniedReads=0;
+ await assert.rejects(new EvidenceClient(owner).inspectUpload(lost.delivery,credential,{fetcher:async()=>{deniedReads++;throw Error()}}),error=>error.code==='evidence_inspection_backoff');assert.equal(deniedReads,0);
+ const releaseInspection=async()=>{const row=await restarted.delivery(lost.delivery);row.stage.inspection.nextAllowedAt=0;await db.prepare('UPDATE lky_evidence_deliveries SET stage=? WHERE id=?').bind(JSON.stringify(row.stage),lost.delivery).run();};
+
+ await releaseInspection();
+ const rateLimited=await restarted.inspectUpload(lost.delivery,credential,{fetcher:async()=>new Response(null,{status:429,headers:{'retry-after':'120'}})});assert.equal(rateLimited.presence,'unknown');assert.equal(rateLimited.retryAfterSeconds,120);
+ const diagnostics=(await restarted.delivery(lost.delivery)).stage.inspection;assert.equal(diagnostics.status,429);assert.equal(diagnostics.state,'client-reported');assert.ok(diagnostics.nextAllowedAt>=diagnostics.observedAt+120000);assert.ok(!JSON.stringify(diagnostics).includes(credential));
+ await assert.rejects(new EvidenceClient(owner).inspectUpload(lost.delivery,credential,{fetcher:async()=>{deniedReads++;throw Error()}}),error=>error.code==='evidence_inspection_backoff');assert.equal(deniedReads,0);
+ await releaseInspection();
  assert.equal((await restarted.inspectUpload(lost.delivery,credential,{fetcher:async()=>Response.json({results:{data:[],pageInfo:{hasNextPage:true,hasPreviousPage:true,startCursor:null,endCursor:'synthetic-latchkey-2065'}}})})).presence,'unknown');
+ await releaseInspection();let cancelledRead=false;
+ const stalled=await restarted.inspectUpload(lost.delivery,credential,{fetcher:async(url,init)=>new Promise((resolve,reject)=>{
+  const aborted=()=>{cancelledRead=true;reject(init.signal.reason)};
+  if(init.signal.aborted)aborted();else init.signal.addEventListener('abort',aborted,{once:true});
+ })});
+ assert.equal(cancelledRead,true);assert.equal(stalled.presence,'unknown');assert.equal(stalled.status,null);assert.equal(uploads+submits,writesBefore);
+ assert.equal((await restarted.delivery(lost.delivery)).stage.inspection.presence,'unknown');
  const payload=Object.fromEntries(['delivery','state','providerReference','retryable','status','stage'].map(key=>[key,lost[key]]));
  const saved=await owner.call(evidenceRoutes.result,payload), eventsBefore=(await owner.call('audit',{})).filter(row=>row.object_id===lost.delivery).length;
  assert.deepEqual(await owner.call(evidenceRoutes.result,payload),saved);
