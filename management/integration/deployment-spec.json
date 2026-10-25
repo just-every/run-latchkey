@@ -204,6 +204,12 @@
       "name": "0034_dependency_keys_sealed.sql",
       "sha256": "9c8fa5f94c48a230f326cd4d666cbc2bd1e7d5a18327b89e65b339ac6a533d9a",
       "sql": "ALTER TABLE rer_dependency_installation ADD COLUMN keys_sealed INTEGER NOT NULL DEFAULT 0 CHECK(keys_sealed IN (0,1));\n-- Nonsecret version history lets restored rows name an unavailable retired key\n-- without confusing ciphertext tampering or a wrong current secret with restore.\nALTER TABLE rer_dependency_installation ADD COLUMN key_ids TEXT NOT NULL DEFAULT '[]' CHECK(json_valid(key_ids) AND json_type(key_ids)='array');\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0035_latchkey_checkout.sql",
+      "sha256": "10417a944d16ea289998373073305b231e9536ef3bae85ce76818db6418aa6bc",
+      "sql": "CREATE TABLE lky_checkouts (\n vault_id TEXT NOT NULL REFERENCES lky_vaults(id),\n object_id TEXT NOT NULL,\n id TEXT NOT NULL UNIQUE,\n holder TEXT NOT NULL REFERENCES lky_accounts(id),\n version INTEGER NOT NULL,\n expires_at INTEGER NOT NULL,\n PRIMARY KEY(vault_id, object_id)\n);\n"
     }
   ],
   "compatibilityDate": "2026-09-08",
