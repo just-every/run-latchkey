@@ -586,7 +586,7 @@
       "executable": false
     },
     "docs/migration/bitwarden-and-lastpass.md": {
-      "sha256": "c61c189db060007d78b7832cfa298a4549e02f975ec26edbba4688d928b47d81",
+      "sha256": "221dac1e94c8cd6f6a345167969d49e8c25e1425f98bf811936757cd7cf7d7a7",
       "executable": false
     },
     "docs/migration/passbolt.md": {
@@ -1734,7 +1734,7 @@
       "executable": false
     },
     "src/latchkey/migration/core.mjs": {
-      "sha256": "83361adeb56043a7564197b1ade0f5e3b44112e74e86cab218e02eb63b7bb1de",
+      "sha256": "ab10a008df25d4b5ac1496127727e7b3111d7ab508ad2e160b38dd1d0d08af1e",
       "executable": false
     },
     "src/latchkey/migration/passbolt-csv.mjs": {
@@ -3338,7 +3338,7 @@
       "executable": false
     },
     "tests/latchkey-records.test.mjs": {
-      "sha256": "3fa01720aee60d15868bd4a9a7447984de0e56e5d71efcaca4217a96408dc2b3",
+      "sha256": "04b26d242678491dbfbfe27fabf6b3e43c986a5e0c97463271ff70c154a2412e",
       "executable": false
     },
     "tests/latchkey-recovery.mjs": {

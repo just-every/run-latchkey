@@ -17,7 +17,9 @@ export async function previewMigration({ data, source, sourceOrigin, sourceOwner
  let records, folders, variant;
  if (source === 'bitwarden') {
   const raw = await readBitwarden(data, passphrase);
-  records = raw.items; folders = raw.collections ?? raw.folders ?? []; variant = 'json';
+  records = raw.items;
+  check([raw.collections, raw.folders].every(value => value == null || Array.isArray(value)), 'invalid_source_folders');
+  folders = [...(raw.folders ?? []), ...(raw.collections ?? [])]; variant = 'json';
   check(Array.isArray(folders) && folders.length <= 1000, 'invalid_source_folders');
  } else {
   let parsed; try { parsed = Papa.parse(text.decode(data), { header: true, skipEmptyLines: true }); } catch { check(false, 'invalid_lastpass_csv'); }
@@ -43,7 +45,8 @@ export async function previewMigration({ data, source, sourceOrigin, sourceOwner
   const shared = source === 'bitwarden' ? Boolean(record.organizationId || record.collectionIds?.length) : Boolean(record.grouping);
   if (shared) gaps.push('shared_rights_and_owner_mapping_required');
   if (record.deletedDate) gaps.push('deleted_source_item_requires_review');
-  const associations = source === 'bitwarden' ? record.collectionIds ?? (record.folderId ? [record.folderId] : []) : record.grouping ? [record.grouping] : [];
+  if (record.reprompt) gaps.push('source_reprompt_requires_review');
+  const associations = source === 'bitwarden' ? [...(record.collectionIds ?? []), ...(record.folderId ? [record.folderId] : [])] : record.grouping ? [record.grouping] : [];
   check(Array.isArray(associations), 'invalid_source_folders');
   if (associations.some(id => !folderIds.has(id))) gaps.push('source_folder_missing');
   const linkValues = source === 'bitwarden' ? record.login?.uris?.map(row => row.uri) ?? [] : record.url === 'http://sn' ? [] : [record.url];

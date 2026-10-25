@@ -51,7 +51,9 @@ mutated, URLs never fill automatically and no source credential is retired.
 The encrypted review retains original source records and folder associations,
 including unsupported classes. Supported login and secure-note values, multiline
 notes, custom fields and TOTP normalize to native encrypted items. Unmapped types,
-invalid fields, attachments, history and passkeys appear as blocking discrepancies.
+source reprompt requirements, invalid fields, attachments, history and passkeys
+appear as blocking discrepancies. Personal folders and organization collections
+remain separate source inventory rows, including when both appear in one export.
 Class reconciliation distinguishes exported counts from unknown source totals;
 zero exported attachments never proves the source had none. Assigned extraction,
 rights-review and re-enrollment tasks remain unresolved, and every receipt says

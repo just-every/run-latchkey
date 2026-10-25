@@ -323,6 +323,14 @@ test('Bitwarden CLI decrypts portable exports locally and stages only encrypted 
    assert.ok(plan.reconciliation.every(row => row.sourceTotal === null && row.imported === 0));
   }
   const { previewMigration } = await import('../src/latchkey/migration/core.mjs');
+  const organized = JSON.parse(await readFile(new URL('./fixtures/migration/bitwarden-plain.json', import.meta.url)));
+  organized.folders = [{ id: 'synthetic-latchkey-1640', name: ['synthetic-latchkey-1641', 'synthetic-latchkey-1642'].join('/') }];
+  organized.collections = [{ id: 'synthetic-latchkey-1643', name: 'synthetic-latchkey-1644' }];
+  organized.items[0].folderId = organized.folders[0].id; organized.items[0].collectionIds = [];
+  const folderPreview = await previewMigration({ ...base, data: new TextEncoder().encode(JSON.stringify(organized)) });
+  assert.equal(folderPreview.plan.folders.length, 2); assert.deepEqual(folderPreview.plan.rows[0].folders, ['synthetic-latchkey-1640']);
+  organized.items[0].reprompt = 1;
+  assert.ok((await previewMigration({ ...base, data: new TextEncoder().encode(JSON.stringify(organized)) })).plan.rows[0].gaps.includes('source_reprompt_requires_review'));
   for (const [source, error] of [[{ encrypted: true, passwordProtected: false }, 'bitwarden_account_restricted_export'], [{ encrypted: true, passwordProtected: true, kdfType: 1 }, 'unsupported_bitwarden_kdf']]) await assert.rejects(previewMigration({ ...base, data: new TextEncoder().encode(JSON.stringify(source)) }), { code: error });
   const portable = JSON.parse(await readFile(new URL('./fixtures/migration/bitwarden-portable.json', import.meta.url)));
   portable.data = portable.data.slice(0, -2) + 'AA';
@@ -382,7 +390,19 @@ test('Migration personal batches resume and apply deltas without overwriting a d
   assert.equal((await f.owner.readVault(batchVault)).versions.length, 1);
   const resumed = await importMigration(f.owner, batch.plan, batchInput); assert.equal(resumed.imported, 1); assert.equal(resumed.unchanged, 1);
   assert.equal((await f.owner.readVault(batchVault)).versions.length, 2);
-  assert.equal((await importMigration(f.owner, plan, input)).imported, 1);
+  const directory = await mkdtemp(join(tmpdir(), 'synthetic-latchkey-1645-'));
+  try {
+   const { migrationCommand } = await import('../scripts/latchkey/migration-commands.mjs'), { spawn } = await import('node:child_process');
+   const source = join(directory, 'source.json'), profile = join(directory, 'profile.json'), preview = join(directory, 'preview.json'), previewKey = encode(random());
+   await writeFile(source, data, { mode: 0o600 }); await writeFile(profile, JSON.stringify(f.owner.profile), { mode: 0o600 });
+   await migrationCommand('migration-preview', { ...base, input: source, output: preview, previewKey });
+   const receipt = await new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, ['scripts/latchkey.mjs', 'migration-import'], { stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, NODE_EXTRA_CA_CERTS: f.caFile } });
+    let stdout = '', stderr = ''; child.stdout.on('data', chunk => stdout += chunk); child.stderr.on('data', chunk => stderr += chunk); child.on('error', reject); child.on('close', code => resolve({ code, stdout, stderr })); child.stdin.end(JSON.stringify({ ...input, profile, password: f.password, preview, previewKey }));
+   });
+   assert.equal(receipt.code, 0, receipt.stderr); assert.equal(JSON.parse(receipt.stdout).imported, 1);
+   assert.ok(!(receipt.stdout + receipt.stderr).includes('synthetic-latchkey-1604'));
+  } finally { await rm(directory, { recursive: true, force: true }); }
   assert.equal((await importMigration(f.owner, plan, input)).unchanged, 1);
   let rows = await f.owner.readVault(vault); assert.equal(rows.versions.length, 1);
   const changed = JSON.parse(new TextDecoder().decode(data)); changed.items[0].login.password = 'synthetic-latchkey-1632';
