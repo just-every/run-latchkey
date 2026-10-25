@@ -514,7 +514,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "770cb033354fdc19bd08c8f27f683dd113277405a4eb55e73819a90c3cc471af",
+      "sha256": "b3bb51653d95f7bec31b9455e5a4efc94e5988d35c26c1eb8023702144c31747",
       "executable": false
     },
     "AGENTS.md": {
@@ -542,7 +542,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "b6d3557b40b1a30076accac9ccc80f0c9d995bb246ec9c2f95932a6361a0307b",
+      "sha256": "bbdb97eb197aba8201365d9dbbeba7889cf4e0d0fd419fc156885a621b287a87",
       "executable": false
     },
     "deploy-demo.json": {
@@ -606,7 +606,7 @@
       "executable": false
     },
     "docs/specialist-handoffs.md": {
-      "sha256": "31a2da063ee591704070eca042317754955198fa796cbb78b850bf79de0a1c97",
+      "sha256": "c955a477a6846c93163c6d84ca6ceb194c972f4fca1b546f02fff8878d6ba4bb",
       "executable": false
     },
     "docs/vault-cli.md": {
@@ -1126,7 +1126,7 @@
       "executable": false
     },
     "scripts/latchkey.mjs": {
-      "sha256": "8bea596174de22db36c19c4834dca8cbf00a79c5f45c022f94c1369ead1828d1",
+      "sha256": "01002c6ccfa15fb30a93ef0a81af18cf9c194c6a80c2e8e675f23bda313cd27a",
       "executable": false
     },
     "scripts/latchkey/archive-policy.mjs": {
@@ -1346,7 +1346,7 @@
       "executable": false
     },
     "src/latchkey/api/catalogue.mjs": {
-      "sha256": "d6b16cc2b11d71588dcff3a2fe41013224f970392827c2587a4bd93439df48ab",
+      "sha256": "d1ffc37492a7dd90a929985d394ca87c46af1ede8ffd81267640200f6db7ad67",
       "executable": false
     },
     "src/latchkey/api/client.d.mts": {
@@ -1430,7 +1430,7 @@
       "executable": false
     },
     "src/latchkey/checkout/service.mjs": {
-      "sha256": "4e64628cffdbb6eaabe0dd9369a0d95fef63aa9b5759dad1809d102dca69dc84",
+      "sha256": "72243457bd0723050f76f21fe37af7fd2c128d3bf3f694f2a11e4c880bbad3b1",
       "executable": false
     },
     "src/latchkey/client.mjs": {
@@ -1646,7 +1646,7 @@
       "executable": false
     },
     "src/latchkey/handoffs/client.mjs": {
-      "sha256": "3db912f3664e2e941299dbaec724438534a2e498128b23770d9e6f1283ff1a21",
+      "sha256": "d202dc41a7132a5d4b4748b148638505a4831a2009e0b34d47343428957c92e1",
       "executable": false
     },
     "src/latchkey/items/attachments.mjs": {
@@ -3250,7 +3250,7 @@
       "executable": false
     },
     "tests/browser/projects.mjs": {
-      "sha256": "27af405af11668deeb18a23de175acfd894ba1409efd9f186a684ed143bbe9d0",
+      "sha256": "ddde37f31645a2dd8ab8de056a1716797c5a192701fd088fb90de0d5f5aeda76",
       "executable": false
     },
     "tests/browser/reviews.mjs": {
