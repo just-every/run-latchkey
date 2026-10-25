@@ -514,7 +514,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "b0747c48aea08838d236bcc72645213adee3b6dbc2047ba7dda6a35cde4c93cd",
+      "sha256": "62c027bc0f2587e91ff2e9d2c738e7d945df0e48dc7ba12a084fc388e56c4a99",
       "executable": false
     },
     "AGENTS.md": {
@@ -542,7 +542,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "dd9f78e7cedfa0ec7a63b4988650b7722d5cff4b511283c4e2ccd90bdd4119bd",
+      "sha256": "5650181124308a5d6adc80aeb5fe25ee7c41ef8ba8c34a83a0fbd8f342519847",
       "executable": false
     },
     "deploy-demo.json": {
@@ -583,6 +583,10 @@
     },
     "docs/machine-runtimes.md": {
       "sha256": "ac40468a0f812fb377aa51b17fa344d3ebd192060c00514b030fcbf66862d6fc",
+      "executable": false
+    },
+    "docs/migration/bitwarden-and-lastpass.md": {
+      "sha256": "c61c189db060007d78b7832cfa298a4549e02f975ec26edbba4688d928b47d81",
       "executable": false
     },
     "docs/migration/passbolt.md": {
@@ -1130,7 +1134,7 @@
       "executable": false
     },
     "scripts/latchkey.mjs": {
-      "sha256": "8151eef1c9f1674dc54fe79d14e1d4177bd43536530b9516e0a7a7f97ca09ef7",
+      "sha256": "9a4046d2ddd97ffb78011de1e999a6603e6cb28afffe6e29c9ace421c9fa4889",
       "executable": false
     },
     "scripts/latchkey/archive-policy.mjs": {
@@ -1139,6 +1143,10 @@
     },
     "scripts/latchkey/items-commands.mjs": {
       "sha256": "b4185cb4d457f9feb88c2710cbec33c6503d899f502d74dbade19e689e2ce8b3",
+      "executable": false
+    },
+    "scripts/latchkey/migration-commands.mjs": {
+      "sha256": "2a5f0fcc3698a46118fc25a0c7cc393e854a65cb8c352411392351ce809ef878",
       "executable": false
     },
     "scripts/latchkey/msp-commands.mjs": {
@@ -1719,6 +1727,14 @@
     },
     "src/latchkey/machine.mjs": {
       "sha256": "83a9cf0f982e60255e1394d385c0feeedea31d4bc6080fad23b6bf687404951f",
+      "executable": false
+    },
+    "src/latchkey/migration/bitwarden.mjs": {
+      "sha256": "328c13c4b6c91886f56e9be14b4be833eb95b23929914cfe43e3f4314f1b1736",
+      "executable": false
+    },
+    "src/latchkey/migration/core.mjs": {
+      "sha256": "83361adeb56043a7564197b1ade0f5e3b44112e74e86cab218e02eb63b7bb1de",
       "executable": false
     },
     "src/latchkey/migration/passbolt-csv.mjs": {
@@ -3254,7 +3270,7 @@
       "executable": false
     },
     "tests/browser/passbolt.mjs": {
-      "sha256": "9c04115a5c14346cce8330a39a576667e6554ecc08dbc8e2528cd85318f540ef",
+      "sha256": "242f2dfafca13f868f1b8ab4e10936813b227f366ff12a90033aab325957e0e2",
       "executable": false
     },
     "tests/browser/projects.mjs": {
@@ -3274,11 +3290,23 @@
       "executable": false
     },
     "tests/browser/vault.mjs": {
-      "sha256": "6a332f6e162a413819b2ea7730122f2e5c689579617ef7ead4a5856d6bc3e617",
+      "sha256": "133f2639303d7b3b011d40c369db512a2b29d9f9f78d7bdcaca58fd6362cebbe",
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {
       "sha256": "99941e9815cbfff121096e5c5f8e24cb6b9f80a0eb67ba054d5f569801d18479",
+      "executable": false
+    },
+    "tests/fixtures/migration/bitwarden-plain.json": {
+      "sha256": "3ef1fee54053b70a14aec122a8ae03a6aece235a1167bacc9c520b6d3a5e9bbd",
+      "executable": false
+    },
+    "tests/fixtures/migration/bitwarden-portable.json": {
+      "sha256": "c9c696d5d66bb6cbd41c804071d6409758ee25771693cc736504330fddb96396",
+      "executable": false
+    },
+    "tests/fixtures/migration/generate.cjs": {
+      "sha256": "652c1bce057819e488985fcdd00b5f46206fee6709cc8c55700c68c210bb341f",
       "executable": false
     },
     "tests/fixtures/passbolt.mjs": {
@@ -3310,7 +3338,7 @@
       "executable": false
     },
     "tests/latchkey-records.test.mjs": {
-      "sha256": "ef2065d3ff4864b83f26b4a679b2db992713a2c46bcc94f99a14bd13bddce115",
+      "sha256": "3fa01720aee60d15868bd4a9a7447984de0e56e5d71efcaca4217a96408dc2b3",
       "executable": false
     },
     "tests/latchkey-recovery.mjs": {

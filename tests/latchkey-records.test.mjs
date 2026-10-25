@@ -291,3 +291,109 @@ test('Posture inspection reads official inventory edges without confusing missin
  }
  await assert.rejects(readPosture({source:'linen'},{fetcher:()=>{throw Error('must not call')}}),{code:'linen_posture_schema_unavailable'});
 });
+
+test('Bitwarden CLI decrypts portable exports locally and stages only encrypted previews with explicit plaintext review', async () => {
+ const { spawn } = await import('node:child_process');
+ const directory = await mkdtemp(join(tmpdir(), 'synthetic-latchkey-1610-'));
+ const cli = (command, input) => new Promise((resolve, reject) => {
+  const child = spawn(process.execPath, ['scripts/latchkey.mjs', command], { stdio: ['pipe', 'pipe', 'pipe'] });
+  let stdout = '', stderr = ''; child.stdout.on('data', chunk => stdout += chunk); child.stderr.on('data', chunk => stderr += chunk); child.on('error', reject); child.on('close', code => resolve({ code, stdout, stderr })); child.stdin.end(JSON.stringify(input));
+ });
+ const previewKey = encode(random()), base = { source: 'bitwarden', sourceOrigin: 'https://vault.bitwarden.example.test', sourceOwner: 'synthetic-latchkey-1600', previewKey };
+ try {
+  for (const variant of ['plain', 'portable']) {
+   const input = join(directory, `${variant}.json`), output = join(directory, `${variant}-preview.json`), review = join(directory, `${variant}-review.json`);
+   await writeFile(input, await readFile(new URL(`./fixtures/migration/bitwarden-${variant}.json`, import.meta.url)), { mode: 0o600 });
+   if (variant === 'portable') {
+    const denied = await cli('migration-preview', { ...base, input, output, passphrase: 'synthetic-latchkey-1611' });
+    assert.equal(denied.code, 1); assert.match(denied.stderr, /bitwarden_cannot_decrypt/); await assert.rejects(stat(output), { code: 'ENOENT' });
+   }
+   const receipt = await cli('migration-preview', { ...base, input, output, passphrase: 'synthetic-latchkey-1607' });
+   assert.equal(receipt.code, 0, receipt.stderr); assert.equal(JSON.parse(receipt.stdout).counts.ready, 1);
+   assert.equal((await stat(output)).mode & 0o777, 0o600);
+   for (const secret of ['synthetic-latchkey-1604', 'synthetic-latchkey-1606', 'synthetic-latchkey-1607']) assert.ok(!(await readFile(output, 'utf8') + receipt.stdout + receipt.stderr).includes(secret));
+   assert.equal((await cli('migration-review', { preview: output, previewKey, output: review })).code, 1); await assert.rejects(stat(review), { code: 'ENOENT' });
+   assert.equal((await cli('migration-review', { preview: output, previewKey, output: review, confirmed: true })).code, 0);
+   const { plan, hash } = JSON.parse(await readFile(review));
+   assert.equal(hash, JSON.parse(receipt.stdout).hash); assert.equal(plan.rows[0].item.fields.find(field => field.id === 'sourceNote').value, 'synthetic-latchkey-1602\n日本語');
+   const { totp } = await import('../src/latchkey/totp/index.mjs');
+   assert.equal((await totp(plan.rows[0].item.fields.find(field => field.id === 'totp').value, 59000)).code, '287082');
+   assert.equal(plan.rows[0].item.urls[0].match, 'never-fill'); assert.equal(plan.tasks.length, 5);
+   assert.equal(plan.reconciliation.find(row => row.class === 'totp').exported, 1);
+   assert.ok(plan.reconciliation.every(row => row.sourceTotal === null && row.imported === 0));
+  }
+  const { previewMigration } = await import('../src/latchkey/migration/core.mjs');
+  for (const [source, error] of [[{ encrypted: true, passwordProtected: false }, 'bitwarden_account_restricted_export'], [{ encrypted: true, passwordProtected: true, kdfType: 1 }, 'unsupported_bitwarden_kdf']]) await assert.rejects(previewMigration({ ...base, data: new TextEncoder().encode(JSON.stringify(source)) }), { code: error });
+  const portable = JSON.parse(await readFile(new URL('./fixtures/migration/bitwarden-portable.json', import.meta.url)));
+  portable.data = portable.data.slice(0, -2) + 'AA';
+  await assert.rejects(previewMigration({ ...base, passphrase: 'synthetic-latchkey-1607', data: new TextEncoder().encode(JSON.stringify(portable)) }), { code: 'bitwarden_cannot_decrypt' });
+ } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+test('LastPass 40-folder CSV preview reconciles duplicates and omissions without inferring shared permissions', async () => {
+ const Papa = (await import('papaparse')).default;
+ const { migrationCommand } = await import('../scripts/latchkey/migration-commands.mjs');
+ const { previewMigration } = await import('../src/latchkey/migration/core.mjs');
+ const directory = await mkdtemp(join(tmpdir(), 'synthetic-latchkey-1620-'));
+ const records = Array.from({ length: 40 }, (_, index) => ({ url: 'https://synthetic-latchkey.example.test', username: `synthetic-latchkey-${1700 + index}`, password: `synthetic-latchkey-${1800 + index}`, extra: '日本語\nsecond line, "quoted"', name: `synthetic-latchkey-${1900 + index}`, grouping: `synthetic-latchkey-${2000 + index}`, fav: '0' }));
+ records.push({ ...records[0] });
+ const mapping = records.map((row, index) => ({ row: index + 1, id: `synthetic-latchkey-${index === 40 ? 2100 : 2100 + index}` }));
+ const base = { source: 'lastpass', sourceOrigin: 'https://lastpass.example.test', sourceOwner: 'synthetic-latchkey-1621', mapping };
+ try {
+  const input = join(directory, 'source.csv'), output = join(directory, 'preview.json'), review = join(directory, 'review.json'), previewKey = encode(random());
+  const csv = Papa.unparse(records, { quotes: true }); await writeFile(input, csv, { mode: 0o600 });
+  const receipt = await migrationCommand('migration-preview', { ...base, input, output, previewKey });
+  assert.equal(receipt.folders, 40); assert.deepEqual(receipt.counts, { source: 41, imported: 0, duplicate: 1, rejected: 40, ready: 0 });
+  await migrationCommand('migration-review', { preview: output, previewKey, output: review, confirmed: true });
+  const { plan } = JSON.parse(await readFile(review));
+  assert.equal(plan.rows[0].item.fields.find(field => field.id === 'sourceNote').value, records[0].extra);
+  assert.ok(plan.rows.filter(row => !row.duplicate).every(row => row.gaps.includes('shared_rights_and_owner_mapping_required')));
+  assert.ok(plan.tasks.every(task => task.owner === base.sourceOwner && task.state === 'unresolved')); assert.equal(plan.cutoverComplete, false);
+  assert.equal((await stat(output)).mode & 0o777, 0o600); assert.ok(!(await readFile(output, 'utf8')).includes(records[0].password));
+  const data = new TextEncoder().encode(csv);
+  await assert.rejects(previewMigration({ ...base, data, mapping: [] }), { code: 'lastpass_stable_id_mapping_required' });
+  await assert.rejects(previewMigration({ ...base, data: new TextEncoder().encode(csv + '\n"malformed') }), { code: 'invalid_lastpass_csv' });
+  const conflicting = [...records]; conflicting[40] = { ...records[0], password: 'synthetic-latchkey-1622' };
+  await assert.rejects(previewMigration({ ...base, data: new TextEncoder().encode(Papa.unparse(conflicting)) }), { code: 'conflicting_source_identity' });
+ } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+test('Migration personal batches resume and apply deltas without overwriting a destination correction or widening authority', async () => {
+ const { previewMigration, importMigration } = await import('../src/latchkey/migration/core.mjs');
+ const { vaultFixture } = await import('./browser/fixture.mjs');
+ const data = new Uint8Array(await readFile(new URL('./fixtures/migration/bitwarden-plain.json', import.meta.url)));
+ const base = { source: 'bitwarden', sourceOrigin: 'https://vault.bitwarden.example.test', sourceOwner: 'synthetic-latchkey-1600' };
+ const { plan, hash } = await previewMigration({ ...base, data }), f = await vaultFixture({ browserEnabled: false });
+ try {
+  const vault = (await f.owner.createVault({ kind: 'family' })).vault, input = { vault, confirmed: true, ownership: 'personal', sourceOwner: base.sourceOwner, approvedHash: hash };
+  await assert.rejects(importMigration(f.owner, plan, { ...input, confirmed: false }), { code: 'personal_import_confirmation_required' });
+  await assert.rejects(importMigration(f.owner, plan, { ...input, approvedHash: 'synthetic-latchkey-1630' }), { code: 'migration_approval_mismatch' });
+  const company = (await f.owner.createVault()).vault;
+  await assert.rejects(importMigration(f.owner, plan, { ...input, vault: company }), { code: 'personal_destination_required' });
+  const shared = JSON.parse(new TextDecoder().decode(data)); shared.items[0].organizationId = 'synthetic-latchkey-1631';
+  const sharedPreview = await previewMigration({ ...base, data: new TextEncoder().encode(JSON.stringify(shared)) });
+  await assert.rejects(importMigration(f.owner, sharedPreview.plan, { ...input, approvedHash: sharedPreview.hash }), { code: 'migration_discrepancies_unresolved' });
+  assert.equal((await f.owner.readVault(vault)).versions.length, 0);
+  const batchSource = JSON.parse(new TextDecoder().decode(data)); batchSource.items.push({ ...batchSource.items[0], id: 'synthetic-latchkey-1634', name: 'synthetic-latchkey-1635' });
+  const batch = await previewMigration({ ...base, data: new TextEncoder().encode(JSON.stringify(batchSource)) }), batchVault = (await f.owner.createVault({ kind: 'family' })).vault;
+  const batchInput = { ...input, vault: batchVault, approvedHash: batch.hash }, put = f.owner.put.bind(f.owner); let attempted = 0;
+  f.owner.put = async (...args) => { if (++attempted === 2) throw Error('synthetic-latchkey-1636'); return put(...args); };
+  await assert.rejects(importMigration(f.owner, batch.plan, batchInput), /synthetic-latchkey-1636/); f.owner.put = put;
+  assert.equal((await f.owner.readVault(batchVault)).versions.length, 1);
+  const resumed = await importMigration(f.owner, batch.plan, batchInput); assert.equal(resumed.imported, 1); assert.equal(resumed.unchanged, 1);
+  assert.equal((await f.owner.readVault(batchVault)).versions.length, 2);
+  assert.equal((await importMigration(f.owner, plan, input)).imported, 1);
+  assert.equal((await importMigration(f.owner, plan, input)).unchanged, 1);
+  let rows = await f.owner.readVault(vault); assert.equal(rows.versions.length, 1);
+  const changed = JSON.parse(new TextDecoder().decode(data)); changed.items[0].login.password = 'synthetic-latchkey-1632';
+  const delta = await previewMigration({ ...base, data: new TextEncoder().encode(JSON.stringify(changed)) });
+  assert.equal((await importMigration(f.owner, delta.plan, { ...input, approvedHash: delta.hash })).imported, 1);
+  rows = await f.owner.readVault(vault); assert.equal(new Set(rows.versions.map(row => row.object)).size, 1); assert.equal(rows.versions.length, 2);
+  const current = rows.versions.find(row => row.version === 2); current.value.fields.find(field => field.id === 'password').value = 'synthetic-latchkey-1633';
+  await f.owner.put(vault, current.value, current.object, 2, rows.revision);
+  assert.equal((await importMigration(f.owner, delta.plan, { ...input, approvedHash: delta.hash })).unchanged, 1);
+  await assert.rejects(importMigration(f.owner, plan, input), { code: 'migration_destination_changed' });
+  rows = await f.owner.readVault(vault); assert.equal(rows.versions.length, 3); assert.equal(rows.versions.find(row => row.version === 3).value.fields.find(field => field.id === 'password').value, 'synthetic-latchkey-1633');
+  const audit = JSON.stringify(await f.owner.call('audit', {})); assert.ok(!audit.includes('synthetic-latchkey-1604')); assert.ok(!audit.includes('synthetic-latchkey-1633'));
+ } finally { await f.close(); }
+});

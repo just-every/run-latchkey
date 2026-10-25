@@ -1,4 +1,4 @@
-import { passboltJourney } from './passbolt.mjs';
+import { passboltJourney, migrationJourney } from './passbolt.mjs';
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -13,6 +13,7 @@ const output=process.env.LATCHKEY_SCREENSHOTS;
 if(output)await mkdir(output,{recursive:true});
 for(const width of [1440,390]) {
 await passboltJourney(width, output);
+await migrationJourney(width, output);
 const f=await vaultFixture();
 const capture=async(name,width)=>{assert.ok(await f.page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'horizontal viewport overflow');if(output)await f.page.screenshot({path:join(output,`${name}-${width}.png`),fullPage:true})};
 const unlock=async()=>{

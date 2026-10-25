@@ -1,0 +1,41 @@
+{
+  "encrypted": false,
+  "folders": [],
+  "items": [
+    {
+      "id": "00000000-0000-4000-8000-000000001601",
+      "folderId": null,
+      "organizationId": null,
+      "collectionIds": null,
+      "name": "synthetic-latchkey-1601",
+      "notes": "synthetic-latchkey-1602\n日本語",
+      "type": 1,
+      "login": {
+        "username": "synthetic-latchkey-1603",
+        "password": "synthetic-latchkey-1604",
+        "uris": [
+          {
+            "uri": "https://synthetic-latchkey.example.test",
+            "match": 0
+          }
+        ],
+        "totp": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+        "fido2Credentials": []
+      },
+      "favorite": false,
+      "reprompt": 0,
+      "fields": [
+        {
+          "name": "synthetic-latchkey-1605",
+          "value": "synthetic-latchkey-1606",
+          "type": 1,
+          "linkedId": null
+        }
+      ],
+      "passwordHistory": null,
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null
+    }
+  ]
+}

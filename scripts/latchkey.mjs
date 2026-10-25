@@ -59,6 +59,8 @@ try {
   await writePrivate(input.accountRegistry,await accounts.encrypt(input.registryKey),true); result={linked:true,accounts:accounts.list()};
  } else if(['msp-identity','msp-provider'].includes(command)){
   const {mspCommand}=await import('./latchkey/msp-commands.mjs');result=await mspCommand(command,input,{readPrivate,writePrivate});
+ } else if(['migration-preview','migration-review'].includes(command)){
+  const {migrationCommand}=await import('./latchkey/migration-commands.mjs');result=await migrationCommand(command,input);
  } else if(['passbolt-preview','passbolt-review'].includes(command)){
   const {passboltCommand}=await import('./latchkey/passbolt-commands.mjs');result=await passboltCommand(command,input);
  } else if(command==='run'){
@@ -117,6 +119,7 @@ try {
    const accounts = await accountRegistry(input); client = await accounts.switch(input.accountName,input.password); profile = client.profile; }
   else { profile = await readPrivate(input.profile); client = new VaultClient(profile.origin); await client.unlock(profile, input.password); }
   switch (command) {
+   case 'migration-import': {const {migrationCommand}=await import('./latchkey/migration-commands.mjs');result=await migrationCommand(command,input,client);break;}
    case 'passbolt-import': {const {passboltCommand}=await import('./latchkey/passbolt-commands.mjs');result=await passboltCommand(command,input,client);break;}
    case 'api': {const {apiCommand}=await import('../src/latchkey/api/client.mjs');result=await apiCommand(client,input.api);break;}
    case 'project-create': {const {ProjectClient}=await import('../src/latchkey/projects/client.mjs');result=await new ProjectClient(client).create({name:input.name,vault:input.vault});break;}
