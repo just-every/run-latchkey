@@ -6,6 +6,7 @@ export const evidenceRoutes = Object.freeze({
  startAttempt: ['evidence', 'attempt', 'start'].join('/'),
  checkpointAttempt: ['evidence', 'attempt', 'checkpoint'].join('/'),
  startInspection: ['evidence', 'inspection', 'start'].join('/'),
+ checkpointInspection: ['evidence', 'inspection', 'checkpoint'].join('/'),
  finishInspection: ['evidence', 'inspection', 'finish'].join('/'),
  inspectAttempt: ['evidence', 'attempt', 'inspect'].join('/'),
 });

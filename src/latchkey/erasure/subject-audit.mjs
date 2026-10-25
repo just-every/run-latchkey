@@ -1,7 +1,7 @@
 import { canonicalJson } from '@runeditrun/rer/modules/portability';
 import { digest } from '../crypto/envelope.mjs';
 import { access, keyed, need } from './subject-common.mjs';
-const auditDomains=new Set(['lky_events','oa_auth_audit','lky_generator_policy_changes','lky_restore_history']);
+const auditDomains=new Set(['lky_events','oa_auth_audit','lky_generator_policy_changes','lky_restore_history','lky_audit_details']);
 function content(row){const value={...row};for(const column of ['actor','actor_id','device','object_id','source_account','destination_account','group_id','vaults','plan_hash','content_hash','archive_hash'])delete value[column];return value;}
 export async function subjectAudit(ctx,operation,counts,createdAt,redactions=[]) {
  let previous='';const rows=[];

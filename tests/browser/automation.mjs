@@ -71,6 +71,7 @@ export async function administrationJourney(f,width){
 // confirmation and deletion cases. This adds derivatives and replay coverage.
 export async function erasureCoverageJourney(f,width,{timed=false}={}){
  const owner=f.owner,api=new ApiClient(owner),automation=new AutomationClient(owner),organization=new OrganizationClient(owner);
+ const cacheDirectory=await mkdtemp(join(tmpdir(),'latchkey-erasure-cache-'));
  const recipient=await member(f,5400),title='synthetic-latchkey-5410',secret='synthetic-latchkey-5411';
  try{
  const vault=(await owner.createVault()).vault;
@@ -79,6 +80,21 @@ export async function erasureCoverageJourney(f,width,{timed=false}={}){
  const before=await owner.snapshot(vault),oldEnvelope=before.result.versions.find(row=>row.object_id===created.object);before.key.fill(0);
  const subscription=await automation.subscribe({endpoint:'https://receiver.example.test/hook',events:['vault_shared'],secret:encode(random()),confirmed:true});
  await owner.share(vault,recipient.profile.account,await digest(JSON.stringify([recipient.profile.recipientKey,recipient.profile.authorityKey])),['read']);
+ await recipient.pinAccount(owner.profile.account,await digest(JSON.stringify([owner.profile.recipientKey,owner.profile.authorityKey])));
+ const profilePath=join(cacheDirectory,'profile.json'),cachePath=join(cacheDirectory,'cache.json'),cacheKey=encode(random());
+ await writeFile(profilePath,JSON.stringify(recipient.profile),{mode:0o600});
+ const cacheInput={profile:profilePath,cache:cachePath,cacheKey,vault,password:'synthetic-latchkey-5401'};
+ const native=(name,input)=>command([resolve('scripts/latchkey.mjs'),name],input,{NODE_EXTRA_CA_CERTS:f.caFile});
+ const ownerProfilePath=join(cacheDirectory,'owner.json'),ownerCacheInput={...cacheInput,profile:ownerProfilePath,cache:join(cacheDirectory,'owner-cache.json'),password:f.password};
+ await writeFile(ownerProfilePath,JSON.stringify(owner.profile),{mode:0o600});
+ const ownerCached=await native('cache-refresh',ownerCacheInput);assert.equal(ownerCached.code,0,ownerCached.err);
+ const refreshed=await native('cache-refresh',cacheInput);assert.equal(refreshed.code,0,refreshed.err);
+ assert.ok(!(await readFile(cachePath,'utf8')).includes(secret));
+ const disconnected=await native('cache-read',{...cacheInput,output:join(cacheDirectory,'disconnected.json')});assert.equal(disconnected.code,0,disconnected.err);
+ const cached=JSON.parse(await readFile(join(cacheDirectory,'disconnected.json'),'utf8'));assert.equal(cached.connection,'disconnected');assert.equal(cached.expiresAt,null);assert.equal(cached.versions[0].value.fields.find(field=>field.id==='password').value,secret);
+ assert.equal((await native('cache-read',{...cacheInput,cacheKey:encode(random()),output:join(cacheDirectory,'wrong-key.json')})).code,1);
+ const {scanErasureContent}=await import('../../src/latchkey/erasure/client-scan.mjs');
+ const scan=await scanErasureContent(owner,vault,[secret,'synthetic-latchkey-5413']);assert.equal(scan.matches.length,1);assert.deepEqual(scan.matches[0].attachments,[attachment.id]);assert.ok(!JSON.stringify(scan).includes(secret));assert.equal(scan.complete,false);
  const event=(await owner.call('audit',{})).find(row=>row.action==='vault_shared'&&row.object_id===vault);
  const queued=await automation.enqueue(subscription.id,subscription.revision,event.id,true);
  const signing=await keypair('sign'),credential=await automation.issueCredential({vault,publicKey:signing.publicKey,scopes:['posture:read','access:request'],expiresAt:Date.now()+3600000,confirmed:true});
@@ -98,6 +114,14 @@ export async function erasureCoverageJourney(f,width,{timed=false}={}){
  await owner.eraseItem(vault,created.object,{confirmed:true,revision:(await owner.readVault(vault)).revision});
  const preview=await owner.call(['subject', 'erase-preview'].join('/'),{subject:operator}),receipt=await owner.call(['subject', 'erase'].join('/'),{subject:operator,confirmed:true,planHash:preview.planHash});
  await owner.rotate(vault);const erasedAt=Date.now();
+ // The actual CLI invalidates the durable encrypted file before attempting login.
+ // Subject erasure refuses that login; no cached value survives the reconnect door.
+ const reconnect=await native('cache-refresh',cacheInput);assert.equal(reconnect.code,1);
+ const invalidated=JSON.parse(await readFile(cachePath,'utf8'));assert.equal(invalidated.state,'invalidated');assert.equal(invalidated.envelope,undefined);
+ const stale=await native('cache-read',{...cacheInput,output:join(cacheDirectory,'stale.json')});assert.equal(stale.code,1);assert.equal(JSON.parse(stale.err).error,'offline_cache_invalidated');
+ const reconciled=await native('cache-refresh',ownerCacheInput);assert.equal(reconciled.code,0,reconciled.err);assert.equal(JSON.parse(reconciled.out).versions,0);
+ const freshRead=await native('cache-read',{...ownerCacheInput,output:join(cacheDirectory,'reconciled.json')});assert.equal(freshRead.code,0,freshRead.err);assert.deepEqual(JSON.parse(await readFile(join(cacheDirectory,'reconciled.json'),'utf8')).versions,[]);
+ assert.equal((await scanErasureContent(owner,vault,[secret])).matches.length,0);
  // The exact-candidate mode observes the five-minute boundary outside Verify.
  // A timer yields the process and imposes no CPU load or clock substitution.
  if(timed)await new Promise(resolve=>setTimeout(resolve,Math.max(0,erasedAt+300000-Date.now())));
@@ -118,6 +142,13 @@ export async function erasureCoverageJourney(f,width,{timed=false}={}){
  await refused(owner.put(vault,createItem('login',{title,values:{password:secret}}),created.object),'item_erased');
  const checkpoint=receipt.outstanding.find(row=>row.domain==='audit-checkpoint');
  assert.equal((await owner.call(['subject', 'audit-verify'].join('/'),{operation:receipt.operation,checkpoint:{root:checkpoint.root,length:checkpoint.length,signature:checkpoint.signature}})).valid,true);
+ const auditFacts=(await f.db.prepare('SELECT facts FROM lky_subject_audit WHERE operation=?').bind(receipt.operation).all()).results.map(row=>JSON.parse(row.facts));
+ const committed=auditFacts.find(row=>row.domain==='lky_audit_details');assert.ok(committed,'new audit dispositions are included in the held erasure checkpoint');
+ const disposition=await f.db.prepare("SELECT * FROM lky_audit_details WHERE json_extract(disposition,'$.reason')='subject-erasure' LIMIT 1").first();assert.ok(disposition);
+ await f.db.prepare("UPDATE lky_audit_details SET authorization='synthetic-latchkey-5415' WHERE id=?").bind(disposition.id).run();
+ await refused(owner.call(['subject','audit-verify'].join('/'),{operation:receipt.operation,checkpoint:{root:checkpoint.root,length:checkpoint.length,signature:checkpoint.signature}}),'subject_audit_tampered');
+ await f.db.prepare('UPDATE lky_audit_details SET authorization=? WHERE id=?').bind(disposition.authorization,disposition.id).run();
+
  const pending=await automation.webhookStatus(subscription.id);assert.equal(pending.deliveries.length,1);
  assert.equal((await automation.enqueue(subscription.id,subscription.revision,event.id,true)).id,queued.id);
  await automation.dispatch(subscription.id,subscription.revision,queued.id,true);
@@ -132,6 +163,6 @@ export async function erasureCoverageJourney(f,width,{timed=false}={}){
  await f.page.getByLabel('Profile file').setInputFiles({name:'profile.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(owner.profile))});await f.page.getByLabel('Master password',{exact:true}).fill(f.password);await f.page.getByRole('button',{name:'Unlock vault',exact:true}).click();await f.page.getByLabel('Vault',{exact:true}).selectOption(vault);await expect(f.page.getByRole('heading',{name:'No items yet',exact:true})).toBeVisible();await expect(f.page.getByRole('button',{name:'Refresh',exact:true})).toBeEnabled();await expect(f.page.getByRole('heading',{name:title,exact:true})).toHaveCount(0);
  assert.ok(await f.page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(output)await f.page.screenshot({path:join(output,`erasure-coverage-${width}.png`),fullPage:true});
  console.log(`Erasure coverage ${width}: search, health, encrypted attachment door, export, pending evidence and MCP requests, model capture, source-event and queued notification replay passed${timed?' after five minutes':''}`);
- }finally{recipient.lock()}
+ }finally{recipient.lock();await rm(cacheDirectory,{recursive:true,force:true})}
 }
 if(import.meta.url===new URL(process.argv[1],'file:').href){if(process.argv.includes('--erasure')){await Promise.all([1440,390].map(async width=>{const f=await vaultFixture({webhook:true});try{await erasureCoverageJourney(f,width,{timed:process.argv.includes('--five-minute')})}finally{await f.close()}}))}else{const cli=await vaultFixture();try{await cliAdministrationJourney(cli)}finally{await cli.close()}for(const width of[1440,390]){const coverage=await vaultFixture({webhook:true});try{await erasureCoverageJourney(coverage,width)}finally{await coverage.close()}const f=await vaultFixture({webhook:true});try{await administrationJourney(f,width)}catch(error){if(output)await f.page.screenshot({path:join(output,`automation-failure-${width}.png`),fullPage:true});throw error}finally{await f.close()}}}}

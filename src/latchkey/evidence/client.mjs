@@ -48,7 +48,8 @@ export class EvidenceClient {
   const inspect = () => this.client.call(evidenceRoutes.inspectAttempt, { delivery: deliveryId, inspection: delivery.stage.inspection.id });
   const delivery = await this.client.call(evidenceRoutes.startInspection, {delivery:deliveryId});
   const observation = await inspectVantaUpload({ endpoint: delivery.destination.endpoint, target: delivery.destination.target, credential,
-   uploadReference: delivery.stage.uploadReference, ...(fetcher ? { fetcher } : {}), beforeRead: inspect });
+   uploadReference: delivery.stage.uploadReference, ...(fetcher ? { fetcher } : {}), beforeRead: inspect, pagination:delivery.stage.inspection,
+   checkpoint:page=>this.client.call(evidenceRoutes.checkpointInspection,{delivery:deliveryId,inspection:delivery.stage.inspection.id,...page}) });
   await this.client.call(evidenceRoutes.finishInspection, {delivery:deliveryId,inspection:delivery.stage.inspection.id,
    presence:observation.presence,status:observation.status,pages:observation.pages,retryAfterSeconds:observation.retryAfterSeconds??0});
   return observation;

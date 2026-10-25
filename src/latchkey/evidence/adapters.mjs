@@ -133,12 +133,12 @@ const uploadedFile = row => row && present(row.id) && nullableText(row.fileName)
  && (row.uploadedBy === null || present(row.uploadedBy?.id) && ['USER', 'APPLICATION'].includes(row.uploadedBy.type));
 // Read-only, bounded inspection. Finding a retained upload does not prove that
 // a later submit succeeded, and never authorizes repeating that mutation.
-export async function inspectVantaUpload({ endpoint, credential, target, uploadReference, fetcher = fetch, beforeRead }) {
- let cursor = null, pages = 0; const seen = new Set(), signal = AbortSignal.timeout(15000);
+export async function inspectVantaUpload({ endpoint, credential, target, uploadReference, fetcher = fetch, beforeRead, pagination = {}, checkpoint }) {
+ let cursor = pagination.cursor ?? null, pages = pagination.pages ?? 0; const seen = new Set(pagination.seenCursors ?? []), signal = AbortSignal.timeout(15000);
  try {
   const base = baseUrl('Vanta', endpoint), auth = authorization('Vanta', credential);
   if (!present(target) || !present(uploadReference)) throw Error();
-  for (let page = 0; page < 10; page++) {
+  for (let page = pages; page < 10; page++) {
    await beforeRead?.();
    const query = new URLSearchParams({ pageSize: '100', ...(cursor ? { pageCursor: cursor } : {}) });
    pages++;
@@ -157,12 +157,14 @@ export async function inspectVantaUpload({ endpoint, credential, target, uploadR
    const matches = data.filter(row => row?.id === uploadReference);
    if (matches.length > 1) throw Error();
    if (matches.length === 1) {
+    await checkpoint?.({cursor,nextCursor:null,page:page+1});
     const row = matches[0];
     return { presence: row.fileName === filename && row.mimeType === 'application/json' && row.deletionDate === null ? 'found' : 'unknown',
      providerReference: uploadReference, status: 200, pages: page + 1, observedAt: Date.now(), provesSubmit: false };
    }
-   if (!info.hasNextPage) return { presence: 'not-found', status: 200, pages: page + 1, provesSubmit: false };
+   if (!info.hasNextPage) {await checkpoint?.({cursor,nextCursor:null,page:page+1});return { presence: 'not-found', status: 200, pages: page + 1, provesSubmit: false };}
    if (!present(info.endCursor) || info.endCursor.length > 2000 || seen.has(info.endCursor)) throw Error();
+   await checkpoint?.({cursor,nextCursor:info.endCursor,page:page+1});
    cursor = info.endCursor; seen.add(cursor);
   }
  } catch { /* Keep missing, malformed, denied and interrupted observations unknown. */ }

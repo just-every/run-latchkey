@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { SelectionExportClient } from '../src/latchkey/portability/selection.mjs';
 import { VaultClient } from '../src/latchkey/client.mjs';
 import { SharingClient } from '../src/latchkey/sharing/client.mjs';
 import { createAttachment } from '../src/latchkey/items/attachments.mjs';
@@ -20,6 +21,7 @@ export async function runSubjectErasureJourneys({owner,db,records,mail,post,fetc
  const vault=(await person.createVault()).vault,attachment=await createAttachment('synthetic-latchkey-984',new TextEncoder().encode('synthetic-latchkey-985'));
  const item=await person.put(vault,{title:'synthetic-latchkey-986',secret:'synthetic-latchkey-987',attachments:[attachment]});
  await person.put(vault,{secret:'synthetic-latchkey-988'},item.object);
+ await new SelectionExportClient(person).setPlaintextPolicy(vault,true,{confirmed:true});
  await person.put(vault,{schema:'latchkey/template/v1',name:'synthetic-latchkey-989',fields:[]});
  const otherVault=(await owner.createVault()).vault,kept=await owner.put(otherVault,{secret:'synthetic-latchkey-990'});
  const identity=await digest(JSON.stringify([person.profile.recipientKey,person.profile.authorityKey]));
@@ -46,6 +48,7 @@ export async function runSubjectErasureJourneys({owner,db,records,mail,post,fetc
  assert.equal((await post('/auth/invite',{email,displayName:name,role:'member'},owner.cookie)).status,409);
  const mailCount=mail.length;assert.equal((await post('/auth/magic-link',{email})).status,202);assert.equal(mail.length,mailCount);
  assert.equal(await db.prepare('SELECT id FROM oa_operators WHERE id=?').bind(operator).first(),null);
+ assert.equal(await db.prepare('SELECT vault_id FROM lky_export_policies WHERE vault_id=?').bind(vault).first(),null);
  assert.equal(await db.prepare('SELECT id FROM lky_accounts WHERE id=?').bind(person.profile.account).first(),null);
  assert.equal(await db.prepare('SELECT id FROM lky_vaults WHERE id=?').bind(vault).first(),null);
  assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM lky_versions WHERE vault_id=?').bind(vault).first()).n,0);

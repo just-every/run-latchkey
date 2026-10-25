@@ -96,6 +96,15 @@ export async function runEvidenceJourneys({owner,review,outsider,db}){
  const rateLimited=await restarted.inspectUpload(lost.delivery,credential,{fetcher:async()=>new Response(null,{status:429,headers:{'retry-after':'120'}})});assert.equal(rateLimited.presence,'unknown');assert.equal(rateLimited.retryAfterSeconds,120);
  const diagnostics=(await restarted.delivery(lost.delivery)).stage.inspection;assert.equal(diagnostics.status,429);assert.equal(diagnostics.state,'client-reported');assert.ok(diagnostics.nextAllowedAt>=diagnostics.observedAt+120000);assert.ok(!JSON.stringify(diagnostics).includes(credential));
  await assert.rejects(new EvidenceClient(owner).inspectUpload(lost.delivery,credential,{fetcher:async()=>{deniedReads++;throw Error()}}),error=>error.code==='evidence_inspection_backoff');assert.equal(deniedReads,0);
+ await releaseInspection();let cursorReads=0;
+ const interruptedPages=await restarted.inspectUpload(lost.delivery,credential,{fetcher:async()=>{
+  cursorReads++;return cursorReads===1?Response.json({results:{data:[],pageInfo:{hasNextPage:true,hasPreviousPage:false,startCursor:null,endCursor:'synthetic-latchkey-2068'}}}):new Response(null,{status:429,headers:{'retry-after':'60'}});
+ }});assert.equal(interruptedPages.presence,'unknown');
+ const checkpointed=(await restarted.delivery(lost.delivery)).stage.inspection;assert.equal(checkpointed.cursor,'synthetic-latchkey-2068');assert.ok(checkpointed.seenCursors.includes('synthetic-latchkey-2068'));
+ await assert.rejects(owner.call(evidenceRoutes.checkpointInspection,{delivery:lost.delivery,inspection:checkpointed.id,cursor:'synthetic-latchkey-2068',nextCursor:'synthetic-latchkey-2069',page:checkpointed.pages+1}),error=>error.code==='evidence_inspection_changed');
+ await releaseInspection();let resumedReads=0;
+ const resumedPages=await new EvidenceClient(owner).inspectUpload(lost.delivery,credential,{fetcher:async url=>{resumedReads++;assert.equal(new URL(url).searchParams.get('pageCursor'),'synthetic-latchkey-2068');return Response.json({results:{data:[],pageInfo:{hasNextPage:false,hasPreviousPage:true,startCursor:null,endCursor:null}}})}});
+ assert.equal(resumedReads,1);assert.equal(resumedPages.presence,'not-found');assert.equal((await restarted.delivery(lost.delivery)).stage.inspection.cursor,null);assert.equal(uploads+submits,writesBefore);
  await releaseInspection();
  assert.equal((await restarted.inspectUpload(lost.delivery,credential,{fetcher:async()=>Response.json({results:{data:[],pageInfo:{hasNextPage:true,hasPreviousPage:true,startCursor:null,endCursor:'synthetic-latchkey-2065'}}})})).presence,'unknown');
  await releaseInspection();let cancelledRead=false;

@@ -12,6 +12,8 @@ import { PortabilityClient } from '../src/latchkey/portability/client.mjs';
 import { recordsCommand } from './latchkey/records-commands.mjs';
 import { itemCommands, runItemCommand } from './latchkey/items-commands.mjs';
 import { constants } from 'node:fs';
+import { resolve } from 'node:path';
+import { cacheIdentity,emptyCache,sealCache,openCache } from '../clients/shared/offline/cache.mjs';
 import { open, rename, unlink } from 'node:fs/promises';
 import { MachineClient } from '../src/latchkey/machine.mjs';
 import { VaultClient, ClientError } from '../src/latchkey/client.mjs';
@@ -30,7 +32,7 @@ async function writePrivate(path, value, replace = false) {
  try { await handle.writeFile(JSON.stringify(value) + '\n'); await handle.sync(); } finally { await handle.close(); }
  if (replace) { try { await rename(target, path); } catch (error) { await unlink(target); throw error; } }
 }
-let linkedAccounts = null, releaseRegistry = async () => {};
+let linkedAccounts = null, releaseRegistry = async () => {}, releaseCache = async () => {};
 async function accountRegistry(input) {
  if (!input.accountRegistry || typeof input.accountRegistry !== 'string') throw new ClientError('account_registry_required');
  const path = input.accountRegistry + '.lock'; let handle;
@@ -63,6 +65,23 @@ try {
   const {migrationCommand}=await import('./latchkey/migration-commands.mjs');result=await migrationCommand(command,input);
  } else if(['passbolt-preview','passbolt-review'].includes(command)){
   const {passboltCommand}=await import('./latchkey/passbolt-commands.mjs');result=await passboltCommand(command,input);
+ } else if(['cache-refresh','cache-read'].includes(command)){
+  if(!input.cache||!input.profile||resolve(input.cache)===resolve(input.profile)||input.output&&[input.cache,input.profile].some(path=>resolve(path)===resolve(input.output)))throw new ClientError('offline_cache_path_conflict');
+  const lockPath=input.cache+'.lock';let cacheLock;try{cacheLock=await open(lockPath,constants.O_WRONLY|constants.O_CREAT|constants.O_EXCL|constants.O_NOFOLLOW,0o600)}catch(error){if(error.code==='EEXIST')throw new ClientError('offline_cache_busy');throw error}
+  releaseCache=async()=>{await cacheLock.close();await unlink(lockPath)};
+  profile=await readPrivate(input.profile);const identity=emptyCache(profile,input.vault);
+  let saved;try{saved=await readPrivate(input.cache)}catch(error){if(error.code!=='ENOENT')throw error}
+  if(saved&&JSON.stringify(cacheIdentity(saved))!==JSON.stringify(identity))throw new ClientError('offline_cache_mismatch');
+  if(command==='cache-read'){
+   const value=await openCache(saved,input.cacheKey,identity);await writePrivate(input.output,value);result={written:true,connection:value.connection,expiresAt:value.expiresAt};
+  }else{
+   // Persist invalidation BEFORE authentication or any network request. A refusal
+   // or interruption must never leave the old cache readable through this door.
+   await writePrivate(input.cache,{...identity,state:'invalidated'},!!saved);
+   client=new VaultClient(profile.origin);await client.unlock(profile,input.password);
+   const value=await client.readVault(input.vault);await writePrivate(input.cache,await sealCache(identity,value,input.cacheKey),true);
+   await writePrivate(input.profile,profile,true);result={refreshed:true,versions:value.versions.length,expiresAt:null};
+  }
  } else if(command==='run'){
   const {runConsumer}=await import('./latchkey/run-command.mjs');result=await runConsumer(input,process.argv.slice(3));process.exitCode=result.exitCode;
  } else if (command === 'records-restore') {
@@ -75,6 +94,8 @@ try {
  } else if (command === 'runtime-keygen') {
   const machine = await MachineClient.create(input.origin, input.runtimeKey);
   await writePrivate(input.machineProfile, machine); result = await MachineClient.identity(machine);
+ } else if(command==='selection-open'){
+  const {SelectionExportClient}=await import('../src/latchkey/portability/selection.mjs');const value=await SelectionExportClient.open(await readPrivate(input.archive),input.exportKey);await writePrivate(input.output,value);result={written:true,planHash:value.planHash};
  } else if (command === 'runtime-read') {
   const value = await MachineClient.read(await readPrivate(input.machineProfile), await readPrivate(input.grant), input.runtimeKey);
   await writePrivate(input.output, value); result = { written: true };
@@ -119,6 +140,11 @@ try {
    const accounts = await accountRegistry(input); client = await accounts.switch(input.accountName,input.password); profile = client.profile; }
   else { profile = await readPrivate(input.profile); client = new VaultClient(profile.origin); await client.unlock(profile, input.password); }
   switch (command) {
+   case 'selection-policy': {const {SelectionExportClient}=await import('../src/latchkey/portability/selection.mjs');result=await new SelectionExportClient(client).setPlaintextPolicy(input.vault,input.allowPlaintext,{confirmed:input.confirmed});break;}
+   case 'selection-preview': {const {SelectionExportClient}=await import('../src/latchkey/portability/selection.mjs');const value=await new SelectionExportClient(client).preview(input.selection,{format:input.format});await writePrivate(input.output,value);result={written:true,planHash:value.planHash,selection:value.plan.selection,omissions:value.plan.omissions};break;}
+   case 'selection-export': {const {SelectionExportClient}=await import('../src/latchkey/portability/selection.mjs');const archive=await new SelectionExportClient(client).export(await readPrivate(input.plan),input.exportKey,{confirmed:input.confirmed,approvedPlanHash:input.approvedPlanHash,format:input.format});await writePrivate(input.output,archive);result={written:true};break;}
+   case 'selection-import': {const {SelectionExportClient}=await import('../src/latchkey/portability/selection.mjs');result=await new SelectionExportClient(client).reimport(await readPrivate(input.archive),input.exportKey,{confirmed:input.confirmed,approvedPlanHash:input.approvedPlanHash});break;}
+   case 'erasure-scan': {const {scanErasureContent}=await import('../src/latchkey/erasure/client-scan.mjs');await writePrivate(input.output,await scanErasureContent(client,input.vault,input.terms));result={written:true};break;}
    case 'exit-plan': result=await client.call(['exit','plan'].join('/'),{});break;
    case 'rules': {
     const actions=['list','get','preview','save','activate','cancel','decide','complete','inbox'];
@@ -181,4 +207,5 @@ try {
 } finally {
  linkedAccounts?.lock();
  await releaseRegistry();
+ await releaseCache();
 }
