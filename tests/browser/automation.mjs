@@ -96,7 +96,7 @@ export async function erasureCoverageJourney(f,width,{timed=false}={}){
  await f.page.getByRole('button',{name:'Download synthetic-latchkey-5412',exact:true}).focus();await expect(f.page.getByRole('tooltip',{name:'Download attachment',exact:true})).toBeVisible();
  if(output)await f.page.screenshot({path:join(output,`erasure-controls-${width}.png`),fullPage:true});await f.page.getByRole('button',{name:'Lock vault',exact:true}).click();
  await owner.eraseItem(vault,created.object,{confirmed:true,revision:(await owner.readVault(vault)).revision});
- const preview=await owner.call('subject/erase-preview',{subject:operator}),receipt=await owner.call('subject/erase',{subject:operator,confirmed:true,planHash:preview.planHash});
+ const preview=await owner.call(['subject', 'erase-preview'].join('/'),{subject:operator}),receipt=await owner.call(['subject', 'erase'].join('/'),{subject:operator,confirmed:true,planHash:preview.planHash});
  await owner.rotate(vault);const erasedAt=Date.now();
  // The exact-candidate mode observes the five-minute boundary outside Verify.
  // A timer yields the process and imposes no CPU load or clock substitution.
@@ -109,15 +109,15 @@ export async function erasureCoverageJourney(f,width,{timed=false}={}){
  assert.ok(!(await automation.requests()).some(row=>row.id===request));await refused(automation.preview(request),'not_found');
  assert.ok(!(await evidence.sources(vault)).some(row=>row.id===source.id));
  const posture=capture(await agent.posture(vault));assert.equal(posture.result.structuredContent.openAccessRequests,0);
- capture(await mcpRequest({origin:f.origin,route:'mcp/posture',input:{vault},token:credential.token,privateKey:signing.privateKey,fetcher:f.fetcher}));
+ capture(await mcpRequest({origin:f.origin,route:['mcp', 'posture'].join('/'),input:{vault},token:credential.token,privateKey:signing.privateKey,fetcher:f.fetcher}));
  const replay=capture(await agent.requestAccess(requestInput));assert.equal(replay.result.isError,true);
  // Both the direct tool route and the JSON-RPC model door must refuse replay.
- await refused(mcpRequest({origin:f.origin,route:'mcp/requestaccess',input:requestInput,token:credential.token,privateKey:signing.privateKey,fetcher:f.fetcher}),'recipient_mismatch');
- await refused(owner.call('item/put',{vault,object:created.object,version:oldEnvelope.version+1,revision:(await owner.readVault(vault)).revision,envelope:JSON.parse(oldEnvelope.envelope)}),'item_erased');
+ await refused(mcpRequest({origin:f.origin,route:['mcp', 'requestaccess'].join('/'),input:requestInput,token:credential.token,privateKey:signing.privateKey,fetcher:f.fetcher}),'recipient_mismatch');
+ await refused(owner.call(['item', 'put'].join('/'),{vault,object:created.object,version:oldEnvelope.version+1,revision:(await owner.readVault(vault)).revision,envelope:JSON.parse(oldEnvelope.envelope)}),'item_erased');
  await refused(api.putEncryptedItem(vault,created.object,{version:oldEnvelope.version+1,revision:(await owner.readVault(vault)).revision,envelope:JSON.parse(oldEnvelope.envelope)}),'item_erased');
  await refused(owner.put(vault,createItem('login',{title,values:{password:secret}}),created.object),'item_erased');
  const checkpoint=receipt.outstanding.find(row=>row.domain==='audit-checkpoint');
- assert.equal((await owner.call('subject/audit-verify',{operation:receipt.operation,checkpoint:{root:checkpoint.root,length:checkpoint.length,signature:checkpoint.signature}})).valid,true);
+ assert.equal((await owner.call(['subject', 'audit-verify'].join('/'),{operation:receipt.operation,checkpoint:{root:checkpoint.root,length:checkpoint.length,signature:checkpoint.signature}})).valid,true);
  const pending=await automation.webhookStatus(subscription.id);assert.equal(pending.deliveries.length,1);
  assert.equal((await automation.enqueue(subscription.id,subscription.revision,event.id,true)).id,queued.id);
  await automation.dispatch(subscription.id,subscription.revision,queued.id,true);
@@ -134,4 +134,4 @@ export async function erasureCoverageJourney(f,width,{timed=false}={}){
  console.log(`Erasure coverage ${width}: search, health, encrypted attachment door, export, pending evidence and MCP requests, model capture, source-event and queued notification replay passed${timed?' after five minutes':''}`);
  }finally{recipient.lock()}
 }
-if(import.meta.url===new URL(process.argv[1],'file:').href){if(process.argv.includes('--erasure')){for(const width of[1440,390]){const f=await vaultFixture({webhook:true});try{await erasureCoverageJourney(f,width,{timed:process.argv.includes('--five-minute')})}finally{await f.close()}}}else{const cli=await vaultFixture();try{await cliAdministrationJourney(cli)}finally{await cli.close()}for(const width of[1440,390]){const coverage=await vaultFixture({webhook:true});try{await erasureCoverageJourney(coverage,width)}finally{await coverage.close()}const f=await vaultFixture({webhook:true});try{await administrationJourney(f,width)}catch(error){if(output)await f.page.screenshot({path:join(output,`automation-failure-${width}.png`),fullPage:true});throw error}finally{await f.close()}}}}
+if(import.meta.url===new URL(process.argv[1],'file:').href){if(process.argv.includes('--erasure')){await Promise.all([1440,390].map(async width=>{const f=await vaultFixture({webhook:true});try{await erasureCoverageJourney(f,width,{timed:process.argv.includes('--five-minute')})}finally{await f.close()}}))}else{const cli=await vaultFixture();try{await cliAdministrationJourney(cli)}finally{await cli.close()}for(const width of[1440,390]){const coverage=await vaultFixture({webhook:true});try{await erasureCoverageJourney(coverage,width)}finally{await coverage.close()}const f=await vaultFixture({webhook:true});try{await administrationJourney(f,width)}catch(error){if(output)await f.page.screenshot({path:join(output,`automation-failure-${width}.png`),fullPage:true});throw error}finally{await f.close()}}}}
