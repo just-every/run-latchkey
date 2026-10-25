@@ -165,33 +165,36 @@ export async function specialistBoundaryJourney(f, width) {
   assert.equal((await cli({profile,password:f.password,vault})).alerts.length,2);
   const invalidWatch = handoffs.watchExpiry(vault, { intervalMs: 0 });
   await refused(invalidWatch.next(), 'invalid_expiry_schedule');
+  // Mutations finish before advancing the recipient's next scheduled check.
+  // Their crypto cost must not race a wall-clock polling interval in CI.
+  const scheduled = handoffs.watchExpiry(vault, { checks: 3, intervalMs: 1000 });
+  assert.equal((await scheduled.next()).value.alerts.length, 2);
+  const changedDocument = (await items.current(vault, document.object)).value;
+  changedDocument.fields.find(field => field.id === 'description').value = 'synthetic-latchkey-6131';
+  await items.save(vault, changedDocument, document.object);
+  const changedReport = (await scheduled.next()).value;
+  assert.equal(changedReport.alerts.length, 1);
+  assert.equal(changedReport.alerts[0].object, document.object);
+  assert.equal(changedReport.alerts[0].version, 2);
+  const archivedDocument = (await items.current(vault, document.object)).value;
+  archivedDocument.fields.find(field => field.id === 'description').value = 'synthetic-latchkey-6132';
+  await items.save(vault, archivedDocument, document.object);
+  await new LifecycleClient(owner).change(vault, document.object, 'archived', { confirmed: true });
+  assert.deepEqual((await scheduled.next()).value.alerts, []);
+  assert.equal((await scheduled.next()).done, true);
   const child = spawn(process.execPath, ['scripts/latchkey.mjs', 'item-expiry-watch'], { env: { ...process.env, NODE_EXTRA_CA_CERTS: f.caFile }, stdio: ['pipe', 'pipe', 'pipe'] });
   const done = new Promise((resolve, reject) => { child.on('error', reject); child.on('close', code => resolve(code)); });
   let stderr = ''; child.stderr.on('data', part => { stderr += part; });
-  child.stdin.end(JSON.stringify({ profile, password: f.password, vault, checks: 4, intervalMs: 1000 }));
+  child.stdin.end(JSON.stringify({ profile, password: f.password, vault, checks: 2, intervalMs: 1000 }));
   const reports = [];
   try {
-   for await (const line of createInterface({ input: child.stdout })) {
-    const report = JSON.parse(line); reports.push(report);
-    if (report.check === 2) {
-     const changedDocument = (await items.current(vault, document.object)).value;
-     changedDocument.fields.find(field => field.id === 'description').value = 'synthetic-latchkey-6131';
-     await items.save(vault, changedDocument, document.object);
-    }
-    if (report.check === 3) {
-     const archivedDocument = (await items.current(vault, document.object)).value;
-     archivedDocument.fields.find(field => field.id === 'description').value = 'synthetic-latchkey-6132';
-     await items.save(vault, archivedDocument, document.object);
-     await new LifecycleClient(owner).change(vault, document.object, 'archived', { confirmed: true });
-    }
-   }
+   for await (const line of createInterface({ input: child.stdout })) reports.push(JSON.parse(line));
    assert.equal(await done, 0, stderr);
   } finally { if (child.exitCode === null) { child.kill('SIGTERM'); await done; } }
-  assert.deepEqual(reports.map(report => report.alerts?.length), [2, 0, 1, 0, undefined]);
-  assert.equal(reports[2].alerts[0].object, document.object);
-  assert.equal(reports[2].alerts[0].version, 2);
+  assert.deepEqual(reports.map(report => report.alerts?.length), [1, 0, undefined]);
+  assert.equal(reports[0].alerts[0].object, cert.object);
   assert.deepEqual(reports.at(-1), { completed: true });
-  for (const secret of [privateKey, certificate, 'synthetic-latchkey-6100', 'synthetic-latchkey-6131', 'synthetic-latchkey-6132']) assert.ok(!JSON.stringify(reports).includes(secret));
+  for (const secret of [privateKey, certificate, 'synthetic-latchkey-6100', 'synthetic-latchkey-6131', 'synthetic-latchkey-6132']) assert.ok(!JSON.stringify([...reports, changedReport]).includes(secret));
   await new LifecycleClient(owner).change(vault, document.object, 'active', { confirmed: true });
 
   const stored=JSON.stringify({read:await requestApi(owner,'GET',`/vaults/${vault}/items`),audit:await requestApi(owner,'GET','/events'),archive});

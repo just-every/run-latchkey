@@ -3250,7 +3250,7 @@
       "executable": false
     },
     "tests/browser/projects.mjs": {
-      "sha256": "b11b27fe29074a850aa25e4a9e3bb6a01c3dbc631f5da8644759f175ada8ac72",
+      "sha256": "f2b31e4f8fe5f4a5d8a1a0ac4a36156b2fd35494ca14d75fa7c80c6c8b43c564",
       "executable": false
     },
     "tests/browser/reviews.mjs": {
