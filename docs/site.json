@@ -11,6 +11,7 @@
       "pages": [
         { "slug": "first-vault", "title": "Your first vault", "file": "first-vault.md", "summary": "Register the command-line client, create a client-encrypted vault, store an item and read it back." },
         { "slug": "sharing", "title": "Share a vault, remove someone", "file": "sharing.md", "summary": "Compare fingerprints, share a vault with separate rights for each person, and change its keys when someone leaves." },
+        { "slug": "device-posture", "title": "Read device posture", "file": "device-posture.md", "summary": "Inspect a selected MDM record without changing devices or treating unknown posture as healthy." },
         { "slug": "devices-and-recovery", "title": "Devices, recovery and passwords", "file": "devices-and-recovery.md", "summary": "Approve a new device from one you trust, revoke a lost one, recover with your kit and change your password." },
         { "slug": "machine-runtimes", "title": "Give a machine one secret", "file": "machine-runtimes.md", "summary": "Let a server or deploy job read one item for up to an hour without holding your account or vault keys." },
         { "slug": "passbolt-migration", "title": "Preview a Passbolt export", "file": "migration/passbolt.md", "summary": "Decrypt a source export locally, review missing descriptions and recipients, and import an explicitly owned personal item." },

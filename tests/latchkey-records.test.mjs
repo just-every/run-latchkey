@@ -242,7 +242,7 @@ test('Posture inspection reads official inventory edges without confusing missin
  const device = 'synthetic-latchkey-2602', serial = 'synthetic-latchkey-2603', token = 'synthetic-latchkey-2601';
  const cases = [
   ['jamf', 'https://synthetic-latchkey-2604.jamfcloud.com', `/api/v3/computers-inventory-detail/${device}`, {id:device,hardware:{serialNumber:serial},general:{reportDate:at,remoteManagement:{managed:true}},diskEncryption:{fileVault2Enabled:true},operatingSystem:{version:'15.1'},security:{autoLoginDisabled:true,activationLockEnabled:true}}],
-  ['kandji', 'https://synthetic-latchkey-2604.api.kandji.io', `/api/v1/devices/${device}/details`, {general:{device_id:device,os_version:'15.1'},hardware_overview:{serial_number:serial},mdm:{mdm_enabled:'True',last_check_in:at},filevault:{filevault_enabled:true},recovery_information:{recovery_lock_enabled:true}}],
+  ['kandji', 'https://synthetic-latchkey-2604.api.kandji.io', `/api/v1/devices/${device}/details`, {general:{device_id:device,os_version:'15.1'},hardware_overview:{serial_number:serial},mdm:{mdm_enabled:'True',last_check_in:at},kandji_agent:{last_check_in:at},filevault:{filevault_enabled:true},recovery_information:{recovery_lock_enabled:true}}],
   ['intune', 'https://graph.microsoft.com', `/v1.0/deviceManagement/managedDevices/${device}?$select=id,serialNumber,lastSyncDateTime,isEncrypted,osVersion,managementAgent`, {id:device,serialNumber:serial,lastSyncDateTime:at,isEncrypted:true,osVersion:'15.1',managementAgent:'mdm',complianceState:'compliant'}],
  ];
  for (const [source,origin,path,payload] of cases) {
@@ -259,7 +259,7 @@ test('Posture inspection reads official inventory edges without confusing missin
   assert.equal(healthy.observedAt,Date.parse(at));
   assert.ok(!JSON.stringify(healthy).includes(token)); assert.ok(!JSON.stringify(healthy).includes('ownerEmail'));
   const mismatch = await readPosture({...input,serial:'synthetic-latchkey-2606'},edge(payload));
-  assert.equal(mismatch.matched,false);assert.deepEqual(Object.values(mismatch.controls),[null,null,null,null]);assert.equal(mismatch.observedAt,null);
+  assert.equal(mismatch.matched,false);assert.equal(mismatch.freshness,'unknown');assert.deepEqual(Object.values(mismatch.controls),[null,null,null,null]);assert.equal(mismatch.observedAt,null);
   const stale = await readPosture(input,{...edge(payload),now:now+3600000});assert.equal(stale.freshness,'stale');
   const future = await readPosture(input,{...edge(payload),now:now-120000});assert.equal(future.freshness,'unknown');
   const absent = await readPosture(input,edge({}));assert.equal(absent.matched,false);assert.equal(absent.freshness,'unknown');
@@ -273,6 +273,16 @@ test('Posture inspection reads official inventory edges without confusing missin
   await assert.rejects(readPosture(input,{now,fetcher:async()=>{throw Error(token)}}),{code:'posture_source_unavailable'});
   await assert.rejects(readPosture(input,{now,fetcher:async()=>new Response('x'.repeat(262145))}),{code:'posture_response_too_large'});
   await assert.rejects(readPosture(input,{now,fetcher:async()=>new Response('{')}),{code:'posture_source_unavailable'});
+  const directory = await mkdtemp(join(tmpdir(), 'latchkey-posture-cli-'));
+  try {
+   const preload = join(directory, 'edge.mjs');
+   await writeFile(preload, `globalThis.fetch=async(url,options)=>{if(url!==${JSON.stringify(origin+path)}||options.method!=='GET'||options.redirect!=='error')throw Error('unexpected edge');return Response.json(${JSON.stringify(payload)})};`);
+   const { spawnSync } = await import('node:child_process');
+   const run = input => spawnSync(process.execPath, ['--import', preload, 'scripts/latchkey.mjs', 'posture-inspect'], {input:JSON.stringify(input),encoding:'utf8'});
+   const accepted = run(input); assert.equal(accepted.status,0,accepted.stderr);
+   assert.equal(JSON.parse(accepted.stdout).matched,true);assert.ok(!accepted.stdout.includes(token));
+   const refused = run({...input,origin:'https://unapproved.example.test'});assert.equal(refused.status,1);assert.equal(JSON.parse(refused.stderr).error,'unapproved_posture_origin');
+  } finally { await rm(directory,{recursive:true,force:true}); }
   const before = calls;
   await assert.rejects(readPosture({...input,origin:'https://unapproved.example.test'},edge(payload)),{code:'unapproved_posture_origin'});
   await assert.rejects(readPosture({...input,device:'../other'},edge(payload)),{code:'posture_identifier_required'});

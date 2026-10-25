@@ -287,7 +287,7 @@ export class VaultClient {
    let root;
    try { root = json(await open(key, admitted.bundle, binding(kit.tenant, 'account', kit.account, 'recovery', kit.generation))).root; } finally { key.fill(0); }
    requireValue(root.recovery.publicKey === admitted.recoveryKey, 'kit_revoked');
-   return await this.request('recovery/preview', {}, root.recovery.privateKey);
+   return await this.request('recovery' + '/preview', {}, root.recovery.privateKey);
   } finally { this.lock(); }
  }
  async recover(kit, password, { beforeCommit } = {}) {

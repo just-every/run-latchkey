@@ -25,7 +25,8 @@ Delete temporary request/plaintext files when finished. Keep a mode-0600 profile
 | `enroll-complete` | Pending `profile`, `password` | Verifies and consumes the transfer, saves the enrolled profile |
 | `devices` | `profile`, `password` | Public device IDs/keys and revocation/generation state |
 | `device-revoke` | `profile`, `password`, `device` | Refuses its next connected operation; reports residual cached/copied exposure |
-| `recover` | Old `kit`, `password`, new `profile`, `newKit` | Requires both factors, revokes old devices/kit, saves fresh custody |
+| `recover-preview` | `kit`, `password` | Verifies both factors and lists the target account, affected vault references and devices without revocation |
+| `recover` | Old `kit`, `password`, new `profile`, `newKit`, `confirmed: true` | Requires both factors, revokes old devices and kit, saves fresh custody |
 | `password-change` | Current `profile`, `password`, `newPassword`, `newProfile`, `newKit` | Fresh PAKE record, device factor and kit; prior device/password authority stops |
 
 Get the new-device public locator and account pins from the existing owner's `identity` result through a trusted channel. Compare the challenge before approving it. An SSO/email identity session alone never supplies a new device's local factor. Existing CLI password admission honors Base's IdP-bound account policy; complete SSO-native CLI enrollment and MFA ceremonies are not claimed.
@@ -112,7 +113,7 @@ Run `records-restore` in the receiving checkout with `{input,checkpoint,confirme
 
 For approved ownership transfer, use `records-rewrap-plan` with the verified raw archive and independently compared source/destination public-key fingerprints. The source owner reviews the exact plan hash and uses `records-rewrap-approve` with unlocked custody, purpose and expiry. `records-rewrap-verify` checks the decision locally. All decision outputs use private files. A source/destination identity alone cannot activate restored access.
 
-After import, the distinct receiving owner uses `records-recover` with the old receiving owner's private kit, password, explicitly matching `origin`/`approvedOrigin` and new custody filenames. This changes only the installation transport locator and retains its pinned PAKE server key. The destination must preserve source tenant encryption context. Then `archive-prepare` takes the private plan and approval files plus both compared fingerprints. It verifies the actual completed Base import and leaves every recipient inactive. Finally `archive-activate` requires the exact reviewed `approvedPlanHash`, a named `activation` decision and an explicit six-right owner selection. It activates only the approved destination wraps, records attribution and leaves original grants, devices, links, machines and provider actions inactive. Other source vault owners must approve their own vaults separately. See [Records custody format and service](../src/latchkey/portability/README.md).
+After import, the distinct receiving owner uses `records-recover` with `confirmed: true`, the old receiving owner's private kit, password, explicitly matching `origin`/`approvedOrigin` and new custody filenames. This changes only the installation transport locator and retains its pinned PAKE server key. The destination must preserve source tenant encryption context. Then `archive-prepare` takes the private plan and approval files plus both compared fingerprints. It verifies the actual completed Base import and leaves every recipient inactive. Finally `archive-activate` requires the exact reviewed `approvedPlanHash`, a named `activation` decision and an explicit six-right owner selection. It activates only the approved destination wraps, records attribution and leaves original grants, devices, links, machines and provider actions inactive. Other source vault owners must approve their own vaults separately. See [Records custody format and service](../src/latchkey/portability/README.md).
 
 ## Confirmed person erasure
 
@@ -135,3 +136,11 @@ and saves an encrypted review. `passbolt-review` writes an explicitly approved
 private plaintext review. `passbolt-import` imports one approved personal item
 into an empty owner-only family vault. See the [Passbolt command guide](migration/passbolt.md)
 for inputs, supported formats, source metadata mapping and remaining cutover gaps.
+
+## Read-only device posture
+
+`posture-inspect` takes `source`, `origin`, `token`, `device`, `serial` and
+`maxAgeMs` on standard input. It prints a minimized inventory observation from
+Jamf, Kandji or Intune. [Device posture](device-posture.md) describes the exact
+fields, source scopes, unknown controls and refusal states. It never authorizes
+vault unlock or changes the MDM. Linen posture is unavailable pending its schema.

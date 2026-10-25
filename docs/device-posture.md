@@ -24,7 +24,9 @@ Screen lock is unknown for these inventory resources. Activation lock,
 FileVault recovery lock, disabled automatic login and generic compliance are
 not screen-lock evidence. An OS version is an observation, not an assertion
 that the OS remains supported. Kandji's documented string management values
-are handled explicitly; arbitrary nonempty strings never mean true.
+are handled explicitly; arbitrary nonempty strings never mean true. Kandji
+freshness uses the older of its MDM and agent check-ins; missing either stays
+unknown, so a recent MDM contact cannot conceal stale agent inventory.
 
 This is a read-only diagnostic door. It does not enforce vault or group policy,
 issue overrides, approve enrollment, unwrap keys or impose an offline timeout.

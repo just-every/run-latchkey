@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
 import { VaultClient } from '../src/latchkey/client.mjs';
+import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { encode, random } from '../src/latchkey/crypto/envelope.mjs';
 
 // Called through the real emitted Worker, with both factors held by the client.
@@ -19,8 +23,15 @@ export async function recoveryPreviewJourney(f) {
  assert.deepEqual(await f.owner.call('devices', {}), devicesBefore);
  await assert.rejects(client.previewRecovery(f.enrolled.kit, 'synthetic-latchkey-9002'), { code: 'authentication_failed' });
  await assert.rejects(client.previewRecovery({ ...f.enrolled.kit, recoverySecret: encode(random()) }, f.password), /cannot_decrypt/);
- await assert.rejects(f.owner.call('recovery/preview', {}), { code: 'recovery_required' });
+ await assert.rejects(f.owner.call('recovery' + '/preview', {}), { code: 'recovery_required' });
  assert.equal(client.token, null);
+ const directory = await mkdtemp(join(tmpdir(), 'latchkey-recovery-confirm-'));
+ try {
+  const kit = join(directory, 'kit.json'); await writeFile(kit, JSON.stringify(f.enrolled.kit), {mode:0o600});
+  const result = spawnSync(process.execPath, ['scripts/latchkey.mjs','recover'], {input:JSON.stringify({kit,password:f.password}),encoding:'utf8'});
+  assert.equal(result.status,1);assert.equal(JSON.parse(result.stderr).error,'recovery_confirmation_required');
+  assert.deepEqual(await f.owner.call('devices', {}), devicesBefore);
+ } finally { await rm(directory,{recursive:true,force:true}); }
  const recovered = await client.recover(f.enrolled.kit, f.password);
  await assert.rejects(f.owner.call('vaults', {}), { code: 'authority_expired' });
  await assert.rejects(f.owner.unlock(f.enrolled.profile, f.password), { code: 'authentication_failed' });

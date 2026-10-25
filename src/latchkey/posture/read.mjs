@@ -11,6 +11,10 @@ function timestamp(value) {
  const at = Date.parse(value);
  return Number.isSafeInteger(at) && at > 0 ? at : null;
 }
+function oldestTimestamp(...values) {
+ const times = values.map(timestamp);
+ return times.every(value => value !== null) ? Math.min(...times) : null;
+}
 const mdmAgents = ['mdm', 'easMdm', 'intuneClient', 'easIntuneClient', 'configurationManagerClientMdm', 'configurationManagerClientMdmEas'];
 const endpoints = {
  jamf: id => `/api/v3/computers-inventory-detail/${id}`,
@@ -35,7 +39,7 @@ function normalize(source, value) {
  };
  if (source === 'kandji') return {
   device: text(value.general?.device_id), serial: text(value.hardware_overview?.serial_number),
-  observedAt: timestamp(value.mdm?.last_check_in), encrypted: boolean(value.filevault?.filevault_enabled),
+  observedAt: oldestTimestamp(value.mdm?.last_check_in, value.kandji_agent?.last_check_in), encrypted: boolean(value.filevault?.filevault_enabled),
   osVersion: text(value.general?.os_version),
   managed: value.mdm?.mdm_enabled === 'True' ? true : value.mdm?.mdm_enabled === 'False' ? false : boolean(value.mdm?.mdm_enabled), screenLock: null,
  };
