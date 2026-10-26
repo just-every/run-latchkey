@@ -68,8 +68,10 @@ export function VaultScreen() {
   const items = rows.filter(row => row.value.schema === 'latchkey/item/v1'&&!inactive.has(row.object)); setSelected(items.some(row => row.object === preferred) ? preferred : items[0]?.object ?? '');
  };
  const onUnlock = async (connected: any) => {
-  activeClient.current = connected; setClient(connected); setStatus('Vault unlocked');
+  activeClient.current = connected;
   const list = await connected.call('vaults', {}); if (activeClient.current !== connected) return; setVaults(list); if (list.length) await load(connected, list[0].id, '', list[0]);
+  if (activeClient.current !== connected) return;
+  setClient(connected); setStatus('Vault unlocked');
  };
  const refresh = async () => { setRecords([]); setSelected(''); setPanel(''); const list = await client.call('vaults', {}); setVaults(previous => list.map((next: any) => ({ ...next, title: previous.find(v => v.id === next.id)?.title }))); const id = list.some((v: any) => v.id === vault) ? vault : list[0]?.id; if (id) await load(client, id, selected, list.find((v: any) => v.id === id)); else { setRecords([]); setSelected(''); setVault(''); setPanel(''); } };
  const save = async (item: Item, row?: ItemRecord) => {

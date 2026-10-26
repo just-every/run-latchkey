@@ -2322,7 +2322,7 @@
       "executable": false
     },
     "src/latchkey/ui/vault.tsx": {
-      "sha256": "048d71c605d8469d5ec7cb9d1b8437ea0ee0d9796de62d3c4670d64a548f5d55",
+      "sha256": "7e0cf4f1fd2db47635c98c6f061bc7301d19231c8d8f27be1ec4064f56b736b0",
       "executable": false
     },
     "src/mail.server.d.mts": {
