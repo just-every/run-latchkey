@@ -8,12 +8,15 @@ const scopes = [['personal', 'Personal'], ['company', 'Company (installation own
 function Row({ children }: { children: React.ReactNode }) { return <article className="definition">{children}</article>; }
 
 // Domains, mailboxes and every alias the caller may see, with the provider's own state and exact failures.
-export function AliasPanel({ client, vault, records }: { client: any; vault: string; records: ItemRecord[] }) {
+export function AliasPanel({ client, vault, records: loaded }: { client: any; vault: string; records: ItemRecord[] }) {
  const aliases = useMemo(() => new AliasClient(client), [client]);
  const [domains, setDomains] = useState<AliasDomain[]>([]), [mailboxes, setMailboxes] = useState<AliasMailbox[]>([]), [list, setList] = useState<AliasRecord[]>([]);
  const [token, setToken] = useState(''), [scope, setScope] = useState<'personal' | 'company'>('personal'), [zone, setZone] = useState(''), [account, setAccount] = useState(''), [address, setAddress] = useState(''), [ask, setAsk] = useState(true), [target, setTarget] = useState<Record<string, string>>({});
  const [busy, setBusy] = useState(false), [error, setError] = useState(''), [status, setStatus] = useState('');
- const load = async () => { const [d, m, a] = await Promise.all([aliases.domains(), aliases.mailboxes(), aliases.list()]); setDomains(d); setMailboxes(m); setList(a); };
+ // The login holds each alias address, so read its newest versions rather than trusting a list opened before a change.
+ const [records, setRecords] = useState<ItemRecord[]>(loaded);
+ const reread = async () => { if (!vault) return; const latest = new Map<string, ItemRecord>(); for (const row of (await client.readVault(vault)).versions) if (!latest.has(row.object) || latest.get(row.object)!.version < row.version) latest.set(row.object, row); setRecords([...latest.values()]); };
+ const load = async () => { await reread().catch(() => undefined); const [d, m, a] = await Promise.all([aliases.domains(), aliases.mailboxes(), aliases.list()]); setDomains(d); setMailboxes(m); setList(a); };
  useEffect(() => { void load().catch(() => setError('Alias settings could not be loaded.')); }, [aliases]);
  const act = async (work: () => Promise<string>) => { setBusy(true); setError(''); setStatus(''); try { setStatus(await work()); } catch (cause: any) { setError(aliasMessage(cause)); } finally { await load().catch(() => undefined); setBusy(false); } };
  const titles = new Map<string, any>(records.filter(r => r.value.schema === 'latchkey/item/v1').map(r => [r.object, r.value])), known = new Map<string, string>(records.flatMap(r => (r.value.aliases ?? []).map((entry: any): [string, string] => [entry.id, entry.address])));
