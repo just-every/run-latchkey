@@ -71,6 +71,9 @@ jobs:
       - name: Install Chromium and system libraries
         if: matrix.browser
         run: pnpm exec playwright install --with-deps chromium
+      - name: Install PDF text extraction
+        if: matrix.name == 'security-browser'
+        run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends poppler-utils
       - name: Reserve disk for native runtime journeys
         if: matrix.browser
         run: |

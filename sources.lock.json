@@ -502,7 +502,7 @@
       "executable": false
     },
     ".github/workflows/verify.yml": {
-      "sha256": "6f1bb497a7d2bef28d64887e947facaa684e00fb5a5b0c1ef0dc6f64deefd03f",
+      "sha256": "be98c4166aca20138ffbdab81f923758e8dc775e123c6f7d28de48b6fa834693",
       "executable": false
     },
     ".gitignore": {
@@ -514,7 +514,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "0785816ad8c2fe488cd58babcd7bc7f5976765a3d791d164efaae96bdd7d6e53",
+      "sha256": "39618dc22c15a4b6b0015f66e6280a43e79967f39e05a7847698ac81cb20a6b3",
       "executable": false
     },
     "AGENTS.md": {
@@ -554,7 +554,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "c3ee108e4ccdbd545fb8a75d0baa708a989a5df7e1ffa390f41da1f9836f6f05",
+      "sha256": "d02768898917fb3a1a81bcf2a33ebfb40fdd514724842a6131704fbd6bf2a09d",
       "executable": false
     },
     "deploy-demo.json": {
@@ -2090,11 +2090,11 @@
       "executable": false
     },
     "src/latchkey/reports/client.d.mts": {
-      "sha256": "1020a2bbb728b601dbd9e700e080eec4393dc65f244517294cb1e3801d587a6b",
+      "sha256": "8338acbc4fad470c1e4c0ff3ec841eacda8b6d1701167bc0bb9c25698b993f0d",
       "executable": false
     },
     "src/latchkey/reports/client.mjs": {
-      "sha256": "8e1446c055665499c6b6fe671e96035360dd8b73d7ee3a339ce783a2a8dbb142",
+      "sha256": "4439f5b7154e5f7988c1404a0f35c3e6bc83e400a73299605ca1604fb9b99de0",
       "executable": false
     },
     "src/latchkey/reports/service-route.mjs": {
@@ -2106,11 +2106,11 @@
       "executable": false
     },
     "src/latchkey/reports/service.mjs": {
-      "sha256": "1337620f26ea0d0780e396e8529a6a41b4c509b705c935e5731edb10875b9688",
+      "sha256": "a9ccfe7206c23ef3fda6f79c037705ee0b15358678438056cc7bbc07120f45d6",
       "executable": false
     },
     "src/latchkey/reports/ui.tsx": {
-      "sha256": "433e3d645d855d238c1bbe2c2f00b82d9b16e395e32983335f8faa365441cd5f",
+      "sha256": "3edde96cb68d6e299eb2300ced8b90c5546faca64986a6f7baf00b9166215fe4",
       "executable": false
     },
     "src/latchkey/reviews/client.d.mts": {
@@ -3554,7 +3554,7 @@
       "executable": false
     },
     "tests/browser/reports.mjs": {
-      "sha256": "ae2e070df1a4995da526b7a8a9adc8848d2e3587713cf20e05532dd83c1a23c0",
+      "sha256": "7ec437791560e97570ea240ffa9026b94030b90fa3abc9fdab33eda51cc6b866",
       "executable": false
     },
     "tests/browser/reviews.mjs": {

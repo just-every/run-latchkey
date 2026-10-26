@@ -1,13 +1,14 @@
+import {usageFilters} from './filters.mjs';
 import {HealthClient} from '../health/client.mjs';
 import {OrganizationClient} from '../collections/client.mjs';
 import {reportRoute} from './service-route.mjs';
 const policy='local-health-v1';
 export class ReportsClient {
  constructor(client,options={}){this.client=client;this.health=new HealthClient(client,options);this.now=options.now??(()=>Date.now());}
- async source(vault,from,to){return this.client.call(reportRoute,{vault,from,to});}
- async inspect(vault,{network=false,days=30}={}){
+ async source(vault,from,to,filters={}){return this.client.call(reportRoute,{vault,from,to,filters:usageFilters(filters)});}
+ async inspect(vault,{network=false,days=30,filters={}}={}){
   if(![7,30,90,365].includes(days))throw Error('invalid_report_range');
-  const asOf=this.now(),from=asOf-days*86400000,source=await this.source(vault,from,asOf),health=await this.health.inspect(vault,{network});
+  const asOf=this.now(),from=asOf-days*86400000,source=await this.source(vault,from,asOf,filters),health=await this.health.inspect(vault,{network});
   const risky=new Set(health.findings.map(f=>f.object)),unknown=new Set(health.unknown.map(f=>f.object));
   const rows=(await new OrganizationClient(this.client).load(vault)).records;
   const excluded=new Set((await this.client.call('lifecycle\u002flist',{vault})).items.filter(r=>r.state!=='active').map(r=>r.object));
@@ -16,14 +17,15 @@ export class ReportsClient {
   await this.health.validate(vault,source.revision);
   return {schema:'latchkey-report-v1',...source,policyVersion:policy,observedAt:health.observedAt,days,denominator:items.length,risky:risky.size,unknown:unknown.size,clear,score:items.length?Math.floor(100*clear/items.length):null,items,usage:aggregate(source.events.filter(f=>items.some(r=>r.object===f.item))),coverage:[...source.coverage,health.coverage,'Only current active permitted items; private and family vaults excluded. No retained daily or monthly trend source.']};
  }
- async validate(report){await this.source(report.vault,report.from,report.asOf);await this.health.validate(report.vault,report.revision);}
- async saveView(vault,name,days){if(![7,30,90,365].includes(days))throw Error('invalid_report_range');await this.source(vault,this.now()-days*86400000,this.now());if(typeof name!=='string'||!name.trim()||name.length>100)throw Error('invalid_report_name');return this.client.put(vault,{schema:'latchkey\u002freport-view\u002fv1',name:name.trim(),days});}
+ async validate(report){await this.source(report.vault,report.from,report.asOf,report.filters);await this.health.validate(report.vault,report.revision);}
+ async saveView(vault,name,days,filters={}){const criteria=usageFilters(filters);if(![7,30,90,365].includes(days))throw Error('invalid_report_range');await this.source(vault,this.now()-days*86400000,this.now());if(typeof name!=='string'||!name.trim()||name.length>100)throw Error('invalid_report_name');return this.client.put(vault,{schema:'latchkey\u002freport-view\u002fv1',name:name.trim(),days,filters:criteria});}
  async views(vault){await this.source(vault,0,this.now());return (await new OrganizationClient(this.client).load(vault)).records.filter(r=>r.value.schema==='latchkey\u002freport-view\u002fv1');}
  async export(report,format){await this.validate(report);if(format==='csv')return reportCsv(report);if(format==='pdf')return reportPdf(report);throw Error('invalid_report_format');}
 }
 function aggregate(events){const rows=new Map();for(const f of events){if(!f.item)continue;const key=JSON.stringify([f.actor,f.item,f.action]),row=rows.get(key)??{actor:f.actor,item:f.item,action:f.action,count:0,lastAccess:0,maxReceiptDelay:0};row.count++;row.lastAccess=Math.max(row.lastAccess,f.time);row.maxReceiptDelay=Math.max(row.maxReceiptDelay,f.receiptTime-f.time);rows.set(key,row);}return [...rows.values()];}
 const cell=value=>'"'+String(value??'').replaceAll('"','""').replace(/^[=+@-]/,"'$&")+'"';
 const rows=report=>[
+ ...Object.entries(report.filters??{}).map(([key,value])=>['usage filter '+key,value]),
  ['vault',report.vault],['asOf',report.asOf],['from',report.from],['policyVersion',report.policyVersion],['observedAt',report.observedAt],['denominator',report.denominator],['risky',report.risky],['unknown',report.unknown],['clear',report.clear],['confirmedClearPercent',report.score],
  ...Object.entries(report.adoption).filter(([key])=>key!=='company').map(([k,v])=>['adoption '+k,v??'unknown']),...Object.entries(report.adoption.company??{}).map(([k,v])=>['company '+k,v]),
  ...report.coverage.map(c=>['coverage',c]),...report.items.map(r=>['item',r.object,r.version,r.status,r.findings.map(f=>f.code+(f.suppressed?' (suppressed; risk retained)':'')).join('; '),r.unknown.join('; ')]),...report.usage.map(r=>['usage',r.actor,r.item,r.action,r.count,r.lastAccess,r.maxReceiptDelay])];
