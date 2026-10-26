@@ -20,10 +20,12 @@ export function Tabs({ tabs, current, onPick }: { tabs: [string, string, string?
    mark();
   };
   const active = () => reveal(nav.querySelector<HTMLElement>('[aria-current=page]'));
-  // Focus scrolls the strip only as far as its edge; finish the reveal once that settles.
-  const focused = (event: FocusEvent) => { const tab = event.target as HTMLElement; reveal(tab); requestAnimationFrame(() => { if (document.activeElement === tab) reveal(tab); }); };
+  // Keyboard focus scrolls the strip only as far as its edge; finish the reveal once that settles. A
+  // pointer press also focuses its tab, but scrolling under it would move the tab before the click
+  // lands, so a click reveals its tab only once it is the active one.
+  const focused = (event: FocusEvent) => { const tab = event.target as HTMLElement; if (!tab.matches(':focus-visible')) return; reveal(tab); requestAnimationFrame(() => { if (document.activeElement === tab) reveal(tab); }); };
   active();
-  const resized = new ResizeObserver(() => reveal(nav.contains(document.activeElement) ? document.activeElement as HTMLElement : nav.querySelector<HTMLElement>('[aria-current=page]')));
+  const resized = new ResizeObserver(() => reveal(nav.contains(document.activeElement) && document.activeElement!.matches(':focus-visible') ? document.activeElement as HTMLElement : nav.querySelector<HTMLElement>('[aria-current=page]')));
   resized.observe(nav); nav.addEventListener('scroll', mark, { passive: true }); nav.addEventListener('focusin', focused);
   return () => { resized.disconnect(); nav.removeEventListener('scroll', mark); nav.removeEventListener('focusin', focused); };
  }, [current]);
