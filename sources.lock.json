@@ -3374,7 +3374,7 @@
       "executable": false
     },
     "src/site/landing/sections/Agent.tsx": {
-      "sha256": "4ec55e331a6f9c776ff360e3a7f519dfbe2f3168f10c6b71016b60ddcbad04d3",
+      "sha256": "ccfcb1771b522aa4228cc3add64f0fad5df4e0824e4e918e70fb1c4bbdfdeafd",
       "executable": false
     },
     "src/site/landing/sections/BankLogin.tsx": {
@@ -3382,7 +3382,7 @@
       "executable": false
     },
     "src/site/landing/sections/Close.tsx": {
-      "sha256": "d14df3f8ac1a0ef1503b96f954d4c3c91138550ea07eb93d3288cfb5b101beb7",
+      "sha256": "39dc43a7fe31a471a599bcc952ecca68eddeeff376f1810b775cb797d6a569f0",
       "executable": false
     },
     "src/site/landing/sections/DeadKey.tsx": {
@@ -3398,15 +3398,15 @@
       "executable": false
     },
     "src/site/landing/sections/Leaver.tsx": {
-      "sha256": "ae27cf146e5cb235ae454f37dee0a4d830b914f4b488197f368f992f938c16f3",
+      "sha256": "2b7c10cb1427c760b03ab8f5b47f2c5170533fb745035188a895544d17b1c00e",
       "executable": false
     },
     "src/site/landing/sections/Move.tsx": {
-      "sha256": "84c1e932bd2ea8150c7f3ff154c2b2f4bbb18a4ad87ec2904a6e2de69f806188",
+      "sha256": "a23e25511c2ff1d6885083838283c7c21ea59e1ba1b2877fa684c7cac9743e0e",
       "executable": false
     },
     "src/site/landing/sections/SecretsOut.tsx": {
-      "sha256": "7fd6c7817ac0a073274353b6002c0a6088e3e33434e2f424ee6f01121f48dadc",
+      "sha256": "4a8064a7d5f655f98011f98495e4df3fbb94eea8466ab0e8ed640023125e485a",
       "executable": false
     },
     "src/site/pages.tsx": {
@@ -3466,7 +3466,7 @@
       "executable": false
     },
     "src/site/styles/sections/close.css": {
-      "sha256": "fb34fe67919d27eb2b142b24c247749b7402a12872f1463c8c97a664d6d360f6",
+      "sha256": "ccaae9e243640d85e40c39a0ae9a60d89965b4d44c5988b5229c84db4f2cdc06",
       "executable": false
     },
     "src/site/styles/sections/dead-key.css": {

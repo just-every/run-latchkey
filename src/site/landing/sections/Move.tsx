@@ -5,7 +5,7 @@ import { move } from '../records'
 export function Move() {
   return (
     <Screen ground="tangerine" className="move" titleId="move-title">
-      <h2 className="screen-title" id="move-title">The move from 1Password, <br className="desk" />item for item.</h2>
+      <h2 className="screen-title" id="move-title">The move from 1Password, <br className="desk" />item&nbsp;for&nbsp;item.</h2>
       <p className="screen-line">Every vault, group, two-factor code and secret reference came across, and the counts matched before the old accounts closed.</p>
       <div className="screen-proof equation">
         <p className="equation-sum">{move.items} = {move.items}</p>

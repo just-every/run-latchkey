@@ -6,7 +6,7 @@ import { leaver } from '../records'
 export function Leaver() {
   return (
     <Screen ground="tangerine" className="leaver" titleId="leaver-title" leaders>
-      <h2 className="screen-title" id="leaver-title">{leaver.logins} new <br className="desk" />passwords by {leaver.last}<From name="leaver" at="0.5 0.78">.</From></h2>
+      <h2 className="screen-title" id="leaver-title">{leaver.logins} new <br className="desk" />passwords by&nbsp;{leaver.last}<From name="leaver" at="0.5 0.78">.</From></h2>
       <p className="screen-line">After {leaver.person} left at {leaver.left}, every shared login she could use got a new password, tested by signing in.</p>
       <p className="screen-proof leaver-record">
         <span className="record-line"><To name="leaver" />{leaver.day} · {leaver.first} – {leaver.last} pm</span>
