@@ -1,3 +1,4 @@
+import {reportsAuthenticated} from './reports/service.mjs';
 import { selectionPolicyAuthenticated } from './portability/selection-policy.mjs'
 import { rulesAuthenticated } from './rules/service.mjs'
 import { peopleAuthenticated } from './people/service.mjs'
@@ -265,6 +266,8 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
   }
   const ctx={db,env,now,actor,device,tenant,session,fence,fenceArgs,auth,request}
   if(meta)await rateApi(ctx)
+  const reportResult=grant.recovery===0?await reportsAuthenticated(route,input,ctx):null;
+  if(reportResult!==null)return response(reportResult);
   const exportPolicy=grant.recovery===0?await selectionPolicyAuthenticated(route,input,ctx):null;
   if(exportPolicy!==null)return response(exportPolicy);
   const admin = grant.recovery === 0 ? await adminAuthenticated(route,input,ctx) : null;

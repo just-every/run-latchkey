@@ -1,0 +1,1 @@
+export class ReportsClient {constructor(client:any,options?:any);source(vault:string,from:number,to:number):Promise<any>;inspect(vault:string,options?:any):Promise<any>;validate(report:any):Promise<void>;saveView(vault:string,name:string,days:number):Promise<any>;views(vault:string):Promise<any[]>;export(report:any,format:string):Promise<string>;}

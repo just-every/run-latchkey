@@ -19,3 +19,5 @@ The nine-screen page follows the owner-picked page-s2 design and the target prod
 | 01, 09: 100% free and open source; owner can run Latchkey | code | Root `LICENSE` is MIT; `/run` is built from `src/site/run.json` and the source repository is public. No claim of a free managed service or finished incumbent parity is inferred; complete owner operation remains LKY-017/031. |
 
 No independent cryptographic review, security certification, penetration-test pass or live provider result is claimed. LKY-030 and LKY-076 remain the security-assurance targets. The 25 October manual offboarding and restricted migration rulings remain in force; homepage target examples grant no product authority.
+
+LKY-013 now has a bounded company-vault-owner report under Settings, with current client health, explicit unknown coverage, current recipient and device counts, saved range criteria, scoped connected human usage, and CSV and PDF exports. This does not establish the homepage’s illustrative company measurements, complete adoption feeds or historical trend target.

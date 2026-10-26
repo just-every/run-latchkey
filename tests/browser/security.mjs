@@ -77,3 +77,4 @@ for(const width of [1440,390]){
   console.log(`Security journeys ${width}: encrypted provider plan, padded HIBP, local risks, suppression, expiry, fresh version and outage passed.`);
  }finally{await f.close();}
 }
+await import('./reports.mjs');
