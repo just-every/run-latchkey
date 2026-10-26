@@ -212,16 +212,28 @@ export async function specialistBoundaryJourney(f, width) {
   await f.page.mouse.move(0,0);
   // Sample in the mouse event, so a delayed test driver cannot miss the delay.
   await copyControl.evaluate(button => {
+   window.latchkeyTooltipProofButton=button;
    button.tooltipHoverProof = new Promise(resolve => {
-    button.parentElement.addEventListener('mouseenter', () => {
+    button.parentElement.addEventListener('mouseenter', event => {
      const started=performance.now(), initial=getComputedStyle(button.nextElementSibling).visibility;
+     button.tooltipHoverEntry={x:event.clientX,y:event.clientY,initial};
      const sample=() => getComputedStyle(button.nextElementSibling).visibility==='visible'
       ? resolve({initial,elapsed:performance.now()-started}) : requestAnimationFrame(sample);
      requestAnimationFrame(sample);
     }, {once:true});
    });
   });
-  await copyControl.hover();await expect(copyTooltip).toBeVisible();
+  await copyControl.hover();
+  try { await expect(copyTooltip).toBeVisible(); }
+  catch(error) {
+   console.error('Certificate tooltip interaction:',await f.page.evaluate(() => {
+    const original=window.latchkeyTooltipProofButton,current=document.querySelector('button[aria-label="Copy Private key"]');
+    return {sameControl:original===current,connected:original?.isConnected,entry:original?.tooltipHoverEntry,
+     rectangle:current?.getBoundingClientRect().toJSON(),hovered:current?.matches(':hover'),focused:current===document.activeElement,
+     visibility:current&&getComputedStyle(current.nextElementSibling).visibility,scrollY};
+   }));
+   throw error;
+  }
   const hoverProof=await copyControl.evaluate(button => button.tooltipHoverProof);
   assert.equal(hoverProof.initial,'hidden');assert.ok(hoverProof.elapsed>=250);
   await f.page.mouse.move(0,0);await expect(copyTooltip).toBeHidden();
