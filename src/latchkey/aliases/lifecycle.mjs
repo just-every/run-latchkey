@@ -77,7 +77,7 @@ export async function aliasAuthenticated(route, input, ctx) {
   } else if (input.outcome === 'rejected') { state = row.intent === 'create' ? 'failed' : 'active'; reason ??= 'provider_rejected'; if (row.intent === 'create') delivery = 'not-configured'; }
   else { state = 'reconcile'; reason ??= 'provider_outcome_unknown'; }
   if (state === 'active' && row.intent === 'create') kept = row.replaces;
-  const statements = [stmt(`UPDATE lky_aliases SET state=?,rule_ref=?,mailbox_id=?,next_mailbox=NULL,delivery=?,failure=?,revision=revision+1,updated_at=? WHERE id=? AND revision=? AND state IN ('pending','reconcile') AND ${ctx.fence}`, state, ruleRef, mailboxId, delivery, settled ? null : reason, ctx.now, row.id, row.revision, ...ctx.fenceArgs)];
+  const statements = [stmt(`UPDATE lky_aliases SET state=?,rule_ref=?,mailbox_id=?,intent=?,next_mailbox=?,delivery=?,failure=?,revision=revision+1,updated_at=? WHERE id=? AND revision=? AND state IN ('pending','reconcile') AND ${ctx.fence}`, state, ruleRef, mailboxId, state === 'reconcile' ? row.intent : null, state === 'reconcile' ? row.next_mailbox : null, delivery, settled ? null : reason, ctx.now, row.id, row.revision, ...ctx.fenceArgs)];
   if (kept) statements.push(stmt('UPDATE lky_aliases SET replaced_by=? WHERE id=? AND changes()=1', row.id, kept));
   statements.push(event('alias_provider_' + state, row.id));
   const changed = await ctx.db.batch(statements); need(changed[0].meta.changes, 'alias_changed', 409);

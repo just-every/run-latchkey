@@ -44,6 +44,15 @@
       ]
     },
     {
+      "name": "aliases-browser",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "pnpm run build",
+        "node tests/browser/aliases.mjs"
+      ]
+    },
+    {
       "name": "organization-browser",
       "browser": true,
       "hosted": false,
