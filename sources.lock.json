@@ -609,6 +609,10 @@
       "sha256": "a3b6338b6749b48b243c931f8cd7010548e3eb7bf191f76a2b0ffcb5bb0f31e8",
       "executable": false
     },
+    "docs/reports.md": {
+      "sha256": "069f20625ea4597a88fe14bb65b23b31027f6bd0198c2e9d90c6182677bee03f",
+      "executable": false
+    },
     "docs/security/protocol.md": {
       "sha256": "68306e008b4f9b1cb73816e738cd7bbc033bb868c39b61df1ce0c9320faf3860",
       "executable": false
@@ -2097,6 +2101,10 @@
       "sha256": "4439f5b7154e5f7988c1404a0f35c3e6bc83e400a73299605ca1604fb9b99de0",
       "executable": false
     },
+    "src/latchkey/reports/filters.mjs": {
+      "sha256": "0dc94758fb523fae5edf40edece5cb3e42477d2994b10a2e6bd224c1af51e960",
+      "executable": false
+    },
     "src/latchkey/reports/service-route.mjs": {
       "sha256": "331b6cb941a57f6218bc1919a096664f9a936466a179fa0ffe78e569d273692e",
       "executable": false
@@ -3554,7 +3562,7 @@
       "executable": false
     },
     "tests/browser/reports.mjs": {
-      "sha256": "7ec437791560e97570ea240ffa9026b94030b90fa3abc9fdab33eda51cc6b866",
+      "sha256": "790f2e363cbd9180e0d076aa50f4a1bcec42bbffa468b51eb5a068d57fd3a813",
       "executable": false
     },
     "tests/browser/reviews.mjs": {
