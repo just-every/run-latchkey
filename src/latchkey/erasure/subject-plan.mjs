@@ -94,6 +94,13 @@ export async function subjectPlan(ctx, subject) {
   confirmation_reference:contains(row.confirmation_reference,identity)?'Reference removed by person erasure':row.confirmation_reference,
   provider_reference:contains(row.provider_reference,identity)?'Reference removed by person erasure':row.provider_reference}));
  await select('lky_evidence_destinations','owner=?',[accountId]);
+ // Personal alias records and a person's own configuration go with them; company-owned records stay, with the person detached.
+ await select('lky_aliases',`scope='personal' AND owner=? OR vault_id IN (${own})`,[accountId,...ownArgs]);
+ await select('lky_aliases',`scope='company' AND owner=? AND vault_id NOT IN (${own})`,[accountId,...ownArgs],'redact',row=>({...row,owner:'__SUBJECT_ANON__'}));
+ for(const table of ['lky_alias_domains','lky_alias_mailboxes']){
+  await select(table,"scope='personal' AND owner=?",[accountId]);
+  await select(table,"scope='company' AND owner=?",[accountId],'redact',row=>({...row,owner:'__SUBJECT_ANON__'}));
+ }
  await select('lky_reviews','id IN (SELECT value FROM json_each(?))',[reviewList]);
  const erased=await select('lky_erased_items',`vault_id IN (${own}) OR erased_by=? OR erased_device IN (SELECT value FROM json_each(?)) OR instr(proof,?)>0`,[...ownArgs,accountId,JSON.stringify(deviceIds),accountId]);
  await select('lky_subject_invalidations',`vault_id IN (${own})`,ownArgs);

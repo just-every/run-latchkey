@@ -16,6 +16,7 @@ import {batchAuthenticated} from './lifecycle/batch.mjs'
 import { lifecycleAuthenticated,LifecycleError } from './lifecycle/service.mjs'
 import { activeItem,verifyCapability,verifyPolicy } from './lifecycle/common.mjs'
 import { evidenceAuthenticated } from './evidence/service.mjs'
+import { aliasesAuthenticated } from './aliases/service.mjs'
 import { ReviewError, reviewsAuthenticated } from './reviews/index.mjs'
 import { SubjectErasureError, subjectErasureAuthenticated, subjectItemReplayKnown, subjectVaultWriteAllowed, subjectRotationStatements } from './erasure/subject.mjs'
 import { subjectAdmission } from './erasure/admission.mjs'
@@ -292,6 +293,8 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
   if (checkout !== null) return response(checkout)
   const evidence = grant.recovery === 0 ? await evidenceAuthenticated(route, input, { db, env, now, actor, device, tenant, session, fence, fenceArgs }) : null
   if (evidence !== null) return response(evidence)
+  const aliased = grant.recovery === 0 ? await aliasesAuthenticated(route, input, { db, env, now, actor, device, tenant, session, fence, fenceArgs }) : null
+  if (aliased !== null) return response(aliased)
   const reviewed = grant.recovery === 0 ? await reviewsAuthenticated(route, input, { db, env, now, actor, device, tenant, session, fence, fenceArgs }) : null
   if (reviewed !== null) return response(reviewed)
   const generator = grant.recovery === 0 ? await generatorAuthenticated(route, input, { db, env, now, actor, device, tenant, session, fence, fenceArgs }) : null

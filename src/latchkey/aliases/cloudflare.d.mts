@@ -1,0 +1,12 @@
+export type ProviderResult = {outcome:'ok'|'rejected'|'ambiguous'|'unknown';status?:number|null;failure?:string;retryable?:boolean;providerCode?:number|null;ruleRef?:string;observed?:{enabled:boolean;forwardTo:string|null};observation?:any;address?:string|null;rule?:any};
+type Options = {token:string;fetcher?:typeof fetch};
+export function generateLocalPart(random?:Pick<Crypto,'getRandomValues'>):string;
+export function observeRule(rule:any,alias?:string):{enabled:boolean;forwardTo:string|null;address:string|null};
+export function observeDomain(value:{zone:string}&Options):Promise<ProviderResult>;
+export function observeMailbox(value:{account:string;address:string}&Options):Promise<ProviderResult>;
+export function requestMailbox(value:{account:string;address:string}&Options):Promise<ProviderResult>;
+export function createAlias(value:{zone:string;alias:string;destination:string;name?:string}&Options):Promise<ProviderResult>;
+export function readAlias(value:{zone:string;ruleRef:string;alias?:string}&Options):Promise<ProviderResult>;
+export function setAliasEnabled(value:{zone:string;ruleRef:string;enabled:boolean}&Options):Promise<ProviderResult>;
+export function retargetAlias(value:{zone:string;ruleRef:string;destination:string}&Options):Promise<ProviderResult>;
+export function findAlias(value:{zone:string;alias:string}&Options):Promise<ProviderResult>;
