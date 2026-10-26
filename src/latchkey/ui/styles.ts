@@ -95,6 +95,8 @@ body:has(.lk){padding:0;background:var(--rer-page,#fff)}
 .lk .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.lk .form-grid label+label{margin-top:0}.lk .edit-field{display:grid;gap:8px}
 .lk .url-rule{display:grid;grid-template-columns:minmax(130px,1fr) minmax(180px,2fr) auto;gap:12px;align-items:end;margin:12px 0}.lk .url-rule label+label{margin:0}
 .lk .file-upload{margin-top:14px}.lk video{width:100%;max-height:300px;margin-top:12px}.lk .fingerprint{overflow-wrap:anywhere;font-family:var(--mono);font-size:13px}
+/* A card of references reads in the body face; only its identifier values stay mono. */
+.lk .definition.fingerprint{font-family:inherit;font-size:inherit}.lk .definition.fingerprint .rule-view>span:last-child{font-family:var(--mono);font-size:13px}
 .lk .page>.empty{border:1px solid var(--rule);padding:64px 48px;margin-top:8px}.lk .page>.empty h1{font-size:30px}.lk .page>.empty p{color:var(--muted);max-width:52ch;margin-bottom:22px}.lk .page>.empty button{min-height:46px;padding:0 22px;font-size:16px}
 
 .lk .lk-unlock{max-width:460px;margin:40px auto 0}.lk .lk-unlock h1{font-size:34px}.lk .lk-unlock .muted{font-size:15px;margin-bottom:24px}
@@ -103,12 +105,14 @@ body:has(.lk){padding:0;background:var(--rer-page,#fff)}
 /* The one-row top bar needs about 1270 px with its full gaps and 1180 px with the compact ones; below
    1300 px it stacks (lockup and actions, the search, then the tabs as their own scrolling row). */
 @media(max-width:1359px){.lk .topbar{gap:20px;padding:0 24px}.lk .tabs{gap:18px}.lk .search{flex-basis:240px}}
-@media(max-width:1300px){.lk .topbar{flex-wrap:wrap;row-gap:0;padding:10px 20px 0}.lk .lockup{order:1;margin-right:auto}.lk .menu{order:2}.lk .lock{order:3}.lk .locked{order:2}.lk .docs{order:3}.lk .search{order:4;flex:1 1 100%;margin:12px 0 4px}
+@media(max-width:1300px){.lk .topbar{flex-wrap:wrap;row-gap:0;padding:10px 20px 0}.lk .lockup{order:1;margin-right:auto}.lk .lockup:has(+[data-rer-demo-exit]){margin-right:0}.lk .topbar>[data-rer-demo-exit]{order:1;margin-right:auto}.lk .menu{order:2}.lk .lock{order:3}.lk .locked{order:2}.lk .docs{order:3}.lk .search{order:4;flex:1 1 100%;margin:12px 0 4px}
  .lk .tabs{order:5;flex:1 1 100%;margin:0 -20px;padding:0 20px;overflow-x:auto;scrollbar-width:none}.lk .tabs::-webkit-scrollbar{display:none}.lk .tabs button{min-height:48px;flex:none}}
 @media(max-width:980px){.lk .page{padding:28px 20px 56px}
  .lk .items-head,.lk .item{grid-template-columns:minmax(0,1.5fr) minmax(0,1.3fr) minmax(0,.6fr) 16px;gap:4px 14px}.lk .items-head span:nth-child(3){display:none}.lk .detail-grid{grid-template-columns:1fr}
  .lk .item .name{grid-area:1/1}.lk .item .user{grid-area:1/2}.lk .item .changed{grid-area:1/3}.lk .item .chevron{grid-area:1/4}.lk .item .state{grid-area:2/1/3/3;margin-left:46px}.lk .item .state.none{display:none}}
-@media(max-width:640px){.lk{font-size:15px}.lk .topbar{padding:8px 16px 0;gap:10px}.lk .lockup{font-size:19px}.lk .menu>summary,.lk .lock{min-height:36px;padding:0 10px;font-size:14px}.lk .tabs{margin:0 -16px;padding:0 16px;gap:18px}.lk .page{padding:22px 16px 48px}
+/* Phones: the lockup (and a demo's Run link) alone on the first row, then the search with Settings
+   and Lock vault beside it, then the tabs. */
+@media(max-width:640px){.lk{font-size:15px}.lk .topbar{padding:8px 16px 0;gap:10px}.lk .topbar:has(.menu)::after{content:'';order:2;flex:1 1 100%;height:0}.lk .search{order:3;flex:1 1 0;margin:10px 0 4px}.lk .menu{order:4;margin:10px 0 4px auto}.lk .lock{order:4;margin:10px 0 4px}.lk .search{gap:8px;padding:0 8px 0 10px}.lk .search kbd{display:none}.lk .lockup{font-size:19px}.lk .menu>summary,.lk .lock{min-height:36px;padding:0 10px;font-size:14px}.lk .tabs{margin:0 -16px;padding:0 16px;gap:18px}.lk .page{padding:22px 16px 48px}
  .lk .page-head{grid-template-columns:1fr;row-gap:18px;padding-bottom:20px;margin-bottom:16px}.lk .crumbs{margin:0 0 -8px}.lk .page-head h1{font-size:32px}.lk .subline{font-size:15px}.lk .head-side{justify-items:stretch}.lk .head-actions{flex-direction:column-reverse}.lk .head-actions button{width:100%}
  .lk .items-head{display:none}.lk .item{grid-template-columns:minmax(0,1fr) auto 14px;gap:2px 12px;padding:10px 14px;min-height:62px}.lk .item .user,.lk .item .state.none{display:none}.lk .name{gap:12px}.lk .item-title{display:block}
  .lk .item .name{grid-area:1/1}.lk .item .changed{grid-area:1/2}.lk .item .chevron{grid-area:1/3}.lk .item .state{grid-area:2/1/3/-1;margin-left:44px}
