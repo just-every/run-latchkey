@@ -49,7 +49,6 @@
    running to 8 px from the window's edge; its last two segments break together. */
 .hero-note.replaced { left: calc(3.69 * var(--F)); right: 0; top: calc(1.75 * var(--F) - 1.145 * var(--note)); }
 .hero-note-tail { white-space: nowrap; }
-@media (min-width: 1181px) { .hero-note.replaced { font-size: clamp(13px, .85vw, 20px); } }
 .hero-note.revoked { left: calc(4.62 * var(--F)); right: 0; top: calc(2.25 * var(--F) - 1.15 * var(--note)); }
 .hero-note.counted { left: calc(2.8 * var(--F)); top: calc(3.335 * var(--F)); white-space: nowrap; }
 /* The leaders take the annotations' colour; black is also what they keep where sign() is not supported. */
