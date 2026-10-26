@@ -2346,7 +2346,7 @@
       "executable": false
     },
     "src/latchkey/ui/tabs.tsx": {
-      "sha256": "99cb7c4cef7ac01e802e8eb6f929fdbd77573f6954b7a439316bba619544557f",
+      "sha256": "6fd5fd0d50d96894749d890e370f07115730b95e6d0d44aec4150ffe8d391850",
       "executable": false
     },
     "src/latchkey/ui/templates.tsx": {
@@ -3550,7 +3550,7 @@
       "executable": false
     },
     "tests/browser/vault.mjs": {
-      "sha256": "298a48fd127f44054b3d23acd8609e4550d9cbaf76ec55349190792618c202f1",
+      "sha256": "ef3bb48f8d445351f5473a70d04749068ed5721a1b5a7ee2d10c404acbb4b98c",
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {
