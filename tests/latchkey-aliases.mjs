@@ -74,7 +74,7 @@ export async function aliasApiJourney({ owner, member, outsider, edge }) {
  const live = (await ownerAliases.list()).find(r => r.id === theirs.alias.id), off = await ownerAliases.disable(live, options);
  assert.equal(off.state, 'disabled'); assert.equal(off.delivery, 'forwarding-stopped'); assert.equal(edge.rules.get(theirs.alias.ruleRef).enabled, false);
  const inbox = edge.inbox.length; assert.equal(edge.deliver(theirs.address, { subject: 'Again', text: 'code' }), 'dropped'); assert.equal(edge.inbox.length, inbox);
- assert.equal((await owner.readItem(company, item)).value.title, 'Fabrikam Marketplace');
+ assert.equal((await owner.readItem(company, item)).versions.at(-1).value.title, 'Fabrikam Marketplace');
  // Replacement: a new alias for the same login, the old one stopped, the login untouched.
  const replacement = await ownerAliases.replace((await ownerAliases.list()).find(r => r.id === mine.alias.id), options);
  assert.equal(replacement.alias.state, 'active'); assert.equal(replacement.disabled.state, 'disabled'); assert.equal(replacement.disabled.replacedBy, replacement.alias.id); assert.notEqual(replacement.address, mine.address);

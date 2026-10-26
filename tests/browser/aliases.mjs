@@ -69,7 +69,7 @@ for (const width of [1440, 390]) {
   await token(); await row.getByRole('button', { name: `Disable ${address}` }).click(); await expect(f.page.getByText('Forwarding stopped at the provider. The login is unchanged.')).toBeVisible();
   assert.equal([...edge.rules.values()].find(rule => rule.matchers[0].value === address).enabled, false); await expect(row).toContainText('Forwarding stopped at the provider');
   const before = edge.inbox.length; await site.resend(address); assert.equal(edge.inbox.length, before); assert.equal(edge.dropped.at(-1).reason, 'rule-disabled');
-  assert.equal((await owner.readItem(company, saved.object)).value.fields.find(field => field.id === 'username').value, address);
+  assert.equal((await owner.readItem(company, saved.object)).versions.at(-1).value.fields.find(field => field.id === 'username').value, address);
   const again = await fetch(site.origin + '/login', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ email: address, password: 'synthetic-latchkey-2066' }) }); assert.equal(again.status, 200);
   await capture('aliases-disabled');
   // A provider outage is shown as unknown, never as success, and settles against the provider on request.
