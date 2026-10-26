@@ -2,13 +2,13 @@ import type { Item, ItemRecord } from './types';
 import { Icon } from './icon';
 import { hasValue, typeLabel } from './labels';
 
-// One vault item as a table row: its tile, the title over its website host in
-// mono (or its kind, for anything but a login), the username, what is true of
-// it now (sharing, codes, files, versions, labels, tags) and when it changed.
+// One vault item as a table row: its tile, the title over its website host (or
+// its kind, for anything but a login), the username, what is true of it now
+// (sharing, codes, files, versions, labels, tags) and when it changed.
 export function ItemRow({ row, links, open, onOpen }: { row: ItemRecord; links: number; open: boolean; onOpen: () => void }) {
  const item = row.value, site = siteOf(item), facts = factsOf(row, links), time = item.change?.time;
  return <button className={`item${open ? ' selected' : ''}`} aria-label={`${item.title} ${summary(item)}`} onClick={onOpen} aria-current={open ? 'true' : undefined}>
-  <span className="cell name"><Tile item={item}/><span className="name-text"><span className="item-title">{item.title}</span>{site ? <span className="item-sub mono">{breakable(site)}</span> : item.type !== 'login' && <span className="item-sub">{typeLabel(item.type)}</span>}</span></span>
+  <span className="cell name"><Tile item={item}/><span className="name-text"><span className="item-title">{item.title}</span>{site ? <span className="item-sub">{breakable(site)}</span> : item.type !== 'login' && <span className="item-sub">{typeLabel(item.type)}</span>}</span></span>
   <span className="cell user">{breakable(username(item) ?? '—')}</span>
   <span className={`cell state${facts.length ? '' : ' none'}`}>{facts.length ? <span className="facts">{facts.map((fact, i) => <span key={i}>{fact}</span>)}</span> : '—'}</span>
   <span className="cell changed">{time ? <time dateTime={time} title={new Date(time).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}>{changed(new Date(time))}</time> : '—'}</span>

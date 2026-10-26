@@ -26,7 +26,7 @@ function GrantReview({ client, row, review, people, account, owner, busy, active
    <div className="rule-view"><span>Snapshot status</span><span>{row.status}{row.privileged ? ' · Privileged' : ''}</span></div>
    <div className="rule-view"><span>Assigned reviewer</span><span>{people.find(person => person.account === row.reviewer)?.name ?? (row.reviewer ? 'Reviewer' : 'Unassigned')}{row.reviewer && <> · {row.reviewer}</>}</span></div>
   </div>
-  <p className="notice">Decision: {row.decision ?? 'Undecided'}. {row.reason && <>Reason: {row.reason}. </>}{row.decision === 'remove' && (row.effective ? 'Removal is effective.' : 'Removal is pending; access has not been recorded as removed.')}</p>
+  <p className="notice"><span className={`status ${!row.decision ? 'waiting' : row.decision === 'remove' && !row.effective ? 'action' : 'done'}`} aria-hidden="true"/>Decision: {row.decision ?? 'Undecided'}. {row.reason && <>Reason: {row.reason}. </>}{row.decision === 'remove' && (row.effective ? 'Removal is effective.' : 'Removal is pending; access has not been recorded as removed.')}</p>
   {owner && active && !row.decision && <form onSubmit={event => { event.preventDefault(); void act(() => client.call('reviews/assign', { review, key: row.key, reviewer }), 'Reviewer assigned.'); }}>
    <label>Reviewer for {row.key}<select className="vault-select" required disabled={busy} value={reviewer ?? ''} onChange={event => setReviewer(event.target.value)}><option value="">Choose reviewer</option>{people.map(person => <option key={person.account} value={person.account}>{person.name} · {person.account} ({person.role})</option>)}</select></label>
    <button disabled={busy || !reviewer || reviewer === row.reviewer}>Assign reviewer</button>
@@ -86,8 +86,8 @@ export function ReviewsPanel({ client, vault, run }: any) {
   <h1>Access reviews</h1><p className="muted">Review the exact access snapshot, record reasons and apply removals before closing a campaign.</p>
   {error && <div className="error" role="alert"><span>{error}</span></div>}
   {status && <p className="notice" role="status">{status}</p>}
-  {loading && <p role="status">Loading access reviews…</p>}
-  {busy && <p role="status">Updating access review…</p>}
+  {loading && <p className="loading" role="status">Loading access reviews…</p>}
+  {busy && <p className="loading" role="status">Updating access review…</p>}
   <div className="actions"><button disabled={busy || loading} onClick={() => void act(null, 'Access reviews refreshed.')}>Refresh reviews</button></div>
   {stale && <p className="notice" role="alert">The last action could not be verified. Refresh to inspect current campaign and grant state before trying another change.</p>}
   {!loading && !error && campaigns.length === 0 && <div className="empty"><h2>No access reviews</h2><p>{owner ? 'Schedule the first review for this vault.' : 'The vault owner has not scheduled a review.'}</p></div>}
@@ -105,7 +105,8 @@ export function ReviewsPanel({ client, vault, run }: any) {
    <div className="notice"><h2>{complete ? 'Completed review' : campaign.phase === 'scheduled' ? 'Scheduled review' : campaign.phase === 'inactive' ? 'Inactive restored review' : 'Review in progress'}</h2><div className="rule-view"><span>Campaign</span><span>{campaign.id}</span></div><p>Period: {campaign.period}. Snapshot: {when(campaign.asOf)}. Due: {when(campaign.dueAt)}. Policy version: {campaign.policyVersion}.</p><p>Owner: {campaign.owner}. Phase: {campaign.phase}.</p>
     <p>MFA enforcement: {campaign.enforcement?.mfa == null || campaign.enforcement.mfa === 'unknown' ? 'Unknown (no enforcement evidence reported)' : text(campaign.enforcement.mfa)}.</p>
     {campaign.overdue && !complete && <p role="alert">Overdue: this review still needs the owner’s attention.</p>}
-    <p>{counts!.decided} of {counts!.total} grants decided. {counts!.removals} removal decisions; {counts!.pendingRemovals} pending removals; {counts!.unreconciled} unreconciled changes.</p>
+    <div className="progress"><progress max={Math.max(counts!.total, 1)} value={counts!.decided} aria-labelledby="review-progress"/><span className="progress-count" id="review-progress">{counts!.decided} of {counts!.total} grants decided</span></div>
+    <p>{counts!.removals} removal decisions; {counts!.pendingRemovals} pending removals; {counts!.unreconciled} unreconciled changes.</p>
     {complete && <p>All required decisions and effective removals were recorded at closure.</p>}
    </div>
    {(campaign.changes.length > 0 || counts!.unreconciled > 0) && <div className="notice" role="alert"><h2>Campaign reconciliation required</h2><p>Access, membership or policy changes must be reconciled explicitly. Closure is blocked until the current campaign state is reviewed.</p>{campaign.changes.map(change => <div className="definition" key={change.key}><div className="rule-view"><span>{change.kind} · {change.status}</span><span>Grant: {change.key}. Subject: {change.subject}. Rights: {text(change.rights)}.</span></div></div>)}

@@ -45,7 +45,7 @@ export function Generator({ client, run, onUse }: { client: any; run: Task; onUs
  }
  return <section className="detail tool-panel" aria-labelledby="generator-title"><div className="section">
   <h2 id="generator-title">Password generator</h2>
-  {!policy ? <p role="status">Loading current company and group policy…</p> : <>
+  {!policy ? <p className="loading" role="status">Loading current company and group policy…</p> : <>
    <p className="muted">Effective policy: {policy.minLength}–{policy.maxLength} characters; at least {policy.minEntropyBits} bits of entropy; required classes: {policy.requiredClasses.join(', ')}. History is encrypted on this browser. {policy.historyDays === 0 ? 'History retention is disabled.' : `Entries expire after ${policy.historyDays} days.`}</p>
    <p className="muted">Applied sources: {rules.sources.map((source: any) => source.scope === 'group' ? `group ${source.group}` : source.scope).join(' · ')}</p>
    {notice && <p className="notice" role="status">{notice}</p>}

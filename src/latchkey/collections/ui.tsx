@@ -173,8 +173,8 @@ export function OrganizationPanel({ client, vault, run, onChanged, names, onName
   {status && <p className="notice" role="status">{status}</p>}
   <div className="form-grid"><label>Browse vault<select className="vault-select" value={source} disabled={busy} onChange={event => setSource(event.target.value)}><option value="">Choose source vault</option>{vaults.map(row => <option key={row.id} value={row.id}>{vaultName(row.id)} · {kindLabel(row.kind)}</option>)}</select></label><div className="actions"><button disabled={busy || loading || !source} onClick={() => setReload(value => value + 1)}>Refresh source</button></div></div>
   {!source && <div className="empty"><p>Choose a permitted vault to browse.</p></div>}
-  {loading && <p role="status">Decrypting permitted source items…</p>}
-  {busy && <p role="status">Processing the requested action…</p>}
+  {loading && <p className="loading" role="status">Decrypting permitted source items…</p>}
+  {busy && <p className="loading" role="status">Processing the requested action…</p>}
   <nav className="actions" aria-label="Organization sections">{[['search', 'Search'], ['collections', 'Collections'], ['trash', 'Trash']].map(([value, label]) => <button key={value} aria-pressed={tab === value} disabled={busy} onClick={() => chooseTab(value)}>{label}</button>)}</nav>
   {snapshot && <>
    <div className="rule-view"><span>{dots(['Current source', 'kind', 'owner'])}</span><span>{dots([vaultName(snapshot.vault.id), kindLabel(snapshot.vault.kind), ownerName(snapshot.vault.owner)])}</span></div>
