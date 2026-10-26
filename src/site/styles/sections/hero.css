@@ -1,5 +1,9 @@
-/* 01, the approved hero C. The headline is the picture: four forced lines of
-   the heavy grotesk at size F, the largest that fits the fold: 14.35vw, so a
+/* 01, the approved hero C. Editable baseline: page-s2/page-01.png,
+   12ui fresh conversion (26 Oct brief), hero/output/index.html. Its 218 px
+   type at 1536 and five-part black band are integrated here with the live
+   Geist fonts, letter leaders and the existing tablet/full-bleed fixes.
+   The headline is the picture: four forced lines of
+   the heavy grotesk at size F, the largest that fits the fold: 14.05vw, so a
    16:10 window crops it by the right edge as hero C does, or the height left
    once the header strip, the first and last annotations and the band are set,
    so a 16:9 window shows it whole. The four annotations sit in the headline's
@@ -18,24 +22,24 @@
   --note-max: max(19px, min(1.4vw, 26px));
   /* Line one's top: the header strip down to just under its links, then the first annotation's line. */
   --T: calc(var(--lk-header-top) + .87 * var(--lk-lockup) + 1.15 * var(--note-max) + 2px);
-  --F: min(14.35vw, calc((100vh - var(--T) - 1.55 * var(--note-max) - var(--band)) / 3.335));
+  --F: min(14.05vw, calc((100vh - var(--T) - 1.55 * var(--note-max) - var(--band)) / 3.335));
   /* 1px where the annotations are white, else 0: F at least 140 px, and room between the second's letter
      and the window's edge for its first line of 47 characters of .6em, so its second starts "Cloudflare". */
   --lit: min(clamp(0px, (var(--F) - 140px) * 1000, 1px),
     clamp(0px, (98.47vw - 8px - 3.69 * var(--F) - 28.2 * max(19px, .0975 * var(--F))) * 1000, 1px));
-  --note: max(clamp(12px, .0975 * var(--F), 26px), var(--lit) * 19);
+  --note: max(clamp(13px, .0975 * var(--F), 26px), var(--lit) * 19);
   --note-ink: rgb(calc(255 * sign(var(--lit))) calc(255 * sign(var(--lit))) calc(255 * sign(var(--lit))));
   position: relative; display: flex; flex-direction: column; min-height: max(100vh, 620px); padding: 0; overflow: clip;
   background: var(--lk-tangerine); color: var(--lk-black);
 }
 .landing .hero .site-header { position: absolute; top: 0; left: 0; right: 0; }
 .hero-poster { position: relative; flex: 1 0 auto; padding: var(--T) 0 calc(.015 * var(--F) + 1.15 * var(--note) + .4 * var(--note-max)) 1.53vw; }
-.hero-title { margin: 0; font: 900 var(--F)/.83 var(--lk-sans); letter-spacing: -.012em; word-spacing: .05em; white-space: nowrap; }
-.hero-line { display: block; }
+.hero-title { margin: 0; font: 900 var(--F)/.83 var(--lk-sans); letter-spacing: -.012em; word-spacing: .05em; white-space: nowrap; padding-bottom: .4em; margin-bottom: -.4em; }
+.hero-line { display: block; padding-bottom: .4em; margin-bottom: -.4em; }
 
-.hero-notes { position: absolute; top: var(--T); left: 1.53vw; right: 2.36vw; margin: 0; padding: 0; list-style: none; }
+.hero-notes { position: absolute; top: var(--T); left: 1.53vw; right: 8px; margin: 0; padding: 0; list-style: none; }
 .hero-note {
-  position: absolute; margin: 0; font: 700 var(--note)/1.15 var(--lk-mono); letter-spacing: 0; color: var(--note-ink);
+  position: absolute; margin: 0; font: 700 var(--note)/1.3 var(--lk-mono); letter-spacing: 0; color: var(--note-ink);
 }
 .hero-note .leader-to { left: -.85em; top: .58em; }
 /* Positions in the headline's size F, from the headline's top-left; line k's baseline sits at .775F + (k - 1) x .83F. */
@@ -43,8 +47,9 @@
 .hero-note.posted { left: calc(2.86 * var(--F)); bottom: 0; white-space: nowrap; translate: min(0px, calc(96.11vw - 2.86 * var(--F) - 100%)) 0; }
 /* The second starts past "change" and is centred between line two's baseline and the x-height of "changes",
    running to 8 px from the window's edge; its last two segments break together. */
-.hero-note.replaced { left: calc(3.69 * var(--F)); right: calc(8px - 2.36vw); top: calc(1.75 * var(--F) - 1.145 * var(--note)); }
+.hero-note.replaced { left: calc(3.69 * var(--F)); right: 0; top: calc(1.75 * var(--F) - 1.145 * var(--note)); }
 .hero-note-tail { white-space: nowrap; }
+@media (min-width: 1181px) { .hero-note.replaced { font-size: clamp(13px, .85vw, 20px); } }
 .hero-note.revoked { left: calc(4.62 * var(--F)); right: 0; top: calc(2.25 * var(--F) - 1.15 * var(--note)); }
 .hero-note.counted { left: calc(2.8 * var(--F)); top: calc(3.335 * var(--F)); white-space: nowrap; }
 /* The leaders take the annotations' colour; black is also what they keep where sign() is not supported. */
@@ -82,8 +87,8 @@
   .landing .hero { min-height: 0; }
   .landing .hero .site-header { position: relative; }
   .hero-poster { padding: 12px 24px 20px; }
-  .hero-title { font-size: clamp(44px, 13.85vw, 66px); line-height: .9; letter-spacing: -.025em; white-space: normal; }
-  .hero-line { display: inline; }
+  .hero-title { font-size: clamp(44px, 13.85vw, 66px); line-height: .9; letter-spacing: -.025em; white-space: normal; padding-bottom: .22em; margin-bottom: -.22em; }
+  .hero-line { display: inline; padding: 0; margin: 0; }
   .hero-notes { position: static; display: grid; gap: 6px; margin-top: 14px; }
   .landing .hero .hero-note { position: relative; inset: auto; translate: none; padding-left: 16px; font: 500 15px/1.3 var(--lk-mono); white-space: normal; }
   .hero-note::before { content: ''; position: absolute; left: 0; top: .46em; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
@@ -96,3 +101,18 @@
 }
 /* Under 381 px the second annotation's last two segments no longer fit one line of the list together. */
 @media (max-width: 380px) { .hero-note-tail { white-space: normal; } }
+
+.landing .hero > .ground-plate { bottom: var(--band); }
+
+/* Reserve the font's transparent descent in the poster's own box without
+   moving the painted baseline or the full-bleed band. */
+@media (min-width: 761px) {
+  .hero-poster { padding-bottom: calc(.315 * var(--F) + 1.15 * var(--note) + .4 * var(--note-max)); margin-bottom: calc(-.3 * var(--F)); }
+}
+/* The narrow tablet gap keeps the three-line annotation beyond “changes”. */
+@media (min-width: 761px) and (max-width: 860px) {
+  .hero-note.replaced { left: calc(3.69 * var(--F)); }
+  .hero-note-remainder { display: block; margin-left: calc(.8 * var(--F)); }
+  .hero-note-tail { white-space: normal; }
+  .hero-note.revoked { top: calc(2.25 * var(--F) - 1.15 * var(--note) + 8px); }
+}

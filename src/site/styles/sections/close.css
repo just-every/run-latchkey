@@ -1,7 +1,9 @@
-/* 09: the method in three words at near hero scale, the actions, the footer. */
+/* 09: integrated from fresh page-09 conversion with the picked clean
+   closing copy and the existing footer mark.
+   09: the method in three words at near hero scale, the actions, the footer. */
 .close { padding-top: clamp(64px, 20.6vh, 300px); padding-bottom: clamp(28px, 5.8vh, 80px); }
-.close-title { margin: 0; font: 900 clamp(48px, 10.07vw, 230px)/.9 var(--lk-sans); letter-spacing: -.035em; word-spacing: .065em; text-wrap: balance; }
-.close-line { margin: .52em 0 0; font: 400 clamp(20px, 3.2vw, 68px)/1.2 var(--lk-sans); letter-spacing: -.02em; text-wrap: pretty; }
+.close-title { margin: 0; font: 900 clamp(48px, 10.07vw, 230px)/.9 var(--lk-sans); letter-spacing: -.035em; word-spacing: .065em; text-wrap: balance; padding-bottom: .22em; margin-bottom: -.22em; }
+.close-line { margin: .52em 0 0; font: 400 clamp(20px, 3.2vw, 68px)/1.35 var(--lk-sans); letter-spacing: -.02em; text-wrap: pretty; }
 .close-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 20px clamp(28px, 3.9vw, 80px); margin-top: clamp(28px, 4.4vw, 90px); }
 .close-actions .run-button { min-height: 2.36em; padding: 0 1.05em; font-size: clamp(19px, 2.36vw, 50px); }
 .close-actions .text-link { font-size: clamp(18px, 2.22vw, 46px); }

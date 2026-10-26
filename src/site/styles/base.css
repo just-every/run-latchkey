@@ -28,3 +28,10 @@ svg.leaders { position: absolute; inset: 0; width: 100%; height: 100%; pointer-e
 svg.leaders line { stroke: var(--leader, var(--lk-white)); stroke-width: var(--lk-hairline); }
 svg.leaders circle { fill: var(--leader, var(--lk-white)); }
 .leader-to { position: absolute; width: 0; height: 0; }
+
+/* Keep the native font's ascenders and descenders inside its layout box. */
+.landing .run-button > span, .landing .lockup-word { line-height: 1.3; }
+.landing .site-nav, .landing .site-footer nav { line-height: 1.3; }
+.landing .text-link { line-height: 1.3; }
+
+.landing .site-menu summary span { line-height: 1.3; }

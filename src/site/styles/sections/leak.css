@@ -1,4 +1,5 @@
-/* 02: the log on the bottom baseline, its first line the page's one reversed slug. */
+/* 02: integrated from the fresh page-02 conversion; native type replaces
+   its external Inter, and the picked phone plan governs wrapping. The log on the bottom baseline, its first line the page's one reversed slug. */
 .leak { --measure: 26.4em; }
 .log li { width: fit-content; }
 .log li + li { margin-top: .32em; }
@@ -8,5 +9,11 @@
 @media (max-width: 760px) {
   .log li + li { margin-top: 14px; }
   .log-time { display: block; }
-  .log-slug { padding: 4px .3em 5px; }
+  .log-slug { max-width: min(100%, 19.6em); padding: 4px .3em 5px; }
+}
+
+@media (max-width: 760px) {
+  .leak .screen-title { max-width: 5.5em; }
+  .leak .screen-line { max-width: 21em; margin-top: 40px; }
+  .leak .screen-proof { line-height: 1.5; }
 }

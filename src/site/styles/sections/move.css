@@ -1,19 +1,21 @@
-/* 08: one equation in black mono, its label under it on a short leader (desk fix 4). */
+/* 08: fresh page-08 conversion: compact equation and short horizontal
+   leader on the same baseline. The picked image governs its scale. */
 .move { --measure: 32em; }
 /* The plate's first line, 'The move from 1Password,', is the page's widest heading: it may run into the right gutter. */
 .move .screen-title { margin-right: calc(-.6 * var(--lk-gutter)); }
-.equation-sum { color: var(--lk-black); font: 500 clamp(48px, 8.34vw, 176px)/1 var(--lk-mono); letter-spacing: -.02em; white-space: nowrap; }
-.equation-label { display: flex; flex-wrap: wrap; align-items: center; gap: 0 .5em; margin-top: .9em !important; font-size: clamp(15px, 1.667vw, 36px); }
+.equation-sum { flex: none; color: var(--lk-black); font: 500 clamp(48px, 5.55vw, 136px)/1.3 var(--lk-mono); letter-spacing: -.02em; white-space: nowrap; }
+.equation { display: flex; align-items: center; gap: 16px; padding-bottom: 4px; }
+.equation-label { display: flex; flex-wrap: wrap; align-items: center; gap: 0 .5em; line-height: 1.5; margin-top: 0 !important; font-size: clamp(15px, 1.3vw, 30px); }
 .leader-h { position: relative; display: inline-block; width: 3.6em; height: var(--lk-hairline); margin: 0 .3em 0 4px; background: currentColor; }
 .leader-h::before, .leader-h::after { content: ''; position: absolute; top: 50%; width: 8px; height: 8px; margin-top: -4px; border-radius: 50%; background: currentColor; }
 .leader-h::before { left: -4px; }
 .leader-h::after { right: -4px; }
-/* The label reaches 24 px at 1440 px (1.667vw): black below, white from there (fix 2). */
-.screen[data-ground='tangerine'] .equation-label { color: var(--lk-black); }
-@media (min-width: 1440px) { .screen[data-ground='tangerine'] .equation-label { color: var(--lk-white); } }
+.screen[data-ground='tangerine'] .equation-label { color: var(--lk-white); }
 
 @media (max-width: 760px) {
   .move .screen-title { margin-right: 0; }
+  .equation { display: block; }
+  .equation-label { margin-top: .9em !important; }
   .equation-sum { font-size: clamp(38px, 11.4vw, 60px); }
   .equation-label { font-size: 15px; gap: 2px .4em; }
   .leader-h { width: 32px; }
