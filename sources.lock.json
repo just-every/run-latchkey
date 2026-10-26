@@ -2342,7 +2342,7 @@
       "executable": false
     },
     "src/latchkey/ui/styles.ts": {
-      "sha256": "7cf782b8dd0f7d1fe42be2b5b5864090417d03c76f6054c94a0569360c397e4a",
+      "sha256": "5059fadac9bf3d682aa192fb9ca084ecfbca06d97ae492e8691376f81215afc2",
       "executable": false
     },
     "src/latchkey/ui/tabs.tsx": {
