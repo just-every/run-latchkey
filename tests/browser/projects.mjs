@@ -205,6 +205,10 @@ export async function specialistBoundaryJourney(f, width) {
   await f.page.getByRole('button',{name:/Private certificate/}).click();
   const copyControl=f.page.getByRole('button',{name:'Copy Private key',exact:true});
   const copyTooltip=f.page.getByRole('tooltip',{name:'Copy field'});
+  // History arrives after the fields render. Finish that layout before
+  // positioning the pointer for a continuous hover and its delay sample.
+  await expect(f.page.getByRole('article',{name:'Private certificate',exact:true}).getByRole('button',{name:/^Version 1 /})).toBeVisible();
+  await copyControl.scrollIntoViewIfNeeded();
   await f.page.mouse.move(0,0);
   // Sample in the mouse event, so a delayed test driver cannot miss the delay.
   await copyControl.evaluate(button => {
