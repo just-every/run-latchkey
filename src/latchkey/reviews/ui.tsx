@@ -40,13 +40,13 @@ function GrantReview({ client, row, review, people, account, owner, busy, active
    <div className="rule-view"><span>Assigned reviewer</span><span>{people.find(person => person.account === row.reviewer)?.name ?? (row.reviewer ? 'Reviewer' : 'Unassigned')}{row.reviewer && <> · {row.reviewer}</>}</span></div>
   </div></details>
   {owner && active && !row.decision && <form onSubmit={event => { event.preventDefault(); void act(() => client.call('reviews/assign', { review, key: row.key, reviewer }), 'Reviewer assigned.'); }}>
-   <label>Reviewer for {row.key}<select className="vault-select" required disabled={busy} value={reviewer ?? ''} onChange={event => setReviewer(event.target.value)}><option value="">Choose reviewer</option>{people.map(person => <option key={person.account} value={person.account}>{person.name} · {person.account} ({person.role})</option>)}</select></label>
+<label>Reviewer<select aria-label={`Reviewer for ${row.key}`} className="vault-select" required disabled={busy} value={reviewer ?? ''} onChange={event => setReviewer(event.target.value)}><option value="">Choose reviewer</option>{people.map(person => <option key={person.account} value={person.account}>{person.name} · {person.account} ({person.role})</option>)}</select></label>
    <button disabled={busy || !reviewer || reviewer === row.reviewer}>Assign reviewer</button>
   </form>}
   {assigned && active && !row.decision && <form className="tool-box" onSubmit={event => { event.preventDefault(); if (!reason.trim() || decision === 'confirm' && ownAccess) return; void act(() => client.call('reviews/decide', { review, key: row.key, decision, reason: reason.trim() }), 'Decision recorded.'); }}>
    {ownAccess && <p className="notice">You are the subject or sponsor of this access. Independent review is required to confirm it; ask the owner to assign another reviewer.</p>}
-   <label>Decision for {row.key}<select className="vault-select" disabled={busy} value={decision} onChange={event => setDecision(event.target.value)}><option value="confirm" disabled={ownAccess}>Confirm access</option><option value="remove">Remove access</option></select></label>
-   <label>Decision reason for {row.key}<textarea required maxLength={1000} disabled={busy} value={reason} onChange={event => setReason(event.target.value)}/></label>
+<label>Decision<select aria-label={`Decision for ${row.key}`} className="vault-select" disabled={busy} value={decision} onChange={event => setDecision(event.target.value)}><option value="confirm" disabled={ownAccess}>Confirm access</option><option value="remove">Remove access</option></select></label>
+<label>Decision reason<textarea aria-label={`Decision reason for ${row.key}`} required maxLength={1000} disabled={busy} value={reason} onChange={event => setReason(event.target.value)}/></label>
    <button disabled={busy || !reason.trim() || decision === 'confirm' && ownAccess}>Record decision</button>
   </form>}
   {owner && active && row.decision === 'remove' && !row.effective && <div className="tool-box"><p>Apply this removal to grant {row.key}, subject {row.subject}, with rights {text(row.rights)}. This changes live access and may rekey the vault.</p><button disabled={busy} onClick={() => void act(async () => { const { ReviewClient } = await import('./client.mjs'); await new ReviewClient(client).applyRemoval(review, row.key); }, 'Removal applied and campaign refreshed.')}>Apply removal</button></div>}
@@ -103,7 +103,7 @@ export function ReviewsPanel({ client, vault, run }: any) {
   <div className="actions"><button disabled={busy || loading} onClick={() => void act(null, 'Access reviews refreshed.')}>Refresh reviews</button></div>
   {stale && <p className="notice" role="alert">The last action could not be verified. Refresh to inspect current campaign and grant state before trying another change.</p>}
   {!loading && !error && campaigns.length === 0 && <div className="empty"><h2>No access reviews</h2><p>{owner ? 'Schedule the first review for this vault.' : 'The vault owner has not scheduled a review.'}</p></div>}
-  {campaigns.length > 0 && <label>Campaign<select aria-label="Campaign" className="vault-select" disabled={busy || loading} value={selected} onChange={event => void chooseCampaign(event.target.value)}>{campaigns.map(row => <option key={row.id} value={row.id}>{row.id} · {row.phase} · due {when(row.due_at)}</option>)}</select></label>}
+  {campaigns.length > 0 && <label>Campaign<select aria-label="Campaign" className="vault-select" disabled={busy || loading} value={selected} onChange={event => void chooseCampaign(event.target.value)}>{campaigns.map(row => <option key={row.id} value={row.id}>{row.phase} · due {when(row.due_at)} · {row.id}</option>)}</select></label>}
   {!loading && vaultOwner === account && <details className="tool-box"><summary>Schedule an owner-led review</summary><form onSubmit={event => {
    event.preventDefault();
    // Dates are checked beside their fields first; every entered value stays until the campaign exists.
