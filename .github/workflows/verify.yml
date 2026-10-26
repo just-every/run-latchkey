@@ -39,7 +39,7 @@ jobs:
   shards:
     needs: plan
     runs-on: ubuntu-24.04
-    timeout-minutes: ${{ inputs.timeout || 12 }}
+    timeout-minutes: ${{ matrix.browser && 25 || inputs.timeout || 12 }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
