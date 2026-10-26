@@ -56,7 +56,7 @@ for(const width of [1440,390]){
   await finding().getByRole('button',{name:'Open affected item',exact:true}).click();await expect(f.page.getByRole('heading',{name:'Synthetic payroll login',exact:true})).toBeVisible();
   // The existing icon controls in this touched vault screen retain hover and keyboard tooltips.
   const reveal=f.page.getByRole('button',{name:/Reveal Password/i}).first();
-  await expect(reveal).toBeVisible();{await reveal.hover();await expect(f.page.getByRole('tooltip').filter({hasText:/Reveal/}).first()).toBeVisible();await reveal.focus();await expect(f.page.getByRole('tooltip').filter({hasText:/Reveal/}).first()).toBeVisible();}
+  await expect(reveal).toBeVisible();const description=await reveal.getAttribute('aria-describedby'),tooltip=f.page.locator(`[id="${description}"]`);await reveal.focus();await expect(tooltip).toBeVisible();await f.page.keyboard.press('Tab');await reveal.hover();await f.page.clock.runFor(350);await expect(tooltip).toBeVisible();
   mfa=true;
   const current=(await owner.readItem(vault,first.object)).versions.at(-1);await owner.put(vault,{...current.value,fields:current.value.fields.map(field=>field.id==='password'?{...field,value:freshPassword}:field.id==='passwordChangedAt'?{...field,value:'2025-02-01'}:field)},first.object,current.version);
   await settings('Password health');await f.page.getByLabel('GitHub token (optional)').fill('synthetic-latchkey-2630');await f.page.getByRole('button',{name:'Check with HIBP',exact:true}).click();await expect(f.page.getByRole('heading',{name:'Synthetic payroll login · reused password',exact:true})).toHaveCount(0);await expect(f.page.getByRole('heading',{name:'Synthetic payroll login · breached password',exact:true})).toHaveCount(0);

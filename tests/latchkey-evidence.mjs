@@ -35,7 +35,7 @@ export async function runEvidenceJourneys({owner,review,outsider,db,password}){
   assert.deepEqual(await new EvidenceClient(owner).loadCredential(config),providerCredential);
   await assert.rejects(owner.call(evidenceRoutes.credentialSave,{destination:config.id,revision:config.revision,version:0,wrapped:JSON.parse(stored.credential),confirmed:true}),error=>error.code==='evidence_credential_changed');
   if(outsider)await assert.rejects(new EvidenceClient(outsider).loadCredential(config),error=>error.code==='evidence_destination_not_found');
-  const corrupt=JSON.parse(stored.credential);corrupt.signature=corrupt.signature.slice(0,-2)+'AA';
+  const corrupt=JSON.parse(stored.credential);corrupt.signature=(corrupt.signature[0]==='A'?'B':'A')+corrupt.signature.slice(1);
   await db.prepare('UPDATE lky_evidence_destinations SET credential=? WHERE id=?').bind(JSON.stringify(corrupt),config.id).run();
   await assert.rejects(client.loadCredential(config));
   await db.prepare('UPDATE lky_evidence_destinations SET credential=? WHERE id=?').bind(stored.credential,config.id).run();
