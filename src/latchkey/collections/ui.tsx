@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { OrganizationClient, filterRecords } from './client.mjs';
 import { BulkClient } from './bulk-client.mjs';
 import { LifecycleClient } from '../lifecycle/client.mjs';
@@ -18,13 +18,19 @@ function ItemReference({ row }: { row: Selected }) {
  return <div className="rule-view"><span>{row.title}</span><span>{reference(row)}</span></div>;
 }
 
-function SearchControls({ criteria, setCriteria, disabled }: { criteria: Criteria; setCriteria: (value: Criteria) => void; disabled: boolean }) {
+// The search field stays in view; every other filter, the saved filters and how counts work fold
+// under one Filters control that names how many filters apply.
+function SearchControls({ criteria, setCriteria, disabled, open, onToggle, children }: { criteria: Criteria; setCriteria: (value: Criteria) => void; disabled: boolean; open: boolean; onToggle: (open: boolean) => void; children: ReactNode }) {
  const update = (key: keyof Criteria, value: unknown) => {
   const next = { ...criteria }; if (value === '' || value === undefined) delete next[key]; else (next as any)[key] = value;
   setCriteria(next);
  };
- return <div className="form-grid">
+ const applied = Object.entries(criteria).filter(([key, value]) => key !== 'query' && !(key === 'state' && value === 'active')).length;
+ return <div className="find">
   <label>Search permitted decrypted items<input type="search" maxLength={500} value={criteria.query ?? ''} disabled={disabled} onChange={event => update('query', event.target.value)}/></label>
+  <details className="filters" open={open} onToggle={event => onToggle(event.currentTarget.open)}><summary>Filters{applied ? ` · ${applied} applied` : ''}</summary>
+  <p className="muted">Search runs locally over items you can decrypt. Counts apply only to permitted decrypted items in the source vault. Selections remain when you browse another vault.</p>
+  <div className="form-grid">
   <label>Item type<input maxLength={200} value={criteria.type ?? ''} disabled={disabled} placeholder="Any type" onChange={event => update('type', event.target.value)}/></label>
   <label>Tag<input maxLength={200} value={criteria.tag ?? ''} disabled={disabled} onChange={event => update('tag', event.target.value)}/></label>
   <label>Favorite<select value={criteria.favorite === undefined ? '' : String(criteria.favorite)} disabled={disabled} onChange={event => update('favorite', event.target.value === '' ? undefined : event.target.value === 'true')}><option value="">Any</option><option value="true">Favorites</option><option value="false">Not favorites</option></select></label>
@@ -33,6 +39,8 @@ function SearchControls({ criteria, setCriteria, disabled }: { criteria: Criteri
   <label>Health<select value={['unknown', 'healthy', 'findings'].includes(criteria.health ?? '') ? criteria.health : criteria.health ? 'custom' : ''} disabled={disabled} onChange={event => update('health', event.target.value === 'custom' ? 'custom' : event.target.value)}><option value="">Any health</option><option value="unknown">Unknown: no findings evidence</option><option value="healthy">Healthy: checked, no findings</option><option value="findings">Has findings</option><option value="custom">Specific finding</option></select></label>
   {criteria.health && !['unknown', 'healthy', 'findings'].includes(criteria.health) && <label>Finding code, type, severity or status<input maxLength={200} value={criteria.health} disabled={disabled} onChange={event => update('health', event.target.value)}/></label>}
   <label>Item state<select value={criteria.state ?? 'active'} disabled={disabled} onChange={event => update('state', event.target.value)}><option value="active">Active</option><option value="archived">Archived indefinitely</option><option value="trash">Trash: 30-day retention</option></select></label>
+  </div>
+  {children}</details>
  </div>;
 }
 
@@ -73,7 +81,7 @@ export function OrganizationPanel({ client, vault, run, onChanged, names, onName
  const [ownershipConfirmed, setOwnershipConfirmed] = useState(false), [people, setPeople] = useState<{ account: string; name: string }[]>([]);
  const [lastOperation, setLastOperation] = useState<string | null>(null), [undoConfirmed, setUndoConfirmed] = useState(false);
  const [transition, setTransition] = useState<{ state: string; items: Selected[] } | null>(null), [transitionConfirmed, setTransitionConfirmed] = useState(false), [outcomes, setOutcomes] = useState<Outcome[]>([]);
- const [savedFilter, setSavedFilter] = useState(''), [filterName, setFilterName] = useState(''), [collectionName, setCollectionName] = useState(''), [parent, setParent] = useState('');
+ const [filtersOpen, setFiltersOpen] = useState(false), [savedFilter, setSavedFilter] = useState(''), [filterName, setFilterName] = useState(''), [collectionName, setCollectionName] = useState(''), [parent, setParent] = useState('');
  const context = useRef(0), mounted = useRef(true);
  const invalidate = () => { setPreview(null); setConfirmed(false); setOwnershipConfirmed(false); setTransition(null); setTransitionConfirmed(false); };
  useEffect(() => { mounted.current = true; return () => { mounted.current = false; context.current++; }; }, []);
@@ -165,10 +173,14 @@ export function OrganizationPanel({ client, vault, run, onChanged, names, onName
   await notify();
   if (token === context.current) setStatus(observed.some(item => item.error) ? 'Some changes failed or could not be verified. Review every actual outcome below.' : 'The requested state was verified for every selected reference.');
  });
+ // A result's one quiet line: its type, then only what sets it apart (favorite, another owner, a
+ // later version, health evidence, a non-active state, dates, labels and tags).
+ const meta = (row: any): string[] => [typeLabel(row.value.type), row.value.favorite && 'Favorite', row.value.owner && row.value.owner !== snapshot?.vault.owner && ownerName(row.value.owner), row.version > 1 && `Version ${row.version}`,
+  Array.isArray(row.value.healthFindings) && (row.value.healthFindings.length ? `${row.value.healthFindings.length} findings` : 'No findings'), row.lifecycle.state === 'archived' && 'Archived', row.lifecycle.state === 'trash' && `In trash until ${date(row.lifecycle.expiresAt)}`,
+  ...(row.value.fields ?? []).filter((field: any) => field.type === 'date' && !field.secret).map((field: any) => `${field.label || 'Expiry'}: ${String(field.value ?? 'Not set')}`), ...(row.value.labels ?? []), ...(row.value.tags ?? []).map((tag: string) => `#${tag}`)].filter(Boolean);
  const chooseTab = (value: string) => { setTab(value); setCollectionView(''); setLimit(50); if (value === 'trash') setCriteria({ ...criteria, state: 'trash' }); else if (value === 'search') setCriteria({ ...criteria, state: 'active' }); };
  return <section className="detail section" aria-label="Find and organize items" aria-busy={loading || busy}>
   <h1>Find and organize</h1>
-  <p className="muted">Search runs locally over items you can decrypt. Counts apply only to permitted decrypted items in the source vault. Selections remain when you browse another vault.</p>
   {error && <div className="error" role="alert"><span>{error}</span></div>}
   {status && <p className="notice" role="status">{status}</p>}
   <div className="form-grid"><label>Browse vault<select className="vault-select" value={source} disabled={busy} onChange={event => setSource(event.target.value)}><option value="">Choose source vault</option>{vaults.map(row => <option key={row.id} value={row.id}>{vaultName(row.id)} · {kindLabel(row.kind)}</option>)}</select></label><div className="actions"><button disabled={busy || loading || !source} onClick={() => setReload(value => value + 1)}>Refresh source</button></div></div>
@@ -179,8 +191,7 @@ export function OrganizationPanel({ client, vault, run, onChanged, names, onName
   {snapshot && <>
    <div className="rule-view"><span>{dots(['Current source', 'kind', 'owner'])}</span><span>{dots([vaultName(snapshot.vault.id), kindLabel(snapshot.vault.kind), ownerName(snapshot.vault.owner)])}</span></div>
    {tab === 'trash' && <p className="notice">Deleted items remain in trash for 30 days by default before permanent erasure. Archive is indefinite. Restore requires independent restore permission and current destination create rights. Company administrators cannot restore family items.</p>}
-   <SearchControls criteria={criteria} setCriteria={changeCriteria} disabled={busy || loading}/>
-   <details className="tool-box"><summary>Saved filters</summary>
+   <SearchControls criteria={criteria} setCriteria={changeCriteria} disabled={busy || loading} open={filtersOpen} onToggle={setFiltersOpen}><section className="tool-box" aria-label="Saved filters"><h3>Saved filters</h3>
     <label>Apply saved filter<select value={savedFilter} disabled={busy} onChange={event => {
      const id = event.target.value; const row = filters.find(item => item.object === id); setSavedFilter(id); setFilterName(row?.value.name ?? '');
      if (row) { try { filterRecords(snapshot.records, row.value.criteria, { lifecycle: snapshot.lifecycle, owner: snapshot.vault.owner }); changeCriteria(row.value.criteria); setError(''); } catch (cause) { setError(message(cause)); } }
@@ -189,10 +200,13 @@ export function OrganizationPanel({ client, vault, run, onChanged, names, onName
     <form onSubmit={event => { event.preventDefault(); void execute(async token => { await organization.saveFilter(source, { name: filterName.trim(), criteria }, savedFilter || undefined); await refresh(token); await notify(); if (token === context.current) setStatus('Saved filter stored in the source vault.'); }); }}>
      <label>Filter name<input required maxLength={200} value={filterName} disabled={busy} onChange={event => setFilterName(event.target.value)}/></label><button disabled={busy || !filterName.trim()}>{savedFilter ? 'Update saved filter' : 'Save current filter'}</button>
     </form>
-   </details>
+   </section></SearchControls>
    {tab === 'collections' && <section className="tool-box" aria-label="Nested collections"><h2>Collections</h2>
     {!collections.length && <p>No collections in this vault.</p>}
-    {collections.map(row => <article className="definition fingerprint" key={row.object}><div className="rule-view"><span>{collectionPath(row.object)}</span><span>{row.object}</span></div><p>{row.value.items.filter((id: string) => permitted.some(item => item.object === id)).length} permitted decrypted member items.</p><button disabled={busy} onClick={() => { setCollectionView(row.object); setLimit(50); }}>Show permitted items in {row.value.name}</button></article>)}
+    {!!collections.length && <ul className="results">{collections.map(row => <li className="result" key={row.object}><span className="result-name">{collectionPath(row.object)}</span>
+     <p className="result-meta">{row.value.items.filter((id: string) => permitted.some(item => item.object === id)).length} permitted decrypted member items.</p>
+     <button className="small" disabled={busy} onClick={() => { setCollectionView(row.object); setLimit(50); }}>Show permitted items in {row.value.name}</button>
+     <details><summary>Reference<span className="sr-only"> for {collectionPath(row.object)}</span></summary><div className="rule-view"><span>Collection reference</span><span>{row.object}</span></div></details></li>)}</ul>}
     <form onSubmit={event => { event.preventDefault(); void execute(async token => { await organization.collection(source, { name: collectionName.trim(), parent: parent || null, items: currentSelection.map(row => row.object) }); await refresh(token); await notify(); if (token === context.current) { setCollectionName(''); setStatus('Collection created with the selected source items.'); } }); }}>
      <label>New collection name<input required maxLength={200} disabled={busy} value={collectionName} onChange={event => setCollectionName(event.target.value)}/></label>
      <label>Parent collection<select disabled={busy} value={parent} onChange={event => setParent(event.target.value)}><option value="">Top level</option>{collections.map(row => <option key={row.object} value={row.object}>{collectionPath(row.object)}</option>)}</select></label>
@@ -203,15 +217,17 @@ export function OrganizationPanel({ client, vault, run, onChanged, names, onName
    <section className="tool-box" aria-label="Search results"><h2>{collectionView ? 'Collection items matching filters' : 'Matching items'}</h2><p role="status">{visible.length} permitted decrypted items match. Showing {Math.min(limit, visible.length)}.</p>
     {collectionView && <button disabled={busy} onClick={() => setCollectionView('')}>Clear collection scope</button>}
     {!visible.length && <div className="empty"><p>{criteria.state === 'trash' ? 'No permitted trash items match.' : criteria.state === 'archived' ? 'No permitted archived items match.' : 'No permitted active items match.'}</p></div>}
-    {visible.slice(0, limit).map(row => <article className="definition fingerprint" key={row.object}>
+    {!!visible.length && <ul className="results">{visible.slice(0, limit).map(row => <li className="result" key={row.object}>
      <label className="check"><input type="checkbox" disabled={busy} checked={selection.some(item => item.vault === source && item.object === row.object)} onChange={event => updateSelection(row, event.target.checked)}/>{row.value.title}</label>
-     <div className="rule-view"><span>{dots(['Object reference', 'version', 'type'])}</span><span>{dots([`${source}/${row.object}`, String(row.version), typeLabel(row.value.type)])}</span></div>
-     <p>State: {row.lifecycle.state}. {row.value.favorite ? 'Favorite. ' : ''}Owner: {ownerName(row.value.owner ?? snapshot.vault.owner)}.</p>
-     <p>Health: {!Array.isArray(row.value.healthFindings) ? 'Unknown — no findings evidence reported.' : row.value.healthFindings.length ? `${row.value.healthFindings.length} findings reported.` : 'Checked; no findings reported.'}</p>
-     {row.lifecycle.state === 'archived' && <p>Archived indefinitely; excluded from normal fill suggestions and active remediation.</p>}
-     {row.lifecycle.state === 'trash' && <p>Trash retention expires: {date(row.lifecycle.expiresAt)}.</p>}
-     {row.value.fields?.filter((field: any) => field.type === 'date' && !field.secret).map((field: any) => <p key={field.id}>{field.label || 'Expiry'}: {String(field.value ?? 'Not set')}</p>)}
-    </article>)}
+     <p className="result-meta">{dots(meta(row))}</p>
+     <details><summary>Details<span className="sr-only"> for {row.value.title}</span></summary>
+      <div className="rule-view"><span>{dots(['Object reference', 'version', 'type'])}</span><span>{dots([`${source}/${row.object}`, String(row.version), typeLabel(row.value.type)])}</span></div>
+      <p>State: {row.lifecycle.state}. {row.value.favorite ? 'Favorite. ' : ''}Owner: {ownerName(row.value.owner ?? snapshot.vault.owner)}.</p>
+      <p>Health: {!Array.isArray(row.value.healthFindings) ? 'Unknown — no findings evidence reported.' : row.value.healthFindings.length ? `${row.value.healthFindings.length} findings reported.` : 'Checked; no findings reported.'}</p>
+      {row.lifecycle.state === 'archived' && <p>Archived indefinitely; excluded from normal fill suggestions and active remediation.</p>}
+      {row.lifecycle.state === 'trash' && <p>Trash retention expires: {date(row.lifecycle.expiresAt)}.</p>}
+     </details>
+    </li>)}</ul>}
     {limit < visible.length && <button disabled={busy} onClick={() => setLimit(value => value + 50)}>Show more items</button>}
    </section>
   </>}
