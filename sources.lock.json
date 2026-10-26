@@ -2126,7 +2126,7 @@
       "executable": false
     },
     "src/latchkey/reviews/ui.tsx": {
-      "sha256": "0846937869c2fc862a0d8ac2c2690e1de1394a7ba93b62a6bda961a42766122f",
+      "sha256": "4ebdc294e7ebeca00ab937f14986c1c482adbceb281c5b5be1789350bc78441d",
       "executable": false
     },
     "src/latchkey/rules/clock.mjs": {
@@ -2342,7 +2342,7 @@
       "executable": false
     },
     "src/latchkey/ui/styles.ts": {
-      "sha256": "944f8a63d66451fa6b69a9e3837c98d89c26798d3c680f0b7cc385f81e622108",
+      "sha256": "2873ff06d0130132152d051e4927fed7d8a994d0b7a96110373ffcaea542c0c9",
       "executable": false
     },
     "src/latchkey/ui/tabs.tsx": {
