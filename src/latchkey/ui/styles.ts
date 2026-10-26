@@ -28,11 +28,14 @@ body:has(.lk){padding:0;background:var(--rer-page,#fff)}
 .lk summary{cursor:pointer;font-weight:600;padding:4px 0;margin-bottom:8px}.lk details[open]>summary{margin-bottom:14px}
 .lk .skip{position:absolute;left:12px;top:-100px;background:var(--page);padding:8px;z-index:10}.lk .skip:focus{top:10px}.lk .sr-only{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
 
-.lk .topbar{display:flex;align-items:center;gap:28px;min-height:64px;padding:0 32px;border-bottom:1px solid var(--rule);background:var(--rer-surface,#fff)}
+.lk .topbar{display:flex;align-items:center;gap:24px;min-height:64px;padding:0 32px;border-bottom:1px solid var(--rule);background:var(--rer-surface,#fff)}
 .lk .lockup{display:inline-flex;align-items:center;gap:.6em;flex:none;min-height:24px;color:var(--ink);text-decoration:none;font:900 21px/1 var(--heading);letter-spacing:-.025em}.lk .lockup-mark{display:block;height:1.1em;width:auto}
 .lk .search{display:flex;align-items:center;gap:10px;flex:0 1 360px;min-width:150px;height:40px;padding:0 10px 0 12px;border:1px solid var(--control);border-radius:var(--corner);font-weight:400;color:var(--muted)}.lk .search:focus-within{border-color:var(--ink);box-shadow:0 0 0 3px var(--ring)}
 .lk .search input,.lk .search input:focus-visible{border:0;outline:0;box-shadow:none;background:transparent;min-width:0;flex:1;padding:0;min-height:36px;color:var(--ink)}.lk kbd{font:13px/1 var(--rer-font-body,system-ui);color:var(--muted);border:1px solid var(--rule);border-radius:var(--corner);padding:3px 6px;white-space:nowrap}
-.lk .tabs{display:flex;align-self:stretch;gap:26px;margin:0 auto}.lk .tabs button{align-self:stretch;min-height:64px;padding:0 2px;border:0;border-bottom:3px solid transparent;border-top:3px solid transparent;border-radius:0;background:none;font-weight:400;color:var(--ink)}
+/* The tabs keep their width while the search gives way; only a bar too full for both (a demo's Run
+   link at 1300-1440 px) lets the tab strip scroll, with its faded edges. */
+.lk .tabs{display:flex;align-self:stretch;gap:24px;margin:0 auto;flex:0 .01 auto;min-width:0;overflow-x:auto;scrollbar-width:none}.lk .tabs::-webkit-scrollbar{display:none}.lk .topbar:has(>[data-rer-demo-exit]) .search kbd{display:none}
+.lk .tabs button{align-self:stretch;flex:none;min-height:64px;padding:0 2px;border:0;border-bottom:3px solid transparent;border-top:3px solid transparent;border-radius:0;background:none;font-weight:400;color:var(--ink)}
 .lk .tabs button:hover:not(:disabled){background:none;border-bottom-color:var(--rule)}.lk .tabs button:focus-visible{outline-offset:-3px}.lk .tabs [aria-current=page]{font-weight:650;border-bottom-color:var(--accent)!important}
 .lk .tabs[data-fade~=start]{-webkit-mask-image:linear-gradient(to right,transparent,#000 36px);mask-image:linear-gradient(to right,transparent,#000 36px)}.lk .tabs[data-fade~=end]{-webkit-mask-image:linear-gradient(to left,transparent,#000 36px);mask-image:linear-gradient(to left,transparent,#000 36px)}
 .lk .tabs[data-fade~=start][data-fade~=end]{-webkit-mask-image:linear-gradient(to right,transparent,#000 36px,#000 calc(100% - 36px),transparent);mask-image:linear-gradient(to right,transparent,#000 36px,#000 calc(100% - 36px),transparent)}
@@ -102,11 +105,12 @@ body:has(.lk){padding:0;background:var(--rer-page,#fff)}
 .lk .lk-unlock{max-width:460px;margin:40px auto 0}.lk .lk-unlock h1{font-size:34px}.lk .lk-unlock .muted{font-size:15px;margin-bottom:24px}
 .lk .lk-unlock form{display:grid;gap:16px}.lk .lk-unlock form label+label{margin-top:0}.lk .lk-unlock form .primary{min-height:46px;font-size:16px;margin-top:6px}.lk .lk-unlock form .link{justify-self:start}.lk .lk-unlock .actions{margin:16px 0}
 
-/* The one-row top bar needs about 1270 px with its full gaps and 1180 px with the compact ones; below
-   1300 px it stacks (lockup and actions, the search, then the tabs as their own scrolling row). */
+/* The one-row top bar needs about 1250 px with its full gaps and 1180 px with the compact ones (a
+   demo's Run link adds about 100 px); below 1300 px it stacks (lockup and actions, the search, then
+   the tabs as their own scrolling row). */
 @media(max-width:1359px){.lk .topbar{gap:20px;padding:0 24px}.lk .tabs{gap:18px}.lk .search{flex-basis:240px}}
 @media(max-width:1300px){.lk .topbar{flex-wrap:wrap;row-gap:0;padding:10px 20px 0}.lk .lockup{order:1;margin-right:auto}.lk .lockup:has(+[data-rer-demo-exit]){margin-right:0}.lk .topbar>[data-rer-demo-exit]{order:1;margin-right:auto}.lk .menu{order:2}.lk .lock{order:3}.lk .locked{order:2}.lk .docs{order:3}.lk .search{order:4;flex:1 1 100%;margin:12px 0 4px}
- .lk .tabs{order:5;flex:1 1 100%;margin:0 -20px;padding:0 20px;overflow-x:auto;scrollbar-width:none}.lk .tabs::-webkit-scrollbar{display:none}.lk .tabs button{min-height:48px;flex:none}}
+ .lk .tabs{order:5;flex:1 1 100%;margin:0 -20px;padding:0 20px}.lk .tabs button{min-height:48px}}
 @media(max-width:980px){.lk .page{padding:28px 20px 56px}
  .lk .items-head,.lk .item{grid-template-columns:minmax(0,1.5fr) minmax(0,1.3fr) minmax(0,.6fr) 16px;gap:4px 14px}.lk .items-head span:nth-child(3){display:none}.lk .detail-grid{grid-template-columns:1fr}
  .lk .item .name{grid-area:1/1}.lk .item .user{grid-area:1/2}.lk .item .changed{grid-area:1/3}.lk .item .chevron{grid-area:1/4}.lk .item .state{grid-area:2/1/3/3;margin-left:46px}.lk .item .state.none{display:none}}
