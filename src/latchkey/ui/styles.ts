@@ -68,19 +68,25 @@ body:has(.lk){padding:0;background:var(--rer-page,#fff)}
 
 .lk .detail{min-width:0}.lk .detail-header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}.lk .subtitle{margin:0;color:var(--muted)}
 .lk .actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.lk .actions button{min-height:38px}
-.lk .detail-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:28px 40px;padding-bottom:20px;border-bottom:1px solid var(--rule);margin-bottom:20px}
 .lk .credentials{display:grid;gap:16px;align-content:start}.lk .field>label{margin-bottom:6px;font-size:13px;color:var(--muted)}
+/* The open item stays short: its fields side by side, its websites as one quiet line, any files, then
+   one hairline of folded history, alias, sharing and erasure (an opened one takes the full width). */
+.lk .detail>.credentials{grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:16px 24px;align-items:start}
+.lk .detail-note{display:flex;flex-wrap:wrap;gap:4px 24px;margin:14px 0 0;color:var(--muted);font-size:14px}.lk .detail-note .rule-view{gap:8px;margin:0}.lk .detail-note .rule-view span:first-child{min-width:0}.lk .detail-note .rule-view span:last-child{color:var(--ink)}
+.lk .detail>.attachments{display:grid;justify-items:start;gap:8px;margin-top:14px}.lk .detail>.attachments .file{width:min(100%,560px);margin:0}
+.lk .detail-more{display:flex;flex-wrap:wrap;align-items:flex-start;column-gap:28px;margin-top:16px;border-top:1px solid var(--rule)}.lk .row .detail-more>.section,.lk .row .detail-more>#sharing{padding:0;margin:0}
+.lk .detail-more>:is(details[open],:has(>details[open]),.alias:has(>p)){flex:1 1 100%}.lk .detail-more summary{margin:0;padding:9px 0;font-weight:500;font-size:14px}.lk .detail-more details[open]>summary{margin-bottom:10px}.lk .detail-more>.alias>p{margin:0 0 12px;font-size:14px}
 .lk .input-row{display:flex;align-items:center;gap:2px;min-height:42px;padding:0 4px 0 12px;border:1px solid var(--rule);border-radius:var(--corner);background:var(--page)}.lk .input-row:focus-within{border-color:var(--ink);box-shadow:0 0 0 3px var(--ring)}
 .lk .input-row :is(input,textarea),.lk .input-row :is(input,textarea):focus-visible{border:0;outline:0;box-shadow:none;background:transparent;min-width:0;flex:1;padding:0;min-height:38px;font-size:15px}.lk .input-row button{border:0;background:transparent;width:36px;min-height:36px;padding:0;color:var(--muted)}.lk .input-row button:hover:not(:disabled){color:var(--ink)}
 .lk .field>.small{margin-top:8px}.lk .field-toggle{margin-top:6px;font-size:13px}
-.lk .detail-side{display:grid;gap:20px;align-content:start}.lk .section h2{font-size:15px;margin-bottom:10px}.lk .rule-view{display:flex;gap:12px;margin:0 0 6px;overflow-wrap:anywhere}.lk .rule-view span:first-child{color:var(--muted);font-size:14px;min-width:84px}
+.lk .section h2{font-size:15px;margin-bottom:10px}.lk .rule-view{display:flex;gap:12px;margin:0 0 6px;overflow-wrap:anywhere}.lk .rule-view span:first-child{color:var(--muted);font-size:14px;min-width:84px}
 .lk .file{display:flex;align-items:center;gap:12px;padding:8px 4px 8px 12px;margin:0 0 8px;border:1px solid var(--rule);border-radius:var(--corner);background:var(--page)}.lk .file-text{flex:1;display:grid;gap:2px;font-size:14px;min-width:0;overflow-wrap:anywhere}.lk .file button{border:0;background:none;width:36px;padding:0}
 .lk .history{margin-bottom:20px}.lk .history-box{border-top:1px solid var(--rule)}.lk .history-row{display:flex;align-items:center;gap:14px;width:100%;min-height:48px;padding:6px 4px;border:0;border-bottom:1px solid var(--rule);border-radius:0;background:none;text-align:left;justify-content:flex-start;font-weight:400;white-space:normal}
 .lk .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);flex-shrink:0}
 /* A status is a dot beside its words: grey waiting, tangerine needs action, green done. */
-.lk .status{display:inline-flex;align-items:center;gap:8px}.lk .status::before{content:'';width:9px;height:9px;border-radius:50%;background:var(--quiet);flex:none}.lk .status.action::before{background:var(--accent)}.lk .status.done::before{background:var(--ok)}.lk .notice>.status:empty{margin-right:10px;vertical-align:1px}
-/* Progress is one tangerine bar on a grey track with its count beside it. */
-.lk .progress{display:flex;align-items:center;gap:20px;margin:0 0 14px}.lk progress{appearance:none;-webkit-appearance:none;flex:1;min-width:0;height:10px;border:0;border-radius:2px;background:var(--track);color:var(--accent);overflow:hidden}.lk progress::-webkit-progress-bar{background:var(--track)}.lk progress::-webkit-progress-value{background:var(--accent)}.lk progress::-moz-progress-bar{background:var(--accent)}.lk .progress-count{color:var(--muted);font-size:15px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.lk .status{display:inline-flex;align-items:center;gap:8px}.lk .status::before{content:'';width:9px;height:9px;border-radius:50%;background:transparent;box-shadow:inset 0 0 0 2px var(--muted);flex:none}.lk .status.action::before{background:var(--accent);box-shadow:none}.lk .status.done::before{background:var(--ok);box-shadow:none}.lk .notice>.status:empty{margin-right:10px;vertical-align:1px}
+/* Progress is one tangerine bar in an outlined white track with its count beside it. */
+.lk .progress{display:flex;align-items:center;gap:20px;margin:0 0 14px}.lk progress{appearance:none;-webkit-appearance:none;flex:1;min-width:0;height:10px;border:1px solid var(--control);border-radius:2px;background:var(--page);color:var(--accent);overflow:hidden}.lk progress::-webkit-progress-bar{background:var(--page)}.lk progress::-webkit-progress-value{background:var(--accent)}.lk progress::-moz-progress-bar{background:var(--accent)}.lk .progress-count{color:var(--muted);font-size:15px;white-space:nowrap;font-variant-numeric:tabular-nums}
 /* A spinner sits right beside the words it explains. */
 .lk .loading{display:flex;align-items:center;gap:10px}.lk .loading::before{content:'';width:14px;height:14px;border:2px solid var(--track);border-top-color:var(--ink);border-radius:50%;animation:lk-spin .9s linear infinite;flex:none}
 @keyframes lk-spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.lk .loading::before{animation:none;border-top-color:var(--quiet)}}.lk .history-text{display:grid;gap:1px;font-size:14px}.lk .history-row svg{margin-left:auto;width:14px;color:var(--muted)}
@@ -94,7 +100,14 @@ body:has(.lk){padding:0;background:var(--rer-page,#fff)}
 .lk .new-vault{margin:0 0 24px;padding:20px}.lk .new-vault p{margin:14px 0}
 .lk .page>.detail:not(.empty){padding:0 0 8px}.lk .page>.detail>h1,.lk .page>.detail>.section>h1{margin-bottom:16px}.lk .page>.detail h2{margin-top:24px}.lk .page>.detail h2:first-child{margin-top:0}
 .lk .page>.detail>button,.lk .page>.detail>.section>button{margin:0 0 16px}.lk .page>.detail>:is(form,label,.actions),.lk .page>.detail>.section>:is(form,label){margin-bottom:24px}.lk .section+.section{margin-top:4px}.lk .tool-box{margin:16px 0;border-top:1px solid var(--rule);padding-top:16px}.lk .tool-box label{margin:12px 0}.lk .tool-panel{margin:0}
-.lk .definition{border:1px solid var(--rule);padding:14px 16px;margin:12px 0}.lk .choice{display:flex;align-items:flex-start;gap:10px;min-height:24px;font-weight:400}
+.lk .definition{border:1px solid var(--rule);padding:14px 16px;margin:12px 0}
+/* Find and organize: the search, one Filters control, then quiet name-first rows whose references fold. */
+.lk .find{display:grid;gap:4px;margin:16px 0}.lk .find>label{max-width:640px}.lk .filters{border-bottom:1px solid var(--rule)}.lk .filters>summary{margin:8px 0 0;padding:8px 0;font-weight:500}.lk .filters[open]>summary{margin-bottom:8px}.lk .filters>.muted{display:block;margin:0 0 14px}
+.lk .results{list-style:none;margin:12px 0 0;padding:0;border:1px solid var(--rule)}.lk .result{position:relative;padding:10px 112px 10px 16px;border-bottom:1px solid var(--rule)}.lk .result:last-child{border-bottom:0}
+.lk .result>.check{margin:0;font-weight:500;overflow-wrap:anywhere}.lk .result-name{display:block;font-weight:500;overflow-wrap:anywhere}.lk .result-meta{margin:2px 0 0 28px;color:var(--muted);font-size:14px;overflow-wrap:anywhere}.lk .result>.result-name~.result-meta{margin-left:0}.lk .result>.small{margin-top:8px}
+.lk .result>details>summary{position:absolute;top:8px;right:16px;margin:0;padding:4px 0;font-weight:500;font-size:14px}.lk .result>details[open]{margin:10px 0 2px 28px;padding-top:10px;border-top:1px solid var(--rule)}.lk .result>details p{margin:0 0 6px}.lk .result .rule-view>span:last-child{font-family:var(--mono);font-size:13px}
+.lk .meta{margin:-4px 0 12px;color:var(--muted);font-size:14px;overflow-wrap:anywhere}.lk .about{margin:0 0 16px}.lk .about>summary{font-weight:500;color:var(--muted)}.lk .foot{margin:28px 0 0;padding-top:16px;border-top:1px solid var(--rule)}
+.lk .field-problem{margin:6px 0 0;color:var(--danger);font-size:14px}.lk :is(input,select,textarea)[aria-invalid=true]{border-color:var(--danger)}.lk .choice{display:flex;align-items:flex-start;gap:10px;min-height:24px;font-weight:400}
 .lk .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.lk .form-grid label+label{margin-top:0}.lk .edit-field{display:grid;gap:8px}
 .lk .url-rule{display:grid;grid-template-columns:minmax(130px,1fr) minmax(180px,2fr) auto;gap:12px;align-items:end;margin:12px 0}.lk .url-rule label+label{margin:0}
 .lk .file-upload{margin-top:14px}.lk video{width:100%;max-height:300px;margin-top:12px}.lk .fingerprint{overflow-wrap:anywhere;font-family:var(--mono);font-size:13px}
@@ -124,5 +137,6 @@ body:has(.lk){padding:0;background:var(--rer-page,#fff)}
  .lk .item .name{grid-area:1/1}.lk .item .changed{grid-area:1/2}.lk .item .chevron{grid-area:1/3}.lk .item .state{grid-area:2/1/3/-1;margin-left:44px}
  .lk .row>.detail,.lk .row>.editor{padding:16px 14px 20px 18px}.lk .detail-header{flex-wrap:wrap}.lk .detail-header .actions{width:100%}.lk .detail-header .actions button{flex:1}
  .lk .form-grid,.lk .url-rule{grid-template-columns:1fr}.lk .page>.empty{padding:40px 20px}.lk .page>.empty h1{font-size:26px}.lk .page>.empty button{width:100%}
- .lk .lk-unlock{margin-top:12px}.lk .lk-unlock h1{font-size:30px}.lk .error{align-items:flex-start;flex-wrap:wrap}}
+ .lk .lk-unlock{margin-top:12px}.lk .lk-unlock h1{font-size:30px}.lk .error{align-items:flex-start;flex-wrap:wrap}
+ .lk .page>.detail>h1{font-size:clamp(25px,7vw,32px)}.lk .result{padding-right:96px}}
 `;
