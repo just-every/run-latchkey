@@ -1,3 +1,4 @@
+import {bytes,id,json,unwrapSigned} from '../crypto/envelope.mjs';
 import {usageFilters} from './filters.mjs';
 import {HealthClient} from '../health/client.mjs';
 import {OrganizationClient} from '../collections/client.mjs';
@@ -18,10 +19,27 @@ export class ReportsClient {
   return {schema:'latchkey-report-v1',...source,policyVersion:policy,observedAt:health.observedAt,days,denominator:items.length,risky:risky.size,unknown:unknown.size,clear,score:items.length?Math.floor(100*clear/items.length):null,items,usage:aggregate(source.events.filter(f=>items.some(r=>r.object===f.item))),coverage:[...source.coverage,health.coverage,'Only current active permitted items; private and family vaults excluded. No retained daily or monthly trend source.']};
  }
  async validate(report){await this.source(report.vault,report.from,report.asOf,report.filters);await this.health.validate(report.vault,report.revision);}
- async saveView(vault,name,days,filters={}){const criteria=usageFilters(filters);if(![7,30,90,365].includes(days))throw Error('invalid_report_range');await this.source(vault,this.now()-days*86400000,this.now());if(typeof name!=='string'||!name.trim()||name.length>100)throw Error('invalid_report_name');return this.client.put(vault,{schema:'latchkey\u002freport-view\u002fv1',name:name.trim(),days,filters:criteria});}
- async views(vault){await this.source(vault,0,this.now());return (await new OrganizationClient(this.client).load(vault)).records.filter(r=>r.value.schema==='latchkey\u002freport-view\u002fv1');}
+ async saveView(vault,name,days,filters={}){
+  const criteria=usageFilters(filters);if(![7,30,90,365].includes(days))throw Error('invalid_report_range');
+  await this.source(vault,this.now()-days*86400000,this.now());if(typeof name!=='string'||!name.trim()||name.length>100)throw Error('invalid_report_name');
+  const object=id(),profile=this.client.profile,context=viewContext(profile.tenant,vault,object);
+  const wrapped=await this.client.wrap(bytes({name:name.trim(),days,filters:criteria}),profile.recipientKey,context);
+  return this.client.put(vault,{schema:'latchkey\u002freport-view\u002fv2',owner:profile.account,wrapped},object);
+ }
+ async views(vault){
+  await this.source(vault,0,this.now());const profile=this.client.profile,records=(await new OrganizationClient(this.client).load(vault)).records,views=[];
+  for(const row of records){
+   if(row.value.schema==='latchkey\u002freport-view\u002fv1')views.push(row);
+   else if(row.value.schema==='latchkey\u002freport-view\u002fv2'&&row.value.owner===profile.account){
+    const value=json(await unwrapSigned(row.value.wrapped,this.client.bundle.root.recipient.privateKey,profile.authorityKey,profile.account,viewContext(profile.tenant,vault,row.object)));
+    views.push({...row,value:{schema:row.value.schema,...value,filters:usageFilters(value.filters)}});
+   }
+  }
+  return views;
+ }
  async export(report,format){await this.validate(report);if(format==='csv')return reportCsv(report);if(format==='pdf')return reportPdf(report);throw Error('invalid_report_format');}
 }
+const viewContext=(tenant,vault,object)=>({tenant,vault,object,purpose:'report-view',epoch:1,version:1});
 function aggregate(events){const rows=new Map();for(const f of events){if(!f.item)continue;const key=JSON.stringify([f.actor,f.item,f.action]),row=rows.get(key)??{actor:f.actor,item:f.item,action:f.action,count:0,lastAccess:0,maxReceiptDelay:0};row.count++;row.lastAccess=Math.max(row.lastAccess,f.time);row.maxReceiptDelay=Math.max(row.maxReceiptDelay,f.receiptTime-f.time);rows.set(key,row);}return [...rows.values()];}
 const cell=value=>'"'+String(value??'').replaceAll('"','""').replace(/^[=+@-]/,"'$&")+'"';
 const rows=report=>[

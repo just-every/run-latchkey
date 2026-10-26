@@ -7,6 +7,7 @@ import {expect} from '@playwright/test';
 import {vaultFixture} from './fixture.mjs';
 import {VaultClient} from '../../src/latchkey/client.mjs';
 import {createItem} from '../../src/latchkey/items/types.mjs';
+import {unwrapSigned} from '../../src/latchkey/crypto/envelope.mjs';
 import {reportRoute} from '../../src/latchkey/reports/service-route.mjs';
 import {ReportsClient} from '../../src/latchkey/reports/client.mjs';
 const output=process.env.LATCHKEY_SCREENSHOTS;
@@ -52,6 +53,10 @@ export async function reportsJourney(width){
   await refused(new ReportsClient(reader).source(vault,report.from,report.asOf,{actor:owner.profile.account}));
   await reportApi.saveView(vault,'Member usage',30,criteria);
   const memberView=(await reportApi.views(vault)).find(r=>r.value.name==='Member usage');assert.deepEqual(memberView.value.filters,criteria);
+  const sharedView=(await reader.readVault(vault)).versions.find(r=>r.object===memberView.object).value;
+  assert.equal(sharedView.schema,'latchkey\u002freport-view\u002fv2');assert.ok(!JSON.stringify(sharedView).includes(reader.profile.account));assert.ok(!JSON.stringify(sharedView).includes('Member usage'));
+  await assert.rejects(unwrapSigned(sharedView.wrapped,reader.bundle.root.recipient.privateKey,owner.profile.authorityKey,owner.profile.account,{tenant:owner.profile.tenant,vault,object:memberView.object,purpose:'report-view',epoch:1,version:1}));
+
   const filteredCsv=await reportApi.export(await reportApi.inspect(vault,{filters:criteria}),'csv');assert.ok(filteredCsv.includes(`"usage filter actor","${reader.profile.account}"`));assert.ok(filteredCsv.includes(`"usage filter item","${first}"`));assert.ok(filteredCsv.includes('"usage filter action","view"'));
   const fresh=await reportApi.inspect(vault,{network:true}),csv=await reportApi.export(fresh,'csv'),pdf=await reportApi.export(fresh,'pdf');
   assert.ok(csv.includes(`"asOf","${fresh.asOf}"`));assert.ok(csv.includes('"denominator","3"'));assert.ok(csv.includes('"confirmedClearPercent","33"'));assert.ok(csv.includes('Machine, agent and offline event sources unavailable'));assert.ok(pdf.startsWith('%PDF-1.4'));await refused(new ReportsClient(reader).export(fresh,'csv'));await refused(new ReportsClient(auditor).export(fresh,'pdf'));
