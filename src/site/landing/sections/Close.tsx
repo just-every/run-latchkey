@@ -6,7 +6,7 @@ export function Close() {
   return (
     <section className="screen close" data-ground="black" aria-labelledby="close-title">
       <h2 className="close-title" id="close-title">Changed, tested, <br className="desk" />then revoked.</h2>
-      <p className="close-line">100% free and open source. MIT&nbsp;licensed.</p>
+      <p className="close-line">100% free and open source.</p>
       <div className="close-actions"><RunButton /><DocsLink /></div>
       <SiteFooter />
     </section>

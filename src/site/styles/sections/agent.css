@@ -1,4 +1,6 @@
-/* 06: the annotation on the bottom baseline on two lines, inside the margin
+/* 06: fresh page-06 conversion, preserving the single letter-to-proof
+   leader; STRUCTURE.md corrects its tiny annotation to two 30px lines.
+   06: the annotation on the bottom baseline on two lines, inside the margin
    (desk fix 3), on a leader from the heading's full stop to a dot 18 px above
    its first line. */
 .agent { --measure: 21.3em; }

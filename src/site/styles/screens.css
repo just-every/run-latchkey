@@ -1,32 +1,34 @@
 /* The frame every screen below the hero shares: one viewport on a flat
    ground, the heading's top 168 px down, the sentence 40 px under it, and the
    proof on the shared baseline 120 px above the bottom (at 1440 x 900). */
-.landing { display: block; }
+.landing { --lk-title: clamp(46px, 6.667vw, 160px); display: block; }
 .screen {
-  position: relative; display: flex; flex-direction: column; min-height: max(100vh, 760px); overflow: clip;
+  position: relative; display: flex; flex-direction: column; min-height: max(100svh, 900px);
   padding: var(--lk-top) var(--lk-gutter) var(--lk-bottom);
 }
 .screen[data-ground='tangerine'] { background: var(--lk-tangerine); color: var(--lk-black); }
 .screen[data-ground='black'] { background: var(--lk-black); color: var(--lk-white); }
 .screen-title {
   margin: 0; font: 900 var(--lk-title)/.92 var(--lk-sans);
-  letter-spacing: -.035em; word-spacing: .065em; text-wrap: balance;
+  letter-spacing: -.035em; word-spacing: .065em; text-wrap: initial; padding-bottom: .22em; margin-bottom: -.22em;
 }
 .screen-line { margin: clamp(20px, 2.78vw, 60px) 0 0; max-width: var(--measure, 26.5em); font: 400 var(--lk-line)/1.35 var(--lk-sans); letter-spacing: -.012em; text-wrap: pretty; }
 .screen-proof { margin: auto 0 0; padding: clamp(28px, 4.5vh, 64px) 0 0; list-style: none; font: 400 var(--lk-proof)/1.5 var(--lk-mono); }
 .screen-proof p { margin: 0; }
-/* On tangerine, white is only for text of 24 px and more (3.0:1); smaller lines are black (7.0:1). The proofs
-   reach 24 px at 1152 px (2.084vw), so they and the leaders that point at them turn white there. */
-.screen[data-ground='tangerine'] { --proof-ink: var(--lk-black); }
+/* The picked desktop and phone plans keep their proofs white on tangerine. */
+.screen[data-ground='tangerine'] { --proof-ink: var(--lk-white); }
 .screen[data-ground='tangerine'] .screen-proof { color: var(--proof-ink); }
 .screen[data-ground='tangerine']:not(.hero) svg.leaders { --leader: var(--proof-ink); }
 
-@media (min-width: 1152px) {
-  .screen[data-ground='tangerine'] { --proof-ink: var(--lk-white); }
-}
 @media (max-width: 760px) {
-  .screen { min-height: max(100svh, 640px); padding: 64px 24px 56px; }
-  .screen-title { --lk-title: clamp(46px, 13.34vw, 60px); }
+  .screen { min-height: max(100svh, 844px); padding: 64px 24px 56px; }
+  .screen-title { --lk-title: clamp(48px, 13.34vw, 60px); }
   .screen-line { margin-top: 28px; }
   br.desk { display: none; }
 }
+
+/* The plate is only text-free material, faint over the brand token. The
+   content participates in layout; it never sits in a screenshot. */
+.ground-plate { position: absolute; inset: 0; pointer-events: none; opacity: .16; }
+.ground-plate img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.screen > :not(.ground-plate, .leaders) { position: relative; }

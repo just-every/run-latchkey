@@ -1,7 +1,7 @@
-/* 03, the interlude: the dead key edge to edge across the middle, struck by
+/* 03, integrated from the fresh page-03 editable conversion. The interlude: the dead key edge to edge across the middle, struck by
    one thick rule, with one leader down to the line that says it is dead. */
-.dead-key { --key: clamp(72px, 16.32vw, 340px); align-items: center; justify-content: center; padding: 0 3.6vw; text-align: center; }
-.dead-string { margin: 0; color: var(--lk-tangerine); font: 800 var(--key)/1.32 var(--lk-mono); letter-spacing: 0; white-space: nowrap; }
+.dead-key { --key: clamp(72px, 17.5vw, 430px); align-items: center; justify-content: center; padding: 0 3.6vw; text-align: center; }
+.dead-string { margin: 0; color: var(--lk-tangerine); font: 800 var(--key)/1.32 var(--lk-mono); letter-spacing: -.044em; white-space: nowrap; }
 /* The strike runs past the letters, as drawn: the struck string carries that run as its own padding. */
 .dead-string s { position: relative; display: inline-block; padding-inline: .14em; text-decoration: none; }
 .dead-string s span { position: relative; }

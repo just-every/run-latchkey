@@ -1,4 +1,6 @@
-/* 04: the record flush right on the bottom baseline; the leader runs from the
+/* 04: fresh page-04 conversion integrated with the shared Geist grid.
+   The record and its one leader retain the picked two-line proof.
+   04: the record flush right on the bottom baseline; the leader runs from the
    heading's full stop to a dot 18 px above the record's first line. The phone
    drops the leader. */
 .leaver { --measure: 19.1em; }

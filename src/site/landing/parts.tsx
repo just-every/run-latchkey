@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { type Ground } from '../shell/Lockup'
 import { paths } from '../shell/links'
+import { GroundPlate } from './GroundPlate'
 
 // The shared pieces of the nine screens: one viewport each on a flat tangerine
 // or black ground, a heading, at most one sentence and one proof.
@@ -10,6 +11,7 @@ export function Screen({ ground, className, label, titleId, leaders, children }:
 }) {
   return (
     <section className={`screen ${className}`} data-ground={ground} aria-label={label} aria-labelledby={titleId} data-leaders={leaders ? '' : undefined}>
+      {ground === 'tangerine' ? <GroundPlate /> : null}
       {children}
       {leaders ? <svg className="leaders" aria-hidden="true" focusable="false" /> : null}
     </section>
