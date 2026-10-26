@@ -17,7 +17,8 @@ for(const width of [1440,390]){
  const f=await vaultFixture();
  const capture=async name=>{assert.ok(await f.page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'horizontal viewport overflow');if(output)await f.page.screenshot({path:join(output,`${name}-${width}.png`),fullPage:true});};
  try{
-  const baseline=Date.now(),expired=new Date(baseline-86400000).toISOString().slice(0,10),snooze=new Date(baseline+30000).toISOString().slice(0,19);
+  const baseline=Date.now(),expired=new Date(baseline-86400000).toISOString().slice(0,10);
+  const snooze=await f.page.evaluate(time=>{const local=new Date(time);return new Date(time-local.getTimezoneOffset()*60000).toISOString().slice(0,19);},baseline+30000);
   const owner=f.owner,vault=(await owner.createVault({kind:'company'})).vault;
   await owner.put(vault,{schema:'latchkey/vault-meta/v1',title:'Synthetic security vault'});
   const typed=new TypedItems(owner),first=await typed.save(vault,createItem('login',{title:'Synthetic payroll login',values:{username:'synthetic-latchkey-2602',password},urls:[{url:'https://synthetic-latchkey.example.test',match:'exact-host'},{url:'https://github.com',match:'exact-host'}],fields:[{id:'passwordChangedAt',label:'Password changed at',type:'date',secret:false,value:'2024-01-01'}]})),second=await typed.save(vault,createItem('login',{title:'Synthetic CI login',values:{password}}));

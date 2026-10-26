@@ -3494,7 +3494,7 @@
       "executable": false
     },
     "tests/browser/security.mjs": {
-      "sha256": "da63b60cfa7c71c3f2cff4d9fa50b4c083a43168bc2a5c8cbea49136d39f8886",
+      "sha256": "fef0e35e4420400d9efef79fa86d0cc3c16ed3e0ec678adb3e339ef584a3be30",
       "executable": false
     },
     "tests/browser/sharing.mjs": {
