@@ -31,9 +31,9 @@ export function VaultScreen() {
  const [client, setClient] = useState<any>(null), [vaults, setVaults] = useState<any[]>([]), [vault, setVault] = useState(''), [records, setRecords] = useState<ItemRecord[]>([]), [selected, setSelected] = useState('');
  const [query, setQuery] = useState(''), [error, setError] = useState(''), [pending, setPending] = useState(0), [panel, setPanel] = useState(''), [create, setCreate] = useState(false), [vaultName, setVaultName] = useState(''), [status, setStatus] = useState('');
  const [lifecycle,setLifecycle]=useState<any[]>([]),[itemLimit,setItemLimit]=useState(100),[vaultKind,setVaultKind]=useState('company');
- const [ownerTrust, setOwnerTrust] = useState<{ account: string; fingerprint: string } | null>(null), [links, setLinks] = useState<Map<string, number>>(new Map());
+ const [ownerTrust, setOwnerTrust] = useState<{ account: string; fingerprint: string } | null>(null), [links, setLinks] = useState<Map<string, number>>(new Map()), [readAt, setReadAt] = useState(0);
  const activeClient = useRef<any>(null), search = useRef<HTMLInputElement>(null), menu = useRef<HTMLDetailsElement>(null), generation = useRef(0);
- const lock = useCallback(() => { generation.current++; activeClient.current?.lock(); activeClient.current = null; setClient(null); setRecords([]); setVaults([]); setVault(''); setSelected(''); setQuery(''); setPanel(''); setCreate(false); setStatus(''); setOwnerTrust(null); setLinks(new Map()); }, []);
+ const lock = useCallback(() => { generation.current++; activeClient.current?.lock(); activeClient.current = null; setClient(null); setRecords([]); setVaults([]); setVault(''); setSelected(''); setQuery(''); setPanel(''); setCreate(false); setStatus(''); setOwnerTrust(null); setLinks(new Map()); setReadAt(0); }, []);
  const run = useCallback(async (work: () => Promise<unknown>) => {
   setPending(n => n + 1); setError('');
   try { await work(); } catch (cause) { if (['device_revoked', 'account_key_changed', 'authority_expired', 'locked'].includes((cause as any)?.code) || activeClient.current && (cause as any)?.status === 401) lock(); if (['not_found', 'permission_denied'].includes((cause as any)?.code)) { setRecords([]); setSelected(''); setPanel(''); } setError(message(cause)); } finally { setPending(n => n - 1); }
@@ -48,7 +48,7 @@ export function VaultScreen() {
  const typed = client ? new TypedItems(client) : null;
  const load = async (connected: any, id: string, preferred = '', descriptor?: any) => {
   const ticket = ++generation.current;
-  setRecords([]); setSelected(''); setVault(id); setPanel(''); setOwnerTrust(null); setLinks(new Map());
+  setRecords([]); setSelected(''); setVault(id); setPanel(''); setOwnerTrust(null); setLinks(new Map()); setReadAt(0);
   const info = descriptor ?? vaults.find(v => v.id === id), owner = info?.owner;
   if (owner && !connected.profile.trusted[owner]) {
    const entry = await connected.call('directory', { account: owner });
@@ -61,7 +61,7 @@ export function VaultScreen() {
   if (activeClient.current !== connected || generation.current !== ticket) return;
   setLinks(activeLinks(shared?.links ?? []));
   const latest = new Map<string, ItemRecord>(); for (const row of result.versions) if (!latest.has(row.object) || latest.get(row.object)!.version < row.version) latest.set(row.object, row);
-  const rows = [...latest.values()]; setRecords(rows);setLifecycle(states.items);
+  const rows = [...latest.values()]; setRecords(rows);setLifecycle(states.items);setReadAt(Date.now());
   const title = rows.find(row => row.value.schema === 'latchkey/vault-meta/v1')?.value.title;
   if (title) setVaults(previous => previous.map(v => v.id === id ? { ...v, title } : v));
   const inactive=new Set(states.items.filter((r:any)=>r.state!=='active').map((r:any)=>r.object));
@@ -120,7 +120,8 @@ export function VaultScreen() {
   {!client ? <Unlock run={run} busy={pending > 0} onUnlock={onUnlock}/> : <>
    {vault && vaultView && <header className="page-head"><p className="crumbs"><span>Vaults</span><span aria-hidden="true">/</span><select className="vault-select" aria-label="Vault" value={vault} disabled={pending > 0} onChange={e => void run(async () => load(client, e.target.value))}>{vaults.map(v => <option key={v.id} value={v.id}>{vaultLabel(v)}</option>)}</select></p>
     <div className="head-text"><h1>{vaultLabel(current ?? { id: vault })}</h1><p className="subline">{kindLabel(current?.kind)} · {items.length === 1 ? '1 item' : `${items.length} items`}</p></div>
-    <div className="head-actions"><button disabled={pending > 0} onClick={() => void run(refresh)}>Refresh</button><button className="primary" disabled={pending > 0 || !!ownerTrust} onClick={() => { setPanel('new'); setCreate(false); }}><Icon name="plus"/>New item</button></div></header>}
+    <div className="head-side"><div className="head-actions"><button disabled={pending > 0} onClick={() => void run(refresh)}>Refresh</button><button className="primary" disabled={pending > 0 || !!ownerTrust} onClick={() => { setPanel('new'); setCreate(false); }}><Icon name="plus"/>New item</button></div>
+    {!!readAt && <p className="stamp"><span className="sr-only">Opened </span><time dateTime={new Date(readAt).toISOString()}>{stamp(readAt)}</time></p>}</div></header>}
    {create && <form className="new-vault notice" onSubmit={e => { e.preventDefault(); void run(async () => { const name = vaultName.trim(); if (!name) throw { code: 'vault_name_required' }; const created = await client.createVault({kind:vaultKind}); await client.put(created.vault, { schema: 'latchkey/vault-meta/v1', title: name }); const list = await client.call('vaults', {}); setVaults(list); await load(client, created.vault); setCreate(false); setVaultName(''); }); }}><h2>New vault</h2><div className="form-grid"><label>Vault name<input required maxLength={500} value={vaultName} onChange={e => setVaultName(e.target.value)}/></label><label>Vault kind<select value={vaultKind} onChange={e=>setVaultKind(e.target.value)}><option value="company">Company</option><option value="private-work">Private work</option><option value="family">Family</option></select></label></div><p className="muted">Archive keeps history indefinitely. Moving an item to trash requires confirmation and permanently erases it after 30 days.</p><button className="primary" disabled={pending > 0}>Create vault</button></form>}
    {panel==='connections'&&<ProviderPanel key={vault} client={client} vault={vault}/>}
    {panel==='health'&&<HealthPanel key={vault} client={client} vault={vault} onOpen={id=>{setSelected(id);setPanel('');}}/>}
@@ -135,7 +136,7 @@ export function VaultScreen() {
    {panel === 'people-erasure' && <PeopleErasure client={client} run={run}/>}
    {panel === 'received' && <ReceivedShares client={client}/>}
    {!vault && !['received','reviews','projects','automation','evidence','provider','rules','aliases','connections','health'].includes(panel) && !pending && <section className="detail empty"><h1>Your vault starts here</h1><p>Create a vault to keep your logins, documents and other private items together.</p><button className="primary" onClick={() => setCreate(true)}>Create your first vault</button></section>}
-   {!!pending && !records.length && vault && <div className="notice" role="status">Opening encrypted vault…</div>}
+   {!!pending && !records.length && vault && <div className="notice loading" role="status">Opening encrypted vault…</div>}
    {vault && !['received','people-erasure','reviews','organize','projects','automation','evidence','provider','rules','aliases','connections','health'].includes(panel) && <>{ownerTrust ? <OwnerTrust owner={ownerTrust} client={client} run={run} onConfirmed={async () => { setOwnerTrust(null); await load(client, vault); }}/>: panel === 'generator' ? <Generator client={client} run={run}/> : panel === 'sharing' ? <section className="detail section" id="sharing"><h1>Share vault</h1><SharingPanel client={client} vault={vault}/></section> : panel === 'templates' ? <Templates templates={templates} typed={typed} vault={vault} run={run} onSaved={refresh} onClose={() => setPanel('')}/> : <>
     {panel === 'new' && editor}
     <ItemsHead/>
@@ -147,6 +148,11 @@ export function VaultScreen() {
  </main></div>;
 }
 
+// When the open vault was read, as "Fri Oct 23 2026 · 5:19 pm EDT".
+function stamp(at: number) {
+ const time = new Date(at), date = time.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }).replaceAll(',', '');
+ return `${date} · ${time.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).replace(/ ([AP]M)/, (_, half: string) => ` ${half.toLowerCase()}`)}`;
+}
 // The top bar's destinations: panel, visible label and, where shorter, the panel's full name.
 const tabs: [string, string, string?][] = [['', 'Vault'], ['received', 'Shared with me'], ['reviews', 'Access reviews'], ['evidence', 'Evidence', 'Company evidence'], ['projects', 'Projects', 'Projects and applications'], ['automation', 'Agent access', 'API and agent access']];
 const sharer = (vault: any) => { const rights = typeof vault?.rights === 'string' ? JSON.parse(vault.rights) : vault?.rights ?? []; return rights.includes('read') && rights.includes('share'); };

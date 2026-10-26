@@ -19,7 +19,7 @@ export function Unlock({ run, busy, onUnlock }: { run: Task; busy: boolean; onUn
  return <section className="lk-unlock detail" aria-labelledby="unlock-title">
   <div className="section"><h1 id="unlock-title">{staged ? 'Keep your keys safe' : mode === 'unlock' ? 'Unlock your vault' : 'Create your private vault'}</h1>
   <p className="muted">Your profile file and password unlock your keys on this device. Keep your profile and recovery kit somewhere safe.</p>
-  <fieldset disabled={!ready} style={{border:0,padding:0,margin:0,minWidth:0}}>{!ready && <p role="status">Preparing your private client…</p>}
+  <fieldset disabled={!ready} style={{border:0,padding:0,margin:0,minWidth:0}}>{!ready && <p className="loading" role="status">Preparing your private client…</p>}
   {staged ? <><p>{finishing ? 'Completing account creation and unlocking your vault…' : 'Your account has not been enrolled yet. Download both files before continuing. Your recovery kit is sensitive; store it separately.'}</p>
    <div className="actions"><button type="button" onClick={() => { download('latchkey-profile.json', JSON.stringify(staged.profile)); setDownloaded(previous => ({ ...previous, profile: true })); }}>Download profile</button><button type="button" onClick={() => { download('latchkey-recovery-kit.json', JSON.stringify(staged.kit)); setDownloaded(previous => ({ ...previous, kit: true })); }}>Download recovery kit</button></div>
    <label className="check"><input type="checkbox" disabled={!downloaded.profile || !downloaded.kit || finishing} checked={saved} onChange={e => setSaved(e.target.checked)}/>I saved both files securely</label>
