@@ -3526,7 +3526,7 @@
       "executable": false
     },
     "tests/browser/projects.mjs": {
-      "sha256": "b6eb994eb0ec95425f333bbf596e670e10c7115993c45f21e2b1ba3bbf3f5a88",
+      "sha256": "6f7c9b6f1f7eab30406847565cd7b2461e7b1accefe33397112226de4750368e",
       "executable": false
     },
     "tests/browser/reviews.mjs": {
@@ -3550,7 +3550,7 @@
       "executable": false
     },
     "tests/browser/vault.mjs": {
-      "sha256": "ef3bb48f8d445351f5473a70d04749068ed5721a1b5a7ee2d10c404acbb4b98c",
+      "sha256": "ce70a1d7dbd13b3bf2048e3400c610e3ae1bad2193e59aa4972fa01525b41621",
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {
