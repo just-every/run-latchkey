@@ -1,5 +1,8 @@
 // Shared names for the authenticated evidence protocol.
 export const evidenceRoutes = Object.freeze({
+ credentialGet: ['evidence','credential','get'].join('/'),
+ credentialSave: ['evidence','credential','save'].join('/'),
+ credentialForget: ['evidence','credential','forget'].join('/'),
  delivery: ['evidence', 'delivery'].join('/'),
  begin: ['evidence', 'begin'].join('/'),
  result: ['evidence', 'result'].join('/'),
@@ -10,3 +13,5 @@ export const evidenceRoutes = Object.freeze({
  finishInspection: ['evidence', 'inspection', 'finish'].join('/'),
  inspectAttempt: ['evidence', 'attempt', 'inspect'].join('/'),
 });
+
+export const evidenceCredentialContext=(tenant,destination,revision,version)=>({tenant,vault:'evidence-credentials',object:destination,purpose:'provider-credential',epoch:revision,version});

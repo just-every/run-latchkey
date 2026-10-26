@@ -4,9 +4,9 @@ import archivePolicy from '../scripts/latchkey/archive-policy.mjs';
 import { readFile,readdir } from 'node:fs/promises';
 import { unstable_splitSqlQuery } from 'wrangler';
 import assert from 'node:assert/strict';
-import { id } from '../src/latchkey/crypto/envelope.mjs';
+import { digest, id } from '../src/latchkey/crypto/envelope.mjs';
 import { EvidenceClient } from '../src/latchkey/evidence/client.mjs';
-export async function runEvidenceJourneys({owner,review,outsider,db}){
+export async function runEvidenceJourneys({owner,review,outsider,db,password}){
  const client=new EvidenceClient(owner),sent=[],credential='synthetic-latchkey-2050';
  const configs=[['evidence','https://evidence.example.test'],['vanta','https://api.vanta.com'],['drata','https://public-api.drata.com'],['secureframe','https://api.secureframe.com']];
  const edge=async(url,init)=>{
@@ -27,17 +27,42 @@ export async function runEvidenceJourneys({owner,review,outsider,db}){
   const preview=await client.preview(review,config);assert.deepEqual(preview.fields,Object.keys(preview.package).sort());
   if(destination==='evidence'){const tampered=structuredClone(preview.signedPackage);tampered.package.completeness.total++;await assert.rejects(owner.call(evidenceRoutes.begin,{delivery:id(),review,destination:config.id,revision:config.revision,packageHash:preview.packageHash,signedPackage:tampered,confirmed:true}),error=>error.code==='evidence_signature_invalid');assert.equal(sent.length,0);}
   await assert.rejects(client.send(preview,credential,false,{fetcher:edge}),e=>e.code==='evidence_consent_required');
-  const result=await client.send(preview,destination==='secureframe'?{apiKey:'synthetic-latchkey-2051',keySecret:'synthetic-latchkey-2052'}:credential,true,{fetcher:edge});assert.equal(result.state,'accepted');assert.ok(result.providerReference);assert.ok(result.sourceTimestamp);assert.ok(!JSON.stringify(result).includes(credential));
+  const providerCredential=destination==='secureframe'?{apiKey:'synthetic-latchkey-2051',keySecret:'synthetic-latchkey-2052'}:credential;
+  await assert.rejects(client.saveCredential(config,providerCredential,false),error=>error.code==='evidence_consent_required');
+  await client.saveCredential(config,providerCredential,true);
+  const stored=await db.prepare('SELECT credential FROM lky_evidence_destinations WHERE id=?').bind(config.id).first();
+  for(const value of [credential,'synthetic-latchkey-2051','synthetic-latchkey-2052'])assert.ok(!stored.credential.includes(value));
+  assert.deepEqual(await new EvidenceClient(owner).loadCredential(config),providerCredential);
+  await assert.rejects(owner.call(evidenceRoutes.credentialSave,{destination:config.id,revision:config.revision,version:0,wrapped:JSON.parse(stored.credential),confirmed:true}),error=>error.code==='evidence_credential_changed');
+  if(outsider)await assert.rejects(new EvidenceClient(outsider).loadCredential(config),error=>error.code==='evidence_destination_not_found');
+  const corrupt=JSON.parse(stored.credential);corrupt.signature=corrupt.signature.slice(0,-2)+'AA';
+  await db.prepare('UPDATE lky_evidence_destinations SET credential=? WHERE id=?').bind(JSON.stringify(corrupt),config.id).run();
+  await assert.rejects(client.loadCredential(config));
+  await db.prepare('UPDATE lky_evidence_destinations SET credential=? WHERE id=?').bind(stored.credential,config.id).run();
+  const result=await client.sendSaved(preview,true,{fetcher:edge});assert.equal(result.state,'accepted');assert.ok(result.providerReference);assert.ok(result.sourceTimestamp);assert.ok(!JSON.stringify(result).includes(credential));
  }
  assert.equal(sent.length,4);assert.ok(sent.every(row=>row.value.package.id===review));
+ if(password){
+  const restored=new owner.constructor(owner.origin,{cookie:owner.cookie,fetcher:owner.fetcher});
+  try{await restored.unlock(structuredClone(owner.profile),password);const destination=(await client.destinations()).find(row=>row.destination==='secureframe');assert.deepEqual(await new EvidenceClient(restored).loadCredential(destination),{apiKey:'synthetic-latchkey-2051',keySecret:'synthetic-latchkey-2052'});await db.prepare('UPDATE lky_grants SET expires_at=0 WHERE token_hash=?').bind(await digest(restored.token)).run();await assert.rejects(new EvidenceClient(restored).loadCredential(destination),error=>error.code==='authority_expired')}finally{restored.lock()}
+ }
+
  const target=(await client.destinations()).find(r=>r.destination==='evidence');
  for(const[status,state,retryable]of [[403,'rejected',false],[503,'backlog',true],[429,'backlog',true]]){const preview=await client.preview(review,target);const result=await client.send(preview,credential,true,{fetcher:async()=>new Response(null,{status})});assert.equal(result.state,state);assert.equal(result.retryable,retryable)}
- const preview=await client.preview(review,target);await client.revoke(target);let calls=0;await assert.rejects(client.send(preview,credential,true,{fetcher:async()=>{calls++;throw Error('must not dispatch')}}),e=>e.code==='evidence_destination_revoked');assert.equal(calls,0);
+ const oldCredential=await owner.call(evidenceRoutes.credentialGet,{destination:target.id,revision:target.revision});
+ await client.forgetCredential(target,true);await assert.rejects(client.loadCredential(target),error=>error.code==='evidence_credential_not_found');
+ await db.prepare('UPDATE lky_evidence_destinations SET credential=?,credential_version=? WHERE id=?').bind(JSON.stringify(oldCredential.wrapped),oldCredential.version,target.id).run();
+ await assert.rejects(client.loadCredential(target),error=>error.code==='evidence_credential_rollback');
+ await db.prepare('UPDATE lky_evidence_destinations SET credential=NULL,credential_version=? WHERE id=?').bind(oldCredential.version+1,target.id).run();
+ await client.saveCredential(target,credential,true);
+ const preview=await client.preview(review,target);await client.revoke(target);
+ assert.equal((await db.prepare('SELECT credential FROM lky_evidence_destinations WHERE id=?').bind(target.id).first()).credential,null);
+ await assert.rejects(client.loadCredential(target),error=>error.code==='evidence_destination_changed');let calls=0;await assert.rejects(client.send(preview,credential,true,{fetcher:async()=>{calls++;throw Error('must not dispatch')}}),e=>e.code==='evidence_destination_revoked');assert.equal(calls,0);
  const history=await client.deliveries(review);assert.equal(history.length,7);assert.equal(history.filter(r=>r.state==='accepted').length,4);assert.ok(history.every(r=>r.sourceTimestamp===sent[0].value.package.closedAt));
  // Provider acknowledgements and local acknowledgements fail independently.
  // Recreate the client after each interruption instead of reusing memory.
  const configured = () => client.configure({destination:'vanta',endpoint:'https://api.vanta.com',target:'Finance quarterly review'});
- let config=await configured(), uploads=0, submits=0, pending;
+ let config=await configured(), uploads=0, submits=0, pending;assert.equal(config.credentialSaved,false);
  const beginPreview=await client.preview(review,config), beginInput={delivery:id(),review,destination:config.id,revision:config.revision,packageHash:beginPreview.packageHash,signedPackage:beginPreview.signedPackage,confirmed:true};
  const begun=await owner.call(evidenceRoutes.begin,beginInput), beforeReplay=(await client.deliveries(review)).length;
  assert.equal((await owner.call(evidenceRoutes.begin,beginInput)).id,begun.id);
@@ -61,6 +86,34 @@ export async function runEvidenceJourneys({owner,review,outsider,db}){
  }
  const racing=await Promise.allSettled([restarted.resumeUpload(pending,credential,true,{fetcher:checkpointEdge}),new EvidenceClient(owner).resumeUpload(pending,credential,true,{fetcher:checkpointEdge})]);
  assert.equal(racing.filter(row=>row.status==='fulfilled').length,1);assert.equal(racing.find(row=>row.status==='fulfilled').value.state,'accepted');assert.equal(uploads,1);assert.equal(submits,1);assert.equal((await restarted.delivery(pending)).stage.attempts.length,2);
+ // Stalled writes can have reached the provider. A fresh client must retain
+ // the ambiguous attempt, including any already acknowledged upload.
+ for(const mode of ['upload','submit','body']){
+  config=await client.configure({destination:mode==='body'?'drata':'vanta',endpoint:mode==='body'?'https://public-api.drata.com':'https://api.vanta.com',target:'Finance quarterly review',workspace:mode==='body'?'1':null});
+  let writes=0,cancelled=false;
+  const timed=await client.send(await client.preview(review,config),credential,true,{fetcher:async(url,init)=>{
+   writes++;assert.ok(init.signal instanceof AbortSignal);
+   if(mode==='submit'&&url.endsWith('/uploads'))return edge(url,init);
+   if(mode==='body')return new Response(new ReadableStream({start(controller){
+    const abort=()=>{cancelled=true;controller.error(init.signal.reason)};
+    if(init.signal.aborted)abort();else init.signal.addEventListener('abort',abort,{once:true});
+   }}),{status:201,headers:{'content-type':['application','json'].join('/')}});
+   return new Promise((resolve,reject)=>{
+    const abort=()=>{cancelled=true;reject(init.signal.reason)};
+    if(init.signal.aborted)abort();else init.signal.addEventListener('abort',abort,{once:true});
+   });
+  }});
+  assert.equal(cancelled,true);assert.equal(timed.state,'backlog');assert.equal(timed.retryable,false);
+  assert.equal(timed.stage.name,mode==='body'?'unverified-response':mode);
+  assert.equal(timed.providerReference,mode==='submit'?'synthetic-latchkey-2054':null);
+  const fresh=new EvidenceClient(owner),retained=await fresh.delivery(timed.id);
+  assert.equal(retained.requiresReconciliation,true);assert.equal(retained.stage.attempts.length,mode==='submit'?2:1);
+  assert.equal(retained.stage.uploadReference,mode==='submit'?'synthetic-latchkey-2054':undefined);
+  const forbidden=async()=>{writes++;throw Error('must not repeat ambiguous mutation')};
+  await assert.rejects(fresh.resumeUpload(timed.id,credential,true,{fetcher:forbidden}),error=>error.code==='evidence_reconciliation_required');
+  await assert.rejects(owner.call(evidenceRoutes.startAttempt,{delivery:timed.id,stage:{name:'upload',binding:retained.stage.binding}}),error=>error.code==='evidence_delivery_finished');
+  assert.equal(writes,mode==='submit'?2:1);assert.ok(!JSON.stringify(retained).includes(credential));
+ }
  // A provider accepted the write, but the process disappeared before saving it.
  config=await configured();let lost;
  const disconnected=Object.create(owner);
@@ -173,9 +226,12 @@ export async function restoreDomainArchive(f){
  return db;
 }
 export async function runReviewArchiveJourney(f,review){
+ const client=new EvidenceClient(f.owner),destination=(await client.destinations()).find(row=>row.active&&row.destination==='secureframe');
+ await client.saveCredential(destination,{apiKey:'synthetic-latchkey-2051',keySecret:'synthetic-latchkey-2052'},true);
+ assert.ok((await f.db.prepare('SELECT COUNT(*) AS n FROM lky_evidence_destinations WHERE credential IS NOT NULL').first()).n>0);
  const db=await restoreDomainArchive(f);
  const campaign=await db.prepare('SELECT * FROM lky_reviews WHERE id=?').bind(review).first();assert.equal(campaign.phase,'inactive');assert.equal(campaign.package,null);assert.ok((await db.prepare('SELECT * FROM lky_review_rows WHERE review_id=?').bind(review).all()).results.length);
- const destinations=(await db.prepare('SELECT active FROM lky_evidence_destinations').all()).results;assert.ok(destinations.length);assert.ok(destinations.every(row=>row.active===0));assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM lky_devices').first()).n,0);
+ const destinations=(await db.prepare('SELECT active,credential,credential_version FROM lky_evidence_destinations').all()).results;assert.ok(destinations.every(row=>row.credential===null&&row.credential_version===0));assert.ok(destinations.length);assert.ok(destinations.every(row=>row.active===0));assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM lky_devices').first()).n,0);
  const captures=(await db.prepare('SELECT active FROM lky_evidence_sources').all()).results;assert.ok(captures.length);assert.ok(captures.every(row=>row.active===0));
 }
 

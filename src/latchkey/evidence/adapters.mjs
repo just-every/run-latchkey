@@ -64,7 +64,9 @@ export async function deliverEvidence({ destination, endpoint, credential, targe
     stage = { name: 'upload', binding, ...(resume ? { uploadReference: resume.uploadReference } : {}) };
     const post = async (path, body, contentType) => {
       await beforeMutation?.({ ...stage });
-      return fetcher(base + path, { method: 'POST', redirect: 'error', credentials: 'omit', referrerPolicy: 'no-referrer', headers: { Authorization: auth, ...(contentType ? { 'Content-Type': contentType } : {}) }, ...(body === undefined ? {} : { body }) });
+      // The deadline covers response headers and body consumption. Aborting does
+      // not prove the provider rejected a write; keep its durable attempt fenced.
+      return fetcher(base + path, { method: 'POST', signal: AbortSignal.timeout(15000), redirect: 'error', credentials: 'omit', referrerPolicy: 'no-referrer', headers: { Authorization: auth, ...(contentType ? { 'Content-Type': contentType } : {}) }, ...(body === undefined ? {} : { body }) });
     };
     const id = encodeURIComponent(target);
     if (destination === 'Evidence') {

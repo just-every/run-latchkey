@@ -95,6 +95,25 @@ export async function erasureCoverageJourney(f,width,{timed=false}={}){
  assert.equal((await native('cache-read',{...cacheInput,cacheKey:encode(random()),output:join(cacheDirectory,'wrong-key.json')})).code,1);
  const {scanErasureContent}=await import('../../src/latchkey/erasure/client-scan.mjs');
  const scan=await scanErasureContent(owner,vault,[secret,'synthetic-latchkey-5413']);assert.equal(scan.matches.length,1);assert.deepEqual(scan.matches[0].attachments,[attachment.id]);assert.ok(!JSON.stringify(scan).includes(secret));assert.equal(scan.complete,false);
+ // A read-only owner inspects another owner's history locally, without
+ // acquiring permission to redact it. Unknown binary content stays explicit.
+ const otherVault=(await recipient.createVault()).vault;
+ const utf16=term=>Uint8Array.from(Buffer.from('\ufeff'+term,'utf16le'));
+ const little=await createAttachment('synthetic-latchkey-5416',utf16(secret));
+ const bigBytes=utf16(secret);for(let n=0;n<bigBytes.length;n+=2)[bigBytes[n],bigBytes[n+1]]=[bigBytes[n+1],bigBytes[n]];
+ const big=await createAttachment('synthetic-latchkey-5417',bigBytes);
+ const binary=await createAttachment('synthetic-latchkey-5418',new Uint8Array([0xff,0x00,0xc0,0x80]));
+ const foreign=await recipient.put(otherVault,createItem('secure-note',{title:'Other owner content',attachments:[little,big,binary]}));
+ await recipient.put(otherVault,createItem('secure-note',{title:'Current unrelated content'}),foreign.object);
+ await recipient.share(otherVault,owner.profile.account,await owner.identity().fingerprint,['read']);
+ await owner.pinAccount(recipient.profile.account,await recipient.identity().fingerprint);
+ const foreignBefore=await owner.readVault(otherVault),foreignScan=await scanErasureContent(owner,otherVault,[secret]);
+ assert.equal(foreignScan.versionsScanned,2);assert.equal(foreignScan.matches.length,1);
+ assert.equal(foreignScan.matches[0].version,1);assert.deepEqual(foreignScan.matches[0].attachments,[little.id,big.id]);
+ assert.deepEqual(foreignScan.unverifiedAttachments,[{object:foreign.object,version:1,attachment:binary.id}]);
+ assert.equal(foreignScan.complete,false);assert.ok(!JSON.stringify(foreignScan).includes(secret));
+ assert.deepEqual(await owner.readVault(otherVault),foreignBefore);
+ await refused(owner.eraseItem(otherVault,foreign.object,{confirmed:true,revision:foreignBefore.revision}),'not_found');
  const event=(await owner.call('audit',{})).find(row=>row.action==='vault_shared'&&row.object_id===vault);
  const queued=await automation.enqueue(subscription.id,subscription.revision,event.id,true);
  const signing=await keypair('sign'),credential=await automation.issueCredential({vault,publicKey:signing.publicKey,scopes:['posture:read','access:request'],expiresAt:Date.now()+3600000,confirmed:true});
