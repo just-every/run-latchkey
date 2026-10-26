@@ -26,7 +26,7 @@ export async function vaultFixture({webhook=false,browserEnabled=true,enrollOwne
  }}));
  const db=await worker.getD1Database('DB');for(const name of (await readdir('migrations/core')).filter(n=>n.endsWith('.sql')).sort())await db.batch(unstable_splitSqlQuery(await readFile(join('migrations/core',name),'utf8')).map(sql=>db.prepare(sql)));
  const dispatcher=new Agent({connect:{ca:tls.httpsCert}}),fetcher=(url,init)=>fetch(url,{...init,dispatcher});
- const browser=browserEnabled?await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']}):null;
+ const browser=browserEnabled?await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH}:{}),args:['--use-mock-keychain','--password-store=basic','--no-sandbox']}):null;
  const context=browser?await browser.newContext({ignoreHTTPSErrors:true}):null;
  try {
  const bootstrapInput={token:bindings.SETUP_TOKEN,displayName:'Northstar Finance owner'};

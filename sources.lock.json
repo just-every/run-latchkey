@@ -514,7 +514,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "c4cba0e6b9fad07a6904e180bac6e9f8c155ceaa074ea094bc135fb4d388eb70",
+      "sha256": "3c939dc9a5f2635b1c3d534d3181c2f2c222ef80d1e50af90e6aa53adcafade2",
       "executable": false
     },
     "AGENTS.md": {
@@ -550,7 +550,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "8decf6dd1484462c48874ebdcb3041d8ff7990e8bf9b0b1fb41c6d0a35341ea5",
+      "sha256": "b865de504f49f157ffdb74894df5b0441856496ddec50a95f26a3884f6d4f01a",
       "executable": false
     },
     "deploy-demo.json": {
@@ -1558,7 +1558,7 @@
       "executable": false
     },
     "src/latchkey/collections/client.d.mts": {
-      "sha256": "988820382fd680e80f521a6afd347cc3c469756e593866e8ac985a50fbf34453",
+      "sha256": "57f404186ecdf7a907677342d733b364b62217869b596300689e66e24694df3b",
       "executable": false
     },
     "src/latchkey/collections/client.mjs": {
@@ -1755,6 +1755,22 @@
     },
     "src/latchkey/handoffs/client.mjs": {
       "sha256": "888b1b50dfb32d8d7f5f872f81d503cbfc4cb414f7c543f244aad11359ea7669",
+      "executable": false
+    },
+    "src/latchkey/health/client.d.mts": {
+      "sha256": "a5951aca3068838156751fddcfa54f31b21359659a837e238473a2f5d69644ab",
+      "executable": false
+    },
+    "src/latchkey/health/client.mjs": {
+      "sha256": "bdda67c7e2f9b572ea150cf75adfdd1943f3cae2d0ac6f9f466dc880af6faba0",
+      "executable": false
+    },
+    "src/latchkey/health/README.md": {
+      "sha256": "dc19276887b95cced64860fc58383dc594684003ea43bbaf655aae123e158f4b",
+      "executable": false
+    },
+    "src/latchkey/health/ui.tsx": {
+      "sha256": "f667e3b9136cccb1050c282722b93723eecac0aaca9151ee7e02480602a37afd",
       "executable": false
     },
     "src/latchkey/items/attachments.mjs": {
@@ -2011,6 +2027,22 @@
     },
     "src/latchkey/projects/ui.tsx": {
       "sha256": "f2641c623d4eb7244aa1d433e1835db4c6ca1d791e8c9314eb5adc725708038f",
+      "executable": false
+    },
+    "src/latchkey/providers/README.md": {
+      "sha256": "b55f890943c7ef2aff1f145ef4da94802b88b64ba9b761e07a054eb74649773b",
+      "executable": false
+    },
+    "src/latchkey/providers/registry.d.mts": {
+      "sha256": "7a9e5c41cf2f8446f19222f83b6dd2f9203886f7e8a85a5b2090c6a34e02e698",
+      "executable": false
+    },
+    "src/latchkey/providers/registry.mjs": {
+      "sha256": "efd90cef263e68fe33b888b11ffd6544daadd7f5afdf05e9c04551ba8f43c2eb",
+      "executable": false
+    },
+    "src/latchkey/providers/ui.tsx": {
+      "sha256": "b70e77c1152efb3ea78fafb9631850c25cbce2eb60b3d1afe905337c0e0573ad",
       "executable": false
     },
     "src/latchkey/reviews/client.d.mts": {
@@ -2290,7 +2322,7 @@
       "executable": false
     },
     "src/latchkey/ui/vault.tsx": {
-      "sha256": "964b0525fb2094360a997e76f3dd32058b54dc768e51bd1747b8d9f2f9f0056f",
+      "sha256": "048d71c605d8469d5ec7cb9d1b8437ea0ee0d9796de62d3c4670d64a548f5d55",
       "executable": false
     },
     "src/mail.server.d.mts": {
@@ -3426,7 +3458,7 @@
       "executable": false
     },
     "tests/browser/fixture.mjs": {
-      "sha256": "e508e52c4fa81b2f74ce76f67918066da1322b4eeebba387d01a6dc1d1208c28",
+      "sha256": "b6e06c861ef53849093ad012fa719b2b34057f495c880157cdafb34982f460f2",
       "executable": false
     },
     "tests/browser/msp-lifecycle.mjs": {
@@ -3459,6 +3491,10 @@
     },
     "tests/browser/runtime-consumers.mjs": {
       "sha256": "e42c0455c2916ac058e8b75dfb38d19d53bd2ff167419deff5accc812f378a65",
+      "executable": false
+    },
+    "tests/browser/security.mjs": {
+      "sha256": "0f4b5d97e55eab1b8c8f2dc093d7f73f298de48e968ce84bc1cdf8ccb7a4e8a1",
       "executable": false
     },
     "tests/browser/sharing.mjs": {
@@ -3570,7 +3606,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "862d6bc60683f2f3faffbf104726ccecf3d6b8d61f290128d5a3eb976219f88c",
+      "sha256": "fd66cd219d0df52b0585b1b588b0fcd8ea690f8d521e7b6659aa95f762552103",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {

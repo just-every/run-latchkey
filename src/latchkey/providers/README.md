@@ -1,0 +1,9 @@
+# Provider connection planning
+
+Open **Settings → Provider connections**. Select a credential class to inspect its issuing operation, validation probe, revocation mechanism, privileges, overlap, quota and owner ceremony. The registry distinguishes PostgreSQL roles, MySQL accounts, IAM keys, root passwords, Stripe keys, Twilio keys, SendGrid keys, GitHub personal tokens, GitHub App tokens, Slack OAuth tokens and Slack signing secrets. Official instructions open separately.
+
+The current door is a planner. It does not execute provider APIs, authenticate provider identities, prove scopes or complete a dashboard ceremony. Manual steps remain blocked. Operator-recorded quota, expiry and consumer versions are explicitly unverified. A key-management API that edits a key's name or scopes is not an API for changing its secret.
+
+Vault owners can save an encrypted plan with the identity owner, expiry, target secret version and opaque application, CI and cloud-sync consumer references. It contains no credential values. The plan uses the current vault revision for conflict detection. Other vault editors retain their existing encrypted-content rights; these notes are not an authority grant or a server-enforced provider policy.
+
+Unknown consumers, unknown or exhausted quota, missing ownership, invalid expiry and missing target-version observations remain cutover blockers. Provider and consumer verification remains a blocker even when the operator's checklist is complete. The maintenance choice preserves existing access and calls for owner review. No credential is revoked, no manual step is represented as executed, and no universal no-downtime guarantee is made. Authenticated consumer reporting, full lifecycle adapters, live sandbox receipts, durable operation reconciliation and an integrated operator ceremony remain outstanding.

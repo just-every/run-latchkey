@@ -8,7 +8,7 @@ export interface Lifecycle { object: string; state: ItemState; expiresAt?: numbe
 export interface ItemRow extends RecordRow { lifecycle: Lifecycle }
 export interface LoadedVault {
  records: RecordRow[]; lifecycle: Lifecycle[];
- vault: { id: string; kind: string; owner: string };
+ vault: { id: string; kind: string; owner: string; revision: number };
 }
 export interface OrganizationTransport {
  readVault(vault: string): Promise<{ versions: RecordRow[] }>;

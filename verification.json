@@ -53,6 +53,15 @@
       ]
     },
     {
+      "name": "security-browser",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "pnpm run build",
+        "perl -e 'alarm 1200; exec @ARGV' -- node tests/browser/security.mjs"
+      ]
+    },
+    {
       "name": "organization-browser",
       "browser": true,
       "hosted": false,
