@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { itemTypes } from './runtime.mjs';
 import { message, type Field, type Item } from './types';
-import { fieldLabel } from './labels';
 
 // A refused save, explained in the editor beside Save item: in words, with the field it is about
 // (marked aria-invalid, its own message beside it) where there is one. A refusal that ends the
@@ -15,7 +14,7 @@ const words: Record<string, [string, string?]> = {
  required_field: ['A required field is empty. Fill in every field marked *, then save again.'],
  invalid_item_metadata: ['Labels and tags take up to 100 entries of up to 200 characters each.'],
  item_too_large: ['This item is over the 1 MB limit. Remove an attachment or shorten a long field, then save again.'],
- version_conflict: ['Someone saved a newer version of this item while you were editing. Your changes are still here and have not been saved.'],
+ version_conflict: ['Someone saved a newer version of this item while you were editing. Your changes are still here and have not been saved. Copy your edits before reloading to see the latest version.'],
 };
 const secure = (value: unknown) => { try { const url = new URL(String(value)); return url.protocol === 'https:' && !url.username && !url.password; } catch { return false; } };
 
@@ -39,37 +38,12 @@ export function editable(value: Item) {
  return item;
 }
 
-// The person's edits laid over the latest saved version: what they changed since opening wins, and
-// everything they left alone takes the latest value. Names what each side changed (never values).
-export function mergeOnLatest(opened: Item, mine: Item, latest: Item) {
- const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
- const yours = new Set<string>(), theirs = new Set<string>(), item: Item = structuredClone(latest);
- for (const [key, name] of [['title', 'Title'], ['labels', 'Labels'], ['tags', 'Tags'], ['favorite', 'Favorite'], ['urls', 'Website and app rules'], ['attachments', 'Attachments']] as const) {
-  if (!same(mine[key], opened[key])) { (item as any)[key] = structuredClone(mine[key]); yours.add(name); }
-  else if (!same(latest[key], opened[key])) theirs.add(name);
- }
- const find = (list: Field[], id: string) => list.find(field => field.id === id), name = (field: Field) => fieldLabel(latest, field);
- item.fields = [];
- for (const field of latest.fields) {
-  const was = find(opened.fields, field.id), now = find(mine.fields, field.id);
-  if (was && !now) yours.add(name(field));
-  else if (now && !same(now, was)) { item.fields.push(structuredClone(now)); yours.add(name(now)); }
-  else { item.fields.push(structuredClone(field)); if (!same(field, was)) theirs.add(name(field)); }
- }
- for (const field of mine.fields) if (!find(latest.fields, field.id)) {
-  const was = find(opened.fields, field.id);
-  if (!was || !same(field, was)) { item.fields.push(structuredClone(field)); yours.add(name(field)); } else theirs.add(name(field));
- }
- return { item, yours: [...yours], theirs: [...theirs] };
-}
-
-// Beside Save item: the refusal (or the merge that answered a conflict), scrolled into view and
-// focused when it appears, so a screen reader and a sighted person both meet it where they pressed.
-export function SaveProblem({ refusal, merged, busy, onLatest, onField }: { refusal: Refusal | null; merged: { version: number; yours: string[]; theirs: string[] } | null; busy: boolean; onLatest: () => void; onField: (field: string) => void }) {
+// Beside Save item: the refusal, scrolled into view and focused when it appears,
+// so a screen reader and a sighted person both meet it where they pressed.
+export function SaveProblem({ refusal, onField }: { refusal: Refusal | null; onField: (field: string) => void }) {
  const box = useRef<HTMLDivElement>(null);
- useEffect(() => { if (refusal || merged) { box.current?.scrollIntoView({ block: 'nearest' }); box.current?.focus({ preventScroll: true }); } }, [refusal, merged]);
+ useEffect(() => { if (refusal) { box.current?.scrollIntoView({ block: refusal.code === 'version_conflict' ? 'center' : 'nearest' }); box.current?.focus({ preventScroll: true }); } }, [refusal]);
  if (refusal) return <div className="save-problem" role="alert" tabIndex={-1} ref={box}><p>{refusal.text}</p>
-  {refusal.code === 'version_conflict' ? <button type="button" disabled={busy} onClick={onLatest}>Load the latest version and keep my changes</button> : refusal.field && <button type="button" className="link" onClick={() => onField(refusal.field!)}>Go to the marked field</button>}</div>;
- if (merged) return <div className="save-problem merged" role="status" tabIndex={-1} ref={box}><p>Loaded version {merged.version}, saved elsewhere. {merged.theirs.length ? `Changed there: ${merged.theirs.join(', ')}. ` : 'Nothing you left alone changed there. '}{merged.yours.length ? `Kept from your edit: ${merged.yours.join(', ')}.` : ''} Check the item, then save.</p></div>;
+  {refusal.field && <button type="button" className="link" onClick={() => onField(refusal.field!)}>Go to the marked field</button>}</div>;
  return null;
 }

@@ -6,7 +6,7 @@ import { Passkeys } from './passkeys';
 import { Generator } from './generator';
 import type { Field, Item, ItemRecord, Task } from './types';
 import { fieldLabel, hasValue, matchLabel, typeLabel } from './labels';
-import { FieldProblem, SaveProblem, editable, invalid, mergeOnLatest, refusalOf, type Refusal } from './save-refusal';
+import { FieldProblem, SaveProblem, editable, invalid, refusalOf, type Refusal } from './save-refusal';
 
 const list = (text: string) => text.split(',').map(value => value.trim()).filter(Boolean);
 // An empty one-time code or passkey of a built-in item: the capture flows below add it, so it is not drawn as a masked raw input.
@@ -16,18 +16,11 @@ export function ItemEditor({ row, client, templates, typed, vault, vaultKind, ru
  const initial = row ? editable(row.value) : { schema: 'latchkey/item/v1', type: 'login', title: '', fields: itemTypes.login.map(field => ({ ...field })), labels: [], tags: [], favorite: false, ownership: vaultKind === 'family' ? 'personal' : 'company', urls: [], attachments: [] };
  const [draft, setDraft] = useState<Item>(initial), [generator, setGenerator] = useState(false), [templateId, setTemplateId] = useState(row?.value.template?.object ?? '');
  const [labels, setLabels] = useState(initial.labels.join(', ')), [tags, setTags] = useState(initial.tags.join(', '));
- // The version this edit builds on (a newer one after a conflict) and the item as it was then.
- const [base, setBase] = useState(row), [opened, setOpened] = useState<Item>(initial), [refusal, setRefusal] = useState<Refusal | null>(null), [merged, setMerged] = useState<{ version: number; yours: string[]; theirs: string[] } | null>(null), [fileProblem, setFileProblem] = useState('');
+ const [refusal, setRefusal] = useState<Refusal | null>(null), [fileProblem, setFileProblem] = useState('');
  const content = () => ({ ...draft, ownership: vaultKind === 'family' ? 'personal' : 'company', labels: list(labels), tags: list(tags) });
  // Work whose refusal belongs beside Save item; one that locks or reloads the page goes on to it.
- const attempt = (work: () => Promise<void>) => run(async () => { try { await work(); } catch (cause) { const found = refusalOf(cause, content()); if (!found) throw cause; setMerged(null); setRefusal(found); } });
+ const attempt = (work: () => Promise<void>) => run(async () => { try { await work(); } catch (cause) { const found = refusalOf(cause, content()); if (!found) throw cause; setRefusal(found); } });
  const clear = (field: string) => { if (refusal?.field === field) setRefusal(null); };
- const latest = () => attempt(async () => {
-  const read = await client.readItem(vault, base!.object), newest = read.versions.filter((version: ItemRecord) => version.object === base!.object).sort((a: ItemRecord, b: ItemRecord) => b.version - a.version)[0];
-  if (!newest) throw { code: 'not_found' };
-  const next = editable(newest.value), result = mergeOnLatest(opened, content(), next);
-  setDraft(result.item); setLabels(result.item.labels.join(', ')); setTags(result.item.tags.join(', ')); setOpened(next); setBase(newest); setRefusal(null); setMerged({ version: newest.version, yours: result.yours, theirs: result.theirs });
- });
  const focusField = (field: string) => document.getElementById(`${field}-input`)?.focus();
  const update = (patch: Partial<Item>) => setDraft(previous => ({ ...previous, ...patch }));
  const setField = (id: string, value: any) => setDraft(previous => ({ ...previous, fields: previous.fields.map(field => field.id === id ? { ...field, value } : field) }));
@@ -35,9 +28,9 @@ export function ItemEditor({ row, client, templates, typed, vault, vaultKind, ru
  return <article className="detail editor" aria-labelledby="editor-title"><header className="detail-header"><div className="title"><h1 id="editor-title">{row ? 'Edit item' : 'New item'}</h1><p className="subtitle">Changes are encrypted before they leave your device.</p></div><button disabled={busy} onClick={onCancel}>Cancel</button></header>
   <form onSubmit={e => { e.preventDefault(); setRefusal(null); void attempt(async () => {
    const fields = draft.fields.map(field => ({ ...field, value: complex(field.type) && typeof field.value === 'string' && field.value !== '' ? JSON.parse(field.value) : field.value }));
-   let item = base ? validateItem({ ...content(), fields }, draft.template?.definition) : createItem(draft.type, { ...content(), fields });
+   let item = row ? validateItem({ ...content(), fields }, draft.template?.definition) : createItem(draft.type, { ...content(), fields });
    if (templateId && item.template?.object !== templateId) item = await typed.useTemplate(vault, templateId, item);
-   await onSave(item, base);
+   await onSave(item, row);
   }); }}>
    <div className="credentials"><div className="form-grid"><div className="grid-field"><label>Title<input id="title-input" required maxLength={500} value={draft.title} {...invalid(refusal, 'title')} onChange={e => { clear('title'); update({ title: e.target.value }); }}/></label><FieldProblem refusal={refusal} field="title"/></div><label>Item type<select disabled={!!row} value={draft.type} onChange={e => { const type = e.target.value; update({ type, fields: (itemTypes[type] ?? []).map(field => ({ ...field })), template: undefined }); setTemplateId(''); }} >{[...Object.keys(itemTypes), 'custom'].map(type => <option key={type} value={type}>{typeLabel(type)}</option>)}</select></label></div>
     {!row && <label>Template<select value={templateId} onChange={e => { const id = e.target.value; setTemplateId(id); const template = templates.find(t => t.object === id); if (template) update({ type: 'custom', template: { object: id, version: template.version, definition: template.value }, fields: template.value.fields.map((field: any) => ({ ...field })) }); else update({ template: undefined }); }}><option value="">No template</option>{templates.map(t => <option key={t.object} value={t.object}>{t.value.name}</option>)}</select></label>}
@@ -50,7 +43,7 @@ export function ItemEditor({ row, client, templates, typed, vault, vaultKind, ru
    <div className="section"><h2>Website and app rules</h2>{draft.urls.map((rule, index) => <div className="url-rule" key={index}><label>Match<select value={rule.match} onChange={e => update({ urls: draft.urls.map((r, i) => i === index ? { ...r, match: e.target.value } : r) })}>{['registrable-domain', 'exact-host', 'starts-with-path', 'never-fill', 'native-app'].map(match => <option key={match} value={match}>{matchLabel(match)}</option>)}</select></label>{rule.match === 'native-app' ? <><label>App ID<input id={`rule-${index}-input`} required value={rule.appId ?? ''} {...invalid(refusal, `rule-${index}`)} onChange={e => { clear(`rule-${index}`); update({ urls: draft.urls.map((r, i) => i === index ? { ...r, appId: e.target.value } : r) }); }}/></label><label>Verified association<input required value={rule.association ?? ''} onChange={e => update({ urls: draft.urls.map((r, i) => i === index ? { ...r, association: e.target.value } : r) })}/></label></> : <label>HTTPS URL<input id={`rule-${index}-input`} required type="url" value={rule.url ?? ''} {...invalid(refusal, `rule-${index}`)} onChange={e => { clear(`rule-${index}`); update({ urls: draft.urls.map((r, i) => i === index ? { ...r, url: e.target.value } : r) }); }}/></label>}<button type="button" onClick={() => update({ urls: draft.urls.filter((_, i) => i !== index) })}>Remove rule</button><FieldProblem refusal={refusal} field={`rule-${index}`}/></div>)}<button type="button" onClick={() => update({ urls: [...draft.urls, { match: 'exact-host', url: '' }] })}>Add URL or app rule</button></div>
    <div className="section attachments"><h2>Attachments</h2><p className="muted">Up to 512,000 bytes per file. Files are encrypted inside the item.</p>{draft.attachments.map(file => <div className="file" key={file.id}><span className="file-text">{file.name}<small>{file.size.toLocaleString()} bytes</small></span><button type="button" onClick={() => update({ attachments: draft.attachments.filter(f => f.id !== file.id) })}>Remove</button></div>)}<label className="file-upload">Add attachment<input type="file" {...(fileProblem ? { 'aria-invalid': true, 'aria-describedby': 'problem-file' } : {})} onChange={e => { const file = e.target.files?.[0]; setFileProblem(file && file.size > 512000 ? `${file.name} is ${file.size.toLocaleString()} bytes; files can be up to 512,000 bytes.` : ''); if (file && file.size <= 512000) void run(async () => { const attachment = await createAttachment(file.name, new Uint8Array(await file.arrayBuffer()), file.type || 'application/octet-stream'); setDraft(previous => ({ ...previous, attachments: [...previous.attachments, attachment] })); }); e.target.value = ''; }}/></label>{fileProblem && <p className="field-problem" id="problem-file" role="alert">{fileProblem}</p>}</div>
    <div className="section capture"><TotpCapture object={row?.object} run={run} onAccept={value => addSpecial('totp', 'otp', 'Authenticator', value)}/><Passkeys value={draft.fields.find(f => f.type === 'passkey')?.value} run={run} onAccept={value => addSpecial('passkey', 'passkey', 'Passkey', value)}/></div>
-   <SaveProblem refusal={refusal} merged={merged} busy={busy} onLatest={() => void latest()} onField={focusField}/>
+   <SaveProblem refusal={refusal} onField={focusField}/>
    <div className="section actions"><button type="submit" className="primary" disabled={busy}>{busy ? 'Saving…' : 'Save item'}</button><button type="button" disabled={busy} onClick={onCancel}>Cancel</button></div>
   </form>
  </article>;

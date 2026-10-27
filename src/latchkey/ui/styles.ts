@@ -98,9 +98,9 @@ body:has(.lk){padding:0;background:var(--rer-page,#fff)}
 .lk .restore-preview dd{margin:0 0 10px;color:var(--muted);overflow-wrap:anywhere}.lk .restore-preview dt{font-size:13px;font-weight:600}
 .lk .row .section{padding:0 0 16px}.lk .row #sharing{padding-top:4px}
 .lk .editor form>.section{margin-top:32px}.lk .editor form>.capture{margin-top:16px}.lk .editor form>.actions{margin-top:28px}.lk .editor .section>h2{margin-bottom:8px}
-/* A refused save is explained right above Save item; a merged conflict says what it kept. */
+/* A refused save is explained right above Save item. */
 .lk .editor form>.save-problem{margin:28px 0 0;padding:12px 16px;border:1px solid color-mix(in srgb,var(--danger) 45%,var(--page));background:color-mix(in srgb,var(--danger) 6%,var(--page))}.lk .save-problem>p{margin:0;color:var(--danger)}.lk .save-problem>button{margin-top:12px}.lk .save-problem>.link{min-height:32px}
-.lk .editor form>.save-problem.merged{border-color:var(--rule);background:var(--page)}.lk .save-problem.merged>p{color:var(--ink)}.lk .editor form>.save-problem+.actions{margin-top:14px}
+.lk .editor form>.save-problem+.actions{margin-top:14px}
 .lk .grid-field{display:grid;gap:0;min-width:0}.lk .url-rule>.field-problem{grid-column:1/-1;margin:0}
 
 .lk .notice{border:1px solid var(--rule);background:var(--tint);margin:16px 0;padding:16px 18px;overflow-wrap:anywhere}.lk .notice h2{margin-top:0}
