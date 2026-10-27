@@ -3,7 +3,7 @@ import { download, message } from '../ui/types';
 import { EvidencePanel } from '../evidence/ui';
 
 type Person = { account: string; name: string; role: string };
-type Grant = { key: string; kind: string; subject: string; sponsor?: string | null; rights: unknown; group: string | null; status: string; privileged: boolean; reviewer: string; decision: string | null; reason: string | null; effective: boolean };
+type Grant = { key: string; kind: string; subject: string; sponsor?: string | null; rights: unknown; group: string | null; status: string; privileged: boolean; reviewer: string; decision: string | null; reason: string | null; effective: boolean; superseded: boolean };
 type Campaign = { id: string; vault: string; owner: string; phase: string; asOf: number | null; dueAt: number; period: string; policyVersion: string; enforcement?: { mfa?: unknown }; rows: Grant[]; changes: { key: string; kind: string; subject: string; status: string; rights: unknown }[]; overdue: boolean; completeness: { total: number; decided: number; removals: number; pendingRemovals: number; unreconciled: number } };
 type CampaignSummary = { id: string; phase: string; scheduled_at: number; due_at: number; created_at: number };
 // A refusal the caller explains beside its own fields is handled there: it is not stale campaign state.
@@ -38,7 +38,7 @@ function GrantReview({ client, row, review, people, account, owner, busy, active
  return <article className="definition fingerprint" aria-label={`Grant ${row.key}`}>
   <h2>{row.kind} access</h2>
   <p className="meta">{dots([name(row.subject), row.sponsor && `sponsored by ${name(row.sponsor)}`, row.status, row.privileged && 'Privileged', `Reviewer: ${row.reviewer ? name(row.reviewer) : 'Unassigned'}`])}</p>
-  <p className="notice"><span className={`status ${!row.decision ? 'waiting' : row.decision === 'remove' && !row.effective ? 'action' : 'done'}`} aria-hidden="true"/>Decision: {row.decision ?? 'Undecided'}. {row.reason && <>Reason: {row.reason}. </>}{row.decision === 'remove' && (row.effective ? 'Removal is effective.' : 'Removal is pending; access has not been recorded as removed.')}</p>
+  <p className="notice"><span className={`status ${!row.decision ? 'waiting' : row.decision === 'remove' && !row.superseded && !row.effective ? 'action' : 'done'}`} aria-hidden="true"/>Decision: {row.decision ?? 'Undecided'}. {row.reason && <>Reason: {row.reason}. </>}{row.decision === 'remove' && (row.superseded ? 'Historical snapshot superseded; current access is reviewed separately.' : row.effective ? 'Removal is effective.' : 'Removal is pending; access has not been recorded as removed.')}</p>
   <details><summary>Grant details</summary><div className="form-grid">
    <div className="rule-view"><span>Grant reference</span><span>{row.key}</span></div>
    <div className="rule-view"><span>Subject account</span><span>{row.subject}</span></div>
@@ -58,7 +58,7 @@ function GrantReview({ client, row, review, people, account, owner, busy, active
 <label>Decision reason<textarea aria-label={`Decision reason for ${row.key}`} required maxLength={1000} disabled={busy} value={reason} onChange={event => setReason(event.target.value)}/></label>
    <button disabled={busy || !reason.trim() || decision === 'confirm' && ownAccess}>Record decision</button>
   </form>}
-  {owner && active && row.decision === 'remove' && !row.effective && <div className="tool-box"><p>Apply this removal to grant {row.key}, subject {row.subject}, with rights {text(row.rights)}. This changes live access and may rekey the vault.</p><button disabled={busy} onClick={() => void act(async () => { const { ReviewClient } = await import('./client.mjs'); await new ReviewClient(client).applyRemoval(review, row.key); }, 'Removal applied and campaign refreshed.')}>Apply removal</button></div>}
+  {owner && active && row.decision === 'remove' && !row.superseded && !row.effective && <div className="tool-box"><p>Apply this removal to grant {row.key}, subject {row.subject}, with rights {text(row.rights)}. This changes live access and may rekey the vault.</p><button disabled={busy} onClick={() => void act(async () => { const { ReviewClient } = await import('./client.mjs'); await new ReviewClient(client).applyRemoval(review, row.key); }, 'Removal applied and campaign refreshed.')}>Apply removal</button></div>}
  </article>;
 }
 
