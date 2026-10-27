@@ -1,20 +1,7 @@
-import { classes, effectivePolicy } from './policy.mjs';
+import { classes, effectivePolicy, passwordCombinations as count } from './policy.mjs';
 import { uniform, entropy } from './random.mjs';
 import { check } from '../items/fields.mjs';
 import { effWords } from './eff.mjs';
-// Inclusion/exclusion counts every valid suffix exactly. Unranking a uniform
-// integer gives a uniform password over policy-compliant strings, without
-// forcing characters into predictable positions or weakening its entropy.
-function count(length, missing, allowed) {
- let total = 0n;
- for (let subset = 0; subset < 1 << missing.length; subset++) {
-  let alphabet = 0, parity = 0;
-  for (const name of allowed) { const index = missing.indexOf(name); if (index < 0 || !(subset & 1 << index)) alphabet += classes[name].length; }
-  for (let value = subset; value; value &= value - 1) parity++;
-  const ways = BigInt(alphabet) ** BigInt(length); total += parity % 2 ? -ways : ways;
- }
- return total;
-}
 export function generatePassword({ length = 24, policy = {} } = {}) {
  policy = effectivePolicy(policy);
  check(Number.isSafeInteger(length) && length >= policy.minLength && length <= policy.maxLength, 'password_length_policy');

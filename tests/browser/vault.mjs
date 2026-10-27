@@ -135,6 +135,17 @@ async function generatorPolicyReviewJourney(width, output) {
   await review.waitFor();
   if (width === 1440) { await expect(review.getByRole('alert')).toContainText('Minimum length 36 exceeds maximum length 32'); await expect(review.getByRole('button', { name: 'Apply reviewed policy' })).toBeDisabled(); }
   await capture('generator-policy-conflict');
+  await f.page.getByLabel('Maximum characters', { exact: true }).fill('36');
+  await f.page.getByLabel('Minimum entropy (bits)', { exact: true }).fill('300');
+  await f.page.getByRole('button', { name: 'Preview policy change' }).click();
+  await review.waitFor();
+  if (width === 1440) {
+   await expect(review.getByRole('alert')).toContainText('Minimum entropy 300 bits exceeds');
+   await expect(review.getByRole('alert')).toContainText('maximum length 36');
+   await expect(review.getByRole('button', { name: 'Apply reviewed policy' })).toBeDisabled();
+   assert.equal((await f.owner.call('generator' + '/policy', {})).policy.minEntropyBits, 80);
+  }
+  await capture('generator-policy-entropy-conflict');
  } catch (error) { if (output) await f.page.screenshot({ path: join(output, `generator-policy-failure-${width}.png`), fullPage: true }); throw error; }
  finally { await f.close(); }
 }

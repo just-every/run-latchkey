@@ -184,6 +184,38 @@ export async function runGeneratorApiJourney(f) {
   assert.equal(applied.policy.minLength, 28);
   assert.equal((await state()).changes.length, before.changes.length + 1);
   assert.deepEqual(await rawApply({ ...input, policy: plan.policy, confirmed: true, review: plan.hash }), { status: 409, body: { error: 'policy_review_changed' } });
+  const sharing = new SharingClient(owner), group = (await sharing.createGroup([owner.profile.account])).group;
+  const groupInput = { group, policy: { maxLength: 32 }, reason: 'synthetic-latchkey-1326' };
+  const groupPlan = await api.previewGeneratorPolicy(groupInput);
+  await api.setGeneratorPolicy({ ...groupInput, policy: groupPlan.policy, confirmed: true, review: groupPlan.hash });
+  const conflictBefore = await state();
+  const entropyInput = { ...input, policy: { minEntropyBits: 220 }, reason: 'synthetic-latchkey-1327' };
+  const conflict = await api.previewGeneratorPolicy(entropyInput);
+  assert.equal(conflict.canApply, false);
+  assert.equal(conflict.members.find(row => row.account === owner.profile.account).before.policy.minEntropyBits, 80);
+  assert.equal(conflict.members.find(row => row.account === owner.profile.account).after.policy.minEntropyBits, 220);
+  assert.ok(conflict.conflicts.some(row => row.reason.includes('220') && row.reason.includes('maximum length 32') && row.sources.some(source => source.group === group)));
+  assert.deepEqual(await state(), conflictBefore);
+  assert.deepEqual(await rawApply({ ...entropyInput, policy: conflict.policy, confirmed: true, review: conflict.hash }), { status: 400, body: { error: 'conflicting_generator_policy' } });
+  assert.deepEqual(await state(), conflictBefore);
+  const cliConflict = await cli('policies.generator-preview', entropyInput);
+  assert.equal(cliConflict.canApply, false);
+  assert.equal((await cli('policies.generator', { ...entropyInput, policy: cliConflict.policy, confirmed: true, review: cliConflict.hash }, 1)).error, 'conflicting_generator_policy');
+  assert.deepEqual(await state(), conflictBefore);
+  // A feasible entropy request still applies and generates through the CLI.
+  const feasibleInput = { ...entropyInput, policy: { minEntropyBits: 200 } }, feasible = await api.previewGeneratorPolicy(feasibleInput);
+  assert.equal(feasible.canApply, true);
+  await api.setGeneratorPolicy({ ...feasibleInput, policy: feasible.policy, confirmed: true, review: feasible.hash });
+  const generatedFile = join(directory, 'generated.json'), history = join(directory, 'history.json');
+  await runItemCommand('generate', { output: generatedFile, history, acknowledgedRetentionDays: 30, options: { length: 32 } }, {
+   client: owner, readPrivate: async path => JSON.parse(await readFile(path, 'utf8')),
+   writePrivate: (path, value) => writeFile(path, JSON.stringify(value), { mode: 0o600 }),
+  });
+  const generated = JSON.parse(await readFile(generatedFile, 'utf8'));
+  assert.equal(generated.value.length, 32); assert.ok(generated.entropyBits >= 200);
+  const clearGroup = { ...groupInput, policy: {} }, clearGroupPlan = await api.previewGeneratorPolicy(clearGroup);
+  await api.setGeneratorPolicy({ ...clearGroup, policy: clearGroupPlan.policy, confirmed: true, review: clearGroupPlan.hash });
+  await sharing.setGroup(group, []);
   const cliInput = { ...input, policy: { minLength: 32 }, reason: 'synthetic-latchkey-1323' }, cliBefore = await state();
   const cliPlan = await cli('policies.generator-preview', cliInput);
   assert.equal(cliPlan.members.find(row => row.account === owner.profile.account).after.policy.minLength, 32);
@@ -197,8 +229,20 @@ export async function runGeneratorApiJourney(f) {
   assert.equal(cliApplied.policy.minLength, 32);
   assert.equal((await state()).changes.length, cliBefore.changes.length + 1);
   assert.equal((await cli('policies.generator', { ...body, confirmed: true }, 1)).error, 'policy_review_changed');
+  const contenders = await Promise.all([36, 40].map(async minLength => {
+   const input = { group: null, policy: { minLength }, reason: 'synthetic-latchkey-1328' };
+   const plan = await api.previewGeneratorPolicy(input);
+   return { ...input, policy: plan.policy, confirmed: true, review: plan.hash };
+  }));
+  const raceBefore = await state(), outcomes = await Promise.allSettled(contenders.map(input => api.setGeneratorPolicy(input)));
+  assert.equal(outcomes.filter(result => result.status === 'fulfilled').length, 1);
+  const refused = outcomes.find(result => result.status === 'rejected');
+  assert.equal(refused.reason.code, 'policy_review_changed');
+  const winner = outcomes.findIndex(result => result.status === 'fulfilled');
+  assert.equal((await owner.call('generator/policy', {})).policy.minLength, contenders[winner].policy.minLength);
+  assert.equal((await state()).changes.length, raceBefore.changes.length + 1);
   const reset = { group: null, policy: {}, reason: 'synthetic-latchkey-1325' }, resetPlan = await api.previewGeneratorPolicy(reset);
   await api.setGeneratorPolicy({ ...reset, policy: resetPlan.policy, confirmed: true, review: resetPlan.hash });
-  console.log('Generator REST and CLI: read-only preview, explicit review and confirmation, exact application, stale review refusal and no refused writes passed');
+  console.log('Generator REST and CLI: read-only preview, exact confirmation, entropy conflict refusal, feasible generation, concurrent application and no refused writes passed');
  } finally { await rm(directory, { recursive: true, force: true }); }
 }
