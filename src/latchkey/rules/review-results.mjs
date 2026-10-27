@@ -52,8 +52,8 @@ export async function reconcileReview(ctx,row,value,obligation) {
  }
  const snapshots=await inventoryGuard(ctx,context.vault.id),current=await inventory(ctx,context.vault.id);
  // Re-observe removals rather than trusting an old effective flag or checkbox.
- need(result.rows.filter(r=>r.decision==='remove').every(r=>r.effective&&removalEffective(current,r)),'rule_review_removal_pending',409);
- const summary=canonicalJson({review:review.id,closedAt:review.closed_at,total:c.total,decided:c.decided,removals:c.removals,providerState:'unknown'});
+ need(result.rows.filter(r=>r.decision==='remove'&&!r.superseded).every(r=>r.effective&&removalEffective(current,r)),'rule_review_removal_pending',409);
+ const summary=canonicalJson({review:review.id,closedAt:review.closed_at,total:c.total,decided:c.decided,removals:result.rows.filter(r=>r.decision==='remove'&&!r.superseded).length,providerState:'unknown'});
  try {
   await guarded(ctx,[context.vault],[stmt("UPDATE lky_rule_obligations SET phase='review-result-recorded' WHERE id=?",obligation.id),stmt('UPDATE lky_rule_reviews SET result=?,recorded_at=? WHERE obligation=?',summary,ctx.now,obligation.id),event('rule_review_result_observed',row.id)],[...context.guards,...reviewerGuards,...snapshots.map(g=>guard(g.sql,g.args)),guard("EXISTS(SELECT 1 FROM lky_rule_reviews WHERE obligation=? AND review_id=? AND binding=? AND phase='active' AND result IS NULL)",[obligation.id,link.review_id,link.binding])]);
  } catch(error) {
