@@ -74,6 +74,7 @@ export async function custodyJourney({owner,member,ownerPassword,memberPassword,
  await refused(owner.readVault(family),'not_found');assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM lky_versions WHERE vault_id=? AND object_id=?').bind(family,familyItem).first()).n,1);
  await refused(receiver.commit(fresh,{confirmed:true,approvedPlanHash:fresh.planHash}),'custody_review_expired');
  await assert.rejects(owner.call(['api','users','status'].join('/'),{operator,status:'active'}));
+ await db.prepare("UPDATE oa_operators SET role='owner' WHERE id=?").bind(operator).run();await refused(receiver.preview(op.id,'reactivate'),'offboarding_state_changed');await db.prepare("UPDATE oa_operators SET role='member' WHERE id=?").bind(operator).run();
  const activationPath=join(directory,'reactivation.json');assert.equal((await cli('custody-preview',{profile:ownerPath,password:ownerPassword,operation:op.id,action:'reactivate',output:activationPath})).written,true);
  const activation=JSON.parse(await readFile(activationPath,'utf8'));assert.deepEqual(activation.plan.vaults,[]);assert.equal((await receiver.commit(activation,{confirmed:true,approvedPlanHash:activation.planHash})).status,'reactivated');
  await assert.rejects(leaver.readVault(vault));

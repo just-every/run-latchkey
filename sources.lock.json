@@ -1978,7 +1978,7 @@
       "executable": false
     },
     "src/latchkey/people/custody.mjs": {
-      "sha256": "9b9fd830f332095fb1065c43c520fb579896d8716a965bb55a75c589d0d9bc2c",
+      "sha256": "116380db7a50134998e06c1433d47bf97a7d0a452f34739578bfb518fe3ed19a",
       "executable": false
     },
     "src/latchkey/people/offboarding.mjs": {
@@ -3658,7 +3658,7 @@
       "executable": false
     },
     "tests/latchkey-custody.mjs": {
-      "sha256": "7561ee54e76cbe0bb28211ce74c74257b1bba4fed7996c8140198595fcdde0d8",
+      "sha256": "62174d25ea6cbe067713411c1ba438b6d7221718ba0d177eeff535ac17488423",
       "executable": false
     },
     "tests/latchkey-erasure.mjs": {

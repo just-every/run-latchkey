@@ -15,8 +15,8 @@ async function operationFor(ctx,operation){
 async function planFor(ctx,operation,action){
  const {op,owner}=await operationFor(ctx,operation),{all,first}=access(ctx);
  need(['handback','reactivate'].includes(action),'invalid_custody_action');
- const person=await first('SELECT o.id,o.status,o.version,a.generation FROM oa_operators o JOIN lky_accounts a ON a.operator_id=o.id WHERE o.id=? AND a.id=? AND a.tenant=?',op.operator,op.account,ctx.tenant);
- need(person&&person.status==='inactive'&&op.status==='suspended','offboarding_state_changed',409);
+ const person=await first('SELECT o.id,o.status,o.role,o.version,a.generation FROM oa_operators o JOIN lky_accounts a ON a.operator_id=o.id WHERE o.id=? AND a.id=? AND a.tenant=?',op.operator,op.account,ctx.tenant);
+ need(person&&person.status==='inactive'&&person.role==='member'&&op.status==='suspended','offboarding_state_changed',409);
  need(!await first('SELECT 1 FROM oa_external_identities WHERE operator_id=?',op.operator),'directory_reconciliation_required',409);
  const vaults=await all("SELECT v.* FROM lky_vaults v WHERE v.tenant=? AND v.owner=? AND v.kind<>'family' ORDER BY v.id",ctx.tenant,op.account);
  const sources=[];
@@ -64,7 +64,7 @@ export async function custodyAuthenticated(route,input,ctx){
   const review=await first('SELECT * FROM lky_custody_reviews WHERE id=? AND tenant=? AND actor=? AND consumed_at IS NULL AND expires_at>?',uuid(input.review),ctx.tenant,ctx.actor,ctx.now);need(review,'custody_review_expired',409);
   const plan=await planFor(ctx,review.operation,review.action);need(canonicalJson(plan)===review.plan&&input.planHash===await digest(review.plan),'custody_review_changed',409);
   need(Array.isArray(input.vaults)&&canonicalJson(input.vaults.map(v=>v.vault).sort())===canonicalJson(plan.vaults.map(v=>v.vault).sort()),'incomplete_handback',409);
-  const changes=[],guards=[guard('EXISTS(SELECT 1 FROM lky_custody_reviews WHERE id=? AND consumed_at IS NULL AND expires_at>?)',[review.id,ctx.now]),guard(ownerSql,[ctx.actor,ctx.tenant,plan.custodianGeneration,plan.custodianVersion]),guard("EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND status='inactive' AND version=?)",[plan.operator,plan.operatorVersion]),guard('EXISTS(SELECT 1 FROM lky_accounts WHERE id=? AND generation=?)',[plan.account,plan.accountGeneration]),guard('NOT EXISTS(SELECT 1 FROM oa_external_identities WHERE operator_id=?)',[plan.operator]),guard("(SELECT COUNT(*) FROM lky_vaults WHERE tenant=? AND owner=? AND kind<>'family')=?",[ctx.tenant,plan.account,plan.vaults.length])];
+  const changes=[],guards=[guard('EXISTS(SELECT 1 FROM lky_custody_reviews WHERE id=? AND consumed_at IS NULL AND expires_at>?)',[review.id,ctx.now]),guard(ownerSql,[ctx.actor,ctx.tenant,plan.custodianGeneration,plan.custodianVersion]),guard("EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND status='inactive' AND role='member' AND version=?)",[plan.operator,plan.operatorVersion]),guard('EXISTS(SELECT 1 FROM lky_accounts WHERE id=? AND generation=?)',[plan.account,plan.accountGeneration]),guard('NOT EXISTS(SELECT 1 FROM oa_external_identities WHERE operator_id=?)',[plan.operator]),guard("(SELECT COUNT(*) FROM lky_vaults WHERE tenant=? AND owner=? AND kind<>'family')=?",[ctx.tenant,plan.account,plan.vaults.length])];
   for(const source of plan.vaults){
    const next=input.vaults.find(v=>v.vault===source.vault);exact(next,['vault','versions','wrapped','policy']);
    const owner=await activeOwner(ctx,ctx.actor),epoch=source.epoch+1;
