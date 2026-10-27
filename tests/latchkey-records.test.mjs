@@ -115,8 +115,8 @@ test('Passbolt CLI keeps a real KDBX preview encrypted and refuses a wrong passp
  const { passboltFixture } = await import('./fixtures/passbolt.mjs');
  const { spawn } = await import('node:child_process');
  const fixture = await passboltFixture(), directory = await mkdtemp(join(tmpdir(), 'synthetic-latchkey-1480-'));
- const cli = (command, input) => new Promise((resolve, reject) => {
-  const child = spawn(process.execPath, ['scripts/latchkey.mjs', command], { stdio: ['pipe', 'pipe', 'pipe'] });
+ const cli = (command, input, preload) => new Promise((resolve, reject) => {
+  const child = spawn(process.execPath, [...(preload ? ['--import', preload] : []), 'scripts/latchkey.mjs', command], { stdio: ['pipe', 'pipe', 'pipe'] });
   let stdout = '', stderr = ''; child.stdout.on('data', chunk => stdout += chunk); child.stderr.on('data', chunk => stderr += chunk); child.on('error', reject); child.on('close', code => resolve({ code, stdout, stderr })); child.stdin.end(JSON.stringify(input));
  });
  try {
@@ -295,16 +295,16 @@ test('Posture inspection reads official inventory edges without confusing missin
 test('Bitwarden CLI decrypts portable exports locally and stages only encrypted previews with explicit plaintext review', async () => {
  const { spawn } = await import('node:child_process');
  const directory = await mkdtemp(join(tmpdir(), 'synthetic-latchkey-1610-'));
- const cli = (command, input) => new Promise((resolve, reject) => {
-  const child = spawn(process.execPath, ['scripts/latchkey.mjs', command], { stdio: ['pipe', 'pipe', 'pipe'] });
+ const cli = (command, input, preload) => new Promise((resolve, reject) => {
+  const child = spawn(process.execPath, [...(preload ? ['--import', preload] : []), 'scripts/latchkey.mjs', command], { stdio: ['pipe', 'pipe', 'pipe'] });
   let stdout = '', stderr = ''; child.stdout.on('data', chunk => stdout += chunk); child.stderr.on('data', chunk => stderr += chunk); child.on('error', reject); child.on('close', code => resolve({ code, stdout, stderr })); child.stdin.end(JSON.stringify(input));
  });
  const previewKey = encode(random()), base = { source: 'bitwarden', sourceOrigin: 'https://vault.bitwarden.example.test', sourceOwner: 'synthetic-latchkey-1600', previewKey };
  try {
-  for (const variant of ['plain', 'portable']) {
+  for (const variant of ['plain', 'portable', 'argon2', 'argon2-alternate']) {
    const input = join(directory, `${variant}.json`), output = join(directory, `${variant}-preview.json`), review = join(directory, `${variant}-review.json`);
    await writeFile(input, await readFile(new URL(`./fixtures/migration/bitwarden-${variant}.json`, import.meta.url)), { mode: 0o600 });
-   if (variant === 'portable') {
+   if (variant !== 'plain') {
     const denied = await cli('migration-preview', { ...base, input, output, passphrase: 'synthetic-latchkey-1611' });
     assert.equal(denied.code, 1); assert.match(denied.stderr, /bitwarden_cannot_decrypt/); await assert.rejects(stat(output), { code: 'ENOENT' });
    }
@@ -331,10 +331,40 @@ test('Bitwarden CLI decrypts portable exports locally and stages only encrypted 
   assert.equal(folderPreview.plan.folders.length, 2); assert.deepEqual(folderPreview.plan.rows[0].folders, ['synthetic-latchkey-1640']);
   organized.items[0].reprompt = 1;
   assert.ok((await previewMigration({ ...base, data: new TextEncoder().encode(JSON.stringify(organized)) })).plan.rows[0].gaps.includes('source_reprompt_requires_review'));
-  for (const [source, error] of [[{ encrypted: true, passwordProtected: false }, 'bitwarden_account_restricted_export'], [{ encrypted: true, passwordProtected: true, kdfType: 1 }, 'unsupported_bitwarden_kdf']]) await assert.rejects(previewMigration({ ...base, data: new TextEncoder().encode(JSON.stringify(source)) }), { code: error });
-  const portable = JSON.parse(await readFile(new URL('./fixtures/migration/bitwarden-portable.json', import.meta.url)));
-  portable.data = portable.data.slice(0, -2) + 'AA';
-  await assert.rejects(previewMigration({ ...base, passphrase: 'synthetic-latchkey-1607', data: new TextEncoder().encode(JSON.stringify(portable)) }), { code: 'bitwarden_cannot_decrypt' });
+  for (const [source, error] of [[{ encrypted: true, passwordProtected: false }, 'bitwarden_account_restricted_export'], [{ encrypted: true, passwordProtected: true, kdfType: 2 }, 'unsupported_bitwarden_kdf']]) await assert.rejects(previewMigration({ ...base, data: new TextEncoder().encode(JSON.stringify(source)) }), { code: error });
+  for (const variant of ['portable', 'argon2', 'argon2-alternate']) {
+   const portable = JSON.parse(await readFile(new URL(`./fixtures/migration/bitwarden-${variant}.json`, import.meta.url)));
+   for (const field of ['data', 'encKeyValidation_DO_NOT_EDIT']) {
+    const changed = structuredClone(portable), parts = changed[field].slice(2).split('|');
+    const ciphertext = Buffer.from(parts[1], 'base64'); ciphertext[0] ^= 1; parts[1] = ciphertext.toString('base64'); changed[field] = '2.' + parts.join('|');
+    const input = join(directory, 'tampered.json'), output = join(directory, 'tampered-preview.json');
+    await writeFile(input, JSON.stringify(changed), { mode: 0o600 });
+    const refused = await cli('migration-preview', { ...base, input, output, passphrase: 'synthetic-latchkey-1607' });
+    assert.equal(refused.code, 1); assert.match(refused.stderr, /bitwarden_cannot_decrypt/); await assert.rejects(stat(output), { code: 'ENOENT' });
+   }
+  }
+  // The CLI uses the real KDF above. Here a loader records any KDF invocation so
+  // hostile export metadata must refuse before allocation, independently of time.
+  const marker = join(directory, 'kdf-called'), preload = join(directory, 'kdf-loader.mjs');
+  await writeFile(join(directory, 'kdf-stub.mjs'), `export async function argon2id() { (await import('node:fs')).appendFileSync(${JSON.stringify(marker)}, 'called'); throw Error('synthetic-latchkey-1646'); }`);
+  await writeFile(preload, `import { registerHooks } from 'node:module'; const url = new URL('./kdf-stub.mjs', import.meta.url).href; registerHooks({ resolve(specifier, context, next) { return specifier === 'hash-wasm' ? { url, shortCircuit: true } : next(specifier, context); } });`);
+  const portable = JSON.parse(await readFile(new URL('./fixtures/migration/bitwarden-argon2.json', import.meta.url)));
+  const input = join(directory, 'bounded.json'), output = join(directory, 'bounded-preview.json');
+  await writeFile(input, JSON.stringify(portable), { mode: 0o600 });
+  const valid = await cli('migration-preview', { ...base, input, output, passphrase: 'synthetic-latchkey-1607' }, preload);
+  assert.equal(valid.code, 1); assert.match(valid.stderr, /bitwarden_cannot_decrypt/); assert.equal(await readFile(marker, 'utf8'), 'called'); await rm(marker);
+  const invalid = [];
+  for (const field of ['kdfIterations', 'kdfMemory', 'kdfParallelism']) {
+   for (const value of [undefined, null, 0, -1, 1.5, '3', Number.MAX_SAFE_INTEGER, 1e100]) invalid.push({ ...portable, [field]: value });
+  }
+  invalid.push({ ...portable, kdfIterations: 11 }, { ...portable, kdfMemory: 257 }, { ...portable, kdfParallelism: 17 }, { ...portable, kdfMemory: 256, kdfIterations: 5 });
+  for (const source of invalid) {
+   await writeFile(input, JSON.stringify(source), { mode: 0o600 });
+   const refused = await cli('migration-preview', { ...base, input, output, passphrase: 'synthetic-latchkey-1607' }, preload);
+   assert.equal(refused.code, 1); assert.match(refused.stderr, /invalid_bitwarden_kdf/);
+   await assert.rejects(stat(output), { code: 'ENOENT' }); await assert.rejects(stat(marker), { code: 'ENOENT' });
+   assert.ok(!(refused.stdout + refused.stderr).includes('synthetic-latchkey-1607'));
+  }
  } finally { await rm(directory, { recursive: true, force: true }); }
 });
 
@@ -369,15 +399,29 @@ test('LastPass 40-folder CSV preview reconciles duplicates and omissions without
 test('Migration personal batches resume and apply deltas without overwriting a destination correction or widening authority', async () => {
  const { previewMigration, importMigration } = await import('../src/latchkey/migration/core.mjs');
  const { vaultFixture } = await import('./browser/fixture.mjs');
- const data = new Uint8Array(await readFile(new URL('./fixtures/migration/bitwarden-plain.json', import.meta.url)));
+ const encrypted = new Uint8Array(await readFile(new URL('./fixtures/migration/bitwarden-argon2.json', import.meta.url)));
+ const { readBitwarden } = await import('../src/latchkey/migration/bitwarden.mjs');
+ const data = new TextEncoder().encode(JSON.stringify(await readBitwarden(encrypted, 'synthetic-latchkey-1607')));
  const base = { source: 'bitwarden', sourceOrigin: 'https://vault.bitwarden.example.test', sourceOwner: 'synthetic-latchkey-1600' };
- const { plan, hash } = await previewMigration({ ...base, data }), f = await vaultFixture({ browserEnabled: false });
+ const { plan, hash } = await previewMigration({ ...base, data: encrypted, passphrase: 'synthetic-latchkey-1607' }), f = await vaultFixture({ browserEnabled: false });
  try {
   const vault = (await f.owner.createVault({ kind: 'family' })).vault, input = { vault, confirmed: true, ownership: 'personal', sourceOwner: base.sourceOwner, approvedHash: hash };
   await assert.rejects(importMigration(f.owner, plan, { ...input, confirmed: false }), { code: 'personal_import_confirmation_required' });
   await assert.rejects(importMigration(f.owner, plan, { ...input, approvedHash: 'synthetic-latchkey-1630' }), { code: 'migration_approval_mismatch' });
   const company = (await f.owner.createVault()).vault;
   await assert.rejects(importMigration(f.owner, plan, { ...input, vault: company }), { code: 'personal_destination_required' });
+  const { ApiClient } = await import('../src/latchkey/api/client.mjs'), { VaultClient } = await import('../src/latchkey/client.mjs');
+  await new ApiClient(f.owner).inviteUser({ email: 'synthetic-latchkey-1647@example.test', displayName: 'Migration recipient', role: 'member' });
+  const link = f.mail.at(-1).content.find(row => row.type.endsWith('plain')).value.match(/https:\/\/[^\s<>]+/)[0];
+  const member = new VaultClient(f.origin, { fetcher: f.fetcher });
+  try {
+   await member.confirmIdentity(new URL(link).searchParams.get('token'));
+   const enrolled = await member.register('synthetic-latchkey-1648'); await member.unlock(enrolled.profile, 'synthetic-latchkey-1648');
+   const sharedVault = (await f.owner.createVault({ kind: 'family' })).vault, identity = member.identity();
+   await f.owner.share(sharedVault, identity.account, await identity.fingerprint, ['read']);
+   await assert.rejects(importMigration(f.owner, plan, { ...input, vault: sharedVault }), { code: 'private_destination_required' });
+   assert.equal((await f.owner.readVault(sharedVault)).versions.length, 0);
+  } finally { member.lock(); }
   const shared = JSON.parse(new TextDecoder().decode(data)); shared.items[0].organizationId = 'synthetic-latchkey-1631';
   const sharedPreview = await previewMigration({ ...base, data: new TextEncoder().encode(JSON.stringify(shared)) });
   await assert.rejects(importMigration(f.owner, sharedPreview.plan, { ...input, approvedHash: sharedPreview.hash }), { code: 'migration_discrepancies_unresolved' });
@@ -394,8 +438,8 @@ test('Migration personal batches resume and apply deltas without overwriting a d
   try {
    const { migrationCommand } = await import('../scripts/latchkey/migration-commands.mjs'), { spawn } = await import('node:child_process');
    const source = join(directory, 'source.json'), profile = join(directory, 'profile.json'), preview = join(directory, 'preview.json'), previewKey = encode(random());
-   await writeFile(source, data, { mode: 0o600 }); await writeFile(profile, JSON.stringify(f.owner.profile), { mode: 0o600 });
-   await migrationCommand('migration-preview', { ...base, input: source, output: preview, previewKey });
+   await writeFile(source, encrypted, { mode: 0o600 }); await writeFile(profile, JSON.stringify(f.owner.profile), { mode: 0o600 });
+   await migrationCommand('migration-preview', { ...base, input: source, output: preview, previewKey, passphrase: 'synthetic-latchkey-1607' });
    const receipt = await new Promise((resolve, reject) => {
     const child = spawn(process.execPath, ['scripts/latchkey.mjs', 'migration-import'], { stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, NODE_EXTRA_CA_CERTS: f.caFile } });
     let stdout = '', stderr = ''; child.stdout.on('data', chunk => stdout += chunk); child.stderr.on('data', chunk => stderr += chunk); child.on('error', reject); child.on('close', code => resolve({ code, stdout, stderr })); child.stdin.end(JSON.stringify({ ...input, profile, password: f.password, preview, previewKey }));
