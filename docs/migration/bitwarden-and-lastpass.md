@@ -1,14 +1,31 @@
 # Local Bitwarden and LastPass migration
 
 The CLI accepts Bitwarden plaintext vault JSON and portable password-protected
-JSON using PBKDF2 and authenticated type-2 encryption. The committed synthetic
+JSON using PBKDF2 or Argon2id and authenticated type-2 encryption. The committed synthetic
 fixtures were emitted by the official `@bitwarden/sdk-internal`
 `0.2.0-main.1157` exporter with a local synthetic identity. The fixture generator
 is `./tests/fixtures/migration/generate.cjs`; pass the absolute path to a separately
 installed SDK package. No live organization or Secrets Manager connection is
-claimed. Account-restricted exports and Argon2 exports are refused; export a
-supported portable variant in an authorized Bitwarden client instead. Never give
-a server your source master password or account key.
+claimed. Account-restricted exports and unknown KDFs are refused. Never give a
+server your source master password or account key.
+
+Argon2id runs only in the local CLI using pinned `hash-wasm` 4.12.0. Bitwarden's
+base64 salt text is hashed with SHA-256 before Argon2id; memory in MiB is converted
+to KiB. The resulting 32-byte key uses the same authenticated type-2 decryption
+as PBKDF2. Both the validation ciphertext and export data must authenticate.
+The official SDK fixtures cover 64 MiB with 3 iterations and 4 lanes, and 32 MiB
+with 2 iterations and 2 lanes. No live account is used to generate them.
+
+Untrusted Argon2id settings must be safe integers: 1–10 iterations, 1–256 MiB
+memory and 1–16 lanes, with memory multiplied by iterations at most 1024 MiB
+passes. Validation happens before loading or invoking the KDF. Exports exceeding
+these local resource limits refuse without writing a preview; no weaker KDF or
+plaintext fallback is attempted. PBKDF2 retains its existing 5,000–2,000,000
+iteration limits. These are import resource limits, not password-policy advice.
+Wrong passwords and changed ciphertext refuse without exposing decrypted data.
+Temporary password bytes, derived keys and encoded preview bytes are cleared
+when their operations finish; JavaScript strings and the KDF's internal memory
+do not provide a verified-erasure guarantee.
 
 LastPass accepts the documented seven-column CSV: `url`, `username`, `password`,
 `extra`, `name`, `grouping`, `fav`. Provide `mapping` with one `{row, id}` pair per

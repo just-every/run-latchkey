@@ -23,6 +23,9 @@ importers:
       '@tanstack/react-start':
         specifier: 1.168.60
         version: 1.168.60(esbuild@0.28.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rolldown@1.2.8)(vite@8.2.2(@types/node@22.18.6)(esbuild@0.28.1)(jiti@2.7.0))
+      hash-wasm:
+        specifier: 4.12.0
+        version: 4.12.0
       hono:
         specifier: 4.13.7
         version: 4.13.7
@@ -946,6 +949,9 @@ packages:
     peerDependenciesMeta:
       crossws:
         optional: true
+
+  hash-wasm@4.12.0:
+    resolution: {integrity: sha512-+/2B2rYLb48I/evdOIhP+K/DD2ca2fgBjp6O+GBEnCDk2e4rpeXIK8GvIyRPjTezgmWn9gmKwkQjjx6BtqDHVQ==}
 
   hono@4.13.7:
     resolution: {integrity: sha512-c8/gF9ac8Y78/agExVocyLevgR+JlpNB444Py0FSX8pJoPdYUfUzRcXtYEYGwt6l19qIlVZPN5Mfsw9jFShmQQ==}
@@ -2137,6 +2143,8 @@ snapshots:
     dependencies:
       rou3: 0.8.1
       srvx: 0.11.22
+
+  hash-wasm@4.12.0: {}
 
   hono@4.13.7: {}
 

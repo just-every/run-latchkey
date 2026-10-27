@@ -514,7 +514,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "f30fec56cb322974e371734f4b1bb33703ca9fc6efa5da67a848e535bb27e575",
+      "sha256": "5fe72bb71259a877a16a1201958c570d338aa405c0c2b4c56e9cc9ae3807416e",
       "executable": false
     },
     "AGENTS.md": {
@@ -554,7 +554,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "8c6eab89944f3f363a9698ce2aba948c99de427a15a81178498912730c2e29bc",
+      "sha256": "6081c2ba8886471b24af92b65066d996e80d6968e435c8cf18a6617f6e846e71",
       "executable": false
     },
     "deploy-demo.json": {
@@ -602,7 +602,7 @@
       "executable": false
     },
     "docs/migration/bitwarden-and-lastpass.md": {
-      "sha256": "221dac1e94c8cd6f6a345167969d49e8c25e1425f98bf811936757cd7cf7d7a7",
+      "sha256": "c45ccca2f866182f08bbc90e26d9a9ab042afc1ab20d139a86edd3db534df568",
       "executable": false
     },
     "docs/migration/passbolt.md": {
@@ -834,7 +834,7 @@
       "executable": false
     },
     "package.json": {
-      "sha256": "56ea1f9614b9d711e4c203482f1dbc58e7432806c6d0659391131e483448b33e",
+      "sha256": "06c4efbb2e851a6b2c7e59846d4ef75498ef0c289176cbff4086c8cf5cb463b2",
       "executable": false
     },
     "packages/runtime/client.d.mts": {
@@ -894,7 +894,7 @@
       "executable": false
     },
     "pnpm-lock.yaml": {
-      "sha256": "9c8833eafbad81e428dbccd7a9a90df261713f13abf77a02acf513f62fc04237",
+      "sha256": "bbae628617dca07e2812e9e827de88e18478bdeac0ed8493018ab16608b72de0",
       "executable": false
     },
     "public/apple-touch-icon.png": {
@@ -1234,7 +1234,7 @@
       "executable": false
     },
     "scripts/latchkey/migration-commands.mjs": {
-      "sha256": "2a5f0fcc3698a46118fc25a0c7cc393e854a65cb8c352411392351ce809ef878",
+      "sha256": "6c0c2ef181160dd06b78ba4acedcbc9d5e77a30f5bf67681c509e1d7a9c80920",
       "executable": false
     },
     "scripts/latchkey/msp-commands.mjs": {
@@ -1902,7 +1902,7 @@
       "executable": false
     },
     "src/latchkey/migration/bitwarden.mjs": {
-      "sha256": "328c13c4b6c91886f56e9be14b4be833eb95b23929914cfe43e3f4314f1b1736",
+      "sha256": "babd1792e42934221c38a2edca6b34b7980e22a1d15f8547f82d434ed74c283c",
       "executable": false
     },
     "src/latchkey/migration/core.mjs": {
@@ -3657,6 +3657,14 @@
       "sha256": "8d236a67cc16901abaa36b6896e1b2e7ff03adf1312304926a6b71139560d200",
       "executable": false
     },
+    "tests/fixtures/migration/bitwarden-argon2-alternate.json": {
+      "sha256": "a1fd082a1ecc949e10738b94d260c756a8a52e3c820fcb5b5bf04a9a82a9ff82",
+      "executable": false
+    },
+    "tests/fixtures/migration/bitwarden-argon2.json": {
+      "sha256": "359494769ca75d991a3fc7b2683c2dfd0483ad81c02887e1692df744ab6c500c",
+      "executable": false
+    },
     "tests/fixtures/migration/bitwarden-plain.json": {
       "sha256": "3ef1fee54053b70a14aec122a8ae03a6aece235a1167bacc9c520b6d3a5e9bbd",
       "executable": false
@@ -3666,7 +3674,7 @@
       "executable": false
     },
     "tests/fixtures/migration/generate.cjs": {
-      "sha256": "652c1bce057819e488985fcdd00b5f46206fee6709cc8c55700c68c210bb341f",
+      "sha256": "795a6fd950d0f15af82d42fb628987a5d87ef8f983e8af8cf92f6d365587243a",
       "executable": false
     },
     "tests/fixtures/passbolt.mjs": {
@@ -3714,7 +3722,7 @@
       "executable": false
     },
     "tests/latchkey-records.test.mjs": {
-      "sha256": "04b26d242678491dbfbfe27fabf6b3e43c986a5e0c97463271ff70c154a2412e",
+      "sha256": "08756d60284e9933b40de2cf6b44b648ffd3e3e254f096f069cb9f81878ef1a2",
       "executable": false
     },
     "tests/latchkey-recovery.mjs": {
