@@ -514,7 +514,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "bd42890af6cd573b6a02d0ef84fc6f7f71c83d21e4f2023e67ace33633a4e367",
+      "sha256": "a6092530b93b0147a52201029eee46cc75017af8315d7e8a3eb266ac4592da36",
       "executable": false
     },
     "AGENTS.md": {
@@ -554,7 +554,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "87430d7902a9b9c0f5b2c422c1287b60c5b413c904c8ea7d60736f4167572045",
+      "sha256": "557ae930bc9a328dc9ed1ac83207f1729d5adefd7b75040a89b1e3fbb1048b91",
       "executable": false
     },
     "deploy-demo.json": {
@@ -578,7 +578,7 @@
       "executable": false
     },
     "docs/CLAIMS.md": {
-      "sha256": "a365eed0617f75507e38d4176809dbefb83139c3619c9506762d39592ed47446",
+      "sha256": "615ff32d496f8d5a5a26964a79b370799ea0d4f3c3df070357d3c9ef44b2e7a6",
       "executable": false
     },
     "docs/company-custody.md": {
@@ -1846,11 +1846,11 @@
       "executable": false
     },
     "src/latchkey/health/client.d.mts": {
-      "sha256": "fded8e38000e1af3c8df7dd1f5adb62112aeea5b40c6a1cf5db2c4259e9bcc40",
+      "sha256": "e683654c0e72dda9abaa64a1196a296ffa04615e774e5a2a96071169178447f2",
       "executable": false
     },
     "src/latchkey/health/client.mjs": {
-      "sha256": "06bf2905bbde49efe22949fb575a889ead98657854cf427770c2c7415e85bc42",
+      "sha256": "cf6273460ca8fbe3ad96e882fb406783139a9657f346464936ca0a1476b4209d",
       "executable": false
     },
     "src/latchkey/health/README.md": {
@@ -1866,7 +1866,7 @@
       "executable": false
     },
     "src/latchkey/health/ui.tsx": {
-      "sha256": "a95d953b1aa01beb136dfd98b8e21531d1341a2b038a7c7ee40c80224e838583",
+      "sha256": "85957ab7a0425a1b8c5913edc3f61eee096d4b34f114da235d9cebafcb9f1139",
       "executable": false
     },
     "src/latchkey/items/attachments.mjs": {
@@ -3678,7 +3678,7 @@
       "executable": false
     },
     "tests/browser/security.mjs": {
-      "sha256": "5fc0108841bf79ce0d21a21c40ff23c7da772a4376e32db5a1502ab09c25fb54",
+      "sha256": "b5eba6f29559083e4a041573f323942ad926ad4e25e94d1d58ba9511b6118407",
       "executable": false
     },
     "tests/browser/sharing.mjs": {

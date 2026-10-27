@@ -25,6 +25,11 @@ async function websiteBreaches(fetcher) {
 }
 function hosts(item){return [...new Set([...(item.urls??[]).map(r=>r.url),...(item.fields??[]).filter(f=>f.type==='url').map(f=>f.value)].flatMap(v=>{try{const u=new URL(v);return ['http:','https:'].includes(u.protocol)?[u.hostname.toLowerCase().replace(/\.$/,'')]:[];}catch{return [];}}))];}
 function expiryTime(item){const v=value(item,'expiry');if(item.type==='card'&&/^\d{4}-\d{2}$/.test(v??'')){const [y,m]=v.split('-').map(Number);return m>=1&&m<=12?Date.UTC(y,m,1):NaN;}return typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v)?Date.parse(v):NaN;}
+// Expiry is a read-time view of retained decisions, never a change to risk or history.
+export function currentHealthReport(report,now) {
+ const active=row=>Boolean(row?.active)&&(row.until===null||Number.isFinite(row.until)&&row.until>now);
+ return {...report,history:report.history.map(row=>({...row,active:active(row)})),findings:report.findings.map(row=>({...row,suppression:active(row.suppression)?row.suppression:null}))};
+}
 export class HealthClient {
  constructor(client,{fetcher=fetch,now=()=>Date.now()}={}){this.client=client;this.fetcher=(url,init)=>fetcher(url,init);this.now=now;}
  async inspect(vault,{network=false,githubToken=''}={}) {
@@ -59,7 +64,7 @@ export class HealthClient {
   for(const group of passwords.values())if(group.length>1)for(const row of group)add(row,'reused-password','Local comparison of permitted active items',{related:group.filter(r=>r.object!==row.object).map(r=>({object:r.object,title:r.value.title}))});
   // Authority is checked again after external feed work; stale results are never returned after revoke.
   await this.validate(vault,loaded.vault.revision);
-  return {findings,unknown,revision:loaded.vault.revision,observedAt:now,itemCount:rows.length,riskCount:findings.length,history,legacyHistory,coverage:'Only this permitted vault and active items; organization comparison not performed'};
+  return currentHealthReport({findings,unknown,revision:loaded.vault.revision,observedAt:now,itemCount:rows.length,riskCount:findings.length,history,legacyHistory,coverage:'Only this permitted vault and active items; organization comparison not performed'},this.now());
  }
  async validate(vault,revision){const current=await this.client.call('lifecycle/list',{vault});if(current.vault.revision!==revision||!current.vault.rights.includes('read'))throw Error('health_source_changed');}
  async history(vault){
