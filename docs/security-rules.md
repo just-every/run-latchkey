@@ -20,7 +20,10 @@ campaign cannot complete a security-rule obligation.
 The scheduler reconciles bound campaigns after restart as well as during normal
 runs. **Observe closed review result** checks the same observed state on demand.
 Completion requires a closed campaign, all decisions, no pending removals and
-currently effective removal outcomes. Rule version, run slot, vault authority,
+currently effective removal outcomes. Future, approval-pending and temporarily
+inactive grants still retain authority and must be removed; their current lack
+of access does not complete a removal decision. A closed report that predates
+that removal stays incomplete until the retained grant is revoked. Rule version, run slot, vault authority,
 reviewer access, target versions and scope are checked again. Editing or
 cancelling a rule prevents completion of its superseded or cancelled obligations.
 Repeated or concurrent observation retains one result and one completion event.

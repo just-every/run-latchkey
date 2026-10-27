@@ -10,7 +10,7 @@ import { createItem } from '../../src/latchkey/items/types.mjs';
 const output=process.env.LATCHKEY_SCREENSHOTS,route=name=>['rules',name].join('/');
 if(output)await mkdir(output,{recursive:true});
 export async function rulesConsoleJourney(width) {
- const realNow=Date.now,clock=Date.now();Date.now=()=>clock;
+ const realNow=Date.now,clock=Date.parse('2031-11-15T12:00:00Z');Date.now=()=>clock;
  const f=await vaultFixture({clock});await f.page.addInitScript({content:`Date.now=()=>${clock}`});
  try {
   const quarter=new Date(clock);quarter.setUTCMonth(Math.floor(quarter.getUTCMonth()/3)*3,1);quarter.setUTCHours(0,0,0,0);const nextQuarter=new Date(quarter);nextQuarter.setUTCMonth(nextQuarter.getUTCMonth()+3);const laterQuarter=new Date(quarter);laterQuarter.setUTCMonth(laterQuarter.getUTCMonth()+6);
@@ -43,8 +43,9 @@ export async function rulesConsoleJourney(width) {
   const invitation=await f.fetcher(f.origin+'/auth/invite',{method:'POST',headers:{origin:f.origin,'content-type':['application','json'].join('/'),cookie:owner.cookie},body:JSON.stringify({email:'synthetic-latchkey-8550@example.test',displayName:'Independent rule reviewer',role:'member'})});assert.equal(invitation.status,202);
   const token=new URL(f.mail.at(-1).content.find(c=>c.type===['text','plain'].join('/')).value.match(/https:\/\/[^\s<>]+/)[0]).searchParams.get('token'),reviewer=new VaultClient(f.origin,{fetcher:f.fetcher});await reviewer.confirmIdentity(token);const enrolled=await reviewer.register('synthetic-latchkey-8551');await reviewer.unlock(enrolled.profile,'synthetic-latchkey-8551');
   const shares=new SharingClient(owner);await shares.setPolicy({externalEnabled:true,domains:['example.test'],defaultDays:7,maxDays:30});const link=await shares.createLink(vault,resource.object,{recipient:'synthetic-latchkey-8552@example.test'});
+  const future=await shares.createLink(vault,resource.object,{recipient:'synthetic-latchkey-8553@example.test',startsAt:clock+86400000});
   const campaign=(await owner.call(['reviews','create'].join('/'),{vault,reviewer:owner.profile.account,scheduleAt:clock,dueAt:Math.min(clock+3600000,nextQuarter.getTime()-1),period:'Quarterly finance review'})).id;
-  let detail=await owner.call(['reviews','get'].join('/'),{review:campaign});assert.equal(detail.rows.length,2);
+  let detail=await owner.call(['reviews','get'].join('/'),{review:campaign});assert.equal(detail.rows.length,3);
   const ownRow=detail.rows.find(r=>r.subject===owner.profile.account),externalRow=detail.rows.find(r=>r.id===link.link);
   await owner.call(['reviews','assign'].join('/'),{review:campaign,key:ownRow.key,reviewer:reviewer.profile.account});await reviewer.call(['reviews','decide'].join('/'),{review:campaign,key:ownRow.key,decision:'confirm',reason:'Independently checked owner access'});
   const history=await owner.call(route('get'),{rule:quarterRuleId}),obligation=history.obligations.find(o=>o.run_id===history.runs.find(r=>r.slot===0).id),article=panel.getByRole('article',{name:`Obligation ${obligation.id}`,exact:true});
@@ -55,11 +56,15 @@ export async function rulesConsoleJourney(width) {
   if(output)await page.screenshot({path:join(output,`rules-bound-review-${width}.png`),fullPage:true});
   await page.getByRole('button',{name:'Access reviews',exact:true}).click();await page.getByLabel('Campaign',{exact:true}).selectOption(campaign);
   const grant=page.getByRole('article',{name:`Grant ${externalRow.key}`,exact:true});await grant.getByLabel(`Decision for ${externalRow.key}`).selectOption('remove');await grant.getByLabel(`Decision reason for ${externalRow.key}`).fill('Quarterly review retires external access');await grant.getByRole('button',{name:'Record decision',exact:true}).click();await expect(grant).toContainText('Removal is pending');await expect(page.getByRole('button',{name:'Close review',exact:true})).toBeDisabled();await grant.getByRole('button',{name:'Apply removal',exact:true}).click();
+  const futureRow=detail.rows.find(r=>r.id===future.link),futureGrant=page.getByRole('article',{name:`Grant ${futureRow.key}`,exact:true});await futureGrant.getByLabel(`Decision for ${futureRow.key}`).selectOption('remove');await futureGrant.getByLabel(`Decision reason for ${futureRow.key}`).fill('Cancel future access before it starts');await futureGrant.getByRole('button',{name:'Record decision',exact:true}).click();
   await page.getByLabel('Reviewer for reconciled grants').selectOption(owner.profile.account);await page.getByRole('button',{name:'Reconcile current access',exact:true}).click();
   detail=await owner.call(['reviews','get'].join('/'),{review:campaign});const revoked=detail.rows.find(r=>!r.decision);assert.equal(revoked.status,'revoked');const revokedGrant=page.getByRole('article',{name:`Grant ${revoked.key}`,exact:true});await revokedGrant.getByLabel(`Decision reason for ${revoked.key}`).fill('Confirmed that the removed grant is revoked');await revokedGrant.getByRole('button',{name:'Record decision',exact:true}).click();await page.getByRole('button',{name:'Close review',exact:true}).click();await expect(page.getByRole('heading',{name:'Completed review',exact:true})).toBeVisible();
   await page.getByText('Settings',{exact:true}).click();await page.getByRole('button',{name:'Security rules',exact:true}).click();await panel.getByLabel('Saved template',{exact:true}).selectOption(quarterRuleId);
-  const completed=panel.getByRole('article',{name:`Obligation ${obligation.id}`,exact:true});await completed.getByRole('button',{name:'Observe closed review result',exact:true}).click();await expect(completed).toContainText('review-result-recorded');await expect(completed).toContainText('Observed closed review');
-  assert.equal(JSON.parse((await owner.call(route('get'),{rule:quarterRuleId})).reviewBindings[0].result).removals,1);
+  const completed=panel.getByRole('article',{name:`Obligation ${obligation.id}`,exact:true});await completed.getByRole('button',{name:'Observe closed review result',exact:true}).click();await expect(completed.getByRole('status')).toHaveText('Remove the remaining access in Sharing, then observe this closed review again.');
+  assert.equal((await owner.call(route('get'),{rule:quarterRuleId})).obligations.find(o=>o.id===obligation.id).phase,'open');
+  if(output)await page.screenshot({path:join(output,`rules-pending-removal-${width}.png`),fullPage:true});
+  await shares.revokeLink(future.link);await completed.getByRole('button',{name:'Observe closed review result',exact:true}).click();await expect(completed).toContainText('review-result-recorded');await expect(completed).toContainText('Observed closed review');
+  assert.equal(JSON.parse((await owner.call(route('get'),{rule:quarterRuleId})).reviewBindings[0].result).removals,2);
   if(output)await page.screenshot({path:join(output,`rules-review-result-${width}.png`),fullPage:true});
   await new SharingClient(owner).setGroup(group,[]);await f.schedule(laterQuarter.getTime());await panel.getByRole('button',{name:'Refresh rules',exact:true}).click();await expect(panel.getByRole('region',{name:'Rule history'})).toContainText('suspended-scope-changed');
   assert.equal((await owner.call(route('list'),{})).length,2);

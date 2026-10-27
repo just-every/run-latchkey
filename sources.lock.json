@@ -514,7 +514,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "39e5125e0c1a5ecc647317cc318d361471d7ac79b71899e45d14564d8e9fbea1",
+      "sha256": "f5682272d083951027d3e4295f51c0087950bb9c6993665087d3ba26f78c4bcc",
       "executable": false
     },
     "AGENTS.md": {
@@ -554,7 +554,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "284bf4937967c58632264cad722e567b2e5419a89df156da24e7a1ef5b68ee5a",
+      "sha256": "0fc1a0bc5083654da2c8dd2064ae4a02d131fcfb1f1a041a95b0745539dd60a5",
       "executable": false
     },
     "deploy-demo.json": {
@@ -618,7 +618,7 @@
       "executable": false
     },
     "docs/security-rules.md": {
-      "sha256": "1b86baf00968c99ddd147defbb94b85bac9d8dfeae916851025d6aaa67b26c26",
+      "sha256": "3d325b4967c6bb0f1754c3d4eaed65750589a1a6a092d5ae4be56bb02c209a59",
       "executable": false
     },
     "docs/security/protocol.md": {
@@ -2222,7 +2222,7 @@
       "executable": false
     },
     "src/latchkey/rules/review-results.mjs": {
-      "sha256": "b2498fd1dd80e91960559ee347d2f8f2c19e788a764841309865ef7ab7edd4ea",
+      "sha256": "ac4ad4a42b64241f9eacb05c1dc040c7cc27ac5cef99a982201e7f52fe54bbcb",
       "executable": false
     },
     "src/latchkey/rules/scheduled.d.mts": {
@@ -2246,7 +2246,7 @@
       "executable": false
     },
     "src/latchkey/rules/ui.tsx": {
-      "sha256": "dab6b2ee38bb095e88c9ae5dc8e7f76846292b5001d7318b1356da00229c82ca",
+      "sha256": "e7412f196da7d356b369f12d5fcc2e6acd1b6339ca34c00b9ddbab6c6dc9d149",
       "executable": false
     },
     "src/latchkey/runtime/authority.mjs": {
@@ -3638,7 +3638,7 @@
       "executable": false
     },
     "tests/browser/rules.mjs": {
-      "sha256": "1b22765faef7e14ae3d323fe2daec3d598da1dc197d55559d6b56aa853d38a8e",
+      "sha256": "de3bf271e18974392853b9a8dd7122712e7be9963074fd38a711deaf2da86f53",
       "executable": false
     },
     "tests/browser/runtime-consumers.mjs": {
@@ -3746,7 +3746,7 @@
       "executable": false
     },
     "tests/latchkey-rules.mjs": {
-      "sha256": "90542a4beb68df5caab14991c19514d4d48ad94948c60b52529223cb063dbd68",
+      "sha256": "bafcd83093536d4294711d12f02658ddba936d633dd66735b96228170b52e1fb",
       "executable": false
     },
     "tests/latchkey-sharing.mjs": {

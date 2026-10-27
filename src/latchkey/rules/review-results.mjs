@@ -46,8 +46,9 @@ export async function reconcileReview(ctx,row,value,obligation) {
  need(result.id===review.id&&result.vault===context.vault.id&&result.phase==='closed'&&result.closedAt===review.closed_at&&review.closed_at>=review.as_of&&result.rows.length>0&&c.total===result.rows.length&&c.decided===c.total&&c.pendingRemovals===0&&c.unreconciled===0&&result.rows.every(r=>['confirm','remove'].includes(r.decision)),'rule_review_incomplete',409);
  for(const reviewer of new Set(result.rows.map(r=>r.reviewer)))need(await first("SELECT 1 FROM lky_accounts a JOIN oa_operators o ON o.id=a.operator_id WHERE a.id=? AND a.tenant=? AND o.status='active'",reviewer,ctx.tenant),'rule_reviewer_unavailable',403);
  const snapshots=await inventoryGuard(ctx,context.vault.id),current=await inventory(ctx,context.vault.id);
- // Re-observe removals rather than trusting an old effective flag or checkbox.
- need(result.rows.filter(r=>r.decision==='remove').every(r=>r.effective&&!current.rows.some(live=>live.kind===r.kind&&live.id===r.id&&live.subject===r.subject&&live.status==='active')),'rule_review_removal_pending',409);
+ // Future, pending and temporarily inactive grants still retain authority.
+ // A historical effective flag cannot substitute for their actual removal.
+ need(result.rows.filter(r=>r.decision==='remove').every(r=>r.effective&&!current.rows.some(live=>live.kind===r.kind&&live.id===r.id&&live.subject===r.subject&&!['revoked','expired','spent'].includes(live.status))),'rule_review_removal_pending',409);
  const summary=canonicalJson({review:review.id,closedAt:review.closed_at,total:c.total,decided:c.decided,removals:c.removals,providerState:'unknown'});
  try {
   await guarded(ctx,[context.vault],[stmt("UPDATE lky_rule_obligations SET phase='review-result-recorded' WHERE id=?",obligation.id),stmt('UPDATE lky_rule_reviews SET result=?,recorded_at=? WHERE obligation=?',summary,ctx.now,obligation.id),event('rule_review_result_observed',row.id)],[...context.guards,...snapshots.map(g=>guard(g.sql,g.args)),guard("EXISTS(SELECT 1 FROM lky_rule_reviews WHERE obligation=? AND review_id=? AND binding=? AND phase='active' AND result IS NULL)",[obligation.id,link.review_id,link.binding])]);

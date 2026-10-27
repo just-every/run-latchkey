@@ -15,7 +15,7 @@ const route = (...parts) => ['rules',...parts].join('/');
 const reviewRoute = name => ['reviews',name].join('/');
 const refused = (promise,code) => assert.rejects(promise,error=>error.code===code);
 export async function ruleLifecycleJourney() {
- const realNow=Date.now,clock=Date.now();Date.now=()=>clock;
+ const realNow=Date.now,clock=Date.parse('2031-11-15T12:00:00Z');Date.now=()=>clock;
  const f=await vaultFixture({browserEnabled:false,clock,persistent:true});
  try {
   const owner=f.owner,call=(name,input)=>owner.call(route(name),input),vault=(await owner.createVault()).vault;
@@ -63,8 +63,8 @@ export async function ruleLifecycleJourney() {
   const result=await call('complete',{rule:resultRule,version:1,obligation:resultObligation,resultVersion:3,confirmed:true});assert.equal(result.providerState,'unknown');assert.equal(result.state,'vault-result-recorded');
   const scratch=await mkdtemp(join(tmpdir(),'latchkey-rules-cli-'));
   try {
-   const profile=join(scratch,'profile.json');await writeFile(profile,JSON.stringify(owner.profile),{mode:0o600});
-   const output=await new Promise((resolve,reject)=>{const child=spawn(process.execPath,['scripts/latchkey.mjs','rules'],{env:{...process.env,NODE_EXTRA_CA_CERTS:f.caFile},stdio:['pipe','pipe','pipe']});let stdout='',stderr='';child.stdout.on('data',chunk=>stdout+=chunk);child.stderr.on('data',chunk=>stderr+=chunk);child.on('error',reject);child.on('exit',code=>code===0?resolve(stdout):reject(Error('Rule CLI failed: '+stderr)));child.stdin.end(JSON.stringify({profile,password:f.password,action:'list',input:{}}))});
+   const profile=join(scratch,'profile.json'),clockModule=join(scratch,'clock.mjs');await writeFile(profile,JSON.stringify(owner.profile),{mode:0o600});await writeFile(clockModule,`Date.now=()=>${clock};`);
+   const output=await new Promise((resolve,reject)=>{const child=spawn(process.execPath,['--import',clockModule,'scripts/latchkey.mjs','rules'],{env:{...process.env,NODE_EXTRA_CA_CERTS:f.caFile},stdio:['pipe','pipe','pipe']});let stdout='',stderr='';child.stdout.on('data',chunk=>stdout+=chunk);child.stderr.on('data',chunk=>stderr+=chunk);child.on('error',reject);child.on('exit',code=>code===0?resolve(stdout):reject(Error('Rule CLI failed: '+stderr)));child.stdin.end(JSON.stringify({profile,password:f.password,action:'list',input:{}}))});
    assert.ok(JSON.parse(output).some(row=>row.id===rule));
   }finally{await rm(scratch,{recursive:true,force:true})}
   // Close a real quarterly review; a binding never completes its obligation.
@@ -75,6 +75,7 @@ export async function ruleLifecycleJourney() {
   const reviewState=await newReviewRule(),reviewRuleId=reviewState.id,reviewObligation=reviewState.obligations[0].id;
   const sharing=new SharingClient(owner);await sharing.setPolicy({externalEnabled:true,domains:['example.test'],defaultDays:7,maxDays:30});
   const external=await sharing.createLink(reviewVault,reviewObject,{recipient:'synthetic-latchkey-8541@example.test'});
+  const future=await sharing.createLink(reviewVault,reviewObject,{recipient:'synthetic-latchkey-8542@example.test',startsAt:clock+86400000});
   const campaign=(await owner.call(reviewRoute('create'),{vault:reviewVault,reviewer:owner.profile.account,scheduleAt:clock,dueAt:clock+3600000,period:'Quarterly access review'})).id;
   const binding={rule:reviewRuleId,version:1,obligation:reviewObligation,review:campaign,slot:0,vault:reviewVault,scope:{group:null,project:null},reviewer:owner.profile.account,confirmed:true};
   await refused(call('bind-review',{...binding,confirmed:false}),'rule_confirmation_required');
@@ -89,11 +90,12 @@ export async function ruleLifecycleJourney() {
   await refused(member.call(route('bind-review'),binding),'rule_owner_required');
   await refused(call('reconcile-review',{rule:reviewRuleId,version:1,obligation:reviewObligation}),'rule_review_not_closed');
   let reviewDetail=await owner.call(reviewRoute('get'),{review:campaign});
-  assert.equal(reviewDetail.rows.length,2);
+  assert.equal(reviewDetail.rows.length,3);
   const ownReviewRow=reviewDetail.rows.find(r=>r.subject===owner.profile.account),externalRow=reviewDetail.rows.find(r=>r.id===external.link);
   await owner.call(reviewRoute('assign'),{review:campaign,key:ownReviewRow.key,reviewer:member.profile.account});
   await member.call(reviewRoute('decide'),{review:campaign,key:ownReviewRow.key,decision:'confirm',reason:'Independently reviewed current owner access'});
   await owner.call(reviewRoute('decide'),{review:campaign,key:externalRow.key,decision:'remove',reason:'Retire external access'});
+  await owner.call(reviewRoute('decide'),{review:campaign,key:reviewDetail.rows.find(r=>r.id===future.link).key,decision:'remove',reason:'Cancel scheduled access before it begins'});
   await refused(owner.call(reviewRoute('close'),{review:campaign}),'review_incomplete');
   await refused(call('reconcile-review',{rule:reviewRuleId,version:1,obligation:reviewObligation}),'rule_review_not_closed');
   assert.equal((await owner.call(reviewRoute('get'),{review:campaign})).completeness.pendingRemovals,1);
@@ -102,9 +104,13 @@ export async function ruleLifecycleJourney() {
   reviewDetail=await owner.call(reviewRoute('reconcile'),{review:campaign,reviewer:owner.profile.account});
   for(const entry of reviewDetail.rows.filter(r=>!r.decision))await owner.call(reviewRoute('decide'),{review:campaign,key:entry.key,decision:'confirm',reason:'Reviewed the now revoked grant'});
   await owner.call(reviewRoute('close'),{review:campaign});
+  // A closed report's effective flag cannot stand in for removal of future access.
+  await refused(call('reconcile-review',{rule:reviewRuleId,version:1,obligation:reviewObligation}),'rule_review_removal_pending');
+  await f.schedule(clock);assert.equal((await call('get',{rule:reviewRuleId})).obligations[0].phase,'open');
+  await sharing.revokeLink(future.link);
   await Promise.all([call('reconcile-review',{rule:reviewRuleId,version:1,obligation:reviewObligation}),call('reconcile-review',{rule:reviewRuleId,version:1,obligation:reviewObligation}),f.schedule(clock)]);
   await f.restart();await f.schedule(clock);await call('reconcile-review',{rule:reviewRuleId,version:1,obligation:reviewObligation});
-  const observed=await call('get',{rule:reviewRuleId});assert.equal(observed.obligations[0].phase,'review-result-recorded');assert.equal(observed.reviewBindings.length,1);assert.equal(JSON.parse(observed.reviewBindings[0].result).removals,1);
+  const observed=await call('get',{rule:reviewRuleId});assert.equal(observed.obligations[0].phase,'review-result-recorded');assert.equal(observed.reviewBindings.length,1);assert.equal(JSON.parse(observed.reviewBindings[0].result).removals,2);
   assert.equal((await owner.call('audit',{})).filter(e=>e.action==='rule_review_result_observed'&&e.object_id===reviewRuleId).length,1);
   const duplicate=await newReviewRule();await refused(call('bind-review',{...binding,rule:duplicate.id,obligation:duplicate.obligations[0].id}),'rule_review_already_bound');
   await call('cancel',{rule:duplicate.id,version:1});await refused(call('bind-review',{...binding,rule:duplicate.id,obligation:duplicate.obligations[0].id}),'rule_review_unavailable');
