@@ -92,11 +92,13 @@ export function VaultScreen() {
  });
  const row = items.find(row => row.object === selected), templates = records.filter(row => row.value.schema === 'latchkey/template/v1');
  const current = vaults.find(v => v.id === vault), vaultView = !['received', 'people-erasure', 'reviews', 'projects', 'automation', 'evidence', 'provider', 'rules', 'aliases', 'connections', 'health', 'reports'].includes(panel);
+ // The bar is the same on every destination: the search stays, and typing in it away from the list opens the list.
+ const listed = vaultView && ['', 'new', 'edit'].includes(panel);
  const show = (next: string, toggle = false) => { setPanel(toggle && panel === next ? '' : next); setCreate(false); if (menu.current) menu.current.open = false; };
  const editor = (panel === 'new' || panel === 'edit' && row) && <ItemEditor key={panel === 'new' ? `new:${vault}` : `${row!.object}:${row!.version}`} row={panel === 'edit' ? row : undefined} client={client} typed={typed} vault={vault} vaultKind={current?.kind ?? 'company'} templates={templates} run={run} busy={pending > 0} onSave={save} onCancel={() => setPanel('')}/>;
  return <div className="lk"><style>{vaultCss}</style><a className="skip" href="#vault-main">Skip to vault</a>
  <header className="topbar"><a className="lockup" href="/app/vault"><img className="lockup-mark" src={marks.white} alt="" width={248} height={100}/><span className="lockup-word" data-rer-name>Latchkey</span></a>
-  {client ? <>{vaultView && vault && <label className="search"><Icon name="search"/><input ref={search} type="search" aria-label="Search vault" placeholder="Search vault…" value={query} maxLength={500} onChange={e => setQuery(e.target.value)}/><kbd>⌘ K</kbd></label>}
+  {client ? <><label className="search"><Icon name="search"/><input ref={search} type="search" aria-label="Search vault" placeholder="Search vault…" value={query} maxLength={500} disabled={!vault} onChange={e => { setQuery(e.target.value); if (!listed) show(''); }}/><kbd>⌘ K</kbd></label>
    <Tabs tabs={tabs} current={tabs.find(([name]) => name ? panel === name : vaultView)?.[1]} onPick={show}/>
    <details className="menu" ref={menu}><summary>Settings</summary><div className="menu-list">
     <button type="button" disabled={pending > 0} onClick={() => { setCreate(!create); if (menu.current) menu.current.open = false; }}>New vault</button>

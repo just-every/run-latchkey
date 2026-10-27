@@ -9,13 +9,16 @@ import { EraseItem } from './erase';
 import { SharingPanel } from '../sharing/ui';
 import { ItemAlias } from '../aliases/item';
 import { fieldLabel, hasValue, itemSummary, matchLabel } from './labels';
+import { breakable } from './item-row';
 
 function FieldView({ field, label, typed, vault, object, run }: { field: Field; label: string; typed: any; vault: string; object: string; run: Task }) {
  const [shown, setShown] = useState(false), [value, setValue] = useState<any>(field.secret ? null : field.value), [code, setCode] = useState<any>(null);
  useEffect(() => { if (!code) return; const timer = setTimeout(() => setCode(null), Math.max(0, code.validUntil - Date.now())); return () => clearTimeout(timer); }, [code]);
  const text = value == null ? '' : typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
- return <div className="field"><label htmlFor={`view-${field.id}`}>{label}</label><div className="input-row">
-  {field.type === 'multiline' && (!field.secret || shown) ? <textarea id={`view-${field.id}`} readOnly rows={3} value={text} aria-label={label}/> : <input id={`view-${field.id}`} readOnly type={field.secret && !shown ? 'password' : 'text'} value={field.secret && !shown ? '••••••••••••' : text} aria-label={label}/>}
+ // A value that is not secret reads as text that wraps (after a dot, before the @), never cut off by a field's width.
+ const plain = !field.secret && !['multiline', 'json'].includes(field.type);
+ return <div className="field"><label htmlFor={plain ? undefined : `view-${field.id}`} id={`label-${field.id}`}>{label}</label><div className="input-row">
+  {plain ? <span className="value" id={`view-${field.id}`} role="textbox" aria-readonly="true" aria-labelledby={`label-${field.id}`} tabIndex={0}>{breakable(text)}</span> : field.type === 'multiline' && (!field.secret || shown) ? <textarea id={`view-${field.id}`} readOnly rows={3} value={text} aria-label={label}/> : <input id={`view-${field.id}`} readOnly type={field.secret && !shown ? 'password' : 'text'} value={field.secret && !shown ? '••••••••••••' : text} aria-label={label}/>}
   {field.secret && <TooltipButton tooltip={shown ? 'Hide field' : 'Reveal field'} aria-label={`${shown ? 'Hide' : 'Reveal'} ${label}`} onClick={() => { if (shown) { setShown(false); setValue(null); setCode(null); } else void run(async () => { setValue(await typed.field(vault, object, field.id, 'reveal')); setShown(true); }); }}><Icon name="eye"/></TooltipButton>}
   <TooltipButton tooltip="Copy field" aria-label={`Copy ${label}`} onClick={() => void run(async () => copy(await typed.field(vault, object, field.id, 'copy')))}><Icon name="copy"/></TooltipButton>
  </div>{field.type === 'otp' && <><button className="small" onClick={() => void run(async () => { const value = await typed.field(vault, object, field.id, 'reveal'); setCode(await totp(value)); })}>Show current code</button>{code && <div className="notice"><output>{code.code}</output><p className="muted">Valid until {new Date(code.validUntil).toLocaleTimeString()}. Refresh for a new code.</p><button onClick={() => void run(async () => { const value = await typed.field(vault, object, field.id, 'copy'); const current = await totp(value); setCode(current); await copy(current.code); })}>Copy current code</button></div>}</>}

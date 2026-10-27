@@ -10,6 +10,15 @@ type CampaignSummary = { id: string; phase: string; scheduled_at: number; due_at
 type Action = (work: (() => Promise<unknown>) | null, success: string, handled?: (cause: any) => boolean) => Promise<void>;
 type DateProblem = { field: 'start' | 'due'; text: string } | null;
 const when = (value: number | null) => value == null ? 'Not captured yet' : new Date(value).toLocaleString();
+// A campaign in the picker, in the vault's date style ("Open · due Tue Nov 10"); the due time, then a
+// short id, tells apart two that would otherwise read the same.
+function campaignLabels(rows: CampaignSummary[]) {
+ const day = (at: number) => new Date(at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', ...(new Date(at).getFullYear() === new Date().getFullYear() ? {} : { year: 'numeric' }) }).replaceAll(',', '');
+ const time = (at: number) => new Date(at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+ const label = (row: CampaignSummary) => `${row.phase.charAt(0).toUpperCase()}${row.phase.slice(1)} · due ${day(row.due_at)}`;
+ const twins = (text: string, read: (row: CampaignSummary) => string) => rows.filter(row => read(row) === text).length > 1;
+ return new Map(rows.map(row => { let text = label(row); if (twins(text, label)) text += ` ${time(row.due_at)}`; if (twins(text, other => `${label(other)} ${time(other.due_at)}`)) text += ` · ${row.id.slice(0, 4)}`; return [row.id, text]; }));
+}
 const text = (value: unknown) => typeof value === 'string' ? value : JSON.stringify(value);
 const isComplete = (phase: string) => phase === 'closed';
 const dots = (parts: unknown[]) => parts.filter(Boolean).join(' · ');
@@ -103,7 +112,7 @@ export function ReviewsPanel({ client, vault, run }: any) {
   <div className="actions"><button disabled={busy || loading} onClick={() => void act(null, 'Access reviews refreshed.')}>Refresh reviews</button></div>
   {stale && <p className="notice" role="alert">The last action could not be verified. Refresh to inspect current campaign and grant state before trying another change.</p>}
   {!loading && !error && campaigns.length === 0 && <div className="empty"><h2>No access reviews</h2><p>{owner ? 'Schedule the first review for this vault.' : 'The vault owner has not scheduled a review.'}</p></div>}
-  {campaigns.length > 0 && <label>Campaign<select aria-label="Campaign" className="vault-select" disabled={busy || loading} value={selected} onChange={event => void chooseCampaign(event.target.value)}>{campaigns.map(row => <option key={row.id} value={row.id}>{row.phase} · due {when(row.due_at)} · {row.id.slice(0, 8)}</option>)}</select></label>}
+  {campaigns.length > 0 && <label>Campaign<select aria-label="Campaign" className="vault-select" disabled={busy || loading} value={selected} onChange={event => void chooseCampaign(event.target.value)}>{[...campaignLabels(campaigns)].map(([id, text]) => <option key={id} value={id}>{text}</option>)}</select></label>}
   {!loading && vaultOwner === account && <details className="tool-box"><summary>Schedule an owner-led review</summary><form onSubmit={event => {
    event.preventDefault();
    // Dates are checked beside their fields first; every entered value stays until the campaign exists.

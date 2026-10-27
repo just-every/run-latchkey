@@ -35,7 +35,9 @@ body:has(.lk){padding:0;background:var(--rer-page,#fff)}
 /* The search gives way first (its shrink factor dwarfs the tabs'); only a bar too full for both (a
    demo's Run link just above 1300 px) lets the tab strip scroll, with its faded edges. */
 .lk .tabs{display:flex;align-self:stretch;gap:24px;margin:0 auto;flex:0 1 auto;min-width:0;overflow-x:auto;scrollbar-width:none}.lk .tabs::-webkit-scrollbar{display:none}.lk .topbar:has(>[data-rer-demo-exit]) .search kbd{display:none}
-.lk .tabs button{align-self:stretch;flex:none;min-height:64px;padding:0 2px;border:0;border-bottom:3px solid transparent;border-top:3px solid transparent;border-radius:0;background:none;font-weight:400;color:var(--ink)}
+.lk .tabs button{align-self:stretch;flex:none;flex-direction:column;gap:0;min-height:64px;padding:0 2px;border:0;border-bottom:3px solid transparent;border-top:3px solid transparent;border-radius:0;background:none;font-weight:400;color:var(--ink)}
+/* An invisible bold copy of each label holds the tab at its active width, so the bar never shifts. */
+.lk .tabs button::after{content:attr(data-label);content:attr(data-label)/'';height:0;overflow:hidden;visibility:hidden;font-weight:650;pointer-events:none;user-select:none}
 .lk .tabs button:hover:not(:disabled){background:none;border-bottom-color:var(--rule)}.lk .tabs button:focus-visible{outline-offset:-3px}.lk .tabs [aria-current=page]{font-weight:650;border-bottom-color:var(--accent)!important}
 .lk .tabs[data-fade~=start]{-webkit-mask-image:linear-gradient(to right,transparent,#000 36px);mask-image:linear-gradient(to right,transparent,#000 36px)}.lk .tabs[data-fade~=end]{-webkit-mask-image:linear-gradient(to left,transparent,#000 36px);mask-image:linear-gradient(to left,transparent,#000 36px)}
 .lk .tabs[data-fade~=start][data-fade~=end]{-webkit-mask-image:linear-gradient(to right,transparent,#000 36px,#000 calc(100% - 36px),transparent);mask-image:linear-gradient(to right,transparent,#000 36px,#000 calc(100% - 36px),transparent)}
@@ -77,14 +79,15 @@ body:has(.lk){padding:0;background:var(--rer-page,#fff)}
 .lk .detail-more{display:flex;flex-wrap:wrap;align-items:flex-start;column-gap:28px;margin-top:16px;border-top:1px solid var(--rule)}.lk .row .detail-more>.section,.lk .row .detail-more>#sharing{padding:0;margin:0}
 .lk .detail-more>:is(details[open],:has(>details[open]),.alias:has(>p)){flex:1 1 100%}.lk .detail-more summary{margin:0;padding:9px 0;font-weight:500;font-size:14px}.lk .detail-more details[open]>summary{margin-bottom:10px}.lk .detail-more>.alias>p{margin:0 0 12px;font-size:14px}
 .lk .input-row{display:flex;align-items:center;gap:2px;min-height:42px;padding:0 4px 0 12px;border:1px solid var(--rule);border-radius:var(--corner);background:var(--page)}.lk .input-row:focus-within{border-color:var(--ink);box-shadow:0 0 0 3px var(--ring)}
-.lk .input-row :is(input,textarea),.lk .input-row :is(input,textarea):focus-visible{border:0;outline:0;box-shadow:none;background:transparent;min-width:0;flex:1;padding:0;min-height:38px;font-size:15px}.lk .input-row button{border:0;background:transparent;width:36px;min-height:36px;padding:0;color:var(--muted)}.lk .input-row button:hover:not(:disabled){color:var(--ink)}
+.lk .input-row :is(input,textarea),.lk .input-row :is(input,textarea):focus-visible{border:0;outline:0;box-shadow:none;background:transparent;min-width:0;flex:1;padding:0;min-height:38px;font-size:15px}.lk .input-row>.value{flex:1;min-width:0;padding:9px 0;font-size:15px;line-height:1.45;overflow-wrap:anywhere}.lk .input-row>.value:focus-visible{outline-offset:4px}
+.lk .input-row button{border:0;background:transparent;width:36px;min-height:36px;padding:0;color:var(--muted)}.lk .input-row button:hover:not(:disabled){color:var(--ink)}
 .lk .field>.small{margin-top:8px}.lk .field-toggle{margin-top:6px;font-size:13px}
 .lk .section h2{font-size:15px;margin-bottom:10px}.lk .rule-view{display:flex;flex-wrap:wrap;gap:2px 12px;margin:0 0 6px;overflow-wrap:anywhere}.lk .rule-view span:first-child{color:var(--muted);font-size:14px;min-width:84px}
 .lk .file{display:flex;align-items:center;gap:12px;padding:8px 4px 8px 12px;margin:0 0 8px;border:1px solid var(--rule);border-radius:var(--corner);background:var(--page)}.lk .file-text{flex:1;display:grid;gap:2px;font-size:14px;min-width:0;overflow-wrap:anywhere}.lk .file button{border:0;background:none;width:36px;padding:0}
 .lk .history{margin-bottom:20px}.lk .history-box{border-top:1px solid var(--rule)}.lk .history-row{display:flex;align-items:center;gap:14px;width:100%;min-height:48px;padding:6px 4px;border:0;border-bottom:1px solid var(--rule);border-radius:0;background:none;text-align:left;justify-content:flex-start;font-weight:400;white-space:normal}
 .lk .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);flex-shrink:0}
 /* A status is a dot beside its words: grey waiting, tangerine needs action, green done. */
-.lk .status{display:inline-flex;align-items:center;gap:8px}.lk .status::before{content:'';width:9px;height:9px;border-radius:50%;background:transparent;box-shadow:inset 0 0 0 2px var(--muted);flex:none}.lk .status.action::before{background:var(--accent);box-shadow:none}.lk .status.done::before{background:var(--ok);box-shadow:none}.lk .notice>.status:empty{margin-right:10px;vertical-align:1px}
+.lk .status{display:inline-flex;align-items:center;gap:8px}.lk .status::before{content:'';width:9px;height:9px;border-radius:50%;background:transparent;box-shadow:inset 0 0 0 2px var(--muted);flex:none}.lk .status.action::before{background:color-mix(in srgb,var(--accent) 88%,var(--ink));box-shadow:none}.lk .status.done::before{background:var(--ok);box-shadow:none}.lk .notice>.status:empty{margin-right:10px;vertical-align:1px}
 /* Progress is one tangerine bar in an outlined white track with its count beside it. */
 .lk .progress{display:flex;align-items:center;gap:20px;margin:0 0 14px}.lk progress{appearance:none;-webkit-appearance:none;flex:1;min-width:0;height:10px;border:1px solid var(--control);border-radius:2px;background:var(--page);color:var(--accent);overflow:hidden}.lk progress::-webkit-progress-bar{background:var(--page)}.lk progress::-webkit-progress-value{background:var(--accent)}.lk progress::-moz-progress-bar{background:var(--accent)}.lk .progress-count{color:var(--muted);font-size:15px;white-space:nowrap;font-variant-numeric:tabular-nums}
 /* A spinner sits right beside the words it explains. */
@@ -94,6 +97,10 @@ body:has(.lk){padding:0;background:var(--rer-page,#fff)}
 .lk .restore-preview dd{margin:0 0 10px;color:var(--muted);overflow-wrap:anywhere}.lk .restore-preview dt{font-size:13px;font-weight:600}
 .lk .row .section{padding:0 0 16px}.lk .row #sharing{padding-top:4px}
 .lk .editor form>.section{margin-top:32px}.lk .editor form>.capture{margin-top:16px}.lk .editor form>.actions{margin-top:28px}.lk .editor .section>h2{margin-bottom:8px}
+/* A refused save is explained right above Save item; a merged conflict says what it kept. */
+.lk .editor form>.save-problem{margin:28px 0 0;padding:12px 16px;border:1px solid color-mix(in srgb,var(--danger) 45%,var(--page));background:color-mix(in srgb,var(--danger) 6%,var(--page))}.lk .save-problem>p{margin:0;color:var(--danger)}.lk .save-problem>button{margin-top:12px}.lk .save-problem>.link{min-height:32px}
+.lk .editor form>.save-problem.merged{border-color:var(--rule);background:var(--page)}.lk .save-problem.merged>p{color:var(--ink)}.lk .editor form>.save-problem+.actions{margin-top:14px}
+.lk .grid-field{display:grid;gap:0;min-width:0}.lk .url-rule>.field-problem{grid-column:1/-1;margin:0}
 
 .lk .notice{border:1px solid var(--rule);background:var(--tint);margin:16px 0;padding:16px 18px;overflow-wrap:anywhere}.lk .notice h2{margin-top:0}
 .lk .error{display:flex;align-items:center;gap:12px;justify-content:space-between;border:1px solid color-mix(in srgb,var(--danger) 45%,var(--page));background:color-mix(in srgb,var(--danger) 6%,var(--page));color:var(--danger);margin:0 0 16px;padding:10px 12px 10px 16px}.lk .error button{color:var(--ink)}
@@ -106,11 +113,11 @@ body:has(.lk){padding:0;background:var(--rer-page,#fff)}
 .lk .find{display:grid;gap:4px;margin:16px 0}.lk .find>label{max-width:640px}.lk .filters>summary{margin:8px 0 0;padding:8px 0;font-weight:500}.lk .filters[open]>summary{margin-bottom:8px}.lk .filters>.muted{display:block;margin:0 0 14px}
 .lk .results{list-style:none;margin:12px 0 0;padding:0;border:1px solid var(--rule)}.lk .result{position:relative;padding:10px 112px 10px 16px;border-bottom:1px solid var(--rule)}.lk .result:last-child{border-bottom:0}
 .lk .result>.check{margin:0;font-weight:500;overflow-wrap:anywhere}.lk .result-name{display:block;font-weight:500;overflow-wrap:anywhere}.lk .result-meta{margin:2px 0 0 28px;color:var(--muted);font-size:14px;overflow-wrap:anywhere}.lk .result>.result-name~.result-meta{margin-left:0}.lk .result>.small{margin-top:8px}
-.lk .result>details>summary{position:absolute;top:8px;right:16px;margin:0;padding:4px 0;font-weight:500;font-size:14px}.lk .result>details[open]{margin:10px 0 2px 28px;padding-top:10px;border-top:1px solid var(--rule)}.lk .result>details p{margin:0 0 6px}.lk .result .rule-view{display:grid}.lk .result .rule-view>span:last-child{font-family:var(--mono);font-size:13px}
+.lk .result>details>summary{position:absolute;top:8px;right:16px;margin:0;padding:4px 0;font-weight:500;font-size:14px}.lk .result>details[open]{margin:10px -96px 2px 28px;padding-top:10px;border-top:1px solid var(--rule)}.lk .result>details p{margin:0 0 6px}.lk .result .rule-view{display:grid}.lk .result .rule-view>span:last-child{font-family:var(--mono);font-size:13px}
 .lk .meta{margin:-4px 0 12px;color:var(--muted);font-size:14px;overflow-wrap:anywhere}.lk .about{margin:0 0 16px}.lk .about>summary{font-weight:500;color:var(--muted)}.lk .foot{margin:28px 0 0;padding-top:16px;border-top:1px solid var(--rule)}
 .lk .field-problem{margin:6px 0 0;color:var(--danger);font-size:14px}.lk :is(input,select,textarea)[aria-invalid=true]{border-color:var(--danger)}.lk .choice{display:flex;align-items:flex-start;gap:10px;min-height:24px;font-weight:400}
 .lk .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.lk .form-grid label+label{margin-top:0}.lk .edit-field{display:grid;gap:8px}
-.lk .url-rule{display:grid;grid-template-columns:minmax(130px,1fr) minmax(180px,2fr) auto;gap:12px;align-items:end;margin:12px 0}.lk .url-rule label+label{margin:0}
+.lk .url-rule{display:grid;grid-template-columns:max-content minmax(180px,1fr) auto;gap:12px;align-items:end;margin:12px 0}.lk .url-rule label+label{margin:0}
 .lk .file-upload{margin-top:14px}.lk video{width:100%;max-height:300px;margin-top:12px}.lk .fingerprint{overflow-wrap:anywhere;font-family:var(--mono);font-size:13px}
 /* A card of references reads in the body face; only its identifier values stay mono. */
 .lk .definition.fingerprint{font-family:inherit;font-size:inherit}.lk .definition.fingerprint .rule-view>span:last-child{font-family:var(--mono);font-size:13px}
@@ -132,12 +139,13 @@ body:has(.lk){padding:0;background:var(--rer-page,#fff)}
  .lk .item .name{grid-area:1/1}.lk .item .user{grid-area:1/2}.lk .item .changed{grid-area:1/3}.lk .item .chevron{grid-area:1/4}.lk .item .state{grid-area:2/1/3/3;margin-left:46px}.lk .item .state.none{display:none}}
 /* Phones: the lockup (and a demo's Run link) alone on the first row, then the search with Settings
    and Lock vault beside it, then the tabs. */
+@media(max-width:720px){.lk .url-rule{grid-template-columns:minmax(0,1fr)}.lk .url-rule>button{justify-self:start}}
 @media(max-width:640px){.lk{font-size:15px}.lk .topbar{padding:8px 16px 0;gap:10px}.lk .topbar:has(.menu)::after{content:'';order:2;flex:1 1 100%;height:0}.lk .search{order:3;flex:1 1 0;margin:10px 0 4px}.lk .menu{order:4;margin:10px 0 4px auto}.lk .lock{order:4;margin:10px 0 4px}.lk .search{gap:8px;padding:0 8px 0 10px}.lk .search kbd{display:none}.lk .lockup{font-size:19px}.lk .menu>summary,.lk .lock{min-height:36px;padding:0 10px;font-size:14px}.lk .tabs{margin:0 -16px;padding:0 16px;gap:18px}.lk .page{padding:22px 16px 48px}
  .lk .page-head{grid-template-columns:1fr;row-gap:18px;padding-bottom:20px;margin-bottom:16px}.lk .crumbs{margin:0 0 -8px}.lk .page-head h1{font-size:32px}.lk .subline{font-size:15px}.lk .head-side{justify-items:stretch}.lk .head-actions{flex-direction:column-reverse}.lk .head-actions button{width:100%}
  .lk .items-head{display:none}.lk .item{grid-template-columns:minmax(0,1fr) auto 14px;gap:2px 12px;padding:10px 14px;min-height:62px}.lk .item .user,.lk .item .state.none{display:none}.lk .name{gap:12px}.lk .item-title{display:block}
  .lk .item .name{grid-area:1/1}.lk .item .changed{grid-area:1/2}.lk .item .chevron{grid-area:1/3}.lk .item .state{grid-area:2/1/3/-1;margin-left:44px}
  .lk .row>.detail,.lk .row>.editor{padding:16px 14px 20px 18px}.lk .detail-header{flex-wrap:wrap}.lk .detail-header .actions{width:100%}.lk .detail-header .actions button{flex:1}
- .lk .form-grid,.lk .url-rule{grid-template-columns:1fr}.lk .page>.empty{padding:40px 20px}.lk .page>.empty h1{font-size:26px}.lk .page>.empty button{width:100%}
+ .lk .form-grid{grid-template-columns:1fr}.lk .page>.empty{padding:40px 20px}.lk .page>.empty h1{font-size:26px}.lk .page>.empty button{width:100%}
  .lk .lk-unlock{margin-top:12px}.lk .lk-unlock h1{font-size:30px}.lk .error{align-items:flex-start;flex-wrap:wrap}
- .lk .page>.detail>h1{font-size:clamp(25px,7vw,32px)}.lk .result{padding-right:96px}.lk .row>.detail{padding-bottom:8px}}
+ .lk .page>.detail>h1{font-size:clamp(25px,7vw,32px)}.lk .result{padding-right:96px}.lk .result>details[open]{margin-right:-80px}.lk .row>.detail{padding-bottom:8px}}
 `;

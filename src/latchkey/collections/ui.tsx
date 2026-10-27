@@ -221,7 +221,8 @@ export function OrganizationPanel({ client, vault, run, onChanged, names, onName
      <label className="check"><input type="checkbox" disabled={busy} checked={selection.some(item => item.vault === source && item.object === row.object)} onChange={event => updateSelection(row, event.target.checked)}/>{row.value.title}</label>
      <p className="result-meta">{dots(meta(row))}</p>
      <details><summary>Details<span className="sr-only"> for {row.value.title}</span></summary>
-      <div className="rule-view"><span>{dots(['Object reference', 'version', 'type'])}</span><span>{dots([`${source}/${row.object}`, String(row.version), typeLabel(row.value.type)])}</span></div>
+      <div className="rule-view"><span>Object reference</span><span>{`${source}/${row.object}`}</span></div>
+      <p>{typeLabel(row.value.type)}, version {row.version}.</p>
       <p>State: {row.lifecycle.state}. {row.value.favorite ? 'Favorite. ' : ''}Owner: {ownerName(row.value.owner ?? snapshot.vault.owner)}.</p>
       <p>Health: {!Array.isArray(row.value.healthFindings) ? 'Unknown — no findings evidence reported.' : row.value.healthFindings.length ? `${row.value.healthFindings.length} findings reported.` : 'Checked; no findings reported.'}</p>
       {row.lifecycle.state === 'archived' && <p>Archived indefinitely; excluded from normal fill suggestions and active remediation.</p>}

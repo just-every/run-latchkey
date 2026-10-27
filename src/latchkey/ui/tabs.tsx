@@ -4,7 +4,8 @@ import { useEffect, useRef } from 'react';
 // panel's full name as its accessible name. Where the strip is narrower than its
 // tabs (phones) it scrolls sideways: it brings the active tab, and any tab that
 // takes keyboard focus, wholly into view clear of the fade (with room for the
-// focus ring), and fades each edge that has more tabs past it.
+// focus ring), and fades each edge that has more tabs past it. Each tab keeps
+// the width of its bold active label, so choosing one never nudges the others.
 const fade = 36, ring = 4;
 export function Tabs({ tabs, current, onPick }: { tabs: [string, string, string?][]; current: string | undefined; onPick: (name: string) => void }) {
  const strip = useRef<HTMLElement>(null);
@@ -29,5 +30,5 @@ export function Tabs({ tabs, current, onPick }: { tabs: [string, string, string?
   resized.observe(nav); nav.addEventListener('scroll', mark, { passive: true }); nav.addEventListener('focusin', focused);
   return () => { resized.disconnect(); nav.removeEventListener('scroll', mark); nav.removeEventListener('focusin', focused); };
  }, [current]);
- return <nav className="tabs" ref={strip} aria-label="Main navigation">{tabs.map(([name, label, full]) => <button type="button" key={label} aria-label={full} aria-current={label === current ? 'page' : undefined} onClick={() => onPick(name)}>{label}</button>)}</nav>;
+ return <nav className="tabs" ref={strip} aria-label="Main navigation">{tabs.map(([name, label, full]) => <button type="button" key={label} aria-label={full} data-label={label} aria-current={label === current ? 'page' : undefined} onClick={() => onPick(name)}>{label}</button>)}</nav>;
 }

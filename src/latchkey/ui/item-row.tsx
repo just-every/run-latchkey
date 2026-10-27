@@ -19,7 +19,7 @@ export function ItemRow({ row, links, open, onOpen }: { row: ItemRecord; links: 
 export const ItemsHead = () => <div className="items-head" aria-hidden="true"><span>Name</span><span>Username</span><span>Details</span><span>Changed</span></div>;
 
 // Long hosts and addresses may wrap after a dot or before the @, not mid-word.
-const breakable = (text: string) => text.split(/(?<=\.)|(?=@)/).flatMap((part, i) => i ? [<wbr key={i}/>, part] : [part]);
+export const breakable = (text: string) => text.split(/(?<=\.)|(?=@)/).flatMap((part, i) => i ? [<wbr key={i}/>, part] : [part]);
 const username = (item: Item) => item.fields.find(field => !field.secret && ['username', 'email', 'accountHolder', 'description'].includes(field.id))?.value as string | undefined;
 const summary = (item: Item) => String(username(item) ?? item.type.replaceAll('-', ' '));
 // The first rule a browser fills from, else the app it opens.
