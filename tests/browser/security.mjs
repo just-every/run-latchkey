@@ -98,7 +98,7 @@ for(const width of [1440,390]){
   await owner.share(vault,member.profile.account,await member.identity().fingerprint,['read']);
   const memberItem=await typed.save(vault,createItem('login',{title:'Synthetic member review',values:{password:'aaaa'}}));
   const legacy={schema:'latchkey/health-suppression/v1',object:memberItem.object,version:1,code:'weak-password',reason:'Synthetic inherited decision',until:null,actor:member.profile.account,observation:{source:'Local length and diversity check',observedAt:memberNow,code:'weak-password',version:1},recordedAt:memberNow};
-  await owner.put(vault,legacy);
+  const legacyRecord=await owner.put(vault,legacy);
   const memberReport=await memberHealth.inspect(vault),memberFinding=memberReport.findings.find(r=>r.object===memberItem.object&&r.code==='weak-password');assert.ok(memberFinding);assert.equal(memberFinding.suppression,null,'a shared vault record cannot authorize a personal decision');assert.deepEqual(memberReport.history,[]);assert.deepEqual(memberReport.legacyHistory.map(r=>({reason:r.reason,active:r.active})),[{reason:'Synthetic inherited decision',active:false}]);
   await memberHealth.suppress(vault,memberFinding,{reason:'Synthetic member investigation',until:memberNow+60000});
   const suppressed=await memberHealth.inspect(vault);assert.equal(suppressed.riskCount,memberReport.riskCount);assert.equal(suppressed.findings.find(r=>r.object===memberItem.object&&r.code==='weak-password').suppression.reason,'Synthetic member investigation');
@@ -133,7 +133,22 @@ for(const width of [1440,390]){
    const raced=Object.create(member);raced.call=async(route,input)=>{if(route===['health','suppress'].join('/'))await owner.rotate(vault,member.profile.account);return member.call(route,input)};await assert.rejects(new HealthClient(raced).suppress(vault,current,{reason:'Revocation during submission'}),e=>e.status>=400);
    await assert.rejects(memberHealth.history(vault),e=>e.status>=400);await assert.rejects(memberHealth.suppress(vault,current,{reason:'Revoked member'}),e=>e.status>=400);
    const rows=await f.db.prepare('SELECT wrapped FROM lky_health_suppressions').all();assert.ok(!JSON.stringify(rows).includes('Synthetic member'));assert.equal((await ownerHealth.inspect(vault)).findings.find(r=>r.object===memberItem.object&&r.code==='weak-password').suppression,null);
-   const erasedMember=await owner.eraseItem(vault,memberItem.object,{confirmed:true});assert.equal(erasedMember.deleted.lky_health_suppressions,2);assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM lky_health_suppressions WHERE object_id=?').bind(memberItem.object).first()).n,0);
+   // Mixed histories need separate owner review; no unrelated version is silently erased.
+   const mixed=await owner.put(vault,{schema:'latchkey/health-suppression/v1',object:memberItem.object});
+   await owner.put(vault,{secret:'Synthetic unrelated retained content'},mixed.object);
+   await assert.rejects(owner.eraseItem(vault,memberItem.object,{confirmed:true}),/legacy_suppression_erasure_review_required/);
+   assert.equal((await owner.readItem(vault,mixed.object,true)).versions.length,2);
+   await owner.eraseItem(vault,mixed.object,{confirmed:true});
+   const sourceRevision=(await owner.readVault(vault)).revision;
+   await assert.rejects(owner.eraseItem(vault,memberItem.object,{confirmed:true,revision:sourceRevision-1}),e=>e.code==='version_conflict');
+   assert.equal((await owner.readItem(vault,legacyRecord.object)).versions.length,1);
+   const interrupted=Object.create(owner);
+   interrupted.call=(route,input)=>{if(route===['item','erase'].join('/')&&input.object===memberItem.object)throw Error('synthetic_erasure_interruption');return owner.call(route,input);};
+   await assert.rejects(interrupted.eraseItem(vault,memberItem.object,{confirmed:true}),/synthetic_erasure_interruption/);
+   assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM lky_versions WHERE vault_id=? AND object_id=?').bind(vault,legacyRecord.object).first()).n,0);
+   assert.equal((await owner.readItem(vault,memberItem.object)).versions.at(-1).value.title,'Synthetic member review revised');
+   assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM lky_health_suppressions WHERE object_id=?').bind(memberItem.object).first()).n,2);
+   const erasedMember=await owner.eraseItem(vault,memberItem.object,{confirmed:true});assert.equal(erasedMember.deleted.lky_health_suppressions,2);assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM lky_versions WHERE vault_id=? AND object_id=?').bind(vault,legacyRecord.object).first()).n,0);await assert.rejects(owner.put(vault,{schema:'latchkey/health-suppression/v1'},legacyRecord.object),e=>e.code==='item_erased');assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM lky_health_suppressions WHERE object_id=?').bind(memberItem.object).first()).n,0);
   }
 
   }

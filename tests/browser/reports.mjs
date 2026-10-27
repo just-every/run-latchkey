@@ -114,6 +114,8 @@ async function historyJourney(){
   const other=new ReportsClient(reader);for(const work of [()=>other.history(vault),()=>other.capture(vault,{confirmed:true}),()=>other.export(history,'csv')])await assert.rejects(work,e=>e.code==='report_vault_owner_required');
   const foreign=(await reader.createVault({kind:'company'})).vault;for(const work of [()=>api.history(foreign),()=>api.capture(foreign,{confirmed:true})])await assert.rejects(work,e=>e.code==='not_found');
   const captureVault=(await owner.createVault({kind:'company'})).vault;
+  // Keep unavailable feed coverage deterministic for the browser capture too.
+  await f.page.route('https://haveibeenpwned.com/api/v3/breaches',route=>route.fulfill({status:503,body:'Unavailable'}));
   await f.page.addInitScript({content:`Date.now=()=>${clock}`});
   await f.context.addCookies([{name:owner.cookie.split('=')[0],value:owner.cookie.slice(owner.cookie.indexOf('=')+1),url:f.origin,secure:true,httpOnly:true}]);
   await f.page.setViewportSize({width:1440,height:1000});await f.page.goto(f.origin+'/app/vault');if(new URL(f.page.url()).pathname==='/setup'){await f.page.getByRole('checkbox').check();await f.page.getByRole('button',{name:'Finish setup',exact:true}).click();}

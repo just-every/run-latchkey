@@ -141,16 +141,32 @@ export class VaultClient {
  }
  async eraseItem(vault, object, { confirmed = false, revision } = {}) {
   requireValue(confirmed, 'erasure_confirmation_required');
-  if (revision == null) { const snapshot = await this.snapshot(vault); revision = snapshot.result.revision; snapshot.key.fill(0); }
-  const statement = { schema: 1, purpose: 'item-erasure', tenant: this.profile.tenant, vault, object, owner: this.profile.account, revision };
-  const proof = { statement, signature: await sign(this.bundle.root.authority.privateKey, erasureText(statement)) };
-  const result = await this.call('item/erase', { vault, object, confirmed: true, revision, proof });
-  const seen = this.profile.seen[vault] ?? { epoch: 1, versions: {} };
-  seen.versions = Object.fromEntries(Object.entries(seen.versions ?? {}).filter(([name]) => !name.startsWith(object + ':')));
-  seen.erased = { ...seen.erased, [object]: true }; seen.revision = Math.max(seen.revision ?? 0, result.revision);
-  this.profile.seen[vault] = seen;
-  return result;
+  const snapshot = await this.readVault(vault);
+  // Legacy observations used the vault key, so only this trusted client can
+  // identify their item references. Delete dedicated histories before the item
+  // using the existing signed owner door. A failed step leaves the item intact
+  // and a retry can resume; no server-side ciphertext inspection is inferred.
+  const related = [...new Set(snapshot.versions.filter(row => row.object !== object && row.value?.schema === 'latchkey/health-suppression/v1' && row.value.object === object).map(row => row.object))];
+  if (related.length) {
+   requireValue(revision == null || revision === snapshot.revision, 'version_conflict');
+   for (const record of related) requireValue(snapshot.versions.filter(row => row.object === record).every(row => row.value?.schema === 'latchkey/health-suppression/v1' && row.value.object === object), 'legacy_suppression_erasure_review_required');
+  }
+  revision ??= snapshot.revision;
+  const erase = async target => {
+   const statement = { schema: 1, purpose: 'item-erasure', tenant: this.profile.tenant, vault, object: target, owner: this.profile.account, revision };
+   const proof = { statement, signature: await sign(this.bundle.root.authority.privateKey, erasureText(statement)) };
+   const result = await this.call('item/erase', { vault, object: target, confirmed: true, revision, proof });
+   const seen = this.profile.seen[vault] ?? { epoch: 1, versions: {} };
+   seen.versions = Object.fromEntries(Object.entries(seen.versions ?? {}).filter(([name]) => !name.startsWith(target + ':')));
+   seen.erased = { ...seen.erased, [target]: true }; seen.revision = Math.max(seen.revision ?? 0, result.revision);
+   this.profile.seen[vault] = seen;
+   revision = result.revision;
+   return result;
+  };
+  for (const record of related) await erase(record);
+  return erase(object);
  }
+
  async readItem(vault, object, history = false) {
   const snapshot = await this.snapshot(vault, 'read', { object, history });
   try { return { vault, epoch: snapshot.result.epoch, revision: snapshot.result.revision, versions: await this.decodeVersions(snapshot) }; } finally { snapshot.key.fill(0); }
