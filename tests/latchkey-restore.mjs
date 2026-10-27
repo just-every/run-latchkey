@@ -16,7 +16,7 @@ const fingerprint = value => digest(JSON.stringify([value.recipientKey, value.au
 const ownerRights = ['read', 'create', 'edit', 'export', 'share', 'rotate','delete','restore'];
 const refused = promise => assert.rejects(promise, error => typeof error.code === 'string' && error.status >= 400);
 
-export async function exerciseRecordsRestore({ archive, sourceClient, destinationClient, wrongPersonClient, expectedVersions }) {
+export async function exerciseRecordsRestore({ archive, sourceClient, destinationClient, wrongPersonClient, expectedVersions, healthRestore }) {
  const scratch = await mkdtemp(join(tmpdir(), 'synthetic-latchkey-54-'));
  try {
   const input = join(scratch, 'source.rer'); await writeFile(input, archive, { mode: 0o600 });
@@ -60,7 +60,19 @@ export async function exerciseRecordsRestore({ archive, sourceClient, destinatio
    assert.equal(exported.result.owner, destination.account);
    // Rewrapping vault access cannot transfer the original actor's personal suppression.
    const health=await new HealthClient(destinationClient).inspect(vault.vault);
-   assert.deepEqual(health.history,[]);assert.ok(health.findings.every(finding=>finding.suppression===null));
+   const expected=healthRestore?.vault===vault.vault?healthRestore.memberHistory:[];
+   assert.deepEqual(health.history.map(row=>({reason:row.reason,observation:row.observation})),expected);
+   assert.ok(health.history.every(row=>row.active===false));
+   assert.ok(health.findings.every(finding=>finding.suppression===null));
+   if(healthRestore?.vault===vault.vault){
+    assert.equal(health.riskCount,1);assert.equal(health.findings[0].object,healthRestore.item);
+    assert.deepEqual(health.legacyHistory.map(row=>({reason:row.reason,active:row.active})),[{reason:'Synthetic restore legacy',active:false}]);
+    const freshHealth=new HealthClient(destinationClient);
+    await freshHealth.suppress(vault.vault,health.findings[0],{reason:'Synthetic fresh destination decision'});
+    const fresh=await freshHealth.inspect(vault.vault);
+    assert.equal(fresh.riskCount,1);assert.equal(fresh.findings[0].suppression.reason,'Synthetic fresh destination decision');
+    assert.deepEqual(fresh.history.map(row=>row.active),[false,false,true]);
+   }
   }
   const auditBefore = await destinationClient.call('audit', {});
   const repeated = await portability.activate({ restore: prepared.restore, approvedPlanHash: planHash, activation: 'synthetic-latchkey-57', rights: ownerRights });
@@ -73,12 +85,21 @@ export async function exerciseRecordsRestore({ archive, sourceClient, destinatio
 }
 
 // Called before the existing Records archive, then checked after its real rewrap.
-export async function prepareHealthHistoryRestore(client){
+export async function prepareHealthHistoryRestore(client,member){
  const vault=(await client.createVault()).vault,health=new HealthClient(client);
  const item=await client.put(vault,createItem('login',{title:'Synthetic restore health',values:{password:'aaaa'}}));
  const finding=(await health.inspect(vault)).findings.find(r=>r.object===item.object&&r.code==='weak-password');assert.ok(finding);
  await health.suppress(vault,finding,{reason:'Synthetic restore investigation'});
  await health.suppress(vault,finding,{reason:'Synthetic restore dismissal'});
  const history=await health.history(vault);assert.deepEqual(history.map(r=>r.reason),['Synthetic restore investigation','Synthetic restore dismissal']);
- return {vault,item:item.object,rows:await client.call(['health','history'].join('/'),{vault})};
+ await member.pinAccount(client.profile.account,await client.identity().fingerprint);
+ await client.share(vault,member.profile.account,await member.identity().fingerprint,['read']);
+ const memberHealth=new HealthClient(member),memberFinding=(await memberHealth.inspect(vault)).findings[0];
+ await memberHealth.suppress(vault,memberFinding,{reason:'Synthetic member restore snooze',until:Date.now()+3600000});
+ await memberHealth.suppress(vault,memberFinding,{reason:'Synthetic member restore dismissal'});
+ await assert.rejects(member.put(vault,createItem('login',{title:'Forbidden restore member edit'}),item.object,1),error=>error.status===403);
+ await client.put(vault,{schema:'latchkey/health-suppression/v1',object:item.object,version:1,code:'weak-password',reason:'Synthetic restore legacy',until:null,actor:member.profile.account,observation:finding.observation??{source:finding.source,observedAt:finding.observedAt,code:finding.code,version:finding.version},recordedAt:Date.now()});
+ const memberHistory=(await memberHealth.history(vault)).map(row=>({reason:row.reason,observation:row.observation}));
+ assert.deepEqual(memberHistory.map(row=>row.reason),['Synthetic member restore snooze','Synthetic member restore dismissal']);
+ return {vault,item:item.object,memberHistory,rows:[...(await client.call(['health','history'].join('/'),{vault})).rows,...(await member.call(['health','history'].join('/'),{vault})).rows]};
 }

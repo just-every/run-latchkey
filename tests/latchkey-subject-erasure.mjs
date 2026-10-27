@@ -43,7 +43,11 @@ export async function runSubjectErasureJourneys({owner,db,records,mail,post,fetc
  await personHealth.suppress(otherVault,finding,{reason:'Synthetic erased member reason'});
  await ownerHealth.suppress(otherVault,finding,{reason:'Synthetic retained owner reason'});
  const personalHistory=(await person.call(['health','history'].join('/'),{vault:otherVault})).rows;assert.equal(personalHistory.length,1);
- const before=await backup(records),preview=await owner.call('subject/erase-preview',{subject:operator});
+ const before=await backup(records);let preview=await owner.call('subject/erase-preview',{subject:operator});
+ await personHealth.suppress(otherVault,finding,{reason:'Synthetic decision after review'});
+ await rejects(owner.call('subject/erase',{subject:operator,confirmed:true,planHash:preview.planHash}),'subject_erasure_plan_changed');
+ assert.deepEqual((await personHealth.history(otherVault)).map(row=>row.reason),['Synthetic erased member reason','Synthetic decision after review']);
+ preview=await owner.call('subject/erase-preview',{subject:operator});assert.equal(preview.counts['delete:lky_health_suppressions'],2);
  assert.equal(preview.complete,false);assert.equal(preview.requiresConfirmation,true);
  await rejects(owner.call('subject/erase',{subject:operator,confirmed:false,planHash:preview.planHash}),'subject_erasure_confirmation_required');
  await rejects(owner.call('subject/erase',{subject:operator,confirmed:true,planHash:'synthetic-latchkey-991'}),'subject_erasure_plan_changed');

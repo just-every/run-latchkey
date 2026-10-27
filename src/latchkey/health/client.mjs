@@ -29,8 +29,9 @@ export class HealthClient {
  constructor(client,{fetcher=fetch,now=()=>Date.now()}={}){this.client=client;this.fetcher=(url,init)=>fetcher(url,init);this.now=now;}
  async inspect(vault,{network=false,githubToken=''}={}) {
   const loaded=await new OrganizationClient(this.client).load(vault),history=await this.history(vault),now=this.now(),inactive=new Set(loaded.lifecycle.filter(r=>r.state!=='active').map(r=>r.object));
-  // Existing vault-encrypted owner observations remain historical evidence for their actor.
-  history.unshift(...loaded.records.filter(r=>r.value.schema==='latchkey/health-suppression/v1'&&r.value.actor===this.client.profile.account).map(r=>({...r.value,record:r.object,active:true})));
+  // Shared vault ciphertext does not authenticate the actor named in its payload.
+  // Preserve those earlier observations without making them personal authority.
+  const legacyHistory=loaded.records.filter(r=>r.value.schema==='latchkey/health-suppression/v1'&&r.value.actor===this.client.profile.account).map(r=>({...r.value,record:r.object,active:false}));
   for(const entry of history)entry.active=entry.active&&loaded.records.some(row=>row.object===entry.object&&row.version===entry.version)&&!inactive.has(entry.object)&&(entry.until===null||entry.until>now);
   let github=null;
   if(githubToken){try{const response=await this.fetcher('https://api.github.com/user',{headers:{Authorization:`Bearer ${githubToken}`,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'},credentials:'omit',redirect:'error',cache:'no-store',referrerPolicy:'no-referrer',signal:AbortSignal.timeout(15000)});if(response.ok){const data=await response.json();if(typeof data.login==='string'&&typeof data.two_factor_authentication==='boolean')github={login:data.login,mfa:data.two_factor_authentication};}}catch{}}
@@ -58,7 +59,7 @@ export class HealthClient {
   for(const group of passwords.values())if(group.length>1)for(const row of group)add(row,'reused-password','Local comparison of permitted active items',{related:group.filter(r=>r.object!==row.object).map(r=>({object:r.object,title:r.value.title}))});
   // Authority is checked again after external feed work; stale results are never returned after revoke.
   await this.validate(vault,loaded.vault.revision);
-  return {findings,unknown,revision:loaded.vault.revision,observedAt:now,itemCount:rows.length,riskCount:findings.length,history,coverage:'Only this permitted vault and active items; organization comparison not performed'};
+  return {findings,unknown,revision:loaded.vault.revision,observedAt:now,itemCount:rows.length,riskCount:findings.length,history,legacyHistory,coverage:'Only this permitted vault and active items; organization comparison not performed'};
  }
  async validate(vault,revision){const current=await this.client.call('lifecycle/list',{vault});if(current.vault.revision!==revision||!current.vault.rights.includes('read'))throw Error('health_source_changed');}
  async history(vault){
