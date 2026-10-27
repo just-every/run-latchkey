@@ -3,7 +3,8 @@ import { vaultFixture } from './browser/fixture.mjs';
 import { createItem } from '../src/latchkey/items/types.mjs';
 import { restoreDomainArchive } from './latchkey-evidence.mjs';
 import { LifecycleClient } from '../src/latchkey/lifecycle/client.mjs';
-import { SharingClient } from '../src/latchkey/sharing/client.mjs';
+import { reconcileBoundReviews } from '../src/latchkey/rules/review-results.mjs';
+import { SharingClient, PublicLinkClient } from '../src/latchkey/sharing/client.mjs';
 import { ProjectClient } from '../src/latchkey/projects/client.mjs';
 import { VaultClient } from '../src/latchkey/client.mjs';
 import { mkdtemp,writeFile,rm } from 'node:fs/promises';
@@ -15,7 +16,7 @@ const route = (...parts) => ['rules',...parts].join('/');
 const reviewRoute = name => ['reviews',name].join('/');
 const refused = (promise,code) => assert.rejects(promise,error=>error.code===code);
 export async function ruleLifecycleJourney() {
- const realNow=Date.now,clock=Date.parse('2031-11-15T12:00:00Z');Date.now=()=>clock;
+ const realNow=Date.now;let clock=Date.parse('2031-11-15T12:00:00Z');Date.now=()=>clock;
  const f=await vaultFixture({browserEnabled:false,clock,persistent:true});
  try {
   const owner=f.owner,call=(name,input)=>owner.call(route(name),input),vault=(await owner.createVault()).vault;
@@ -63,7 +64,8 @@ export async function ruleLifecycleJourney() {
   const result=await call('complete',{rule:resultRule,version:1,obligation:resultObligation,resultVersion:3,confirmed:true});assert.equal(result.providerState,'unknown');assert.equal(result.state,'vault-result-recorded');
   const scratch=await mkdtemp(join(tmpdir(),'latchkey-rules-cli-'));
   try {
-   const profile=join(scratch,'profile.json'),clockModule=join(scratch,'clock.mjs');await writeFile(profile,JSON.stringify(owner.profile),{mode:0o600});await writeFile(clockModule,`Date.now=()=>${clock};`);
+   const clockModule=join(scratch,'clock.mjs');await writeFile(clockModule,`Date.now=()=>${clock};`);
+   const profile=join(scratch,'profile.json');await writeFile(profile,JSON.stringify(owner.profile),{mode:0o600});
    const output=await new Promise((resolve,reject)=>{const child=spawn(process.execPath,['--import',clockModule,'scripts/latchkey.mjs','rules'],{env:{...process.env,NODE_EXTRA_CA_CERTS:f.caFile},stdio:['pipe','pipe','pipe']});let stdout='',stderr='';child.stdout.on('data',chunk=>stdout+=chunk);child.stderr.on('data',chunk=>stderr+=chunk);child.on('error',reject);child.on('exit',code=>code===0?resolve(stdout):reject(Error('Rule CLI failed: '+stderr)));child.stdin.end(JSON.stringify({profile,password:f.password,action:'list',input:{}}))});
    assert.ok(JSON.parse(output).some(row=>row.id===rule));
   }finally{await rm(scratch,{recursive:true,force:true})}
@@ -74,7 +76,7 @@ export async function ruleLifecycleJourney() {
   const newReviewRule=async()=>{const r=(await call('save',{rule:null,version:0,definition:reviewDefinition})).id;await call('activate',{rule:r,version:1,previewHash:(await call('preview',{definition:reviewDefinition})).hash,confirmed:true});await f.schedule(reviewDefinition.startAt);return await call('get',{rule:r})};
   const reviewState=await newReviewRule(),reviewRuleId=reviewState.id,reviewObligation=reviewState.obligations[0].id;
   const sharing=new SharingClient(owner);await sharing.setPolicy({externalEnabled:true,domains:['example.test'],defaultDays:7,maxDays:30});
-  const external=await sharing.createLink(reviewVault,reviewObject,{recipient:'synthetic-latchkey-8541@example.test'});
+  const external=await sharing.createLink(reviewVault,reviewObject,{recipient:'synthetic-latchkey-8541@example.test',startsAt:clock+300000});
   const future=await sharing.createLink(reviewVault,reviewObject,{recipient:'synthetic-latchkey-8542@example.test',startsAt:clock+86400000});
   const campaign=(await owner.call(reviewRoute('create'),{vault:reviewVault,reviewer:owner.profile.account,scheduleAt:clock,dueAt:clock+3600000,period:'Quarterly access review'})).id;
   const binding={rule:reviewRuleId,version:1,obligation:reviewObligation,review:campaign,slot:0,vault:reviewVault,scope:{group:null,project:null},reviewer:owner.profile.account,confirmed:true};
@@ -108,8 +110,26 @@ export async function ruleLifecycleJourney() {
   await refused(call('reconcile-review',{rule:reviewRuleId,version:1,obligation:reviewObligation}),'rule_review_removal_pending');
   await f.schedule(clock);assert.equal((await call('get',{rule:reviewRuleId})).obligations[0].phase,'open');
   await sharing.revokeLink(future.link);
+  // Revoke the deciding reviewer after its read, before inventory snapshots.
+  let raced=false;
+  const raceDb={prepare(sql){const wrap=(statement,args=[])=>new Proxy(statement,{get(target,key){
+   if(key==='bind')return(...values)=>wrap(target.bind(...values),values);
+   if(key==='first')return async()=>{const result=await target.first();if(!raced&&sql.startsWith('SELECT 1 WHERE EXISTS(SELECT 1 FROM lky_accounts')&&args[0]===member.profile.account){raced=true;await f.db.prepare("UPDATE oa_operators SET status='inactive' WHERE id=(SELECT operator_id FROM lky_accounts WHERE id=?)").bind(member.profile.account).run()}return result};
+   const value=target[key];return typeof value==='function'?value.bind(target):value;
+  }});return wrap(f.db.prepare(sql))},batch:statements=>f.db.batch(statements)};
+  assert.equal(await reconcileBoundReviews(raceDb,clock),0);assert.equal(raced,true);
+  assert.equal((await call('get',{rule:reviewRuleId})).obligations[0].phase,'open');
+  await refused(call('reconcile-review',{rule:reviewRuleId,version:1,obligation:reviewObligation}),'rule_reviewer_unavailable');
+  await f.db.prepare("UPDATE oa_operators SET status='active' WHERE id=(SELECT operator_id FROM lky_accounts WHERE id=?)").bind(member.profile.account).run();
+  await member.requestIdentity('synthetic-latchkey-7993@example.test');
+  const freshToken=new URL(f.mail.at(-1).content.find(c=>c.type===['text','plain'].join('/')).value.match(/https:\/\/[^\s<>]+/)[0]).searchParams.get('token');
+  await member.confirmIdentity(freshToken);await member.unlock(enrolled.profile,'synthetic-latchkey-7994');
+  assert.equal((await f.db.prepare('SELECT revoked_at FROM lky_links WHERE id=?').bind(external.link).first()).revoked_at,clock);
+  clock+=300000;await f.restart(clock);
+  await refused(new PublicLinkClient(external.url,{fetcher:f.fetcher}).preview(),'link_unavailable');
+  await f.restart(clock);assert.equal((await call('get',{rule:reviewRuleId})).obligations[0].phase,'open');
   await Promise.all([call('reconcile-review',{rule:reviewRuleId,version:1,obligation:reviewObligation}),call('reconcile-review',{rule:reviewRuleId,version:1,obligation:reviewObligation}),f.schedule(clock)]);
-  await f.restart();await f.schedule(clock);await call('reconcile-review',{rule:reviewRuleId,version:1,obligation:reviewObligation});
+  await f.restart(clock);await f.schedule(clock);await call('reconcile-review',{rule:reviewRuleId,version:1,obligation:reviewObligation});
   const observed=await call('get',{rule:reviewRuleId});assert.equal(observed.obligations[0].phase,'review-result-recorded');assert.equal(observed.reviewBindings.length,1);assert.equal(JSON.parse(observed.reviewBindings[0].result).removals,2);
   assert.equal((await owner.call('audit',{})).filter(e=>e.action==='rule_review_result_observed'&&e.object_id===reviewRuleId).length,1);
   const duplicate=await newReviewRule();await refused(call('bind-review',{...binding,rule:duplicate.id,obligation:duplicate.obligations[0].id}),'rule_review_already_bound');
@@ -138,6 +158,32 @@ export async function ruleLifecycleJourney() {
   const restoredBinding=await db.prepare('SELECT * FROM lky_rule_reviews WHERE obligation=?').bind(reviewObligation).first();assert.equal(restoredBinding.phase,'inactive');assert.equal(restoredBinding.result,observed.reviewBindings[0].result);
   assert.equal((await db.prepare('SELECT phase FROM lky_reviews WHERE id=?').bind(campaign).first()).phase,'inactive');
   assert.equal((await db.prepare('SELECT decision FROM lky_rule_decisions').first()).decision,'approve');
+  // A ready result behind a full page of unfinished bindings must still run.
+  const backlog=[];
+  for(let index=0;index<101;index++){
+   const rule=(await call('save',{rule:null,version:0,definition:reviewDefinition})).id;
+   await call('activate',{rule,version:1,previewHash:(await call('preview',{definition:reviewDefinition})).hash,confirmed:true});backlog.push({rule});
+  }
+  await f.schedule(reviewDefinition.startAt);
+  for(const entry of backlog){
+   entry.obligation=(await call('get',{rule:entry.rule})).obligations[0].id;
+   entry.review=(await owner.call(reviewRoute('create'),{vault:reviewVault,reviewer:owner.profile.account,scheduleAt:clock,dueAt:clock+3600000,period:'Queued quarterly review'})).id;
+   await call('bind-review',{...binding,rule:entry.rule,obligation:entry.obligation,review:entry.review});
+  }
+  backlog.sort((a,b)=>a.obligation.localeCompare(b.obligation));const last=backlog.at(-1);
+  const lastDetail=await owner.call(reviewRoute('get'),{review:last.review});assert.equal(lastDetail.rows.length,2);
+  for(const entry of lastDetail.rows){
+   const actor=entry.subject===owner.profile.account?member:owner;
+   if(actor===member)await owner.call(reviewRoute('assign'),{review:last.review,key:entry.key,reviewer:member.profile.account});
+   await actor.call(reviewRoute('decide'),{review:last.review,key:entry.key,decision:'confirm',reason:'Reviewed the bounded current grant'});
+  }
+  await owner.call(reviewRoute('close'),{review:last.review});await f.schedule(clock);
+  assert.equal((await call('get',{rule:last.rule})).obligations[0].phase,'review-result-recorded');
+  for(const entry of backlog.slice(0,-1))assert.equal((await call('get',{rule:entry.rule})).obligations[0].phase,'open');
+  assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM lky_rule_reviews WHERE review_id=?').bind(campaign).first()).n,1);
+  await owner.eraseItem(reviewVault,reviewObject,{confirmed:true});
+  assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM lky_rule_reviews WHERE review_id=?').bind(campaign).first()).n,0);
+  await refused(call('get',{rule:reviewRuleId}),'rule_not_found');
   await owner.share(vault,member.profile.account,await member.identity().fingerprint,['read']);
   const memberDefinition={...definition,title:'Assigned finance expiry',targets:[{object,version:3,dueAt:startAt}],recipients:[member.profile.account]},memberRule=(await call('save',{rule:null,version:0,definition:memberDefinition})).id;
   await call('activate',{rule:memberRule,version:1,previewHash:(await call('preview',{definition:memberDefinition})).hash,confirmed:true});await f.schedule(startAt);
@@ -148,8 +194,6 @@ export async function ruleLifecycleJourney() {
   await owner.eraseItem(vault,object,{confirmed:true});
   await refused(call('get',{rule}),'rule_not_found');await f.schedule(startAt+3*definition.intervalMs);assert.ok(!(await call('list',{})).some(r=>r.id===rule));
   assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM lky_rule_reviews WHERE review_id=?').bind(campaign).first()).n,0);
-  assert.equal((await call('get',{rule:reviewRuleId})).obligations[0].phase,'inactive');
-  await owner.eraseItem(reviewVault,reviewObject,{confirmed:true});
   await refused(call('save',{rule:null,version:0,definition}),'rule_target_changed');
   // Public-door scope checks and calendar recurrence share this lifecycle journey.
   const projects=new ProjectClient(owner),scopeSharing=new SharingClient(owner),project=await projects.create({name:'Finance scope'}),environment=await projects.createEnvironment(project.project,{name:'Production'});

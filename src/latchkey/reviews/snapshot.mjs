@@ -25,3 +25,9 @@ export async function inventoryGuard(ctx,vault){
  for(const[table,where,args]of tables){const columns=(await all(`PRAGMA table_info(${table})`)).map(r=>r.name);const select=`SELECT json_group_array(json_array(${columns.join(',')})) AS value FROM (SELECT * FROM ${table} WHERE ${where} ORDER BY ${columns.join(',')})`;const value=(await all(select,...args))[0].value;guards.push({sql:`(${select})=?`,args:[...args,value]})}
  return guards;
 }
+
+// A future or temporarily inactive grant can return without a new grant action.
+export function removalEffective(current,removed) {
+ const matches=current.rows.filter(row=>row.kind===removed.kind&&row.transport===removed.transport&&row.id===removed.id&&row.subject===removed.subject);
+ return matches.every(row=>['revoked','expired','spent'].includes(row.status));
+}
