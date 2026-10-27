@@ -3638,7 +3638,7 @@
       "executable": false
     },
     "tests/browser/rules.mjs": {
-      "sha256": "32f48c64d02fbc7e9a004be5e60b4eab5bd961ac0f26ad696d18a1d118e78fa7",
+      "sha256": "3fb0d7899006c22fa89f7495b3c71a03f4f28452238f3981e5897c78a79a65e9",
       "executable": false
     },
     "tests/browser/runtime-consumers.mjs": {
@@ -3746,7 +3746,7 @@
       "executable": false
     },
     "tests/latchkey-rules.mjs": {
-      "sha256": "b43ec2de386a5008c841052211b841d0cab2a77f9304d7ef0722090bcb98ac85",
+      "sha256": "ffed033abef3a04a737a21545b5ecc84e54bc67c31253cb0f371d45d47c39454",
       "executable": false
     },
     "tests/latchkey-sharing.mjs": {
