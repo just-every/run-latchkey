@@ -11,7 +11,9 @@ an independent suppression history. Underlying risk totals do not decrease.
 
 Your suppression history retains each actor-signed encrypted observation and reason.
 Finding categories and reasons stay inside that encrypted payload. Snoozes
-expire; a changed item version, key epoch or account generation invalidates the
+expire at read and display time, including during a pending feed request; a
+local timer updates the displayed state without changing retained history. A
+changed item version, key epoch or account generation invalidates the
 old suppression. Losing read access prevents subsequent history reads and
 suppression changes. Previously decrypted copies cannot be recalled.
 

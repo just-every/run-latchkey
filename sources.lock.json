@@ -618,7 +618,7 @@
       "executable": false
     },
     "docs/password-health.md": {
-      "sha256": "77ef1d6f5a1a944b0ad58320171e7b652138cd09e8b61c8360c90ee04c6f3dbb",
+      "sha256": "2cac316a0ba47d37073d0f2d19e4d87ccc8b717e9c9e59509cf93926e94dd7f4",
       "executable": false
     },
     "docs/reports.md": {
@@ -1850,11 +1850,11 @@
       "executable": false
     },
     "src/latchkey/health/client.mjs": {
-      "sha256": "cf6273460ca8fbe3ad96e882fb406783139a9657f346464936ca0a1476b4209d",
+      "sha256": "61289b9cdb5719df479b9efad7640f6cdcd44e777ae6f0e9de82c7a376fb3c53",
       "executable": false
     },
     "src/latchkey/health/README.md": {
-      "sha256": "dc19276887b95cced64860fc58383dc594684003ea43bbaf655aae123e158f4b",
+      "sha256": "a39bcfb53cb9436a9defdae012265ce825e9c47167ef9d4b762cd8c5af2d5e14",
       "executable": false
     },
     "src/latchkey/health/service.d.mts": {
@@ -3678,7 +3678,7 @@
       "executable": false
     },
     "tests/browser/security.mjs": {
-      "sha256": "b5eba6f29559083e4a041573f323942ad926ad4e25e94d1d58ba9511b6118407",
+      "sha256": "177216be614dd1220bbcd4f2d5cf864fe5ffb6f0b59312bd54a5fe33e560b2e0",
       "executable": false
     },
     "tests/browser/sharing.mjs": {

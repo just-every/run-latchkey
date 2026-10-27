@@ -26,9 +26,9 @@ async function websiteBreaches(fetcher) {
 function hosts(item){return [...new Set([...(item.urls??[]).map(r=>r.url),...(item.fields??[]).filter(f=>f.type==='url').map(f=>f.value)].flatMap(v=>{try{const u=new URL(v);return ['http:','https:'].includes(u.protocol)?[u.hostname.toLowerCase().replace(/\.$/,'')]:[];}catch{return [];}}))];}
 function expiryTime(item){const v=value(item,'expiry');if(item.type==='card'&&/^\d{4}-\d{2}$/.test(v??'')){const [y,m]=v.split('-').map(Number);return m>=1&&m<=12?Date.UTC(y,m,1):NaN;}return typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v)?Date.parse(v):NaN;}
 // Expiry is a read-time view of retained decisions, never a change to risk or history.
+const activeSuppression=(row,now)=>Boolean(row?.active)&&(row.until===null||Number.isFinite(row.until)&&row.until>now);
 export function currentHealthReport(report,now) {
- const active=row=>Boolean(row?.active)&&(row.until===null||Number.isFinite(row.until)&&row.until>now);
- return {...report,history:report.history.map(row=>({...row,active:active(row)})),findings:report.findings.map(row=>({...row,suppression:active(row.suppression)?row.suppression:null}))};
+ return {...report,history:report.history.map(row=>({...row,active:activeSuppression(row,now)})),findings:report.findings.map(row=>({...row,suppression:activeSuppression(row.suppression,now)?row.suppression:null}))};
 }
 export class HealthClient {
  constructor(client,{fetcher=fetch,now=()=>Date.now()}={}){this.client=client;this.fetcher=(url,init)=>fetcher(url,init);this.now=now;}
@@ -74,7 +74,7 @@ export class HealthClient {
    if(value.actor!==profile.account||value.object!==row.object_id||value.version!==row.item_version||value.until!==row.until_at||value.epoch!==row.epoch||value.sourceRevision!==row.source_revision)throw Error('invalid_suppression');
    rows.push({...value,record:row.id,active:row.active===1&&row.epoch===result.epoch&&row.generation===result.generation});
   }
-  return rows;
+  const now=this.now();return rows.map(row=>({...row,active:activeSuppression(row,now)}));
  }
  async suppress(vault,finding,{reason,until=null}={}) {
   if(typeof reason!=='string'||!reason.trim()||reason.length>500||until!==null&&(!Number.isSafeInteger(until)||until<=this.now()))throw Error('invalid_suppression');
