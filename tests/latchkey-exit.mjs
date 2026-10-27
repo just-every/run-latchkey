@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
+import { canonicalJson } from '@runeditrun/rer/modules/portability';
+import { LifecycleClient } from '../src/latchkey/lifecycle/client.mjs';
 import { createPortability } from '@runeditrun/rer/modules/portability';
 import archivePolicy from '../scripts/latchkey/archive-policy.mjs';
 import {promises as files} from 'node:fs';
@@ -149,6 +151,47 @@ export async function ownerRunExitJourney() {
    await selected.setPlaintextPolicy(vault,false,{confirmed:true});
    assert.deepEqual((await readdir(cliDirectory)).filter(name=>name.endsWith('.partial')),[]);assert.deepEqual(JSON.parse(await readFile(output,'utf8')).vaults[0].versions,expected.filter(row=>row.object===login));
   }finally{await rm(cliDirectory,{recursive:true,force:true})}
+  const lifecycleVault=(await owner.createVault()).vault,lifecycle=new LifecycleClient(owner);
+  const archivedItem=await owner.put(lifecycleVault,createItem('secure-note',{title:'Synthetic archived export',values:{note:'synthetic-latchkey-8038'}}));
+  await owner.put(lifecycleVault,createItem('secure-note',{title:'Synthetic archived revision',values:{note:'synthetic-latchkey-8039'}}),archivedItem.object,1);
+  await owner.put(lifecycleVault,createItem('secure-note',{title:'Synthetic third revision',values:{note:'synthetic-latchkey-8040'},attachments:[attachment]}),archivedItem.object,2);
+  await lifecycle.change(lifecycleVault,archivedItem.object,'archived',{confirmed:true});
+  const trashedItem=await owner.put(lifecycleVault,createItem('login',{title:'Synthetic trash export',values:{password:'synthetic-latchkey-8041'}}));
+  await lifecycle.change(lifecycleVault,trashedItem.object,'trash',{confirmed:true});
+  const privateVault=(await owner.createVault({kind:'private-work'})).vault;await owner.put(privateVault,createItem('secure-note',{title:'Synthetic private-work export',values:{note:'synthetic-latchkey-8043'}}));
+  const sparsePreview=await selected.preview([{vault,objects:[login]},{vault:lifecycleVault,objects:null},{vault:privateVault,objects:null},{vault:familyVault,objects:null}]);
+  const signedSelection=await SelectionExportClient.open(await selected.export(sparsePreview,exportKey,{confirmed:true,approvedPlanHash:sparsePreview.planHash}),exportKey);
+  // Synthetic documented source format with a disclosed missing middle version.
+  const sparse=structuredClone(signedSelection),source=sparse.vaults.find(row=>row.vault===lifecycleVault);
+  source.versions=source.versions.filter(row=>row.object!==archivedItem.object||row.version!==2);
+  source.counts.versions--;source.historyGaps=[{object:archivedItem.object,from:2,to:2}];
+  const resign=async value=>{value.plan.format='plaintext';value.plan.selection=value.vaults.map(({versions,...row})=>row);value.plan.contentHash=await digest(canonicalJson(value.vaults));value.planHash=await digest(canonicalJson(['latchkey-selected-export-v1',value.plan]));value.signature=await sign(owner.bundle.root.authority.privateKey,canonicalJson(['latchkey-selected-export-v1',value.plan]));return value};
+  await resign(sparse);
+  const historyDestination=await vaultFixture({browserEnabled:false});try{
+   const importer=new SelectionExportClient(historyDestination.owner),undisclosed=structuredClone(sparse);undisclosed.vaults.find(row=>row.vault===lifecycleVault).historyGaps=[];await resign(undisclosed);
+   await assert.rejects(importer.reimport(undisclosed,null,{confirmed:true,approvedPlanHash:undisclosed.planHash}),error=>error.code==='export_history_gap');assert.deepEqual(await historyDestination.owner.call('vaults',{}),[]);
+   const corrupted=structuredClone(sparse);corrupted.vaults.find(row=>row.vault===lifecycleVault).versions.find(row=>row.object===archivedItem.object&&row.version===3).value.attachments[0].digest=encode(random());await resign(corrupted);
+   await assert.rejects(importer.reimport(corrupted,null,{confirmed:true,approvedPlanHash:corrupted.planHash}),error=>error.code==='attachment_integrity_failed');assert.deepEqual(await historyDestination.owner.call('vaults',{}),[]);
+   const call=historyDestination.owner.call.bind(historyDestination.owner);let injected=false;
+   historyDestination.owner.call=async(name,input)=>{if(name===selectionRoutes.import){injected=true;input=structuredClone(input);input.vaults.find(row=>row.lifecycle.length>0).lifecycle[0].retentionActive=true;}return call(name,input)};
+   try{await assert.rejects(importer.reimport(sparse,null,{confirmed:true,approvedPlanHash:sparse.planHash}),error=>error.code==='invalid_export_lifecycle');assert.equal(injected,true);assert.deepEqual(await call('vaults',{}),[])}finally{historyDestination.owner.call=call}
+   const invited=await historyDestination.fetcher(historyDestination.origin+'/auth/invite',{method:'POST',headers:{origin:historyDestination.origin,cookie:historyDestination.owner.cookie,'content-type':['application','json'].join('/')},body:JSON.stringify({email:'synthetic-latchkey-8044@example.test',displayName:'Synthetic destination member',role:'member'})});assert.equal(invited.status,202);
+   const token=new URL(historyDestination.mail.at(-1).content.find(part=>part.type===['text','plain'].join('/')).value.match(/https:\/\/[^\s<>]+/)[0]).searchParams.get('token');
+   const destinationMember=new VaultClient(historyDestination.origin,{fetcher:historyDestination.fetcher});await destinationMember.confirmIdentity(token);const memberEnrollment=await destinationMember.register('synthetic-latchkey-8045');await destinationMember.unlock(memberEnrollment.profile,'synthetic-latchkey-8045');
+   await assert.rejects(new SelectionExportClient(destinationMember).reimport(sparse,null,{confirmed:true,approvedPlanHash:sparse.planHash}),error=>error.code==='destination_owner_required');assert.deepEqual(await historyDestination.owner.call('vaults',{}),[]);
+   const restored=await importer.reimport(sparse,null,{confirmed:true,approvedPlanHash:sparse.planHash});assert.equal(restored.restored.length,4);
+   for(const source of sparse.vaults){const target=restored.restored.find(row=>row.source===source.vault);assert.deepEqual((await historyDestination.owner.readVault(target.destination)).versions,source.versions);assert.deepEqual((await historyDestination.owner.call(route('lifecycle','list'),{vault:target.destination})).items,source.lifecycle.map(row=>({...row,retentionActive:false})));assert.deepEqual(await historyDestination.owner.call(selectionRoutes.policy,{vault:target.destination}),{revision:0,allowPlaintext:false});}
+   const history=restored.restored.find(row=>row.source===lifecycleVault);
+   await historyDestination.schedule(Math.max(...source.lifecycle.map(row=>row.expiresAt??0))+86400000);
+   assert.deepEqual((await historyDestination.owner.readItem(history.destination,trashedItem.object,true)).versions.map(row=>row.version),[1]);
+   assert.deepEqual(await destinationMember.call('vaults',{}),[]);await assert.rejects(destinationMember.readVault(history.destination),error=>error.code==='not_found');destinationMember.lock();assert.deepEqual(history.historyGaps,[{object:archivedItem.object,from:2,to:2}]);
+   assert.deepEqual((await historyDestination.owner.readItem(history.destination,archivedItem.object,true)).versions.map(row=>row.version),[1,3]);
+   const repeatedPreview=await importer.preview([{vault:history.destination,objects:null}]);assert.deepEqual(repeatedPreview.plan.selection[0].historyGaps,[{object:archivedItem.object,from:2,to:2}]);
+   const repeatedArchive=await importer.export(repeatedPreview,exportKey,{confirmed:true,approvedPlanHash:repeatedPreview.planHash});assert.deepEqual((await SelectionExportClient.open(repeatedArchive,exportKey)).vaults[0].versions,sparse.vaults.find(row=>row.vault===lifecycleVault).versions);
+   const destinationVaults=await historyDestination.owner.call('vaults',{});assert.deepEqual(destinationVaults.map(row=>row.kind).sort(),['company','company','family','private-work']);
+   for(const row of destinationVaults){assert.equal(row.owner,historyDestination.owner.profile.account);assert.deepEqual(JSON.parse(row.rights),['read','create','edit','export','share','rotate','delete','restore']);}
+   await assert.rejects(historyDestination.owner.put(history.destination,{secret:'synthetic-latchkey-8042'},archivedItem.object,3),error=>error.code==='item_not_active');
+  }finally{await historyDestination.close()}
   const before=await owner.exportVault(vault,exportKey),beforePlan=await owner.call(route('exit','plan'),{});assert.equal(beforePlan.commercial.state,'active');
   await owner.call(route('msp','commercial'),{status:'cancelled',reference:'synthetic-latchkey-8021',confirmed:true});
   const plan=await owner.call(route('exit','plan'),{});assert.equal(plan.commercial.state,'cancelled');assert.equal(plan.withheldForCommercialStatus,false);assert.equal(plan.vaults.find(v=>v.vault===vault).canExport,true);assert.match(plan.commercial.basis,/Owner-recorded/);assert.match(plan.shutdown.consequences,/cannot serve connected clients/);assert.match(plan.shutdown.authority,/do not travel/);

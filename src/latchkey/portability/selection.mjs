@@ -1,11 +1,23 @@
 import { canonicalJson } from '@runeditrun/rer/modules/portability';
-import { bytes,decode,digest,id,json,open,seal,sign,verify } from '../crypto/envelope.mjs';
+import { bytes,decode,digest,id,itemKey,json,open,random,seal,sign,verify } from '../crypto/envelope.mjs';
 import { exportPolicyText,selectionApprovalText,selectionRoutes } from './selection-common.mjs';
+import { attachmentBytes } from '../items/attachments.mjs';
 import { ClientError } from '../client.mjs';
 const need=(value,code)=>{if(!value)throw new ClientError(code)};
 const uuid=value=>typeof value==='string'&&/^[0-9a-f-]{36}$/.test(value);
 const schema='latchkey-selected-export-v1';
 const approvalText=plan=>canonicalJson([schema,plan]);
+function historyGaps(versions){
+ const seen=new Map(),gaps=[];let previousObject='';
+ for(const row of versions){
+  need(typeof row.object==='string'&&previousObject.localeCompare(row.object)<=0,'invalid_export_history');previousObject=row.object;
+  const previous=seen.get(row.object)??0;
+  need(uuid(row.object)&&Number.isSafeInteger(row.version)&&row.version>previous,'invalid_export_history');
+  if(row.version>previous+1)gaps.push({object:row.object,from:previous+1,to:row.version-1});
+  seen.set(row.object,row.version);
+ }
+ return gaps;
+}
 async function collect(client,selection,format='encrypted',review={purpose:'Migration',target:'Buyer-held private file'}){
  need(review&&Object.keys(review).sort().join()==='purpose,target'&&[review.purpose,review.target].every(value=>typeof value==='string'&&value.trim().length>0&&value.length<=500),'export_review_required');
  need(['encrypted','plaintext'].includes(format),'invalid_export_format');
@@ -25,7 +37,7 @@ async function collect(client,selection,format='encrypted',review={purpose:'Migr
    const chosen=selected.objects===null?objects:[...selected.objects].sort(),versions=all.filter(row=>chosen.includes(row.object));
    const lifecycle=(await client.call(['lifecycle','list'].join('/'),{vault:selected.vault})).items.filter(row=>chosen.includes(row.object));
    const attachments=versions.flatMap(row=>row.value.attachments??[]);
-   vaults.push({vault:selected.vault,kind:visible.find(row=>row.id===selected.vault)?.kind,policyRevision:policy.revision,epoch:snapshot.result.epoch,revision:snapshot.result.revision,objects:chosen,omittedObjects:objects.filter(object=>!chosen.includes(object)),lifecycle,counts:{items:chosen.length,versions:versions.length,attachments:attachments.length,attachmentBytes:attachments.reduce((total,row)=>total+row.size,0)},versions});
+   vaults.push({vault:selected.vault,kind:visible.find(row=>row.id===selected.vault)?.kind,policyRevision:policy.revision,epoch:snapshot.result.epoch,revision:snapshot.result.revision,objects:chosen,omittedObjects:objects.filter(object=>!chosen.includes(object)),lifecycle,historyGaps:historyGaps(versions),counts:{items:chosen.length,versions:versions.length,attachments:attachments.length,attachmentBytes:attachments.reduce((total,row)=>total+row.size,0)},versions});
   }finally{snapshot.key.fill(0)}
  }
  const plan={schema,review:{...review,consequences:'The buyer controls downloaded copies. Plaintext has no encryption and cannot be remotely recalled or expired.'},coverage:{basis:'Vaults visible to the current account only',completeCompany:false,selectedCompanyVaults:vaults.filter(row=>row.kind==='company').length,visibleCompanyVaults:visible.filter(row=>row.kind==='company').length,otherCompanyVaults:'unknown; not inspected'},source:{tenant:client.profile.tenant,account:client.profile.account,authorityKey:client.profile.authorityKey},selection:vaults.map(({versions,...row})=>row),contentHash:await digest(canonicalJson(vaults)),omittedVaults:visible.filter(row=>!vaults.some(vault=>vault.vault===row.id)).map(row=>({vault:row.id,counts:'not inspected'})).sort((a,b)=>a.vault.localeCompare(b.vault)),omissions:['Unselected items and vaults','Installation identities, private account keys and active authority','Non-item domains; use the full encrypted installation archive'],activeAuthority:false,format};
@@ -42,6 +54,7 @@ export class SelectionExportClient {
  async export(preview,exportKey,{confirmed=false,approvedPlanHash,format='encrypted'}={}){
   need(format===preview?.plan?.format,'export_format_changed');
   need(confirmed===true&&approvedPlanHash===preview?.planHash,'exact_export_approval_required');
+  need(preview.plan.review,'export_plan_changed');
   const fresh=await collect(this.client,preview.plan.selection.map(row=>({vault:row.vault,objects:row.objects})),format,{purpose:preview.plan.review.purpose,target:preview.plan.review.target});
   need(fresh.planHash===approvedPlanHash&&canonicalJson(fresh.plan)===canonicalJson(preview.plan),'export_plan_changed');
   const approvals=[],expiresAt=Date.now()+240000;
@@ -75,18 +88,31 @@ export class SelectionExportClient {
   need(confirmed===true&&approvedPlanHash===value.planHash,'exact_export_approval_required');
   need(this.client.profile.tenant!==value.plan.source.tenant,'fresh_installation_required');
   need((await this.client.call('vaults',{})).length===0,'empty_export_destination_required');
+  // Validate every source before creating destination ciphertext or writing anything.
   for(const source of value.vaults){
-   need(['company','family'].includes(source.kind),'invalid_selected_export');
-   need((source.lifecycle??[]).every(row=>row.state==='active'),'nonactive_selection_requires_review');
-   const versions=new Map();for(const row of source.versions){need(uuid(row.object)&&row.version===(versions.get(row.object)??0)+1,'export_history_gap');versions.set(row.object,row.version)}
+   need(['company','family','private-work'].includes(source.kind),'invalid_selected_export');
+   need(canonicalJson(source.historyGaps??[])===canonicalJson(historyGaps(source.versions)),'export_history_gap');
+   for(const row of source.versions)for(const attachment of row.value.attachments??[])await attachmentBytes(attachment);
+   const attachments=source.versions.flatMap(row=>row.value.attachments??[]);
+   need(canonicalJson(source.counts)===canonicalJson({items:new Set(source.versions.map(row=>row.object)).size,versions:source.versions.length,attachments:attachments.length,attachmentBytes:attachments.reduce((total,row)=>total+row.size,0)}),'export_counts_mismatch');
   }
-  const restored=[];
+  const prepared=[];
   for(const source of value.vaults){
-   const destination=(await this.client.createVault({kind:source.kind})).vault;
-   for(const row of source.versions)await this.client.put(destination,row.value,row.object,row.version-1);
-   const actual=await this.client.readVault(destination);
-   need(await digest(canonicalJson(actual.versions))===await digest(canonicalJson(source.versions)),'export_reconciliation_failed');
-   restored.push({source:source.vault,destination,counts:source.counts,contentHash:await digest(canonicalJson(actual.versions)),access:'New destination owner only; source grants and active authority were not imported.'});
+   const vault=id(),key=random(),versions=[];
+   try{
+    for(const row of source.versions){
+     const derived=await itemKey(key,this.client.profile.tenant,vault,row.object);
+     try{versions.push({object:row.object,version:row.version,envelope:await seal(derived,bytes(row.value),{tenant:this.client.profile.tenant,vault,object:row.object,purpose:'item',epoch:1,version:row.version})})}finally{derived.fill(0)}
+    }
+    prepared.push({source:source.vault,vault,kind:source.kind,wrapped:await this.client.wrap(key,this.client.profile.recipientKey,{tenant:this.client.profile.tenant,vault,object:this.client.profile.account,purpose:'vault-key',epoch:1,version:1}),versions,lifecycle:(source.lifecycle??[]).map(row=>({...row,retentionActive:false})).sort((a,b)=>a.object.localeCompare(b.object))});
+   }finally{key.fill(0)}
+  }
+  await this.client.call(selectionRoutes.import,{sourceTenant:value.plan.source.tenant,planHash:value.planHash,vaults:prepared,confirmed:true});
+  const restored=[];
+  for(const [index,source] of value.vaults.entries()){
+   const destination=prepared[index].vault,actual=await this.client.readVault(destination),lifecycle=(await this.client.call(['lifecycle','list'].join('/'),{vault:destination})).items;
+   need(await digest(canonicalJson(actual.versions))===await digest(canonicalJson(source.versions))&&canonicalJson(lifecycle)===canonicalJson(prepared[index].lifecycle),'export_reconciliation_failed');
+   restored.push({source:source.vault,destination,counts:source.counts,historyGaps:source.historyGaps??[],lifecycle,contentHash:await digest(canonicalJson(actual.versions)),access:'New destination owner only; source grants and active authority were not imported.'});
   }
   return {complete:true,restored,omissions:value.plan.omissions,laterErasure:'An old file without a later erasure journal cannot establish subsequent erasure.'};
  }

@@ -1,8 +1,10 @@
 import { canonicalJson,access,exact,need,ownedVault } from '../reviews/common.mjs';
+import { importSelection } from './selection-import.mjs';
 import { transact } from '../reviews/state.mjs';
 import { verify } from '../crypto/envelope.mjs';
 import { exportPolicyText,selectionApprovalText,selectionRoutes } from './selection-common.mjs';
 export async function selectionPolicyAuthenticated(route,input,ctx){
+ if(route===selectionRoutes.import)return importSelection(input,ctx);
  if(route===selectionRoutes.release){
   exact(input,['approvals']);need(Array.isArray(input.approvals)&&input.approvals.length>0&&input.approvals.length<=100,'invalid_export_selection');
   need(new Set(input.approvals.map(row=>row.vault)).size===input.approvals.length,'invalid_export_selection');

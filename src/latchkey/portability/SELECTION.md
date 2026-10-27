@@ -24,13 +24,20 @@ stdout. Use new private output paths; existing output files are never overwritte
    Integrity covers the complete content and exact selection.
 4. `selection-import` takes a fresh destination `profile` and `password`, the
    `archive`, `exportKey`, exact `approvedPlanHash` and `confirmed: true`. It
-   creates new destination keys and owner-only vaults, re-encrypts all versions
-   and compares complete content digests. Source grants, policies, tokens,
+   prepares new destination keys and owner-only company, private-work or family
+   vaults, re-encrypts every included version with its original version number
+   and verifies attachment digests before any write. One transaction publishes
+   every selected vault into an empty owner destination. Reconciliation compares
+   complete content digests, lifecycle observations and explicit history gaps. Source grants, policies, tokens,
    schedules and account keys never authorize destination access. The command
-   refuses the source installation, a nonempty destination, gapped histories and nonactive lifecycle
-   selections before creating anything. Those selections need a separate review;
-   they are never silently reactivated. An interrupted import may leave a partial
-   new destination; it does not claim atomic or resumable installation restore.
+   refuses the source installation, a nonempty destination, undisclosed history
+   gaps, corrupt attachments and unsupported lifecycle metadata before writes.
+   A disclosed sparse history retains its missing version intervals; no versions
+   are manufactured. Archived and trashed states and their observed timestamps
+   survive, with retention inactive and no operative deletion proof or source
+   policy. Explicit destination decisions govern later activation. A refused
+   selected import leaves no partial vaults; full installation restore and its
+   resumable interruption behavior remain separate obligations.
 
 Plaintext requires two separate decisions. First `selection-policy` takes a vault,
 `allowPlaintext: true` and literal confirmation from its unlocked owner. The signed,
