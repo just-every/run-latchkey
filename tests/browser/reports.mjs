@@ -126,6 +126,21 @@ async function historyJourney(){
   let replay;const call=owner.call.bind(owner);owner.call=async(route,input)=>{if(route===['reports','capture'].join('/'))replay=structuredClone(input);return call(route,input)};
   const erasureVault=(await owner.createVault({kind:'company'})).vault,erasedItem=(await owner.put(erasureVault,createItem('secure-note',{title:'Synthetic erased report',values:{note:'synthetic-latchkey-9193'}}))).object;
   await api.capture(erasureVault,{confirmed:true});const beforeErase=await api.history(erasureVault);await owner.eraseItem(erasureVault,erasedItem,{confirmed:true});assert.deepEqual((await api.history(erasureVault)).observations,[]);await assert.rejects(api.export(beforeErase,'csv'),/report_history_changed/);await assert.rejects(call(['reports','capture'].join('/'),replay),e=>e.code==='report_source_changed');
+  // Person erasure must fence a surviving member owner's accepted capture,
+  // even when that owner's source counts did not change. Persist and restart
+  // the real Worker before replay so a process-local cache cannot satisfy this.
+  const erasedPerson=await enroll(f,9196),subject=(await f.db.prepare('SELECT operator_id FROM lky_accounts WHERE id=?').bind(erasedPerson.profile.account).first()).operator_id;
+  let personReplay;const readerCall=reader.call.bind(reader);
+  reader.call=async(route,input)=>{if(route===['reports','capture'].join('/'))personReplay=structuredClone(input);return readerCall(route,input)};
+  try{await other.capture(foreign,{confirmed:true});}finally{reader.call=readerCall;}
+  assert.equal((await other.history(foreign)).observations.length,1);
+  const erasurePlan=await owner.call(['subject','erase-preview'].join('/'),{subject});
+  await owner.call(['subject','erase'].join('/'),{subject,confirmed:true,planHash:erasurePlan.planHash});
+  await f.restart();
+  assert.deepEqual((await other.history(foreign)).observations,[]);
+  await assert.rejects(readerCall(['reports','capture'].join('/'),personReplay),e=>e.code==='report_observation_erased');
+  assert.deepEqual((await other.history(foreign)).observations,[]);
+  await other.capture(foreign,{confirmed:true});assert.equal((await other.history(foreign)).observations.length,1);
  }finally{await f.close();Date.now=realNow;}
 }
 for(const width of [1440,390])await reportsJourney(width);
