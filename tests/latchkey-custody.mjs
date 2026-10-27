@@ -52,6 +52,7 @@ export async function custodyJourney({owner,member,ownerPassword,memberPassword,
  await refused(new CustodyClient(member).preview(op.id),'named_custodian_required');
  await refused(requestApi(member,'POST','/people/custody/preview',{operation:op.id,action:'handback'}),'named_custodian_required');
  const review=await restReceiver.preview(op.id);assert.deepEqual(review.plan.vaults.map(v=>v.vault).sort(),[vault,privateWork].sort());assert.equal(review.plan.vaults.reduce((n,v)=>n+v.versions,0),5);assert.equal(review.plan.vaults.reduce((n,v)=>n+v.items,0),4);
+ const encryptedSource=await requestApi(owner,'POST','/people/custody/source',{review:review.review,vault});assert.equal(encryptedSource.owner,leaver.profile.account);assert.equal(encryptedSource.epoch,1);assert.deepEqual(encryptedSource.versions.filter(row=>row.object_id===item).map(row=>[row.object_id,row.version]),[[item,1],[item,2]]);
  await refused(receiver.commit(review,{approvedPlanHash:review.planHash}),'custody_confirmation_required');
  await refused(receiver.commit({...review,plan:{...review.plan,action:'reactivate'}},{confirmed:true,approvedPlanHash:review.planHash}),'custody_review_changed');
  await refused(receiver.commit(review,{confirmed:true,approvedPlanHash:review.planHash}),'recipient_confirmation_required');

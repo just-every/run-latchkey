@@ -3658,7 +3658,7 @@
       "executable": false
     },
     "tests/latchkey-custody.mjs": {
-      "sha256": "f2d86b587e3afddcc7111e35e6b5a25def49219e67f491a98811e6f623ca3e36",
+      "sha256": "4a9ae465c1654a119cbf541b62ac4d099c215c228602b70f52d52314bad52011",
       "executable": false
     },
     "tests/latchkey-erasure.mjs": {
