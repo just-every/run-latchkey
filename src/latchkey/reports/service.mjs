@@ -55,6 +55,9 @@ async function capture(input,ctx){
   stmt('INSERT INTO lky_report_keys VALUES(?,?,?) ON CONFLICT(vault_id) DO NOTHING',vault.id,ctx.actor,canonicalJson(input.key)),
   stmt('INSERT INTO lky_report_observations VALUES(?,?,?,?,?,?)',input.id,vault.id,utcDay(input.asOf),input.asOf,input.revision,canonicalJson(input.envelope)),
   event('report_observation_captured',input.id)
- ],[guard(key?'EXISTS(SELECT 1 FROM lky_report_keys WHERE vault_id=? AND owner=? AND wrapped=?)':'NOT EXISTS(SELECT 1 FROM lky_report_keys WHERE vault_id=?)',key?[vault.id,ctx.actor,key.wrapped]:[vault.id])]);
+ ],[
+ guard(`(SELECT json_group_array(json_array(account,status,enrolledDevices)) FROM (SELECT a.id AS account,o.status,(SELECT COUNT(*) FROM lky_devices d WHERE d.account_id=a.id AND d.revoked_at IS NULL AND d.generation=a.generation) AS enrolledDevices FROM lky_recipients r JOIN lky_accounts a ON a.id=r.account_id JOIN oa_operators o ON o.id=a.operator_id WHERE r.vault_id=? AND a.tenant=? AND json_array_length(r.rights)>0 ORDER BY a.id))=?`,[vault.id,ctx.tenant,JSON.stringify(source.recipients.map(r=>[r.account,r.status,r.enrolledDevices]))]),
+ ...(source.adoption.company?[guard(`(SELECT COUNT(*) FROM oa_operators WHERE status='invited')=? AND (SELECT COUNT(*) FROM oa_operators o JOIN lky_accounts a ON a.operator_id=o.id WHERE a.tenant=?)=? AND (SELECT COUNT(*) FROM oa_operators WHERE status='inactive')=?`,[source.adoption.company.invited,ctx.tenant,source.adoption.company.enrolled,source.adoption.company.inactive])]:[]),
+ guard(key?'EXISTS(SELECT 1 FROM lky_report_keys WHERE vault_id=? AND owner=? AND wrapped=?)':'NOT EXISTS(SELECT 1 FROM lky_report_keys WHERE vault_id=?)',key?[vault.id,ctx.actor,key.wrapped]:[vault.id])]);
  return {captured:input.id,day:utcDay(input.asOf),asOf:input.asOf};
 }

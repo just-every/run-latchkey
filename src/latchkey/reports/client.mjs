@@ -72,7 +72,7 @@ const historyRows=report=>[
  ['coverage','Explicit owner captures only; missing dates and unavailable sources are gaps. Monthly means use retained observations, grouped by scoring policy. No automatic deletion.'],
  ...report.daily.map(r=>['daily',r.day,r.observation?.score??'unknown',r.observation?.denominator??'unknown',r.observation?.policyVersion??'missing']),
  ...report.observations.flatMap(o=>[['observation',o.asOf,o.observedAt,o.revision,o.policyVersion,o.denominator,o.clear,o.risky,o.unknown,o.score??'unknown',canonicalJson(o.scoringPolicy)],['adoption',o.asOf,canonicalJson(o.adoption)],...o.coverage.map(c=>['coverage',o.asOf,c])]),
- ...report.monthly.map(m=>['monthly',m.month,m.policyVersion,m.observedDays,m.expectedDays,m.missingDays,m.scoredDays,m.meanScore??'unknown',m.meanDenominator,m.meanEnrolled,m.meanActive,m.meanDevices]),
+ ...report.monthly.map(m=>['monthly',m.month,m.policyVersion??'missing',m.observedDays,m.expectedDays,m.missingDays,m.scoredDays,m.meanScore??'unknown',m.meanDenominator,m.meanEnrolled,m.meanActive,m.meanDevices]),
  ...report.comparisons.map(c=>['comparison',c.range,c.day,c.current?.score??'unknown',c.baseline?.score??'unknown',c.scoreDelta??'unknown',c.reason])
 ];
 export const reportCsv=report=>rows(report).map(row=>row.map(cell).join(',')).join('\r\n');

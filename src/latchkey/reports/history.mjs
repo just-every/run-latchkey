@@ -18,14 +18,20 @@ export function retainedHistory(observations,asOf,days=365){
   const month=utcDay(o.asOf).slice(0,7),key=JSON.stringify([month,o.policyVersion]),g=groups.get(key)??{month,policyVersion:o.policyVersion,observedDays:0,scores:[],denominators:[],enrolled:[],active:[],devices:[],coverage:[]};
   g.observedDays++;if(o.score!==null)g.scores.push(o.score);g.denominators.push(o.denominator);g.enrolled.push(o.adoption.enrolled);g.active.push(o.adoption.active);g.devices.push(o.adoption.devices);g.coverage=[...new Set([...g.coverage,...o.coverage])];groups.set(key,g);
  }
+ // Empty calendar months remain explicit gaps, including after erasure.
+ if(byDay.size){
+  const firstMonth=[...byDay.keys()].sort()[0].slice(0,7),cursor=new Date(firstMonth+'-01T00:00:00Z');
+  while(+cursor<=end){const month=utcDay(+cursor).slice(0,7);if(![...groups.values()].some(g=>g.month===month))groups.set(month,{month,policyVersion:null,observedDays:0,scores:[],denominators:[],enrolled:[],active:[],devices:[],coverage:['No retained observations in this month']});cursor.setUTCMonth(cursor.getUTCMonth()+1);}
+ }
  const mean=values=>values.length?values.reduce((a,b)=>a+b,0)/values.length:null;
- const monthly=[...groups.values()].sort((a,b)=>a.month.localeCompare(b.month)||a.policyVersion.localeCompare(b.policyVersion)).map(g=>{
+ const monthly=[...groups.values()].sort((a,b)=>a.month.localeCompare(b.month)||String(a.policyVersion).localeCompare(String(b.policyVersion))).map(g=>{
   const start=Date.parse(g.month+'-01'),next=new Date(start);next.setUTCMonth(next.getUTCMonth()+1);
   const expectedDays=Math.floor((Math.min(+next,end+dayMs)-start)/dayMs);
   return {month:g.month,policyVersion:g.policyVersion,observedDays:g.observedDays,expectedDays,missingDays:expectedDays-g.observedDays,scoredDays:g.scores.length,meanScore:mean(g.scores),meanDenominator:mean(g.denominators),meanEnrolled:mean(g.enrolled),meanActive:mean(g.active),meanDevices:mean(g.devices),coverage:g.coverage};
  });
  const current=byDay.get(utcDay(asOf))??null;
- const previousYear=new Date(end);previousYear.setUTCDate(1);previousYear.setUTCFullYear(previousYear.getUTCFullYear()-1);const month=previousYear.getUTCMonth();previousYear.setUTCDate(new Date(Date.UTC(previousYear.getUTCFullYear(),month+1,0)).getUTCDate()<new Date(end).getUTCDate()?new Date(Date.UTC(previousYear.getUTCFullYear(),month+1,0)).getUTCDate():new Date(end).getUTCDate());
+ const today=new Date(end),year=today.getUTCFullYear()-1,month=today.getUTCMonth();
+ const previousYear=Date.UTC(year,month,Math.min(today.getUTCDate(),new Date(Date.UTC(year,month+1,0)).getUTCDate()));
  const comparisons=[...([7,30,90].map(n=>({range:n+' days',day:utcDay(end-n*dayMs)}))),{range:'12 months',day:utcDay(+previousYear)}].map(({range,day})=>{
   const baseline=byDay.get(day)??null,comparable=!!current&&!!baseline&&current.policyVersion===baseline.policyVersion&&current.score!==null&&baseline.score!==null;
   return {range,day,current,baseline,scoreDelta:comparable?current.score-baseline.score:null,reason:!current||!baseline?'Missing dated observation':!comparable?'Policy boundary or unknown score':'Same policy; observed scores only'};

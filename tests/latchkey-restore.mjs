@@ -1,6 +1,7 @@
 // Called by the real emitted-Worker journey after Base has completed import and
 // the destination owner has independently enrolled/recovered a trusted device.
 import assert from 'node:assert/strict';
+import {ReportsClient} from '../src/latchkey/reports/client.mjs';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -26,6 +27,7 @@ export async function exerciseRecordsRestore({ archive, sourceClient, destinatio
   assert.ok(plan.vaults.length > 0);
   // Merely recovering/enrolling an installation owner grants no values.
   for (const vault of plan.vaults) await refused(destinationClient.readVault(vault.vault));
+  const observations={};for(const vault of plan.vaults)if(vault.reportKey){await refused(new ReportsClient(destinationClient).history(vault.vault));observations[vault.vault]=(await new ReportsClient(sourceClient).history(vault.vault)).observations;}assert.ok(Object.keys(observations).length>0);
   const approval = await approveDestinationRewrap({ input, plan, approvedPlanHash: planHash, client: sourceClient, purpose: 'synthetic-latchkey-55', expiresAt: Date.now() + 300000 });
   // Restore through the published REST aliases while preserving the real
   // destination-side cryptographic preparation and activation client.
@@ -52,6 +54,7 @@ export async function exerciseRecordsRestore({ archive, sourceClient, destinatio
   const activated = await portability.activate({ restore: prepared.restore, approvedPlanHash: planHash, activation: 'synthetic-latchkey-57', rights: ownerRights });
   assert.equal(activated.phase, 'activated'); assert.equal(activated.activeAuthority, true);
   for (const vault of plan.vaults) {
+   if(observations[vault.vault])assert.deepEqual((await new ReportsClient(destinationClient).history(vault.vault)).observations,observations[vault.vault]);
    const read = await destinationClient.readVault(vault.vault);
    if (expectedVersions?.[vault.vault]) assert.deepEqual(read.versions, expectedVersions[vault.vault]);
    const exported = await destinationClient.snapshot(vault.vault, 'export'); exported.key.fill(0);

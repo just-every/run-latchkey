@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import {ReportsClient} from '../src/latchkey/reports/client.mjs';
+import {createItem} from '../src/latchkey/items/types.mjs';
 import { SelectionExportClient } from '../src/latchkey/portability/selection.mjs';
 import { VaultClient } from '../src/latchkey/client.mjs';
 import { SharingClient } from '../src/latchkey/sharing/client.mjs';
@@ -35,12 +37,15 @@ export async function runSubjectErasureJourneys({owner,db,records,mail,post,fetc
  await rejects(person.call('subject/erase-preview',{subject:operator}),'owner_required');
  const ownerOperator=(await db.prepare('SELECT operator_id FROM lky_accounts WHERE id=?').bind(owner.profile.account).first()).operator_id;
  await rejects(owner.call('subject/erase-preview',{subject:ownerOperator}),'self_erasure_forbidden');
+ const reportVault=(await person.createVault({kind:'company'})).vault;await person.put(reportVault,createItem('secure-note',{title:'Synthetic owned observation',values:{note:'synthetic-latchkey-994'}}));await new ReportsClient(person).capture(reportVault,{confirmed:true});
+ const retainedVault=(await owner.createVault({kind:'company'})).vault;await new ReportsClient(owner).capture(retainedVault,{confirmed:true});
  const before=await backup(records),preview=await owner.call('subject/erase-preview',{subject:operator});
  assert.equal(preview.complete,false);assert.equal(preview.requiresConfirmation,true);
  await rejects(owner.call('subject/erase',{subject:operator,confirmed:false,planHash:preview.planHash}),'subject_erasure_confirmation_required');
  await rejects(owner.call('subject/erase',{subject:operator,confirmed:true,planHash:'synthetic-latchkey-991'}),'subject_erasure_plan_changed');
  assert.ok(await db.prepare('SELECT id FROM oa_operators WHERE id=?').bind(operator).first());
  const erased=await owner.call('subject/erase',{subject:operator,confirmed:true,planHash:preview.planHash});
+ assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM lky_report_observations').first()).n,0);assert.equal(await db.prepare('SELECT vault_id FROM lky_report_keys WHERE vault_id=?').bind(reportVault).first(),null);
  assert.equal(erased.controlPlaneErased,true);assert.equal(erased.complete,false);
  assert.ok(erased.outstanding.some(row=>row.domain==='encrypted-client-content'&&row.vaults.includes(otherVault)));
  assert.ok(erased.outstanding.some(row=>row.domain==='disconnected-device-cache'&&row.state==='outstanding'));

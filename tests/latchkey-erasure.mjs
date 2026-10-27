@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import {ReportsClient} from '../src/latchkey/reports/client.mjs';
+import {createItem} from '../src/latchkey/items/types.mjs';
 import { VaultClient } from '../src/latchkey/client.mjs';
 import { SharingClient, PublicLinkClient } from '../src/latchkey/sharing/client.mjs';
 import { MachineClient } from '../src/latchkey/machine.mjs';
@@ -38,6 +40,8 @@ export async function runItemErasureJourneys({ owner, member, db, records, mail,
  const machine = await MachineClient.create(owner.origin, runtimeKey), machineIdentity = await MachineClient.identity(machine);
  const grant = await owner.grantMachine(vault, object, machineIdentity, machineIdentity.fingerprint);
  assert.equal((await MachineClient.read(machine, grant, runtimeKey, { fetcher })).secret, 'synthetic-latchkey-955');
+ const reportVault=(await owner.createVault({kind:'company'})).vault,reportItem=(await owner.put(reportVault,createItem('secure-note',{title:'Synthetic observation erasure',values:{note:'synthetic-latchkey-958'}}))).object;
+ const reportApi=new ReportsClient(owner);await reportApi.capture(reportVault,{confirmed:true});
  const before = await archive(records), journalBefore = (await db.prepare('SELECT COUNT(*) AS n FROM rer_portability_journal').first()).n;
  const revision = (await owner.readVault(vault)).revision;
  assert.equal((await owner.call('item/erasure-status', { vault, object })).erased, false);
@@ -53,6 +57,7 @@ export async function runItemErasureJourneys({ owner, member, db, records, mail,
  await connected.unlock(structuredClone(owner.profile), ownerPassword);
  await connected.readVault(vault);
  assert.ok(Object.keys(connected.profile.seen[vault].versions).some(name => name.startsWith(object + ':')));
+ await owner.eraseItem(reportVault,reportItem,{confirmed:true});assert.deepEqual((await reportApi.history(reportVault)).observations,[]);
  const erased = await owner.eraseItem(vault, object, { confirmed: true, revision });
  assert.ok(!(await connected.readVault(vault)).versions.some(row => row.object === object));
  assert.equal(connected.profile.seen[vault].erased[object], true);
