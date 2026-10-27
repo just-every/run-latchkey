@@ -4343,12 +4343,22 @@
                   "policy": {},
                   "reason": {
                     "type": "string"
+                  },
+                  "confirmed": {
+                    "type": "boolean",
+                    "const": true
+                  },
+                  "review": {
+                    "type": "string",
+                    "description": "Hash of the current owner-reviewed policy impact preview."
                   }
                 },
                 "required": [
                   "group",
                   "policy",
-                  "reason"
+                  "reason",
+                  "confirmed",
+                  "review"
                 ],
                 "additionalProperties": false
               }
@@ -14474,6 +14484,226 @@
                   "confirmed": {},
                   "vaults": {}
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/policies/generator/preview": {
+      "post": {
+        "operationId": "post__policies_generator_preview",
+        "summary": "POST /policies/generator/preview",
+        "x-latchkey-canonical-route": "generator/policy/preview",
+        "security": [
+          {
+            "operatorSession": [],
+            "grant": [],
+            "deviceSignature": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-latchkey-nonce",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "x-latchkey-time",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            },
+            "description": "Unix epoch milliseconds; 60-second freshness window."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized result; collections return data and nextCursor, encrypted collections also return context."
+          },
+          "201": {
+            "description": "Canonical handler created the resource."
+          },
+          "400": {
+            "description": "Refused with a stable error code. No request data is echoed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Refused with a stable error code. No request data is echoed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused with a stable error code. No request data is echoed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Refused with a stable error code. No request data is echoed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Refused with a stable error code. No request data is echoed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Refused with a stable error code. No request data is echoed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Refused with a stable error code. No request data is echoed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Refused with a stable error code. No request data is echoed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Seconds until another attempt."
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "group": {
+                    "type": "string"
+                  },
+                  "policy": {},
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "group",
+                  "policy",
+                  "reason"
+                ],
+                "additionalProperties": false
               }
             }
           }

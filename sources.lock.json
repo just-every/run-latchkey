@@ -1498,15 +1498,15 @@
       "executable": false
     },
     "src/latchkey/api/catalogue.mjs": {
-      "sha256": "3a7cfec8a1d9d416dbb341c124c303fe248c51dcae9480b05550a4e94177b8c6",
+      "sha256": "2b16ebc2a7e43a44da449eb9b325d37daff352ee8afa770fa37942c3bce99df4",
       "executable": false
     },
     "src/latchkey/api/client.d.mts": {
-      "sha256": "1507ad080957926793052b2b02b508864fd623daf5902215f2699aced92fda4c",
+      "sha256": "6fc5a0dbb02a80528645d985ca4e61f100a76889c234bf190d3897b14477ef6a",
       "executable": false
     },
     "src/latchkey/api/client.mjs": {
-      "sha256": "30da056cd611822ca468f407c71df9aebc1e209bdce1f98fbc11e37f730b0730",
+      "sha256": "c7ec0e02870b9eb85e84d0d685c1ebf2915499477795792e988f6f3c620a128b",
       "executable": false
     },
     "src/latchkey/api/http.d.mts": {
@@ -1522,7 +1522,7 @@
       "executable": false
     },
     "src/latchkey/api/openapi.json": {
-      "sha256": "aab2fea8db959dcf6d09a92a266ddb37cc4492ded685214ca243a7d4f1be4267",
+      "sha256": "4e10fdbda310509d4e202f186298bb483c1ce291f812b96a3484f77afeb20d00",
       "executable": false
     },
     "src/latchkey/api/pagination.mjs": {
@@ -1530,7 +1530,7 @@
       "executable": false
     },
     "src/latchkey/api/README.md": {
-      "sha256": "e7141bf5db3947c40736074856346e427c8dc98f7b1620de216f02f687915f72",
+      "sha256": "cd74fc318c61b55f976ffaa7a3bc325a66123a809663de1ccb997ef652490dc0",
       "executable": false
     },
     "src/latchkey/api/users.mjs": {
@@ -3646,7 +3646,7 @@
       "executable": false
     },
     "tests/browser/vault.mjs": {
-      "sha256": "d11fa1b4c8ef414a2337f965b35511c7716a98d2597222a3726536681f0bd55d",
+      "sha256": "c42ef75a98fed555a0e8b5fdb36f8f458f20e4f3ad2600f9b897dbbb116807b9",
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {
@@ -3710,7 +3710,7 @@
       "executable": false
     },
     "tests/latchkey-generator-policy.mjs": {
-      "sha256": "1cb332260b42b3ca9670e4579edd4b1756084f8d1db4887709336340a31ac66e",
+      "sha256": "a8a338c291f2e4526682ff1f3a97866354f418b94cd391440ebc207dd2c06673",
       "executable": false
     },
     "tests/latchkey-items.mjs": {
@@ -3742,7 +3742,7 @@
       "executable": false
     },
     "tests/latchkey-subject-erasure.mjs": {
-      "sha256": "8075854b5e0622ffa155faeacd1152ad713d1cea2a3a85a58658d619c3f44c03",
+      "sha256": "49dac65028ba52024d277fbac9c424c677413197472df148b2f6cb59a97d75aa",
       "executable": false
     },
     "tests/runtime.mjs": {

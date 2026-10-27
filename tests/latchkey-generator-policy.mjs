@@ -3,7 +3,9 @@ import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { VaultClient } from '../src/latchkey/client.mjs';
-import { id } from '../src/latchkey/crypto/envelope.mjs';
+import { spawn } from 'node:child_process';
+import { ApiClient } from '../src/latchkey/api/client.mjs';
+import { id, digest, sign, signingText } from '../src/latchkey/crypto/envelope.mjs';
 import { SharingClient } from '../src/latchkey/sharing/client.mjs';
 import { runItemCommand } from '../scripts/latchkey/items-commands.mjs';
 import { GeneratorHistory, generatorHistoryKey } from '../src/latchkey/generator/index.mjs';
@@ -136,4 +138,67 @@ export async function runGeneratorPolicyJourneys({ owner, member, db, ownerPassw
   await set({});
   await rm(directory, { recursive: true, force: true });
  }
+}
+
+// The REST adapter and shipped CLI both cross the real emitted Worker boundary.
+export async function runGeneratorApiJourney(f) {
+ const { owner, db } = f, api = new ApiClient(owner);
+ const directory = await mkdtemp(join(tmpdir(), 'synthetic-latchkey-1320-'));
+ const state = async () => ({
+  policies: (await db.prepare('SELECT * FROM lky_generator_policies ORDER BY scope').all()).results,
+  changes: (await db.prepare('SELECT * FROM lky_generator_policy_changes ORDER BY id').all()).results,
+ });
+ const rawApply = async input => {
+  const path = '/api/latchkey/v1/policies/generator', body = JSON.stringify(input), nonce = id(), time = String(Date.now());
+  const response = await owner.fetcher(owner.origin + path, { method: 'PUT', headers: {
+   origin: owner.origin, cookie: owner.cookie, 'content-type': 'application/json',
+   'x-latchkey-grant': owner.token, 'x-latchkey-nonce': nonce, 'x-latchkey-time': time,
+   'x-latchkey-signature': await sign(owner.bundle.signing.privateKey, signingText('PUT', path, owner.token, nonce, time, await digest(body))),
+  }, body });
+  return { status: response.status, body: await response.json() };
+ };
+ const cli = async (command, body, expected = 0) => {
+  const child = spawn(process.execPath, ['scripts/latchkey.mjs', 'api'], { env: { ...process.env, NODE_EXTRA_CA_CERTS: f.caFile }, stdio: ['pipe', 'pipe', 'pipe'] });
+  let out = '', err = '';
+  child.stdout.on('data', part => out += part); child.stderr.on('data', part => err += part);
+  child.stdin.end(JSON.stringify({ profile: join(directory, 'profile.json'), password: f.password, api: { command, body } }));
+  const code = await new Promise((resolve, reject) => { child.once('error', reject); child.once('close', resolve); });
+  assert.equal(code, expected, err);
+  assert.ok(!out.includes(f.password) && !err.includes(f.password));
+  if (expected) { assert.equal(out, ''); return JSON.parse(err); }
+  assert.equal(err, ''); return JSON.parse(out);
+ };
+ try {
+  await writeFile(join(directory, 'profile.json'), JSON.stringify(owner.profile), { mode: 0o600 });
+  const input = { group: null, policy: { minLength: 28 }, reason: 'synthetic-latchkey-1321' }, before = await state();
+  const plan = await api.previewGeneratorPolicy(input);
+  assert.equal(plan.members.find(row => row.account === owner.profile.account).after.policy.minLength, 28);
+  assert.deepEqual(await state(), before);
+  for (const extra of [{}, { confirmed: false, review: plan.hash }, { confirmed: 'true', review: plan.hash }]) {
+   assert.deepEqual(await rawApply({ ...input, ...extra }), { status: 400, body: { error: 'policy_confirmation_required' } });
+  }
+  assert.deepEqual(await rawApply({ ...input, confirmed: true }), { status: 400, body: { error: 'policy_review_required' } });
+  assert.deepEqual(await rawApply({ ...input, confirmed: true, review: 'synthetic-latchkey-1322' }), { status: 409, body: { error: 'policy_review_changed' } });
+  assert.deepEqual(await state(), before);
+  const applied = await api.setGeneratorPolicy({ ...input, policy: plan.policy, confirmed: true, review: plan.hash });
+  assert.equal(applied.policy.minLength, 28);
+  assert.equal((await state()).changes.length, before.changes.length + 1);
+  assert.deepEqual(await rawApply({ ...input, policy: plan.policy, confirmed: true, review: plan.hash }), { status: 409, body: { error: 'policy_review_changed' } });
+  const cliInput = { ...input, policy: { minLength: 32 }, reason: 'synthetic-latchkey-1323' }, cliBefore = await state();
+  const cliPlan = await cli('policies.generator-preview', cliInput);
+  assert.equal(cliPlan.members.find(row => row.account === owner.profile.account).after.policy.minLength, 32);
+  assert.deepEqual(await state(), cliBefore);
+  const body = { ...cliInput, policy: cliPlan.policy, review: cliPlan.hash };
+  assert.equal((await cli('policies.generator', body, 1)).error, 'policy_confirmation_required');
+  assert.equal((await cli('policies.generator', { ...body, confirmed: false }, 1)).error, 'policy_confirmation_required');
+  assert.equal((await cli('policies.generator', { ...body, confirmed: true, reason: 'synthetic-latchkey-1324' }, 1)).error, 'policy_review_changed');
+  assert.deepEqual(await state(), cliBefore);
+  const cliApplied = await cli('policies.generator', { ...body, confirmed: true });
+  assert.equal(cliApplied.policy.minLength, 32);
+  assert.equal((await state()).changes.length, cliBefore.changes.length + 1);
+  assert.equal((await cli('policies.generator', { ...body, confirmed: true }, 1)).error, 'policy_review_changed');
+  const reset = { group: null, policy: {}, reason: 'synthetic-latchkey-1325' }, resetPlan = await api.previewGeneratorPolicy(reset);
+  await api.setGeneratorPolicy({ ...reset, policy: resetPlan.policy, confirmed: true, review: resetPlan.hash });
+  console.log('Generator REST and CLI: read-only preview, explicit review and confirmation, exact application, stale review refusal and no refused writes passed');
+ } finally { await rm(directory, { recursive: true, force: true }); }
 }

@@ -45,6 +45,7 @@ export class ApiClient {
  putEncryptedItem(vault,object,input,options){return this.request('PUT',`/vaults/${identifier(vault)}/items/${identifier(object)}`,input,options);}
  policies(){return this.request('GET','/policies');}
  setSharingPolicy(input){return this.request('PUT','/policies/sharing',input);}
+ previewGeneratorPolicy(input){return this.request('POST','/policies/generator/preview',input);}
  setGeneratorPolicy(input){return this.request('PUT','/policies/generator',input);}
  projects(page){return this.request('GET','/projects'+query(page));}
  project(project){return this.request('GET','/projects/'+identifier(project));}
@@ -72,7 +73,7 @@ export const commands={
  'groups.list':['GET','/groups'],'groups.create':['POST','/groups'],'groups.members':['GET','/groups/{group}/members'],'groups.set':['PUT','/groups/{group}/members'],
  'vaults.list':['GET','/vaults'],'vaults.get':['GET','/vaults/{vault}'],'vaults.create':['POST','/vaults'],'vaults.share':['POST','/vaults/{vault}/shares'],'vaults.rotate':['POST','/vaults/{vault}/rotations'],
  'items.list':['GET','/vaults/{vault}/items'],'items.get':['GET','/vaults/{vault}/items/{object}'],'items.history':['GET','/vaults/{vault}/items/{object}/versions'],'items.put':['PUT','/vaults/{vault}/items/{object}'],'items.erase':['DELETE','/vaults/{vault}/items/{object}'],
- 'policies.get':['GET','/policies'],'policies.sharing':['PUT','/policies/sharing'],'policies.generator':['PUT','/policies/generator'],
+ 'policies.get':['GET','/policies'],'policies.sharing':['PUT','/policies/sharing'],'policies.generator-preview':['POST','/policies/generator/preview'],'policies.generator':['PUT','/policies/generator'],
  'projects.list':['GET','/projects'],'projects.get':['GET','/projects/{project}'],'projects.create':['POST','/projects'],'projects.environments':['GET','/projects/{project}/environments'],'projects.environment-create':['POST','/projects/{project}/environments'],'projects.environment':['GET','/environments/{environment}'],'projects.resource-create':['POST','/environments/{environment}/resources'],
  'events.list':['GET','/events'],'reviews.list':['GET','/reviews'],'reviews.get':['GET','/reviews/{review}'],'reviews.create':['POST','/reviews'],'reviews.decide':['POST','/reviews/{review}/decisions'],'reviews.close':['POST','/reviews/{review}/close'],'reviews.package':['GET','/reviews/{review}/package'],
  'reviews.reviewers':['GET','/reviewers'],'reviews.assign':['POST','/reviews/{review}/assignments'],'reviews.reconcile':['POST','/reviews/{review}/reconciliation'],'reviews.remind':['POST','/reviews/{review}/reminders'],'reviews.remove':['POST','/reviews/{review}/removals'],'reviews.verify-package':['POST','/reviews/{review}/package/verification'],

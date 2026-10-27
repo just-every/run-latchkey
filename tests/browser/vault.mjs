@@ -1,3 +1,4 @@
+import { runGeneratorApiJourney } from '../latchkey-generator-policy.mjs';
 import { companyCustodyJourney } from './company-custody.mjs';
 import { staleSaveJourney } from './stale-save.mjs';
 import { passboltJourney, migrationJourney } from './passbolt.mjs';
@@ -76,6 +77,10 @@ async function generatorPolicyReviewJourney(width, output) {
  const capture = async name => { assert.ok(await f.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)); if (output) await f.page.screenshot({ path: join(output, `${name}-${width}.png`), fullPage: true }); };
  try {
   await f.owner.createVault();
+  if (width === 1440) {
+   const apiFixture = await vaultFixture({ browserEnabled: false });
+   try { await runGeneratorApiJourney(apiFixture); } finally { await apiFixture.close(); }
+  }
   await f.page.setViewportSize({ width, height: 1000 });
   await f.page.goto(f.origin + '/app/vault');
   if (new URL(f.page.url()).pathname === '/setup') { await f.page.getByRole('checkbox').check(); await f.page.getByRole('button', { name: 'Finish setup', exact: true }).click(); }

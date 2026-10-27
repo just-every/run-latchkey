@@ -29,7 +29,9 @@ export async function runSubjectErasureJourneys({owner,db,records,mail,post,fetc
  await owner.share(otherVault,person.profile.account,identity,['read']);
  assert.equal((await person.readItem(otherVault,kept.object)).versions[0].value.secret,'synthetic-latchkey-990');
  const personalSharing=new SharingClient(person),group=await personalSharing.createGroup();
- await owner.call('generator/policy/set',{group:group.group,policy:{historyDays:1},reason:email});
+ const policyInput={group:group.group,policy:{historyDays:1},reason:email};
+ const policyReview=await owner.call('generator/policy/preview',policyInput);
+ await owner.call('generator/policy/set',{...policyInput,policy:policyReview.policy,review:policyReview.hash,confirmed:true});
  await rejects(person.call('subject/erase-preview',{subject:operator}),'owner_required');
  const ownerOperator=(await db.prepare('SELECT operator_id FROM lky_accounts WHERE id=?').bind(owner.profile.account).first()).operator_id;
  await rejects(owner.call('subject/erase-preview',{subject:ownerOperator}),'self_erasure_forbidden');

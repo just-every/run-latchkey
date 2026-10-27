@@ -52,7 +52,8 @@ export const routes = [
  ['GET','/policies/sharing','sharing/policy',[]],
  ['PUT','/policies/sharing','sharing/policy/set',['externalEnabled','domains','defaultDays','maxDays']],
  ['GET','/policies/generator','generator/policy',[]],
- ['PUT','/policies/generator','generator/policy/set',['group','policy','reason']],
+ ['POST','/policies/generator/preview','generator/policy/preview',['group','policy','reason']],
+ ['PUT','/policies/generator','generator/policy/set',['group','policy','reason','confirmed','review']],
  ['GET','/projects','project/list',[],'projects','id'],
  ['POST','/projects','project/create',['project','vault','object']],
  ['GET','/projects/{project}','api/project',[]],
@@ -115,6 +116,10 @@ export function resolveApi(method,path,body={}) {
    need(idKey&&['limit','cursor'].includes(key),'unsupported_query_parameter');
    if(key==='limit'){need(/^[0-9]+$/.test(value)&&Number(value)>=1&&Number(value)<=200,'invalid_page_limit');pagination.limit=Number(value);}
    else pagination.cursor=value;
+  }
+  if(route==='generator/policy/set') {
+   need(body.confirmed===true,'policy_confirmation_required');
+   need(typeof body.review==='string'&&body.review.length>0,'policy_review_required');
   }
   need(keys.every(key=>Object.hasOwn(body,key))&&Object.keys(body).every(key=>keys.includes(key)||optional.includes(key)),'invalid_fields');
   return {route,input:{...(defaults??{}),...params,...body},pagination:idKey?{...pagination,listKey,idKey}:null,definition};
