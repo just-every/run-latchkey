@@ -514,7 +514,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "6bab826e0d4c3d9956d0157f7554506a2bcf326ee02dc59f80b6adb1ea1abd8f",
+      "sha256": "dd223abd4a6d4e2af805ef8a74a4590d3c0148de81c5815eed9d5083890d4715",
       "executable": false
     },
     "AGENTS.md": {
@@ -554,7 +554,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "7ca25035b51911100e8c821bf732b7dc3c202c878d65cae6caa77a1bab7db764",
+      "sha256": "09e721e9f6d652eb8ea945f630b221e92c7c27a063af63a0fb02a6247634e4ae",
       "executable": false
     },
     "deploy-demo.json": {
@@ -575,6 +575,10 @@
     },
     "docs/backup-and-restore.md": {
       "sha256": "b7f06cd060692f1f8acbcd7bc666750aa7177a63783ea96e84b6e672ad64bb13",
+      "executable": false
+    },
+    "docs/company-custody.md": {
+      "sha256": "bccccd57ca29abf8640a89027a6f5cb558c16a897eb37b2d8ae72bc4bdf13920",
       "executable": false
     },
     "docs/device-posture.md": {
@@ -807,6 +811,10 @@
     },
     "migrations/core/0040_latchkey_aliases.sql": {
       "sha256": "9519d21844ece7edac0df2f97420fe7f5c13bcc5e6b3a7c3838982e2a66ece5f",
+      "executable": false
+    },
+    "migrations/core/0041_latchkey_company_custody.sql": {
+      "sha256": "4133c9e8c8f458522ea6dd90da40bd04234ce4b947d5ca5ca765a60f88fb050f",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -1210,11 +1218,11 @@
       "executable": false
     },
     "scripts/latchkey.mjs": {
-      "sha256": "64197809d3331bdcde7045150bb5a01594d7f189fa95fa551ced9bcfd18e3d63",
+      "sha256": "54b281acec5aad25dfec67290a91d395b3cd4a71fa9df1377ec87688f169d1af",
       "executable": false
     },
     "scripts/latchkey/archive-policy.mjs": {
-      "sha256": "dce3123a07baee3342a9c40be2908b6e6afa4059a16f71f178c563fa59a2b0af",
+      "sha256": "1a6573c0c9e421f46ea9165b2b8e01c37cdfa3e3bc57dccd5fbace9aaeb7470b",
       "executable": false
     },
     "scripts/latchkey/items-commands.mjs": {
@@ -1690,11 +1698,11 @@
       "executable": false
     },
     "src/latchkey/erasure/subject-plan.mjs": {
-      "sha256": "4cb90ae60a083d51e328d2d9aa061a04db26bfb76654e1fc19f5d101063e9a3d",
+      "sha256": "583306123717d5b4cef916098821d6c61312763d23ff7a15145b6cf504ce2897",
       "executable": false
     },
     "src/latchkey/erasure/subject-schema.mjs": {
-      "sha256": "a0c05a777f99efb3de256062797fb58344498dc54ec9703fbd375d8925dd0a6d",
+      "sha256": "78fa97937ce0b0a0ce64d067b3b253bd154ae02486a0b8ea6a84859fbea993ad",
       "executable": false
     },
     "src/latchkey/erasure/subject.d.mts": {
@@ -1961,8 +1969,20 @@
       "sha256": "be453fdbb51b049780709c31712c73025153ac4c6d071e7992fc85f962347a52",
       "executable": false
     },
+    "src/latchkey/people/custody-client.d.mts": {
+      "sha256": "6af49dfbdb1d458b59b5a12b715f2984bb6218999a45c314f04eac68407db86a",
+      "executable": false
+    },
+    "src/latchkey/people/custody-client.mjs": {
+      "sha256": "be1366dd50e1af83ebda6ea7aa9a24c20db498381b9905649dad352802aea8dd",
+      "executable": false
+    },
+    "src/latchkey/people/custody.mjs": {
+      "sha256": "9b9fd830f332095fb1065c43c520fb579896d8716a965bb55a75c589d0d9bc2c",
+      "executable": false
+    },
     "src/latchkey/people/offboarding.mjs": {
-      "sha256": "9da5e74e715c9979e035abc8b418f150261286d2f06aab5478b6c1493becf835",
+      "sha256": "b4d4014e49af5d0fb0259566e920195900381d11b030a60c95ee4a4d3ac76a5e",
       "executable": false
     },
     "src/latchkey/people/permissions.d.mts": {
@@ -1978,7 +1998,7 @@
       "executable": false
     },
     "src/latchkey/people/service.mjs": {
-      "sha256": "796817d7b9a35797e50a8d5dfd32879f460ce830ddbbd8028d59f03132c2029f",
+      "sha256": "96960d0b19dd98a75db04969d6c53cd797cf6e228b8aee3a1057931211b8a437",
       "executable": false
     },
     "src/latchkey/portability/archive.mjs": {
@@ -2317,6 +2337,10 @@
       "sha256": "3032be8ccb7f8a860fc0a1e0e67d6b35d5255683ad615f8c8fe6a4d66d388fe7",
       "executable": false
     },
+    "src/latchkey/ui/company-custody.tsx": {
+      "sha256": "6d332ecffe78a64a86ecb6785c9e8aa34d997c5c26d1a5106e766c07a63313d1",
+      "executable": false
+    },
     "src/latchkey/ui/detail.tsx": {
       "sha256": "d90db942840554f4cf62f5d3a4d0737424fbe8769a65da0a0b707be753034b43",
       "executable": false
@@ -2366,7 +2390,7 @@
       "executable": false
     },
     "src/latchkey/ui/people-erasure.tsx": {
-      "sha256": "2eb4310e98403c949fc3a384e9eaa37ee0cf623e4041e6101cdf9de87a5330a2",
+      "sha256": "42b64d2f8a3f70fa1d3a5769f65c8c40eed3c266c0acdc83f1ad136eec36d3cd",
       "executable": false
     },
     "src/latchkey/ui/runtime.d.mts": {
@@ -3541,6 +3565,10 @@
       "sha256": "a1063a38f582d9dc72d8dd285ff921c8c5a44b447c867878559a1fb4c05290e1",
       "executable": false
     },
+    "tests/browser/company-custody.mjs": {
+      "sha256": "c912079d8eb14b2400157283c33ea500df84588ed8a39042bdbf62a09d73e5cf",
+      "executable": false
+    },
     "tests/browser/fixture.mjs": {
       "sha256": "b6e06c861ef53849093ad012fa719b2b34057f495c880157cdafb34982f460f2",
       "executable": false
@@ -3590,7 +3618,7 @@
       "executable": false
     },
     "tests/browser/vault.mjs": {
-      "sha256": "fe5a5ca885c78b55f75c1a89a8d8d36e3139d44be405aec4fdc374c8db7c7372",
+      "sha256": "9420c8cb3babceccdfeef43ddf1dd32bcd7f25c87d0ae81a9e8ee7950532b3d0",
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {
@@ -3627,6 +3655,10 @@
     },
     "tests/latchkey-aliases.mjs": {
       "sha256": "2c0191b0f0dcf8ebf979584fe8bcb6c29b62bee621dea9dfed02df32b2a85673",
+      "executable": false
+    },
+    "tests/latchkey-custody.mjs": {
+      "sha256": "7561ee54e76cbe0bb28211ce74c74257b1bba4fed7996c8140198595fcdde0d8",
       "executable": false
     },
     "tests/latchkey-erasure.mjs": {
@@ -3678,7 +3710,7 @@
       "executable": false
     },
     "tests/runtime.mjs": {
-      "sha256": "1c7b3d271e9701e9b6851d5bc7ce3dd476910f89758beb4e64cf7a94d8568cae",
+      "sha256": "70df7e385b87ba95f31f59cdcaa3471cdbc7c0271996b88982f5b84381dc9306",
       "executable": false
     },
     "tests/site/site.test.mjs": {

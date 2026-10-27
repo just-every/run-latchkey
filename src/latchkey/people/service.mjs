@@ -1,3 +1,4 @@
+import { custodyAuthenticated } from './custody.mjs';
 import { offboardingAuthenticated } from './offboarding.mjs';
 import Papa from 'papaparse';
 import { normalizeEmail } from '../../modules/operator-auth/index.mjs';
@@ -24,6 +25,7 @@ async function preview(csv,ctx){
 }
 export async function peopleAuthenticated(route,input,ctx){
  if(!route.startsWith('people/'))return null;
+ const custody=await custodyAuthenticated(route,input,ctx);if(custody!==null)return custody;
  const offboard=await offboardingAuthenticated(route,input,ctx);if(offboard!==null)return offboard;
  // CSV previews include roster information, so require both independent rights.
  await requirePeople(ctx,'people.read');await requirePeople(ctx,'people.invite');

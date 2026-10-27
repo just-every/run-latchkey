@@ -141,6 +141,10 @@ try {
    const accounts = await accountRegistry(input); client = await accounts.switch(input.accountName,input.password); profile = client.profile; }
   else { profile = await readPrivate(input.profile); client = new VaultClient(profile.origin); await client.unlock(profile, input.password); }
   switch (command) {
+   case 'custody-enroll': {const {CustodyClient}=await import('../src/latchkey/people/custody-client.mjs');result=await new CustodyClient(client).enroll(input.vault,input.custodian,input.fingerprint,{confirmed:input.confirmed});break;}
+   case 'custody-preview': {const {CustodyClient}=await import('../src/latchkey/people/custody-client.mjs');result=await new CustodyClient(client).preview(input.operation,input.action);await writePrivate(input.output,result);result={written:true,review:result.review,planHash:result.planHash,expiresAt:result.expiresAt};break;}
+   case 'custody-commit': {const {CustodyClient}=await import('../src/latchkey/people/custody-client.mjs');const custody=new CustodyClient(client),review=await readPrivate(input.review);if(input.sourceFingerprint)await custody.trustSource(review,input.sourceFingerprint);result=await custody.commit(review,{confirmed:input.confirmed,approvedPlanHash:input.approvedPlanHash});break;}
+   case 'people-offboard': result=await client.call(['people','offboard'].join('/'),{operator:input.operator,custodian:input.custodian,confirmed:input.confirmed});break;
    case 'selection-policy': {const {SelectionExportClient}=await import('../src/latchkey/portability/selection.mjs');result=await new SelectionExportClient(client).setPlaintextPolicy(input.vault,input.allowPlaintext,{confirmed:input.confirmed});break;}
    case 'selection-preview': {const {SelectionExportClient}=await import('../src/latchkey/portability/selection.mjs');const value=await new SelectionExportClient(client).preview(input.selection,{format:input.format,review:input.review});await writePrivate(input.output,value);result={written:true,planHash:value.planHash,selection:value.plan.selection,omissions:value.plan.omissions,review:value.plan.review,coverage:value.plan.coverage};break;}
    case 'selection-export': {

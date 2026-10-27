@@ -8,7 +8,8 @@ export async function offboardingAuthenticated(route,input,ctx){
  const {first,all,stmt,event,guard}=access(ctx);
  if(route==='people' + '/offboarding'){
   exact(input,['operation']);const row=await first('SELECT * FROM lky_people_offboarding WHERE id=? AND tenant=?',uuid(input.operation),ctx.tenant);need(row,'not_found',404);
-  return {...row,exposures:await all('SELECT * FROM lky_people_exposures WHERE operation=? ORDER BY vault,item',row.id),effect};
+  const activeCustodian=await first("SELECT 1 FROM lky_accounts a JOIN oa_operators o ON o.id=a.operator_id WHERE a.id=? AND a.tenant=? AND o.role='owner' AND o.status='active'",row.custodian,ctx.tenant);
+  return {...row,handback:activeCustodian?row.handback:'blocked-no-active-owner-custodian',storedHandback:row.handback,exposures:await all('SELECT * FROM lky_people_exposures WHERE operation=? ORDER BY vault,item',row.id),effect};
  }
  exact(input,route==='people' + '/member'?['operator']:['operator','custodian','confirmed']);
  const operator=uuid(input.operator),person=await first('SELECT o.id,o.role,o.status,o.version,a.id AS account FROM oa_operators o LEFT JOIN lky_accounts a ON a.operator_id=o.id AND a.tenant=? WHERE o.id=?',ctx.tenant,operator);need(person,'not_found',404);
@@ -18,15 +19,16 @@ export async function offboardingAuthenticated(route,input,ctx){
  need(!sources.length,'directory_reconciliation_required',409);
  need(person.account&&person.role==='member'&&operator!==ctx.session.operator.id,'offboarding_member_required',403);
  const custodian=uuid(input.custodian),custody=await first("SELECT a.id FROM lky_accounts a JOIN oa_operators o ON o.id=a.operator_id WHERE a.id=? AND a.tenant=? AND o.role='owner' AND o.status='active'",custodian,ctx.tenant);need(custody&&custodian!==person.account,'active_owner_custodian_required',403);
- const existing=await first('SELECT id,custodian FROM lky_people_offboarding WHERE tenant=? AND account=?',ctx.tenant,person.account);if(existing){need(existing.custodian===custodian,'offboarding_custodian_changed',409);return offboardingAuthenticated('people' + '/offboarding',{operation:existing.id},ctx)}
+ const existing=await first('SELECT id,custodian,status FROM lky_people_offboarding WHERE tenant=? AND account=?',ctx.tenant,person.account);if(existing){need(existing.status==='suspended','offboarding_new_cycle_required',409);need(existing.custodian===custodian,'offboarding_custodian_changed',409);return offboardingAuthenticated('people' + '/offboarding',{operation:existing.id},ctx)}
  const operation=id(),exposures=new Map();
  const current=await all(`SELECT DISTINCT v.id AS vault,i.object_id AS item,v.owner FROM lky_vaults v JOIN lky_versions i ON i.vault_id=v.id WHERE v.tenant=? AND v.kind<>'family' AND (v.owner=? OR EXISTS(SELECT 1 FROM lky_recipients r WHERE r.vault_id=v.id AND r.account_id=?) OR EXISTS(SELECT 1 FROM lky_shares s JOIN lky_share_keys k ON k.share_id=s.id WHERE s.vault_id=v.id AND k.account_id=?))`,ctx.tenant,person.account,person.account,person.account);
  for(const row of current)exposures.set(row.vault+':'+row.item,{vault:row.vault,item:row.item,evidence:['current grant; includes unused local fill and unreachable cached copies']});
  const historical=await all(`SELECT d.facts FROM lky_audit_details d JOIN lky_audit_chain c ON c.id=d.id WHERE c.tenant=? AND json_extract(d.facts,'$.actor')=? AND json_extract(d.facts,'$.result')='succeeded' AND json_extract(d.facts,'$.time')>=?`,ctx.tenant,person.account,ctx.now-90*86400000);
  for(const row of historical){const fact=JSON.parse(row.facts);if(!fact.vault||!fact.item)continue;const vault=await first("SELECT id FROM lky_vaults WHERE id=? AND tenant=? AND kind<>'family'",fact.vault,ctx.tenant);if(!vault)continue;const key=fact.vault+':'+fact.item,entry=exposures.get(key)??{vault:fact.vault,item:fact.item,evidence:[]};entry.evidence.push('retained connected observation: '+fact.action);exposures.set(key,entry)}
  const owned=await first("SELECT COUNT(*) AS count FROM lky_vaults v JOIN lky_versions i ON i.vault_id=v.id WHERE v.tenant=? AND v.owner=? AND v.kind<>'family'",ctx.tenant,person.account);
+ const missingCustody=await first("SELECT 1 FROM lky_vaults v WHERE v.tenant=? AND v.owner=? AND v.kind<>'family' AND NOT EXISTS(SELECT 1 FROM lky_company_custody c JOIN lky_accounts a ON a.id=c.custodian WHERE c.vault_id=v.id AND c.owner=v.owner AND c.tenant=v.tenant AND c.epoch=v.epoch AND c.custodian=? AND c.generation=a.generation) LIMIT 1",ctx.tenant,person.account,custodian);
  const statements=[
-  stmt('INSERT INTO lky_people_offboarding VALUES(?,?,?,?,?,?,?,?,?)',operation,ctx.tenant,person.account,operator,custodian,ctx.now,'suspended',owned.count>0?'blocked-missing-enrolled-custody':'no-owned-company-items','Historical coverage starts with retained connected audit. Removed legacy grants and disconnected use remain unknown.'),
+  stmt('INSERT INTO lky_people_offboarding VALUES(?,?,?,?,?,?,?,?,?)',operation,ctx.tenant,person.account,operator,custodian,ctx.now,'suspended',owned.count>0?(missingCustody?'blocked-missing-enrolled-custody':'enrolled-awaiting-review'):'no-owned-company-items','Historical coverage starts with retained connected audit. Removed legacy grants and disconnected use remain unknown.'),
   stmt("UPDATE oa_operators SET status='inactive' WHERE id=?",operator),
   stmt('DELETE FROM lky_grants WHERE account_id=?',person.account),
   stmt('UPDATE lky_machines SET revoked_at=COALESCE(revoked_at,?) WHERE account_id=?',ctx.now,person.account),

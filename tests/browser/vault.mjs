@@ -1,3 +1,4 @@
+import { companyCustodyJourney } from './company-custody.mjs';
 import { passboltJourney, migrationJourney } from './passbolt.mjs';
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
@@ -11,6 +12,7 @@ import { createAttachment } from '../../src/latchkey/items/attachments.mjs';
 import { SharingClient } from '../../src/latchkey/sharing/client.mjs';
 const output=process.env.LATCHKEY_SCREENSHOTS;
 if(output)await mkdir(output,{recursive:true});
+await companyCustodyJourney(output);
 for(const width of [1440,390]) {
 await passboltJourney(width, output);
 await migrationJourney(width, output);

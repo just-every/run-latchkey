@@ -251,6 +251,8 @@ try {
  assert.ok(!JSON.stringify(offboarded).includes('synthetic-latchkey-2302'));
  console.log('Manual offboarding HTTP journey: independent permission, authoritative-directory refusal, connected suspension, custodian-owned exposure, explicit missing-custody blocker, family preservation, replay and deletion and reactivation fences passed');
 
+ await (await import('./latchkey-custody.mjs')).runCustodyJourney();
+
  await rejected(member.put(vault, values[0]), 'permission_denied')
  await rejected(member.exportVault(vault, archiveKey), 'permission_denied')
  const beforeRotation = await member.snapshot(vault)

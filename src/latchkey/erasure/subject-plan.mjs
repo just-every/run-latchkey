@@ -8,7 +8,7 @@ export async function subjectPlan(ctx, subject) {
  const person=await first('SELECT * FROM oa_operators WHERE id=?',subject);
  need(person,'subject_not_found',404);
  need(subject!==ctx.session.operator.id,'self_erasure_forbidden',409);
- need(!await first("SELECT 1 AS pending FROM lky_people_offboarding WHERE tenant=? AND operator=? AND handback='blocked-missing-enrolled-custody'",ctx.tenant,subject),'company_handback_pending',409);
+ need(!await first("SELECT 1 AS pending FROM lky_people_offboarding WHERE tenant=? AND operator=? AND handback NOT IN ('transferred','no-owned-company-items')",ctx.tenant,subject),'company_handback_pending',409);
  need(!await first('SELECT 1 AS assigned FROM lky_people_offboarding p JOIN lky_accounts a ON a.id=p.custodian WHERE a.operator_id=?',subject),'offboarding_custodian_reassignment_required',409);
  const account=await first('SELECT * FROM lky_accounts WHERE operator_id=?',subject),accountId=account?.id??null;
  need(!account||account.tenant===ctx.tenant,'subject_not_found',404);
@@ -21,6 +21,8 @@ export async function subjectPlan(ctx, subject) {
   const entry={table,where,args,keys,columns:columns.map(c=>c.name),rows,action,set};snapshots.push(entry);if(action!=='observe')changes.push(entry);return rows;
  };
  const own='SELECT id FROM lky_vaults WHERE tenant=? AND owner=?',ownArgs=[ctx.tenant,accountId];
+ await select('lky_company_custody','owner=? OR custodian=?',[accountId,accountId]);
+ await select('lky_custody_reviews','actor=? OR instr(plan,?)>0 OR instr(plan,?)>0',[accountId,accountId,subject]);
  const ownedVaults=await select('lky_vaults','tenant=? AND owner=?',ownArgs);
  const remainingVaults=await select('lky_vaults','tenant=? AND owner IS NOT ?',[ctx.tenant,accountId],'observe');
  const devices=await select('lky_devices','account_id=?',[accountId]),deviceIds=devices.map(row=>row.id);
