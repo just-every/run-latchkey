@@ -343,16 +343,16 @@ test('Bitwarden CLI decrypts portable exports locally and stages only encrypted 
     assert.equal(refused.code, 1); assert.match(refused.stderr, /bitwarden_cannot_decrypt/); await assert.rejects(stat(output), { code: 'ENOENT' });
    }
   }
-  // The CLI uses the real KDF above. Here a loader records any KDF invocation so
+  // The loader records and forwards every invocation to the real KDF so
   // hostile export metadata must refuse before allocation, independently of time.
   const marker = join(directory, 'kdf-called'), preload = join(directory, 'kdf-loader.mjs');
-  await writeFile(join(directory, 'kdf-stub.mjs'), `export async function argon2id() { (await import('node:fs')).appendFileSync(${JSON.stringify(marker)}, 'called'); throw Error('synthetic-latchkey-1646'); }`);
-  await writeFile(preload, `import { registerHooks } from 'node:module'; const url = new URL('./kdf-stub.mjs', import.meta.url).href; registerHooks({ resolve(specifier, context, next) { return specifier === 'hash-wasm' ? { url, shortCircuit: true } : next(specifier, context); } });`);
+  await writeFile(join(directory, 'kdf-recorder.mjs'), `import { argon2id as derive } from ${JSON.stringify(import.meta.resolve('hash-wasm'))}; export async function argon2id(...args) { (await import('node:fs')).appendFileSync(${JSON.stringify(marker)}, 'called'); return derive(...args); }`);
+  await writeFile(preload, `import { registerHooks } from 'node:module'; const url = new URL('./kdf-recorder.mjs', import.meta.url).href; registerHooks({ resolve(specifier, context, next) { return specifier === 'hash-wasm' ? { url, shortCircuit: true } : next(specifier, context); } });`);
   const portable = JSON.parse(await readFile(new URL('./fixtures/migration/bitwarden-argon2.json', import.meta.url)));
   const input = join(directory, 'bounded.json'), output = join(directory, 'bounded-preview.json');
   await writeFile(input, JSON.stringify(portable), { mode: 0o600 });
   const valid = await cli('migration-preview', { ...base, input, output, passphrase: 'synthetic-latchkey-1607' }, preload);
-  assert.equal(valid.code, 1); assert.match(valid.stderr, /bitwarden_cannot_decrypt/); assert.equal(await readFile(marker, 'utf8'), 'called'); await rm(marker);
+  assert.equal(valid.code, 0, valid.stderr); assert.equal(JSON.parse(valid.stdout).counts.ready, 1); assert.equal(await readFile(marker, 'utf8'), 'called'); await rm(marker); await rm(output);
   const invalid = [];
   for (const field of ['kdfIterations', 'kdfMemory', 'kdfParallelism']) {
    for (const value of [undefined, null, 0, -1, 1.5, '3', Number.MAX_SAFE_INTEGER, 1e100]) invalid.push({ ...portable, [field]: value });
