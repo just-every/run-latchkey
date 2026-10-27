@@ -16,7 +16,9 @@ export async function migrationCommand(command, input, client) {
   if (command === 'migration-preview') {
    data = await read(input.input);
    const { plan, hash } = await previewMigration({ ...input, data });
-   await write(input.output, { schema: 'latchkey-migration-envelope-v1', envelope: await seal(key, bytes(plan), binding) });
+   const plain = bytes(plan);
+   try { await write(input.output, { schema: 'latchkey-migration-envelope-v1', envelope: await seal(key, plain, binding) }); }
+   finally { plain.fill(0); }
    return { written: true, hash, counts: plan.counts, folders: plan.folders.length, unresolvedClasses: plan.tasks.length, cutoverComplete: false };
   }
   data = await read(input.preview);

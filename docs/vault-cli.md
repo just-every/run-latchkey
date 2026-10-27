@@ -86,6 +86,8 @@ The following commands also require `profile` and `password`. Item values leave 
 | `template-save` / `template-get` | Versioned `value` definitions / selected `object` and private `output` |
 | `template-import-keeper` | Explicit Keeper JSON `value`, `vault`; imports documented `$id`/`$ref` record-type definitions |
 | `generator-policy` | Effective current company/group policy and history retention |
+| `generator-policy-preview` | Owner-only `group` (or null for company), `policy`, `reason`; read-only member constraints, sources, conflicts and enrolled-device inventory with unknown reachability |
+| `generator-policy-apply` | The reviewed `group`, `policy`, `reason`, returned `hash` as `review`, and explicit `confirmed:true`; changed policy, membership or enrolled-device inventory requires a new preview |
 | `generate` | Private `output`, encrypted `history` path, `acknowledgedRetentionDays`; optional stricter local policy, password `options.length` or passphrase `options.words` |
 | `generator-history` / `generator-clear` | Explicit private encrypted `history` and output / selected `entry` (or clear all) |
 | `totp` / `totp-import` | `vault`, `object`, selected OTP `field`, private `output` / `uri` and expected `target.issuer` and `target.account` |
@@ -144,3 +146,5 @@ for inputs, supported formats, source metadata mapping and remaining cutover gap
 Jamf, Kandji or Intune. [Device posture](device-posture.md) describes the exact
 fields, source scopes, unknown controls and refusal states. It never authorizes
 vault unlock or changes the MDM. Linen posture is unavailable pending its schema.
+
+Generator policy application confirms the reviewed current metadata only. Device reachability remains unknown and client convergence remains unverified. Review does not recall previously disclosed secrets.

@@ -2,7 +2,15 @@ import { access, need } from './subject-common.mjs';
 // Reviewed source inventory, not an allow-all prefix. A new domain or column
 // needs an erasure mapping before person erasure can honestly proceed.
 const schema = {
+ lky_report_keys:'vault_id owner wrapped',lky_report_observations:'id vault_id day as_of source_revision envelope',
+ lky_health_suppressions:'id tenant actor vault_id object_id item_version generation epoch until_at wrapped created_at source_revision sequence active',
+ lky_recovery_custody:'id account generation kind custodian custodian_generation wrapped revoked_at',
+ lky_recovery_cases:'id enrollment account generation session_id setup transfer_key expires_at approved_wrap consumed_at',
+ lky_emergency_access:'id tenant owner contact owner_generation contact_generation vault epoch wrapped wait_ms expires_at requested_at cancelled_at',
+ lky_company_custody:'vault_id tenant owner custodian epoch generation wrapped enrolled_at',
+ lky_custody_reviews:'id tenant actor operation action plan expires_at consumed_at',
  lky_export_policies:'vault_id owner revision allow_plaintext statement signature',
+ lky_rule_reviews:'obligation review_id binding phase bound_at result recorded_at',
  lky_rules:'id tenant owner version active created_at',lky_rule_versions:'rule_id version definition created_at',lky_rule_runs:'id rule_id version slot state created_at',lky_rule_obligations:'id run_id object_id recipient source_version phase result_version created_at',lky_rule_decisions:'id obligation actor decision created_at',
  lky_people_offboarding:'id tenant account operator custodian started_at status handback coverage',lky_people_exposures:'operation vault item evidence custodian criticality rotation',
  lky_people_batches:'id tenant actor preview_hash result',

@@ -116,6 +116,18 @@ try {
   if (input.identityToken) await client.confirmIdentity(input.identityToken);
   const enrolled = await client.register(input.password, { beforeCommit: async ({ profile, kit }) => { await writePrivate(input.profile, profile); await writePrivate(input.kit, kit); } });
   result = { account: enrolled.profile.account, device: enrolled.profile.device, kitWritten: true };
+ } else if (command === 'recovery-start') {
+  const {RecoveryClient}=await import('../src/latchkey/recovery/client.mjs');
+  const credential=await readPrivate(input.credential);client=new VaultClient(credential.origin);await client.confirmIdentity(input.identityToken);
+  const pending=await new RecoveryClient(client).begin({...credential,password:input.password});
+  await writePrivate(input.pending,{...pending,cookie:client.cookie});
+  const {account,verifiedEmail,vaults,devices,expiresAt,identityCheck,mfa,offlineExposure}=pending.preview;
+  result={account,verifiedEmail,vaults,devices,expiresAt,identityCheck,mfa,offlineExposure,pendingWritten:true};
+ } else if (command === 'recovery-finish') {
+  const {RecoveryClient}=await import('../src/latchkey/recovery/client.mjs');const pending=await readPrivate(input.pending);
+  client=new VaultClient(pending.credential.origin,{cookie:pending.cookie});
+  const recovered=await new RecoveryClient(client).complete(pending,input.password,{confirmed:input.confirmed===true,beforeCommit:async({profile,kit})=>{await writePrivate(input.profile,profile);await writePrivate(input.newKit,kit)}});
+  await unlink(input.pending);result={recovered:true,device:recovered.profile.device,generation:recovered.profile.generation};
  } else if (command === 'recover-preview') {
   const kit = await readPrivate(input.kit); client = new VaultClient(kit.origin);
   result = await client.previewRecovery(kit, input.password);
@@ -141,6 +153,17 @@ try {
    const accounts = await accountRegistry(input); client = await accounts.switch(input.accountName,input.password); profile = client.profile; }
   else { profile = await readPrivate(input.profile); client = new VaultClient(profile.origin); await client.unlock(profile, input.password); }
   switch (command) {
+   case 'recovery-self-enroll': {const {RecoveryClient}=await import('../src/latchkey/recovery/client.mjs');const code=await new RecoveryClient(client).enrollSelf({confirmed:input.confirmed===true});await writePrivate(input.output,code);result={enrolled:true,credentialWritten:true};break;}
+   case 'recovery-administrator-enroll': {const {RecoveryClient}=await import('../src/latchkey/recovery/client.mjs');const credential=await new RecoveryClient(client).enrollAdministrator(input.custodian,input.fingerprint,{confirmed:input.confirmed===true});credential.trustedAdministrator={account:input.custodian,authorityKey:client.profile.trusted[input.custodian].authorityKey};await writePrivate(input.output,credential);result={enrolled:true,credentialWritten:true};break;}
+   case 'recovery-approve': {const {RecoveryClient}=await import('../src/latchkey/recovery/client.mjs');result=await new RecoveryClient(client).approve(input.operation,{confirmed:input.confirmed===true,identityChecked:input.identityChecked===true});break;}
+   case 'emergency-enroll': {const {RecoveryClient}=await import('../src/latchkey/recovery/client.mjs');result=await new RecoveryClient(client).enrollEmergency(input.vault,input.contact,input.fingerprint,{waitMs:input.waitMs,expiresAt:input.expiresAt,confirmed:input.confirmed===true});break;}
+   case 'emergency-request': {const {RecoveryClient}=await import('../src/latchkey/recovery/client.mjs');result=await new RecoveryClient(client).requestEmergency(input.enrollment);break;}
+   case 'emergency-cancel': {const {RecoveryClient}=await import('../src/latchkey/recovery/client.mjs');result=await new RecoveryClient(client).cancelEmergency(input.enrollment);break;}
+   case 'emergency-open': {const {RecoveryClient}=await import('../src/latchkey/recovery/client.mjs');const value=await new RecoveryClient(client).openEmergency(input.enrollment);await writePrivate(input.output,value);result={written:true,vault:value.vault,versions:value.versions.length,copyWarning:value.copyWarning};break;}
+   case 'custody-enroll': {const {CustodyClient}=await import('../src/latchkey/people/custody-client.mjs');result=await new CustodyClient(client).enroll(input.vault,input.custodian,input.fingerprint,{confirmed:input.confirmed});break;}
+   case 'custody-preview': {const {CustodyClient}=await import('../src/latchkey/people/custody-client.mjs');result=await new CustodyClient(client).preview(input.operation,input.action);await writePrivate(input.output,result);result={written:true,review:result.review,planHash:result.planHash,expiresAt:result.expiresAt};break;}
+   case 'custody-commit': {const {CustodyClient}=await import('../src/latchkey/people/custody-client.mjs');const custody=new CustodyClient(client),review=await readPrivate(input.review);if(input.sourceFingerprint)await custody.trustSource(review,input.sourceFingerprint);result=await custody.commit(review,{confirmed:input.confirmed,approvedPlanHash:input.approvedPlanHash});break;}
+   case 'people-offboard': result=await client.call(['people','offboard'].join('/'),{operator:input.operator,custodian:input.custodian,confirmed:input.confirmed});break;
    case 'selection-policy': {const {SelectionExportClient}=await import('../src/latchkey/portability/selection.mjs');result=await new SelectionExportClient(client).setPlaintextPolicy(input.vault,input.allowPlaintext,{confirmed:input.confirmed});break;}
    case 'selection-preview': {const {SelectionExportClient}=await import('../src/latchkey/portability/selection.mjs');const value=await new SelectionExportClient(client).preview(input.selection,{format:input.format,review:input.review});await writePrivate(input.output,value);result={written:true,planHash:value.planHash,selection:value.plan.selection,omissions:value.plan.omissions,review:value.plan.review,coverage:value.plan.coverage};break;}
    case 'selection-export': {

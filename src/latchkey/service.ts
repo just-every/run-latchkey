@@ -1,3 +1,5 @@
+import {healthAuthenticated} from './health/service.mjs';
+import { recoverySession, recoveryAuthenticated } from './recovery/service.mjs'
 import {reportsAuthenticated} from './reports/service.mjs';
 import { selectionPolicyAuthenticated } from './portability/selection-policy.mjs'
 import { rulesAuthenticated } from './rules/service.mjs'
@@ -139,6 +141,12 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
   }
   const session = await auth.getSession(request)
   if (!session) refuse('authentication_required', 401)
+  if(route.startsWith(['recovery','session',''].join('/'))){
+   const identity=await first('SELECT id,tenant FROM lky_accounts WHERE operator_id=?',session.operator.id);
+   if(identity){auditContext={db,env,now,actor:identity.id,device:'verified-session',tenant:identity.tenant,session,request};auditRoute=route;auditInput=input;auditRequest=id();await appendAudit(auditContext,auditFacts(auditContext,route,input,'attempted',auditRequest));}
+  }
+  const recovery = await recoverySession(route,input,{db,env,now,session});
+  if(recovery!==null)return response(recovery);
   if (route === 'account') {
    exact(input, [])
    const account = await first('SELECT id,tenant,generation,recipient_key,authority_key FROM lky_accounts WHERE operator_id=?', session.operator.id)
@@ -266,6 +274,10 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
   }
   const ctx={db,env,now,actor,device,tenant,session,fence,fenceArgs,auth,request}
   if(meta)await rateApi(ctx)
+  const recoveryResult=grant.recovery===0?await recoveryAuthenticated(route,input,ctx):null;
+  if(recoveryResult!==null)return response(recoveryResult);
+  const healthResult=grant.recovery===0?await healthAuthenticated(route,input,ctx):null;
+  if(healthResult!==null)return response(healthResult);
   const reportResult=grant.recovery===0?await reportsAuthenticated(route,input,ctx):null;
   if(reportResult!==null)return response(reportResult);
   const exportPolicy=grant.recovery===0?await selectionPolicyAuthenticated(route,input,ctx):null;
@@ -351,6 +363,7 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
   }
   if (route === 'audit') { exact(input, []); return response(await all('SELECT * FROM lky_events WHERE actor=? ORDER BY created_at,id LIMIT 1000', actor)) }
   if (route === 'vault/create') {
+   if(input.kind==='family'&&await first("SELECT 1 FROM lky_recovery_custody WHERE account=? AND kind='administrator' AND revoked_at IS NULL AND generation=?",actor,grant.generation))refuse('independent_family_account_required',403)
    exact(input, ['vault', 'wrapped','kind','policy']); const vault = identifier(input.vault)
    if(!['company','private-work','family'].includes(input.kind))refuse('invalid_vault_kind')
    const authority=await first('SELECT authority_key FROM lky_accounts WHERE id=?',actor)

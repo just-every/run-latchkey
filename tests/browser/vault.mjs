@@ -1,3 +1,6 @@
+import { runGeneratorApiJourney } from '../latchkey-generator-policy.mjs';
+import { companyCustodyJourney } from './company-custody.mjs';
+import { staleSaveJourney } from './stale-save.mjs';
 import { passboltJourney, migrationJourney } from './passbolt.mjs';
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
@@ -9,9 +12,14 @@ import { TypedItems } from '../../src/latchkey/items/client.mjs';
 import { createItem } from '../../src/latchkey/items/types.mjs';
 import { createAttachment } from '../../src/latchkey/items/attachments.mjs';
 import { SharingClient } from '../../src/latchkey/sharing/client.mjs';
+import { VaultClient } from '../../src/latchkey/client.mjs';
 const output=process.env.LATCHKEY_SCREENSHOTS;
 if(output)await mkdir(output,{recursive:true});
+const generatorOnly = process.argv.includes('--generator-policy');
+if (!generatorOnly) { await companyCustodyJourney(output); await staleSaveJourney(1440, output); }
 for(const width of [1440,390]) {
+await generatorPolicyReviewJourney(width, output);
+if (generatorOnly) continue;
 await passboltJourney(width, output);
 await migrationJourney(width, output);
 const f=await vaultFixture();
@@ -37,7 +45,7 @@ try {
   await expect(f.page.getByRole('heading',{name:'Treasury operations',exact:true})).toBeVisible();await capture('vault-detail',width);
   await f.page.getByRole('button',{name:'Reveal Password',exact:true}).click();await expect(f.page.getByLabel('Password',{exact:true})).toHaveValue('synthetic-latchkey-1109');await f.context.grantPermissions(['clipboard-read','clipboard-write'],{origin:f.origin});await f.page.getByRole('button',{name:'Copy Password',exact:true}).click();await expect.poll(()=>f.page.evaluate(()=>navigator.clipboard.readText())).toBe('synthetic-latchkey-1109');await f.page.evaluate(()=>navigator.clipboard.writeText(''));
   const download=f.page.waitForEvent('download');await f.page.getByRole('button',{name:'Download Quarterly recovery guide.txt'}).click();assert.equal((await download).suggestedFilename(),'Quarterly recovery guide.txt');
-  await f.page.getByRole('button',{name:/Version 1 ·/}).click();await expect(f.page.getByRole('heading',{name:'Preview version 1'})).toBeVisible();await capture('vault-history',width);
+  await f.page.locator('summary').filter({hasText:/^History · version /}).click();await f.page.getByRole('button',{name:/Version 1 ·/}).click();await expect(f.page.getByRole('heading',{name:'Preview version 1'})).toBeVisible();await capture('vault-history',width);
   await f.page.getByLabel('Restore this version as a new current version').check();await f.page.getByRole('button',{name:'Restore version 1',exact:true}).click();await expect(f.page.getByRole('heading',{name:'Treasury workspace',exact:true})).toBeVisible();
   await f.page.getByRole('button',{name:'Edit',exact:true}).click();await f.page.getByLabel('Title',{exact:true}).fill('Treasury operations');await capture('vault-editor',width);await f.page.getByRole('button',{name:'Save item',exact:true}).click();await expect(f.page.getByRole('heading',{name:'Treasury operations',exact:true})).toBeVisible();
   await f.page.locator('summary').filter({hasText:/^Settings$/}).click();await f.page.getByRole('button',{name:'Password generator',exact:true}).click();await expect(f.page.getByRole('button',{name:'Generate',exact:true})).toBeEnabled();await f.page.getByRole('button',{name:'Generate',exact:true}).click();await expect(f.page.getByLabel('Generated value')).not.toHaveValue('');await capture('vault-generator',width);
@@ -56,11 +64,98 @@ try {
   await fileLinkJourney(f,manager,attachment,width,output);
   await f.page.getByRole('button',{name:'Refresh',exact:true}).click();await f.page.locator('summary').filter({hasText:/^Sharing$/}).click();await expect(f.page.getByText('View limit reached',{exact:false})).toBeVisible();
   await f.page.getByRole('button',{name:'Shared with me',exact:true}).click();await expect(f.page.getByRole('heading',{name:'Shared with me',exact:true})).toBeVisible();await capture('received-empty',width);
-  await f.page.getByRole('button',{name:'Vault',exact:true}).click();await f.page.getByRole('button',{name:'New item',exact:true}).click();await f.page.getByLabel('Title',{exact:true}).fill('Temporary contractor credential');await f.page.getByLabel('Item type').selectOption('secure-note');await f.page.getByRole('button',{name:'Reveal to edit Note',exact:true}).click();await f.page.getByLabel(/^Note/).fill('synthetic-latchkey-1114');await f.page.getByRole('button',{name:'Save item',exact:true}).click();await expect(f.page.getByRole('heading',{name:'Temporary contractor credential',exact:true})).toBeVisible();await f.page.locator('summary').filter({hasText:'Permanently erase this item'}).click();await f.page.getByLabel('Type the item title to confirm').fill('Temporary contractor credential');await f.page.getByLabel('I understand that all retained versions and current sharing copies will be erased').check();await capture('erasure-confirmation',width);await f.page.getByRole('button',{name:'Erase item permanently',exact:true}).click();await expect(f.page.getByRole('heading',{name:'Temporary contractor credential',exact:true})).toHaveCount(0);await expect(f.page.getByRole('button',{name:'Refresh',exact:true})).toBeEnabled();await expect(f.page.getByRole('button',{name:/Version 1 ·/})).toBeVisible();await capture('erasure-complete',width);
+  await f.page.getByRole('button',{name:'Vault',exact:true}).click();await f.page.getByRole('button',{name:'New item',exact:true}).click();await f.page.getByLabel('Title',{exact:true}).fill('Temporary contractor credential');await f.page.getByLabel('Item type').selectOption('secure-note');await f.page.getByRole('button',{name:'Reveal to edit Note',exact:true}).click();await f.page.getByLabel(/^Note/).fill('synthetic-latchkey-1114');await f.page.getByRole('button',{name:'Save item',exact:true}).click();await expect(f.page.getByRole('heading',{name:'Temporary contractor credential',exact:true})).toBeVisible();await f.page.locator('summary').filter({hasText:'Permanently erase this item'}).click();await f.page.getByLabel('Type the item title to confirm').fill('Temporary contractor credential');await f.page.getByLabel('I understand that all retained versions and current sharing copies will be erased').check();await capture('erasure-confirmation',width);await f.page.getByRole('button',{name:'Erase item permanently',exact:true}).click();await expect(f.page.getByRole('heading',{name:'Temporary contractor credential',exact:true})).toHaveCount(0);await expect(f.page.getByRole('button',{name:'Refresh',exact:true})).toBeEnabled();await expect(f.page.locator('summary').filter({hasText:/^History · version \d+$/})).toBeVisible();await capture('erasure-complete',width);
   await f.page.locator('summary').filter({hasText:/^Settings$/}).click();await f.page.getByRole('button',{name:'Erase a person',exact:true}).click();await f.page.getByLabel('Person').selectOption(contractor.operator);await expect(f.page.getByText(contractor.email,{exact:true})).toBeVisible();await f.page.getByRole('button',{name:'Preview person erasure',exact:true}).click();await expect(f.page.getByRole('heading',{name:'Records to erase or anonymize'})).toBeVisible();await capture('person-erasure-preview',width);await f.page.getByLabel('I reviewed this person and understand the permanent deletion and outstanding copies').check();await f.page.getByRole('button',{name:'Confirm person erasure',exact:true}).click();await expect(f.page.getByRole('heading',{name:'Server authority and owned records erased'})).toBeVisible();await expect(f.page.getByText('Full erasure is still incomplete.')).toBeVisible();await capture('person-erasure-outstanding',width);const receiptDownload=f.page.waitForEvent('download');await f.page.getByRole('button',{name:'Download anonymous receipt',exact:true}).click();let receiptText='';for await(const chunk of await (await receiptDownload).createReadStream())receiptText+=chunk;assert.equal(JSON.parse(receiptText).complete,false);assert.ok(!receiptText.includes(contractor.operator)&&!receiptText.includes(contractor.email));await f.owner.rotate(vault);
   await f.page.getByRole('button',{name:'Lock vault',exact:true}).click();await expect(f.page.getByRole('heading',{name:'Unlock your vault'})).toBeVisible();
   await sharing.setPolicy({externalEnabled:false,domains:['example.test'],defaultDays:7,maxDays:30});
  }
  console.log('Vault browser: real owner setup/unlock, typed edit, reveal, attachment download, append restore, generator, templates and protected verified one-view sharing at 1440 and 390 passed');
 } catch(error) {if(output)await f.page.screenshot({path:join(output,'failure.png'),fullPage:true});throw error} finally {await f.close()}
+}
+
+async function generatorPolicyReviewJourney(width, output) {
+ const f = await vaultFixture();
+ const capture = async name => { assert.ok(await f.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)); if (output) await f.page.screenshot({ path: join(output, `${name}-${width}.png`), fullPage: true }); };
+ try {
+  await f.owner.createVault();
+  const second = new VaultClient(f.origin, { cookie: f.owner.cookie, fetcher: f.fetcher });
+  try {
+   const pending = await second.beginEnrollment(f.owner.profile, f.password);
+   await f.owner.approveEnrollment(pending.device, pending.fingerprint);
+   const profile = await second.completeEnrollment(pending.profile, f.password);
+   await f.owner.call('device' + '/revoke', { device: profile.device });
+  } finally { second.lock(); }
+  if (width === 1440) {
+   const apiFixture = await vaultFixture({ browserEnabled: false });
+   try { await runGeneratorApiJourney(apiFixture); } finally { await apiFixture.close(); }
+  }
+  await f.page.setViewportSize({ width, height: 1000 });
+  await f.page.goto(f.origin + '/app/vault');
+  if (new URL(f.page.url()).pathname === '/setup') { await f.page.getByRole('checkbox').check(); await f.page.getByRole('button', { name: 'Finish setup', exact: true }).click(); }
+  await f.page.getByLabel('Profile file').setInputFiles({ name: 'profile.json', mimeType: 'application' + '/json', buffer: Buffer.from(JSON.stringify(f.owner.profile)) });
+  await f.page.getByLabel('Master password', { exact: true }).fill(f.password);
+  await f.page.getByRole('button', { name: 'Unlock vault', exact: true }).click();
+  await f.page.locator('summary').filter({ hasText: /^Settings$/ }).click();
+  await f.page.getByRole('button', { name: 'Password generator', exact: true }).click();
+  await f.page.getByRole('button', { name: 'Generate', exact: true }).waitFor({ state: 'visible' });
+  await f.page.locator('summary').filter({ hasText: 'Manage company and group policy' }).click();
+  const group = (await new SharingClient(f.owner).createGroup([f.owner.profile.account])).group;
+  await f.page.getByLabel('Existing group ID').fill(group);
+  await f.page.getByLabel('Minimum characters', { exact: true }).fill('36');
+  await f.page.getByLabel('Reason for this change').fill('synthetic-latchkey-1312');
+  const before = await f.owner.call('generator' + '/policy', {});
+  await f.page.getByRole('button', { name: 'Preview policy change', exact: true }).click();
+  const review = f.page.getByRole('region', { name: 'Policy change review' });
+  await review.waitFor();
+  if (width === 1440) {
+   await expect(review).toContainText('1 affected members'); await expect(review).toContainText(f.owner.profile.device);
+   await expect(review).toContainText('1 enrolled devices · 1 revoked or superseded device records');
+   await expect(review).toContainText('revoked · reachability unknown · convergence unverified');
+   await expect(review).toContainText('Before: 16–256'); await expect(review).toContainText('After: 36–256');
+   await expect(review).toContainText('Sources after: baseline · group ' + group);
+   await expect(review).toContainText('reachability unknown');
+   await expect(review.getByRole('button', { name: 'Apply reviewed policy' })).toBeDisabled();
+   assert.deepEqual((await f.owner.call('generator' + '/policy', {})).policy, before.policy);
+  }
+  await capture('generator-policy-review');
+  await review.getByRole('checkbox').check();
+  if (width === 1440) {
+   await new SharingClient(f.owner).setGroup(group, []);
+   await review.getByRole('button', { name: 'Apply reviewed policy' }).click();
+   await expect(f.page.getByRole('alert')).toContainText('Preview again');
+   assert.deepEqual((await f.owner.call('generator' + '/policy', {})).policy, before.policy);
+   await new SharingClient(f.owner).setGroup(group, [f.owner.profile.account]);
+   await f.page.getByRole('button', { name: 'Preview policy change' }).click(); await review.getByRole('checkbox').check();
+  }
+  let releaseApply;
+  if (width === 1440) {
+   const paused = new Promise(resolve => { releaseApply = resolve; });
+   await f.page.route('**/api/latchkey/generator/policy/set', async route => { await paused; await route.continue(); });
+  }
+  await review.getByRole('button', { name: 'Apply reviewed policy' }).click();
+  if (width === 1440) { try { await expect(f.page.getByRole('button', { name: 'Generate', exact: true })).toBeDisabled(); } finally { releaseApply(); } }
+  await expect(f.page.getByRole('status').filter({ hasText: 'Policy saved' })).toContainText('Policy saved');
+  if (width === 1440) assert.equal((await f.owner.call('generator' + '/policy', {})).policy.minLength, 36);
+  await f.page.getByRole('button', { name: 'Generate', exact: true }).click();
+  await expect(f.page.getByLabel('Generated value')).not.toHaveValue('');
+  if (width === 1440) assert.equal((await f.page.getByLabel('Generated value').inputValue()).length, 36);
+  await capture('generator-policy-applied');
+  await f.page.getByLabel('Maximum characters', { exact: true }).fill('32');
+  await f.page.getByRole('button', { name: 'Preview policy change' }).click();
+  await review.waitFor();
+  if (width === 1440) { await expect(review.getByRole('alert')).toContainText('Minimum length 36 exceeds maximum length 32'); await expect(review.getByRole('button', { name: 'Apply reviewed policy' })).toBeDisabled(); }
+  await capture('generator-policy-conflict');
+  await f.page.getByLabel('Maximum characters', { exact: true }).fill('36');
+  await f.page.getByLabel('Minimum entropy (bits)', { exact: true }).fill('300');
+  await f.page.getByRole('button', { name: 'Preview policy change' }).click();
+  await review.waitFor();
+  if (width === 1440) {
+   await expect(review.getByRole('alert')).toContainText('Minimum entropy 300 bits exceeds');
+   await expect(review.getByRole('alert')).toContainText('maximum length 36');
+   await expect(review.getByRole('button', { name: 'Apply reviewed policy' })).toBeDisabled();
+   assert.equal((await f.owner.call('generator' + '/policy', {})).policy.minEntropyBits, 80);
+  }
+  await capture('generator-policy-entropy-conflict');
+ } catch (error) { if (output) await f.page.screenshot({ path: join(output, `generator-policy-failure-${width}.png`), fullPage: true }); throw error; }
+ finally { await f.close(); }
 }

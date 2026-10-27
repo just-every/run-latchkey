@@ -33,6 +33,9 @@ export async function commitSubject(ctx,plan,service){
  for(const {entry,row}of deleted.values())if(!excludedTable(entry.table,archivePolicy))journal.push(...await service.erasureStatements(entry.table,Object.fromEntries(entry.keys.map(key=>[key,row[key]]))));
  if(redactions.some(entry=>entry.rows.length))journal.push(...await service.redactionStatements());
  const fences=[['operator',plan.person.id],['email',plan.person.email],...plan.devices.map(device=>['device',device.id]),...plan.external.map(value=>['external-identity',[value.issuer,value.subject]]),...plan.erased.map(row=>['item',[row.vault_id,row.object_id]]),...plan.ownedVaults.map(row=>['vault',row.id]),...plan.ownedVersions.map(row=>['item',[row.vault_id,row.object_id]]),...plan.machines.map(row=>['machine',row.id]),...plan.groups.map(row=>['group',row.id])];
+ // Tenant-wide roster snapshots are erased even when their vault survives.
+ // Keep only keyed references so the accepted capture cannot recreate them.
+ for(const {entry,row}of deleted.values())if(entry.table==='lky_report_observations')fences.push(['report-observation',[row.vault_id,row.id]]);
  if(plan.account)fences.push(['account',plan.account.id]);
  const fenceRows=[];for(const [kind,value]of fences)fenceRows.push({kind,digest:await keyed(ctx,`fence:${kind}`,kind==='email'?value.toLowerCase():value)});
  const audit=await subjectAudit(ctx,operation,plan.counts,ctx.now,redactions),outstanding=[...plan.outstanding,{domain:'audit-checkpoint',state:'held-checkpoint-required',root:audit.root,length:audit.rows.length,signature:audit.signature}];

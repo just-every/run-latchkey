@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
 import {join} from 'node:path';
+import {generateKeyPairSync} from 'node:crypto';
 import {expect} from '@playwright/test';
 import {vaultFixture} from './fixture.mjs';
 import {VaultClient} from '../../src/latchkey/client.mjs';
@@ -12,6 +13,13 @@ if(output)await mkdir(output,{recursive:true});
 const hex=async text=>Buffer.from(await crypto.subtle.digest('SHA-1',new TextEncoder().encode(text))).toString('hex').toUpperCase();
 const password='synthetic-latchkey-2600',freshPassword='synthetic-latchkey-2601-replaced';
 const fullHash=await hex(password),freshHash=await hex(freshPassword);
+const sshPublicKey=bits=>{
+ const key=generateKeyPairSync('rsa',{modulusLength:bits}).publicKey.export({format:'jwk'});
+ const field=value=>{const length=Buffer.alloc(4);length.writeUInt32BE(value.length);return Buffer.concat([length,value]);};
+ const integer=value=>{const raw=Buffer.from(value,'base64url');return field(raw[0]&128?Buffer.concat([Buffer.from([0]),raw]):raw);};
+ return 'ssh-rsa '+Buffer.concat([field(Buffer.from('ssh-rsa')),integer(key.e),integer(key.n)]).toString('base64');
+};
+const oldSshKey=sshPublicKey(1024),currentSshKey=sshPublicKey(2048);
 async function enroll(f,n){const response=await f.context.request.post(f.origin+'/auth/invite',{headers:{origin:f.origin},data:{email:`synthetic-latchkey-${n}@example.test`,displayName:'Synthetic reader',role:'member'}});assert.equal(response.status(),202);const token=new URL(f.mail.at(-1).content.find(c=>c.type==='text/plain').value.match(/https:\/\/[^\s<>]+/)[0]).searchParams.get('token');const client=new VaultClient(f.origin,{fetcher:f.fetcher});await client.confirmIdentity(token);const e=await client.register(`synthetic-latchkey-${n+1}`);await client.unlock(e.profile,`synthetic-latchkey-${n+1}`);return client;}
 for(const width of [1440,390]){
  const f=await vaultFixture();
@@ -25,11 +33,16 @@ for(const width of [1440,390]){
   await typed.save(vault,createItem('document',{title:'Synthetic expiring document',values:{expiry:expired}}));
   await typed.save(vault,createItem('card',{title:'Synthetic expiring card',values:{expiry:expired.slice(0,7)}}));
   await typed.save(vault,createItem('login',{title:'Synthetic weak HTTP login',values:{password:'a'.repeat(4)},fields:[{id:'website',label:'Website',type:'url',secret:false,value:'http://synthetic-latchkey.example.test'}]}));
+  const ssh=await typed.save(vault,createItem('ssh-key',{title:'Synthetic old SSH key',values:{publicKey:oldSshKey}}));
+  const safeSsh=await typed.save(vault,createItem('ssh-key',{title:'Synthetic current SSH key',values:{publicKey:currentSshKey}}));
+  await typed.save(vault,createItem('ssh-key',{title:'Synthetic unsupported SSH key',values:{publicKey:'synthetic-latchkey-2680'}}));
+  const api=await typed.save(vault,createItem('api-credential',{title:'Synthetic deployment token',values:{token:'synthetic-latchkey-2681'}}));
+  const duplicateApi=await typed.save(vault,createItem('api-credential',{title:'Synthetic duplicate token',values:{token:'synthetic-latchkey-2681'}}));
   // Fixed time drives expiry and snooze boundaries; wall-clock date never determines an assertion.
   await f.page.clock.install({time:new Date(baseline)});
-  let outage=false,mfa=false;const requests=[];
+  let outage=false,mfa=false,feedGate=null;const requests=[];
   await f.page.route('https://api.github.com/user',route=>{if(route.request().method()==='OPTIONS')return route.fulfill({status:204,headers:{'access-control-allow-origin':'*','access-control-allow-headers':'authorization,accept,x-github-api-version','access-control-allow-methods':'GET'}});assert.equal(route.request().headers().authorization,'Bearer synthetic-latchkey-2630');return route.fulfill({status:200,headers:{'access-control-allow-origin':'*','access-control-allow-headers':'authorization,accept,x-github-api-version'},json:{login:'synthetic-latchkey-2602',two_factor_authentication:mfa}});});
-  await f.page.route('https://haveibeenpwned.com/api/v3/breaches',route=>route.fulfill({status:outage?503:200,headers:{'access-control-allow-origin':'*'},json:[{Name:'Synthetic breach',Domain:'synthetic-latchkey.example.test',BreachDate:'2025-01-01',IsVerified:true}]}));
+  await f.page.route('https://haveibeenpwned.com/api/v3/breaches',async route=>{if(feedGate)await feedGate();return route.fulfill({status:outage?503:200,headers:{'access-control-allow-origin':'*'},json:[{Name:'Synthetic breach',Domain:'synthetic-latchkey.example.test',BreachDate:'2025-01-01',IsVerified:true}]});});
   await f.page.route('https://api.pwnedpasswords.com/**',async route=>{const r=route.request();if(r.method()==='OPTIONS')return route.fulfill({status:204,headers:{'access-control-allow-origin':'*','access-control-allow-headers':'add-padding'}});requests.push({url:r.url(),headers:r.headers(),body:r.postData()});assert.match(r.url(),/^https:\/\/api\.pwnedpasswords\.com\/range\/[A-F0-9]{5}$/);assert.equal(r.headers()['add-padding'],'true');assert.equal(r.postData(),null);assert.ok(!r.url().includes(fullHash));await route.fulfill({status:outage?503:200,headers:{'access-control-allow-origin':'*'},body:outage?'unavailable':`${fullHash.slice(5)}:12\r\n${freshHash.slice(5)}:0\r\n${'0'.repeat(35)}:0`});});
   await f.page.setViewportSize({width,height:1000});await f.page.goto(f.origin+'/app/vault');
   if(new URL(f.page.url()).pathname==='/setup'){await f.page.getByRole('checkbox').check();await f.page.getByRole('button',{name:'Finish setup',exact:true}).click();}
@@ -52,8 +65,46 @@ for(const width of [1440,390]){
   await settings('Password health');await f.page.getByLabel('GitHub token (optional)').fill('synthetic-latchkey-2630');await f.page.getByRole('button',{name:'Check with HIBP',exact:true}).click();await expect(f.page.getByRole('heading',{name:'Synthetic payroll login · breached password',exact:true})).toBeVisible();assert.ok(requests.length>=2);await expect(f.page.getByRole('heading',{name:'Synthetic payroll login · missing mfa',exact:true})).toBeVisible();await expect(f.page.getByRole('heading',{name:'Synthetic payroll login · compromised website',exact:true})).toBeVisible();
   const finding=()=>f.page.getByRole('article').filter({has:f.page.getByRole('heading',{name:'Synthetic payroll login · reused password',exact:true})});
   await expect(f.page.getByRole('heading',{name:'Synthetic expiring document · expiring item',exact:true})).toBeVisible();await expect(f.page.getByRole('heading',{name:'Synthetic expiring card · expiring item',exact:true})).toBeVisible();await expect(f.page.getByRole('heading',{name:'Synthetic weak HTTP login · insecure http',exact:true})).toBeVisible();
+  if(width===1440){
+   const oldKey=f.page.getByRole('article').filter({has:f.page.getByRole('heading',{name:'Synthetic old SSH key · outdated ssh key',exact:true})});
+   await expect(oldKey).toContainText('1024 bits');await expect(oldKey).toContainText('verify access before retiring it');
+   await expect(f.page.getByRole('heading',{name:'Synthetic current SSH key · outdated ssh key',exact:true})).toHaveCount(0);
+   await expect(f.page.getByRole('heading',{name:'Synthetic unsupported SSH key · outdated ssh key',exact:true})).toHaveCount(0);
+   await expect(f.page.getByText('SSH public key missing, malformed or unsupported; key strength unknown')).toBeVisible();
+   const token=f.page.getByRole('article').filter({has:f.page.getByRole('heading',{name:'Synthetic deployment token · reused secret',exact:true})});
+   await expect(token).toContainText('Synthetic duplicate token');await expect(token).toContainText('provider-confirmed issuance');
+   await expect(f.page.getByText('Provider secret scopes, expiry and rotation unverified').first()).toBeVisible();
+   await capture('health-practices');
+   await oldKey.getByRole('button',{name:'Open affected item',exact:true}).click();await expect(f.page.getByRole('heading',{name:'Synthetic old SSH key',exact:true})).toBeVisible();
+   await settings('Password health');await f.page.getByLabel('GitHub token (optional)').fill('synthetic-latchkey-2630');await f.page.getByRole('button',{name:'Check with HIBP',exact:true}).click();
+   const local=new HealthClient(owner),risk=await local.inspect(vault);assert.ok(risk.findings.some(r=>r.object===ssh.object&&r.code==='outdated-ssh-key'));assert.ok(risk.findings.some(r=>r.object===api.object&&r.code==='reused-secret'));assert.ok(!risk.findings.some(r=>r.object===safeSsh.object));
+   await local.suppress(vault,risk.findings.find(r=>r.object===api.object&&r.code==='reused-secret'),{reason:'Synthetic intentional token reference'});
+   const hidden=(await owner.createVault({kind:'family'})).vault;await typed.save(hidden,createItem('api-credential',{title:'Synthetic private token reference',values:{token:'synthetic-latchkey-2681'}}));
+   const legacy=(await owner.readItem(vault,ssh.object)).versions.at(-1),duplicate=(await owner.readItem(vault,duplicateApi.object)).versions.at(-1);
+   await owner.put(vault,{...legacy.value,fields:legacy.value.fields.map(field=>field.id==='publicKey'?{...field,value:currentSshKey}:field)},ssh.object,legacy.version);
+   await owner.put(vault,{...duplicate.value,fields:duplicate.value.fields.map(field=>field.id==='token'?{...field,value:'synthetic-latchkey-2682'}:field)},duplicateApi.object,duplicate.version);
+   const refreshed=await local.inspect(vault);assert.ok(!refreshed.findings.some(r=>r.code==='outdated-ssh-key'||r.code==='reused-secret'));assert.ok(refreshed.unknown.some(r=>r.object===ssh.object&&r.coverage.includes('provider replacement unverified')));assert.ok(refreshed.unknown.some(r=>r.object===api.object&&r.coverage.includes('rotation unverified')));assert.ok(!JSON.stringify(refreshed).includes('Synthetic private token reference'));
+   assert.ok(!JSON.stringify(refreshed).includes('synthetic-latchkey-2681'));assert.ok(!requests.some(request=>JSON.stringify(request).includes('synthetic-latchkey-2681')));
+   // Retained older versions do not remain active risks after the stored value changes.
+   await f.page.getByRole('button',{name:'Check with HIBP',exact:true}).click();await expect(f.page.getByRole('heading',{name:'Synthetic old SSH key · outdated ssh key',exact:true})).toHaveCount(0);await expect(f.page.getByRole('heading',{name:'Synthetic deployment token · reused secret',exact:true})).toHaveCount(0);
+  }
+  if(width===390)await capture('health-practices');
   const before=await f.page.getByRole('heading',{name:/underlying findings/}).textContent();await f.page.getByLabel('Suppression reason').fill('Synthetic investigation');await f.page.getByLabel('Snooze until').fill(snooze);await finding().getByRole('button',{name:'Snooze finding',exact:true}).click();await expect(finding()).toContainText('Suppressed: Synthetic investigation');assert.equal(await f.page.getByRole('heading',{name:/underlying findings/}).textContent(),before);await capture('health-snoozed');
-  await f.page.clock.setSystemTime(new Date(baseline+31000));await f.page.getByRole('button',{name:'Check with HIBP',exact:true}).click();await expect(finding()).not.toContainText('Suppressed:');await finding().getByRole('button',{name:'Dismiss finding',exact:true}).click();await expect(finding()).toContainText('dismissed, risk retained');assert.equal(await f.page.getByRole('heading',{name:/underlying findings/}).textContent(),before);await capture('health-dismissed');
+  if(width===1440){
+   let release,entered;const waiting=new Promise(resolve=>{entered=resolve});feedGate=()=>new Promise(resolve=>{release=resolve;entered()});
+   await f.page.getByRole('button',{name:'Check with HIBP',exact:true}).click();await waiting;
+   await f.page.clock.setSystemTime(new Date(baseline+31000));feedGate=null;release();
+   await expect(finding()).not.toContainText('Suppressed:');
+   await expect(f.page.getByText(/reused password · Synthetic investigation · observed/)).toContainText('inactive history');
+   assert.equal(await f.page.getByRole('heading',{name:/underlying findings/}).textContent(),before);
+  }else{await f.page.clock.setSystemTime(new Date(baseline+31000));await f.page.getByRole('button',{name:'Check with HIBP',exact:true}).click();await expect(finding()).not.toContainText('Suppressed:');}
+  if(width===1440){
+   const nextSnooze=await f.page.evaluate(time=>new Date(time-new Date(time).getTimezoneOffset()*60000).toISOString().slice(0,19),baseline+36000);
+   await f.page.getByLabel('Snooze until').fill(nextSnooze);await finding().getByRole('button',{name:'Snooze finding',exact:true}).click();await expect(finding()).toContainText('Suppressed: Synthetic investigation');
+   await f.page.clock.runFor(5000);await expect(finding()).not.toContainText('Suppressed:');assert.equal(await f.page.getByRole('heading',{name:/underlying findings/}).textContent(),before);
+   await capture('health-expired');
+  }
+  await finding().getByRole('button',{name:'Dismiss finding',exact:true}).click();await expect(finding()).toContainText('dismissed, risk retained');assert.equal(await f.page.getByRole('heading',{name:/underlying findings/}).textContent(),before);await capture('health-dismissed');
   await finding().getByRole('button',{name:'Open affected item',exact:true}).click();await expect(f.page.getByRole('heading',{name:'Synthetic payroll login',exact:true})).toBeVisible();
   // The existing icon controls in this touched vault screen retain hover and keyboard tooltips.
   const reveal=f.page.getByRole('button',{name:/Reveal Password/i}).first();
@@ -67,13 +118,78 @@ for(const width of [1440,390]){
   if(width===1440){
    const outsider=await enroll(f,2620);await assert.rejects(new HealthClient(outsider).inspect(vault),e=>['not_found','permission_denied'].includes(e.code));
    let now=Date.parse('2030-01-01T12:00:00Z');const health=new HealthClient(owner,{now:()=>now,fetcher:async url=>url.includes('haveibeenpwned')?Response.json([]):new Response(`${fullHash.slice(5)}:12\r\n${'0'.repeat(35)}:0`)});
-   const report=await health.inspect(vault,{network:true}),active=report.findings.find(r=>r.object===second.object&&r.code==='breached-password');assert.ok(active);await health.suppress(vault,active,{reason:'Synthetic review',until:now+1000});let next=await health.inspect(vault,{network:true});assert.equal(next.riskCount,report.riskCount);assert.ok(next.findings.find(r=>r.object===second.object&&r.code==='breached-password').suppression);now+=1001;next=await health.inspect(vault,{network:true});assert.equal(next.findings.find(r=>r.object===second.object&&r.code==='breached-password').suppression,null);
+   const report=await health.inspect(vault,{network:true}),active=report.findings.find(r=>r.object===second.object&&r.code==='breached-password');assert.ok(active);await health.suppress(vault,active,{reason:'Synthetic review',until:now+1000});let next=await health.inspect(vault,{network:true});assert.equal(next.riskCount,report.riskCount);assert.ok(next.findings.find(r=>r.object===second.object&&r.code==='breached-password').suppression);const expiry=now+1000;
+   const delayed=new HealthClient(owner,{now:()=>now,fetcher:async url=>{now=expiry;return url.includes('haveibeenpwned')?Response.json([]):new Response(`${fullHash.slice(5)}:12\r\n${'0'.repeat(35)}:0`)}});
+   next=await delayed.inspect(vault,{network:true});assert.equal(next.findings.find(r=>r.object===second.object&&r.code==='breached-password').suppression,null,'a snooze expiring during feed work is inactive at read time');assert.equal(next.history.find(r=>r.reason==='Synthetic review').active,false);assert.equal((await delayed.history(vault)).find(r=>r.reason==='Synthetic review').active,false,'direct history reads also evaluate expiry');assert.equal(next.riskCount,report.riskCount);
+   now+=1;next=await health.inspect(vault,{network:true});assert.equal(next.findings.find(r=>r.object===second.object&&r.code==='breached-password').suppression,null);
    const row=(await owner.readItem(vault,second.object)).versions.at(-1);await owner.put(vault,row.value,second.object,row.version);await assert.rejects(health.suppress(vault,active,{reason:'Stale finding'}),/finding_changed/);
    let erased=false;const raced=new HealthClient(owner,{fetcher:async url=>{if(url.includes('haveibeenpwned'))return Response.json([]);if(!erased){erased=true;await owner.eraseItem(vault,first.object,{confirmed:true});}return new Response(`${fullHash.slice(5)}:12`);}});await assert.rejects(raced.inspect(vault,{network:true}),/health_source_changed/);const clean=await health.inspect(vault);assert.ok(!JSON.stringify(clean).includes('Synthetic payroll login'));
    const snapshot=await f.db.prepare('SELECT envelope FROM lky_versions').all();assert.ok(!JSON.stringify(snapshot).includes(password));
   }
   }
   await healthJourney();
+  async function memberSuppressionJourney(){
+  // Read-only members own their suppression history without acquiring item edit authority.
+  let memberNow=Date.now();const member=await enroll(f,2640),memberHealth=new HealthClient(member,{now:()=>memberNow}),ownerHealth=new HealthClient(owner);
+  await member.pinAccount(owner.profile.account,await owner.identity().fingerprint);
+  await owner.share(vault,member.profile.account,await member.identity().fingerprint,['read']);
+  const memberItem=await typed.save(vault,createItem('login',{title:'Synthetic member review',values:{password:'aaaa'}}));
+  const legacy={schema:'latchkey/health-suppression/v1',object:memberItem.object,version:1,code:'weak-password',reason:'Synthetic inherited decision',until:null,actor:member.profile.account,observation:{source:'Local length and diversity check',observedAt:memberNow,code:'weak-password',version:1},recordedAt:memberNow};
+  const legacyRecord=await owner.put(vault,legacy);
+  const memberReport=await memberHealth.inspect(vault),memberFinding=memberReport.findings.find(r=>r.object===memberItem.object&&r.code==='weak-password');assert.ok(memberFinding);assert.equal(memberFinding.suppression,null,'a shared vault record cannot authorize a personal decision');assert.deepEqual(memberReport.history,[]);assert.deepEqual(memberReport.legacyHistory.map(r=>({reason:r.reason,active:r.active})),[{reason:'Synthetic inherited decision',active:false}]);
+  await memberHealth.suppress(vault,memberFinding,{reason:'Synthetic member investigation',until:memberNow+60000});
+  const suppressed=await memberHealth.inspect(vault);assert.equal(suppressed.riskCount,memberReport.riskCount);assert.equal(suppressed.findings.find(r=>r.object===memberItem.object&&r.code==='weak-password').suppression.reason,'Synthetic member investigation');
+  assert.equal((await ownerHealth.inspect(vault)).findings.find(r=>r.object===memberItem.object&&r.code==='weak-password').suppression,null);
+  memberNow+=60001;assert.equal((await memberHealth.inspect(vault)).findings.find(r=>r.object===memberItem.object&&r.code==='weak-password').suppression,null);memberNow=Date.now();
+  assert.ok(!(await memberHealth.history(vault)).some(r=>r.reason==='Synthetic investigation'));
+  await assert.rejects(member.put(vault,createItem('login',{title:'Forbidden member write'}),memberItem.object,1),e=>e.status===403);
+  const ownRows=await member.call(['health','history'].join('/'),{vault});assert.equal(ownRows.rows.length,1);
+  assert.ok(!JSON.stringify(ownRows).includes('Synthetic member investigation'));assert.ok(!JSON.stringify(ownRows).includes('observedAt'));assert.ok(!JSON.stringify(ownRows).includes('weak-password'));
+  if(width===1440){const row=ownRows.rows[0],tampered=structuredClone(row.wrapped);tampered.envelope.ciphertext=(tampered.envelope.ciphertext[0]==='A'?'B':'A')+tampered.envelope.ciphertext.slice(1);await f.db.prepare('UPDATE lky_health_suppressions SET wrapped=? WHERE id=?').bind(JSON.stringify(tampered),row.id).run();await assert.rejects(memberHealth.history(vault),/invalid_key_signature/);await f.db.prepare('UPDATE lky_health_suppressions SET wrapped=? WHERE id=?').bind(JSON.stringify(row.wrapped),row.id).run();}
+
+  await assert.rejects(member.call(['health','history'].join('/'),{vault,actor:owner.profile.account}),e=>e.status===400);
+  const memberContext=await f.browser.newContext({ignoreHTTPSErrors:true,viewport:{width,height:1000}});
+  const [cookieName,cookieValue]=member.cookie.split('=');await memberContext.addCookies([{name:cookieName,value:cookieValue,url:f.origin,secure:true}]);
+  const ownerPage=f.page;f.page=await memberContext.newPage();
+  try{
+   await f.page.goto(f.origin+'/app/vault');await f.page.getByLabel('Profile file').setInputFiles({name:'profile.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(member.profile))});await f.page.getByLabel('Master password',{exact:true}).fill('synthetic-latchkey-2641');await f.page.getByRole('button',{name:'Unlock vault',exact:true}).click();
+   await settings('Password health');await f.page.getByRole('button',{name:'Check locally',exact:true}).click();
+   const finding=f.page.getByRole('article').filter({has:f.page.getByRole('heading',{name:'Synthetic member review · weak password',exact:true})});
+   await expect(finding).toContainText('Suppressed: Synthetic member investigation');await f.page.getByLabel('Suppression reason').fill('Synthetic member dismissal');await finding.getByRole('button',{name:'Dismiss finding',exact:true}).click();await expect(finding).toContainText('Suppressed: Synthetic member dismissal');await expect(f.page.getByRole('heading',{name:'Your suppression history'})).toBeVisible();await expect(f.page.getByRole('heading',{name:'Earlier vault observations'})).toBeVisible();await expect(f.page.getByText('weak password · Synthetic inherited decision · inactive history',{exact:true})).toBeVisible();assert.equal(await finding.locator('p').filter({hasText:'Suppressed:'}).count(),1);await capture('health-member-history');
+  }finally{f.page=ownerPage;await memberContext.close();}
+  if(width===1440){
+   const history=await memberHealth.history(vault);assert.deepEqual(history.map(r=>r.reason),['Synthetic member investigation','Synthetic member dismissal']);assert.ok(history.every(r=>r.observation.code==='weak-password'&&r.observation.version===1));
+   await typed.save(vault,createItem('login',{title:'Synthetic member review revised',values:{password:'aaaa'}}),memberItem.object);
+   assert.equal((await memberHealth.inspect(vault)).findings.find(r=>r.object===memberItem.object&&r.code==='weak-password').suppression,null);await assert.rejects(memberHealth.suppress(vault,memberFinding,{reason:'Stale member finding'}),/finding_changed/);
+   const current=(await memberHealth.inspect(vault)).findings.find(r=>r.object===memberItem.object&&r.code==='weak-password');
+   await assert.rejects(new HealthClient(member,{now:()=>1}).suppress(vault,current,{reason:'Server expired snooze',until:Date.now()-1}),e=>e.code==='invalid_suppression');
+   const stale=Object.create(member);stale.call=(route,input)=>member.call(route,route===['health','suppress'].join('/')?{...input,revision:input.revision-1}:input);await assert.rejects(new HealthClient(stale).suppress(vault,current,{reason:'Stale source revision'}),e=>e.code==='health_source_changed');
+
+   await assert.rejects(memberHealth.suppress(vault,current,{reason:'Expired member snooze',until:Date.now()-1}),/invalid_suppression/);
+   const foreign=(await owner.createVault()).vault;await assert.rejects(memberHealth.history(foreign),e=>e.status===404);
+   const raced=Object.create(member);raced.call=async(route,input)=>{if(route===['health','suppress'].join('/'))await owner.rotate(vault,member.profile.account);return member.call(route,input)};await assert.rejects(new HealthClient(raced).suppress(vault,current,{reason:'Revocation during submission'}),e=>e.status>=400);
+   await assert.rejects(memberHealth.history(vault),e=>e.status>=400);await assert.rejects(memberHealth.suppress(vault,current,{reason:'Revoked member'}),e=>e.status>=400);
+   const rows=await f.db.prepare('SELECT wrapped FROM lky_health_suppressions').all();assert.ok(!JSON.stringify(rows).includes('Synthetic member'));assert.equal((await ownerHealth.inspect(vault)).findings.find(r=>r.object===memberItem.object&&r.code==='weak-password').suppression,null);
+   // Mixed histories need separate owner review; no unrelated version is silently erased.
+   const mixed=await owner.put(vault,{schema:'latchkey/health-suppression/v1',object:memberItem.object});
+   await owner.put(vault,{secret:'Synthetic unrelated retained content'},mixed.object);
+   await assert.rejects(owner.eraseItem(vault,memberItem.object,{confirmed:true}),/legacy_suppression_erasure_review_required/);
+   assert.equal((await owner.readItem(vault,mixed.object,true)).versions.length,2);
+   await owner.eraseItem(vault,mixed.object,{confirmed:true});
+   const sourceRevision=(await owner.readVault(vault)).revision;
+   await assert.rejects(owner.eraseItem(vault,memberItem.object,{confirmed:true,revision:sourceRevision-1}),e=>e.code==='version_conflict');
+   assert.equal((await owner.readItem(vault,legacyRecord.object)).versions.length,1);
+   const interrupted=Object.create(owner);
+   interrupted.call=(route,input)=>{if(route===['item','erase'].join('/')&&input.object===memberItem.object)throw Error('synthetic_erasure_interruption');return owner.call(route,input);};
+   await assert.rejects(interrupted.eraseItem(vault,memberItem.object,{confirmed:true}),/synthetic_erasure_interruption/);
+   assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM lky_versions WHERE vault_id=? AND object_id=?').bind(vault,legacyRecord.object).first()).n,0);
+   assert.equal((await owner.readItem(vault,memberItem.object)).versions.at(-1).value.title,'Synthetic member review revised');
+   assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM lky_health_suppressions WHERE object_id=?').bind(memberItem.object).first()).n,2);
+   const erasedMember=await owner.eraseItem(vault,memberItem.object,{confirmed:true});assert.equal(erasedMember.deleted.lky_health_suppressions,2);assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM lky_versions WHERE vault_id=? AND object_id=?').bind(vault,legacyRecord.object).first()).n,0);await assert.rejects(owner.put(vault,{schema:'latchkey/health-suppression/v1'},legacyRecord.object),e=>e.code==='item_erased');assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM lky_health_suppressions WHERE object_id=?').bind(memberItem.object).first()).n,0);
+  }
+
+  }
+  await memberSuppressionJourney();
   console.log(`Security journeys ${width}: encrypted provider plan, padded HIBP, local risks, suppression, expiry, fresh version and outage passed.`);
  }finally{await f.close();}
 }

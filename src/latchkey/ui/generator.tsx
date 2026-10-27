@@ -45,7 +45,7 @@ export function Generator({ client, run, onUse }: { client: any; run: Task; onUs
  }
  return <section className="detail tool-panel" aria-labelledby="generator-title"><div className="section">
   <h2 id="generator-title">Password generator</h2>
-  {!policy ? <p role="status">Loading current company and group policy…</p> : <>
+  {!policy ? <p className="loading" role="status">Loading current company and group policy…</p> : <>
    <p className="muted">Effective policy: {policy.minLength}–{policy.maxLength} characters; at least {policy.minEntropyBits} bits of entropy; required classes: {policy.requiredClasses.join(', ')}. History is encrypted on this browser. {policy.historyDays === 0 ? 'History retention is disabled.' : `Entries expire after ${policy.historyDays} days.`}</p>
    <p className="muted">Applied sources: {rules.sources.map((source: any) => source.scope === 'group' ? `group ${source.group}` : source.scope).join(' · ')}</p>
    {notice && <p className="notice" role="status">{notice}</p>}
@@ -60,7 +60,7 @@ export function Generator({ client, run, onUse }: { client: any; run: Task; onUs
    <details className="tool-box" onToggle={event => { if (event.currentTarget.open) perform(async () => { await refresh(); }); }}><summary>Generator history ({entries.length})</summary><p className="muted">Exporting creates a plaintext file. Store it securely.</p><div className="actions"><button type="button" disabled={working || !entries.length} onClick={() => perform(async () => { await refresh(); await local.current.clear(); setEntries([]); setGenerated(null); })}>Clear all</button><button type="button" disabled={working} onClick={() => perform(async () => { const fresh = await refresh(); download('latchkey-generator-history.json', JSON.stringify(fresh.rows)); })}>Export history</button><button type="button" disabled={working} onClick={() => perform(async () => { await refresh(); })}>Refresh history</button></div>
     {entries.slice().reverse().map(entry => <div className="history-entry" key={entry.id}><span>{entry.kind} · {new Date(entry.created).toLocaleString()}</span><button type="button" disabled={working} onClick={() => perform(async () => { setGenerated(await currentValue(entry)); setShown(true); })}>Reveal</button><button type="button" disabled={working} onClick={() => perform(async () => copy((await currentValue(entry)).value))}>Copy</button><button type="button" disabled={working} onClick={() => perform(async () => { await refresh(); await local.current.clear(entry.id); setEntries(await local.current.list()); setGenerated(null); })}>Delete</button></div>)}
    </details>
-   {rules.canManage && <GeneratorPolicyForm policy={policy} disabled={working} onSave={input => perform(async () => { await client.call('generator/policy/set', input); await refresh(); setNotice('Policy saved. The reason was recorded in the audit history.'); })}/>}
+   {rules.canManage && <GeneratorPolicyForm policy={policy} disabled={working} onPreview={input => client.call('generator/policy/preview', input)} onSave={async input => { if (busy.current) throw { code: 'generator_busy' }; busy.current = true; setWorking(true); try { await client.call('generator/policy/set', input); await refresh(); setNotice('Policy saved. The reason was recorded in the audit history. Device convergence remains unverified.'); } finally { busy.current = false; if (live.current) setWorking(false); } }}/>}
   </>}
  </div></section>;
 }

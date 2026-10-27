@@ -9,13 +9,16 @@ import { EraseItem } from './erase';
 import { SharingPanel } from '../sharing/ui';
 import { ItemAlias } from '../aliases/item';
 import { fieldLabel, hasValue, itemSummary, matchLabel } from './labels';
+import { breakable } from './item-row';
 
 function FieldView({ field, label, typed, vault, object, run }: { field: Field; label: string; typed: any; vault: string; object: string; run: Task }) {
  const [shown, setShown] = useState(false), [value, setValue] = useState<any>(field.secret ? null : field.value), [code, setCode] = useState<any>(null);
  useEffect(() => { if (!code) return; const timer = setTimeout(() => setCode(null), Math.max(0, code.validUntil - Date.now())); return () => clearTimeout(timer); }, [code]);
  const text = value == null ? '' : typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
- return <div className="field"><label htmlFor={`view-${field.id}`}>{label}</label><div className="input-row">
-  {field.type === 'multiline' && (!field.secret || shown) ? <textarea id={`view-${field.id}`} readOnly rows={3} value={text} aria-label={label}/> : <input id={`view-${field.id}`} readOnly type={field.secret && !shown ? 'password' : 'text'} value={field.secret && !shown ? '••••••••••••' : text} aria-label={label}/>}
+ // A value that is not secret reads as text that wraps (after a dot, before the @), never cut off by a field's width.
+ const plain = !field.secret && !['multiline', 'json'].includes(field.type);
+ return <div className="field"><label htmlFor={plain ? undefined : `view-${field.id}`} id={`label-${field.id}`}>{label}</label><div className="input-row">
+  {plain ? <span className="value" id={`view-${field.id}`} role="textbox" aria-readonly="true" aria-labelledby={`label-${field.id}`} tabIndex={0}>{breakable(text)}</span> : field.type === 'multiline' && (!field.secret || shown) ? <textarea id={`view-${field.id}`} readOnly rows={3} value={text} aria-label={label}/> : <input id={`view-${field.id}`} readOnly type={field.secret && !shown ? 'password' : 'text'} value={field.secret && !shown ? '••••••••••••' : text} aria-label={label}/>}
   {field.secret && <TooltipButton tooltip={shown ? 'Hide field' : 'Reveal field'} aria-label={`${shown ? 'Hide' : 'Reveal'} ${label}`} onClick={() => { if (shown) { setShown(false); setValue(null); setCode(null); } else void run(async () => { setValue(await typed.field(vault, object, field.id, 'reveal')); setShown(true); }); }}><Icon name="eye"/></TooltipButton>}
   <TooltipButton tooltip="Copy field" aria-label={`Copy ${label}`} onClick={() => void run(async () => copy(await typed.field(vault, object, field.id, 'copy')))}><Icon name="copy"/></TooltipButton>
  </div>{field.type === 'otp' && <><button className="small" onClick={() => void run(async () => { const value = await typed.field(vault, object, field.id, 'reveal'); setCode(await totp(value)); })}>Show current code</button>{code && <div className="notice"><output>{code.code}</output><p className="muted">Valid until {new Date(code.validUntil).toLocaleTimeString()}. Refresh for a new code.</p><button onClick={() => void run(async () => { const value = await typed.field(vault, object, field.id, 'copy'); const current = await totp(value); setCode(current); await copy(current.code); })}>Copy current code</button></div>}</>}
@@ -26,14 +29,17 @@ function FieldView({ field, label, typed, vault, object, run }: { field: Field; 
 export function ItemDetail({ row, typed, client, vault, run, onEdit, onRefresh, canErase, vaultKind }: { row: ItemRecord; vaultKind: string; typed: any; client: any; vault: string; run: Task; onEdit: () => void; onRefresh: () => Promise<void>; canErase: boolean }) {
  const item = row.value, filled = item.fields.filter(hasValue);
  // The item opens in place under its row, which already shows its title; the heading names the opened region.
- // It shows only the fields that hold a value: an empty code or passkey is not drawn as a masked secret.
+ // It opens short: only the fields that hold a value (an empty code or passkey is not drawn as a masked
+ // secret), its websites as one quiet line and any files, with history, alias, sharing and erasure folded.
  return <article className="detail" aria-labelledby={`title-${row.object}`}><header className="detail-header"><h2 className="sr-only" id={`title-${row.object}`}>{item.title}</h2><p className="subtitle">{itemSummary(item)}</p><div className="actions"><button onClick={onEdit}><Icon name="edit"/>Edit</button><button onClick={() => void run(async () => { const fields = []; for (const field of filled) fields.push(`${fieldLabel(item, field)}: ${typeof field.value === 'object' ? JSON.stringify(await typed.field(vault, row.object, field.id, 'copy')) : await typed.field(vault, row.object, field.id, 'copy')}`); await copy(fields.join('\n')); })}><Icon name="copy"/>Copy all</button></div></header>
-  <div className="detail-grid"><section className="credentials" aria-label="Item fields">{filled.length ? filled.map(field => <FieldView key={`${row.version}-${field.id}`} field={field} label={fieldLabel(item, field)} typed={typed} vault={vault} object={row.object} run={run}/>) : <p className="muted">No fields saved.</p>}</section>
-  <div className="detail-side">{!!item.urls.length && <section className="section"><h2>Website and app rules</h2>{item.urls.map((rule, i) => <p className="rule-view" key={i}><span>{matchLabel(rule.match)}</span><span>{rule.url ?? rule.appId}</span></p>)}<p className="muted">Copy a field to use it in your browser or app.</p></section>}
-  <section className="section attachments"><h2>Attachments</h2>{item.attachments.length ? item.attachments.map(file => <div className="file" key={file.id}><Icon name="file"/><div className="file-text"><span>{file.name}</span><small>{file.size.toLocaleString()} bytes · {file.mediaType}</small></div><TooltipButton tooltip="Download attachment" aria-label={`Download ${file.name}`} onClick={() => void run(async () => { const attachment = await typed.attachment(vault, row.object, file.id); download(attachment.name, new Uint8Array(attachment.data) as BlobPart, attachment.mediaType); })}><Icon name="download"/></TooltipButton></div>) : <p className="muted">No attachments.</p>}<button className="small" onClick={onEdit}><Icon name="plus"/>Add attachment</button></section></div></div>
-  {item.type === 'login' && <ItemAlias client={client} vault={vault} vaultKind={vaultKind} row={row} onSaved={onRefresh}/>}
-  <ItemHistory typed={typed} vault={vault} row={row} run={run} onRestored={onRefresh}/>
-  {canErase && <EraseItem client={client} vault={vault} row={row} run={run} onErased={onRefresh}/>}
-  <section className="section" id="sharing"><details><summary>Sharing</summary><SharingPanel client={client} vault={vault} object={row.object}/></details></section>
+  <section className="credentials" aria-label="Item fields">{filled.length ? filled.map(field => <FieldView key={`${row.version}-${field.id}`} field={field} label={fieldLabel(item, field)} typed={typed} vault={vault} object={row.object} run={run}/>) : <p className="muted">No fields saved.</p>}</section>
+  {!!item.urls.length && <section className="detail-note" aria-label="Website and app rules">{item.urls.map((rule, i) => <span className="rule-view" key={i}><span>{matchLabel(rule.match)}</span><span>{rule.url ?? rule.appId}</span></span>)}</section>}
+  {!!item.attachments.length && <section className="attachments" aria-label="Attachments">{item.attachments.map(file => <div className="file" key={file.id}><Icon name="file"/><div className="file-text"><span>{file.name}</span><small>{file.size.toLocaleString()} bytes · {file.mediaType}</small></div><TooltipButton tooltip="Download attachment" aria-label={`Download ${file.name}`} onClick={() => void run(async () => { const attachment = await typed.attachment(vault, row.object, file.id); download(attachment.name, new Uint8Array(attachment.data) as BlobPart, attachment.mediaType); })}><Icon name="download"/></TooltipButton></div>)}<button className="small" onClick={onEdit}><Icon name="plus"/>Add attachment</button></section>}
+  <div className="detail-more">
+   <ItemHistory typed={typed} vault={vault} row={row} run={run} onRestored={onRefresh}/>
+   {item.type === 'login' && <ItemAlias client={client} vault={vault} vaultKind={vaultKind} row={row} onSaved={onRefresh}/>}
+   <section className="section" id="sharing"><details><summary>Sharing</summary><SharingPanel client={client} vault={vault} object={row.object}/></details></section>
+   {canErase && <EraseItem client={client} vault={vault} row={row} run={run} onErased={onRefresh}/>}
+  </div>
  </article>;
 }

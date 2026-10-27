@@ -53,9 +53,9 @@ for (const width of [1440, 390]) {
   // From the login: create the alias, then use it on a real signup form.
   await f.page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'Vault', exact: true }).click(); await expect(f.page.getByRole('button', { name: 'New item', exact: true })).toBeEnabled();
   await f.page.getByRole('button', { name: /Fabrikam Marketplace/ }).first().click();
-  const section = f.page.getByRole('region', { name: 'Hide my email' }); await expect(section).toBeVisible(); await section.getByLabel('Cloudflare API token').fill(aliasToken);
+  const section = f.page.getByRole('region', { name: 'Hide my email' }); await expect(section).toBeVisible(); await section.getByText('Hide my email', { exact: true }).click(); await section.getByLabel('Cloudflare API token').fill(aliasToken);
   await section.getByRole('button', { name: 'Create alias and use as username' }).click();
-  await expect(f.page.getByLabel('Username', { exact: true })).toHaveValue(/^lk-/); const address = await f.page.getByLabel('Username', { exact: true }).inputValue(); assert.match(address, /^lk-[a-z2-9]{14}@mail\.northstar-finance\.test$/); await expect(section.getByText(/forwarding configured at the provider/)).toBeVisible(); await expect(section.getByText(/Mail arrival not confirmed/)).toBeVisible(); await capture('aliases-login');
+  await expect(f.page.getByLabel('Username', { exact: true })).toHaveText(/^lk-/); const address = await f.page.getByLabel('Username', { exact: true }).textContent(); assert.match(address, /^lk-[a-z2-9]{14}@mail\.northstar-finance\.test$/); await expect(section.getByText(/forwarding configured at the provider/)).toBeVisible(); await expect(section.getByText(/Mail arrival not confirmed/)).toBeVisible(); await capture('aliases-login');
   const signup = await f.context.newPage(); await signup.setViewportSize({ width, height: 800 }); await signup.goto(site.origin + '/signup');
   await signup.getByLabel('Email').fill(address); await signup.getByLabel('Password').fill('synthetic-latchkey-2066'); await signup.getByRole('button', { name: 'Sign up' }).click(); await expect(signup.getByRole('heading', { name: 'Check your email' })).toBeVisible();
   // The verification message reaches the approved mailbox, through the provider, addressed to the alias.
@@ -74,7 +74,7 @@ for (const width of [1440, 390]) {
   await capture('aliases-disabled');
   // A provider outage is shown as unknown, never as success, and settles against the provider on request.
   await f.page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'Vault', exact: true }).click(); await f.page.getByRole('button', { name: /Fabrikam Marketplace/ }).first().click();
-  const next = f.page.getByRole('region', { name: 'Hide my email' }); await next.getByLabel('Cloudflare API token').fill(aliasToken); edge.fault('POST /zones', 503);
+  const next = f.page.getByRole('region', { name: 'Hide my email' }); await next.getByText('Hide my email', { exact: true }).click(); await next.getByLabel('Cloudflare API token').fill(aliasToken); edge.fault('POST /zones', 503);
   await next.getByRole('button', { name: 'Create alias and use as username' }).click(); await expect(next.getByRole('alert')).toContainText('may or may not have been made'); await capture('aliases-outage');
   await openAliases(); await token(); const unsettled = f.page.getByRole('article').filter({ hasText: 'Forwarding: reconcile' }); await expect(unsettled).toContainText('may or may not have been made'); await expect(unsettled).not.toContainText('Arrival reported');
   await unsettled.getByRole('button', { name: 'Check at the provider' }).click(); await expect(f.page.getByText('Checked at the provider.')).toBeVisible(); await expect(f.page.getByRole('article').filter({ hasText: 'Forwarding: failed' })).toContainText('The provider has no rule for this alias.');

@@ -8,7 +8,7 @@ export function Unlock({ run, busy, onUnlock }: { run: Task; busy: boolean; onUn
  const [ready, setReady] = useState(false);
  useEffect(() => setReady(true), []);
  const [mode, setMode] = useState<'unlock' | 'register'>('unlock');
- const [password, setPassword] = useState(''), [confirm, setConfirm] = useState('');
+ const [password, setPassword] = useState(''), [confirm, setConfirm] = useState(''), [existing, setExisting] = useState(false);
  const [staged, setStaged] = useState<any>(null), [saved, setSaved] = useState(false), [downloaded, setDownloaded] = useState({ profile: false, kit: false }), [finishing, setFinishing] = useState(false);
  const profileFile = useRef<HTMLInputElement>(null);
  const mounted = useRef(true), registering = useRef(false), attempt = useRef(0), custody = useRef<{ resolve: () => void; reject: (reason: unknown) => void } | null>(null);
@@ -19,7 +19,7 @@ export function Unlock({ run, busy, onUnlock }: { run: Task; busy: boolean; onUn
  return <section className="lk-unlock detail" aria-labelledby="unlock-title">
   <div className="section"><h1 id="unlock-title">{staged ? 'Keep your keys safe' : mode === 'unlock' ? 'Unlock your vault' : 'Create your private vault'}</h1>
   <p className="muted">Your profile file and password unlock your keys on this device. Keep your profile and recovery kit somewhere safe.</p>
-  <fieldset disabled={!ready} style={{border:0,padding:0,margin:0,minWidth:0}}>{!ready && <p role="status">Preparing your private client…</p>}
+  <fieldset disabled={!ready} style={{border:0,padding:0,margin:0,minWidth:0}}>{!ready && <p className="loading" role="status">Preparing your private client…</p>}
   {staged ? <><p>{finishing ? 'Completing account creation and unlocking your vault…' : 'Your account has not been enrolled yet. Download both files before continuing. Your recovery kit is sensitive; store it separately.'}</p>
    <div className="actions"><button type="button" onClick={() => { download('latchkey-profile.json', JSON.stringify(staged.profile)); setDownloaded(previous => ({ ...previous, profile: true })); }}>Download profile</button><button type="button" onClick={() => { download('latchkey-recovery-kit.json', JSON.stringify(staged.kit)); setDownloaded(previous => ({ ...previous, kit: true })); }}>Download recovery kit</button></div>
    <label className="check"><input type="checkbox" disabled={!downloaded.profile || !downloaded.kit || finishing} checked={saved} onChange={e => setSaved(e.target.checked)}/>I saved both files securely</label>
@@ -29,7 +29,8 @@ export function Unlock({ run, busy, onUnlock }: { run: Task; busy: boolean; onUn
    if (mode === 'register') {
     if (registering.current) return;
     if (password !== confirm) throw { code: 'passwords_do_not_match' };
-    registering.current = true; const ticket = ++attempt.current;
+    // Entered passwords stay through a refusal; only success, Cancel or a mode change clears them.
+    registering.current = true; setExisting(false); const ticket = ++attempt.current; let enrolled = false;
     try {
      const result = await client.register(password, { beforeCommit: async (files: any) => {
       if (!mounted.current || ticket !== attempt.current) throw cancelledRegistration;
@@ -38,12 +39,13 @@ export function Unlock({ run, busy, onUnlock }: { run: Task; busy: boolean; onUn
       });
       if (!mounted.current || ticket !== attempt.current) throw cancelledRegistration;
      } });
+     enrolled = true;
      if (!mounted.current) return;
      setMode('unlock');
      await client.unlock(result.profile, password);
      if (mounted.current) await onUnlock(client); else client.lock();
-    } catch (error) { if (error !== cancelledRegistration) throw error; }
-    finally { registering.current = false; custody.current = null; if (mounted.current) { setStaged(null); setSaved(false); setFinishing(false); setPassword(''); setConfirm(''); } }
+    } catch (error) { if ((error as any)?.code === 'already_registered') setExisting(true); else if (error !== cancelledRegistration) throw error; }
+    finally { registering.current = false; custody.current = null; if (mounted.current) { setStaged(null); setSaved(false); setFinishing(false); if (enrolled) { setPassword(''); setConfirm(''); } } }
    }
    else {
     // Read the selected file at submission, including a selection retained while
@@ -58,8 +60,9 @@ export function Unlock({ run, busy, onUnlock }: { run: Task; busy: boolean; onUn
    {mode === 'unlock' && <label>Profile file<input ref={profileFile} required type="file" accept=".json,application/json"/></label>}
    <label>Master password<input required type="password" autoComplete={passwordAutocomplete[mode]} value={password} onChange={e => setPassword(e.target.value)}/></label>
    {mode === 'register' && <label>Confirm master password<input required type="password" autoComplete="new-password" value={confirm} onChange={e => setConfirm(e.target.value)}/></label>}
+   {mode === 'register' && existing && <div className="notice" role="alert"><p>This sign-in already has a Latchkey account, so another cannot be created. Unlock it with that account’s profile file and master password.</p><button type="button" disabled={busy} onClick={() => { setMode('unlock'); setPassword(''); setConfirm(''); setExisting(false); }}>Unlock the existing account</button></div>}
    <button className="primary" type="submit" disabled={busy}>{busy ? 'Working…' : mode === 'unlock' ? 'Unlock vault' : 'Create account'}</button>
-   <button type="button" className="link" disabled={busy} onClick={() => { setMode(mode === 'unlock' ? 'register' : 'unlock'); setPassword(''); setConfirm(''); }}>{mode === 'unlock' ? 'First time? Create an account' : 'Use an existing profile'}</button>
+   <button type="button" className="link" disabled={busy} onClick={() => { setMode(mode === 'unlock' ? 'register' : 'unlock'); setPassword(''); setConfirm(''); setExisting(false); }}>{mode === 'unlock' ? 'First time? Create an account' : 'Use an existing profile'}</button>
   </form>}
   </fieldset></div>
  </section>;

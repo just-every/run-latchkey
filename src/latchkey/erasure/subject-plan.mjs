@@ -8,7 +8,7 @@ export async function subjectPlan(ctx, subject) {
  const person=await first('SELECT * FROM oa_operators WHERE id=?',subject);
  need(person,'subject_not_found',404);
  need(subject!==ctx.session.operator.id,'self_erasure_forbidden',409);
- need(!await first("SELECT 1 AS pending FROM lky_people_offboarding WHERE tenant=? AND operator=? AND handback='blocked-missing-enrolled-custody'",ctx.tenant,subject),'company_handback_pending',409);
+ need(!await first("SELECT 1 AS pending FROM lky_people_offboarding WHERE tenant=? AND operator=? AND handback NOT IN ('transferred','no-owned-company-items')",ctx.tenant,subject),'company_handback_pending',409);
  need(!await first('SELECT 1 AS assigned FROM lky_people_offboarding p JOIN lky_accounts a ON a.id=p.custodian WHERE a.operator_id=?',subject),'offboarding_custodian_reassignment_required',409);
  const account=await first('SELECT * FROM lky_accounts WHERE operator_id=?',subject),accountId=account?.id??null;
  need(!account||account.tenant===ctx.tenant,'subject_not_found',404);
@@ -21,6 +21,15 @@ export async function subjectPlan(ctx, subject) {
   const entry={table,where,args,keys,columns:columns.map(c=>c.name),rows,action,set};snapshots.push(entry);if(action!=='observe')changes.push(entry);return rows;
  };
  const own='SELECT id FROM lky_vaults WHERE tenant=? AND owner=?',ownArgs=[ctx.tenant,accountId];
+ await select('lky_recovery_cases','account=? OR enrollment IN (SELECT id FROM lky_recovery_custody WHERE custodian=?)',[accountId,accountId]);
+ await select('lky_recovery_custody','account=? OR custodian=?',[accountId,accountId]);
+ await select('lky_emergency_access','owner=? OR contact=?',[accountId,accountId]);
+ await select('lky_company_custody','owner=? OR custodian=?',[accountId,accountId]);
+ await select('lky_custody_reviews','actor=? OR instr(plan,?)>0 OR instr(plan,?)>0',[accountId,accountId,subject]);
+ // Adoption can include installation roster counts. Invalidate tenant aggregates.
+ await select('lky_report_observations','vault_id IN(SELECT id FROM lky_vaults WHERE tenant=?)',[ctx.tenant]);
+ await select('lky_report_keys',`owner=? OR vault_id IN (${own})`,[accountId,...ownArgs]);
+ await select('lky_health_suppressions',`tenant=? AND (actor=? OR vault_id IN (${own}))`,[ctx.tenant,accountId,...ownArgs]);
  const ownedVaults=await select('lky_vaults','tenant=? AND owner=?',ownArgs);
  const remainingVaults=await select('lky_vaults','tenant=? AND owner IS NOT ?',[ctx.tenant,accountId],'observe');
  const devices=await select('lky_devices','account_id=?',[accountId]),deviceIds=devices.map(row=>row.id);
@@ -73,6 +82,7 @@ export async function subjectPlan(ctx, subject) {
  // identities. Erasure invalidates affected packages rather than re-signing them.
  const rules=await all('SELECT c.*,v.definition FROM lky_rules c JOIN lky_rule_versions v ON v.rule_id=c.id WHERE c.tenant=?',ctx.tenant);
  const ruleIds=JSON.stringify([...new Set(rules.filter(row=>contains(JSON.stringify(row),identity)||ownedVaults.some(v=>contains(row.definition,[v.id]))).map(row=>row.id))]);
+ await select('lky_rule_reviews','obligation IN(SELECT o.id FROM lky_rule_obligations o JOIN lky_rule_runs r ON r.id=o.run_id WHERE r.rule_id IN(SELECT value FROM json_each(?)))',[ruleIds]);
  await select('lky_rule_decisions','obligation IN(SELECT o.id FROM lky_rule_obligations o JOIN lky_rule_runs r ON r.id=o.run_id WHERE r.rule_id IN(SELECT value FROM json_each(?)))',[ruleIds]);
  await select('lky_rule_obligations','run_id IN(SELECT id FROM lky_rule_runs WHERE rule_id IN(SELECT value FROM json_each(?)))',[ruleIds]);
  await select('lky_rule_runs','rule_id IN(SELECT value FROM json_each(?))',[ruleIds]);
@@ -83,6 +93,8 @@ export async function subjectPlan(ctx, subject) {
  const reviewRows=await all('SELECT * FROM lky_review_rows');
  const affectedReviews=reviews.filter(row=>contains(JSON.stringify(row),identity)||reviewRows.some(r=>r.review_id===row.id&&contains(JSON.stringify(r),identity))).map(row=>row.id);
  const reviewList=JSON.stringify(affectedReviews);
+ await select('lky_rule_obligations','id IN(SELECT obligation FROM lky_rule_reviews WHERE review_id IN(SELECT value FROM json_each(?)))',[reviewList],'redact',row=>({...row,phase:'inactive',result_version:null}));
+ await select('lky_rule_reviews','review_id IN (SELECT value FROM json_each(?))',[reviewList]);
  await select('lky_review_rows','review_id IN (SELECT value FROM json_each(?))',[reviewList]);
  await select('lky_review_reminders','review_id IN (SELECT value FROM json_each(?))',[reviewList]);
  const postureSources=await select('lky_evidence_sources',`owner=? OR vault_id IN (${own}) OR vault_id IN (SELECT value FROM json_each(?))`,[accountId,...ownArgs,JSON.stringify([...new Set([...affectedIds,...reviews.filter(row=>affectedReviews.includes(row.id)).map(row=>row.vault_id)])])]);
@@ -161,7 +173,7 @@ export async function subjectPlan(ctx, subject) {
  // Every remaining readable column is checked too: a source/cache adapter
  // cannot silently introduce a second unclassified copy of this identity.
  // Encrypted client material is explicitly outstanding, never claimed clean.
- const opaque={lky_versions:['envelope'],lky_devices:['bundle'],lky_accounts:['opaque_setup','opaque_record','recovery_wrap'],lky_recipients:['wrapped_key'],lky_share_keys:['wrapped_key'],lky_links:['envelope'],rer_dependency_keys:['private_key']};
+ const opaque={lky_health_suppressions:['wrapped'],lky_report_observations:['envelope'],lky_report_keys:['wrapped'],lky_versions:['envelope'],lky_devices:['bundle'],lky_accounts:['opaque_setup','opaque_record','recovery_wrap'],lky_recipients:['wrapped_key'],lky_share_keys:['wrapped_key'],lky_links:['envelope'],rer_dependency_keys:['private_key']};
  const observed=new Set(['lky_versions','lky_devices','lky_accounts','lky_nonces','rer_dependency_keys']);
  for(const table of schema.map(row=>row.name).filter(name=>!name.startsWith('sqlite_')&&!name.startsWith('_cf_')&&!name.startsWith('rer_portability_')&&!['d1_migrations','rer_migrations','_rer_deploy_migrations','_rer_portability_migrations'].includes(name))){
   const columns=await all(`PRAGMA table_info(${table})`),keys=columns.filter(c=>c.pk).sort((a,b)=>a.pk-b.pk).map(c=>c.name);

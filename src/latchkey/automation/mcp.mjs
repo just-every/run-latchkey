@@ -64,7 +64,8 @@ export async function automationPublic(route, input, ctx) {
  if (input.method === 'ping') return reply({});
  if (input.method === 'tools/list') return reply({ tools: tools.filter(tool => JSON.parse(credential.scopes).includes(tool.name === 'latchkey_posture' ? 'posture:read' : 'access:request')) });
  if (input.method !== 'tools/call') return { jsonrpc: '2.0', id: input.id, error: { code: -32601, message: 'Method not found' } };
- const toolRoute = { latchkey_posture: 'mcp/posture', latchkey_request_access: 'mcp/requestaccess' }[input.params?.name];
+ const toolRoutes = { latchkey_posture: 'mcp/posture', latchkey_request_access: 'mcp/requestaccess' }, name = input.params?.name;
+ const toolRoute = typeof name === 'string' && Object.hasOwn(toolRoutes, name) ? toolRoutes[name] : undefined;
  if (!toolRoute) return { jsonrpc: '2.0', id: input.id, error: { code: -32602, message: 'Unknown tool' } };
  try { const value = await machineTool(toolRoute, input.params.arguments, scoped); return reply({ content: [{ type: 'text', text: JSON.stringify(value) }], structuredContent: value, isError: false }); }
  catch (error) { return reply({ content: [{ type: 'text', text: error?.code ?? 'request_refused' }], isError: true }); }

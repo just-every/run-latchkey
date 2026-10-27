@@ -251,6 +251,8 @@ try {
  assert.ok(!JSON.stringify(offboarded).includes('synthetic-latchkey-2302'));
  console.log('Manual offboarding HTTP journey: independent permission, authoritative-directory refusal, connected suspension, custodian-owned exposure, explicit missing-custody blocker, family preservation, replay and deletion and reactivation fences passed');
 
+ await (await import('./latchkey-custody.mjs')).runCustodyJourney();
+
  await rejected(member.put(vault, values[0]), 'permission_denied')
  await rejected(member.exportVault(vault, archiveKey), 'permission_denied')
  const beforeRotation = await member.snapshot(vault)
@@ -365,7 +367,7 @@ try {
  const { runSharingJourneys } = await import('./latchkey-sharing.mjs')
  const sharingPrivateValues = await runSharingJourneys({ owner, member, db: productDb, mail, fetcher: fetchProduct })
  const { runGeneratorPolicyJourneys } = await import('./latchkey-generator-policy.mjs')
- const policyPrivateValues = await runGeneratorPolicyJourneys({ owner, member, db: productDb })
+ const policyPrivateValues = await runGeneratorPolicyJourneys({ owner, member, db: productDb, ownerPassword: 'synthetic-latchkey-21' })
  // The shipped command is also exercised in a separate Node process over
  // HTTPS; no secret is passed in argv or inherited environment.
  const cliDirectory = await mkdtemp(join(tmpdir(), 'latchkey-client-'))
@@ -444,6 +446,15 @@ try {
  const { createPortability } = await import('../node_modules/@runeditrun/rer/modules/portability/index.mjs')
  const records = await createPortability({ db: productDb, policy: archivePolicy })
  const { runItemErasureJourneys, refuseErasedArchive } = await import('./latchkey-erasure.mjs')
+ // Start this independent journey in a fresh authentication rate window.
+ // Prior password, recovery and enrollment probes deliberately share this
+ // account and can exhaust its budget before the connected-erasure unlock.
+ // Expire only its login buckets; retain counts, every other limiter and the
+ // real password exchange and all erasure assertions below.
+ await productDb.prepare('UPDATE lky_limits SET window=-1 WHERE key IN (?,?)').bind(
+  await digest(new URL(productOrigin).hostname + ':start:' + owner.profile.account),
+  await digest(new URL(productOrigin).hostname + ':finish:' + owner.profile.account),
+ ).run()
  const erasureProof = await runItemErasureJourneys({ owner, member, db: productDb, records, mail, ownerPassword: 'synthetic-latchkey-21', fetcher: fetchProduct })
  const { runSubjectErasureJourneys } = await import('./latchkey-subject-erasure.mjs');
  const subjectProof = await runSubjectErasureJourneys({ owner, db: productDb, records, mail, post, fetcher: fetchProduct, erasureSecret: bindings.LATCHKEY_ERASURE_SECRET });
@@ -456,6 +467,10 @@ try {
  await member.put(personalVault, { ownership: 'personal', title: 'synthetic-latchkey-1402', secret: 'synthetic-latchkey-1404', attachment: personalAttachment }, personalItem.object);
  await rejected(owner.readVault(personalVault), 'not_found');
  const personalVersions = (await member.readVault(personalVault)).versions;
+ const {ReportsClient}=await import('../src/latchkey/reports/client.mjs');
+ const reportVault=(await owner.createVault({kind:'company'})).vault;await new ReportsClient(owner).capture(reportVault,{confirmed:true});
+ const {prepareHealthHistoryRestore}=await import('./latchkey-restore.mjs');
+ const healthRestore=await prepareHealthHistoryRestore(owner,member);
  const backupId = await records.exports.create('synthetic-latchkey-29')
  let backupStatus = await records.exports.status(backupId)
  for (let count = 0; backupStatus.phase !== 'complete' && count < 20; count++) backupStatus = await records.exports.advance(backupId, { maxParts: 100 })
@@ -502,8 +517,11 @@ try {
    try { expectedVersions[row.id] = (await owner.readVault(row.id)).versions; }
    catch(error) { const seen = owner.profile.seen[row.id]; throw new Error(`Source checkpoint epoch/revision ${row.epoch}/${row.revision} follows ${seen?.epoch}/${seen?.revision}`, { cause: error }); }
   }
+  const restoredHealth=(await restoreDb.prepare('SELECT * FROM lky_health_suppressions WHERE vault_id=? ORDER BY actor,sequence').bind(healthRestore.vault).all()).results;
+  assert.equal(restoredHealth.length,4);assert.ok(restoredHealth.every(row=>row.active===0));
+  assert.deepEqual(restoredHealth.map(row=>JSON.parse(row.wrapped)),healthRestore.rows.toSorted((a,b)=>a.actor.localeCompare(b.actor)||a.sequence-b.sequence).map(row=>row.wrapped));
   const { exerciseRecordsRestore } = await import('./latchkey-restore.mjs')
-  const transferred = await exerciseRecordsRestore({ archive: backup, sourceClient: owner, destinationClient: recipient, expectedVersions });
+  const transferred = await exerciseRecordsRestore({ archive: backup, sourceClient: owner, destinationClient: recipient, expectedVersions, healthRestore });
   assert.ok(!transferred.vaults.some(row => row.vault === personalVault));
   assert.ok(transferred.unapprovedVaults.includes(personalVault));
   await rejected(recipient.readVault(personalVault), 'permission_denied');

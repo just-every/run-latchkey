@@ -6,7 +6,7 @@ import { check } from '../../src/latchkey/items/fields.mjs';
 // The parent CLI owns unlock, safe file reads/writes and redacted errors. Values
 // are only written to its explicitly selected private files, never returned as
 // stdout command results. All input comes through the parent's bounded stdin.
-export const itemCommands = Object.freeze(['item-save', 'item-history', 'item-restore-preview', 'item-restore', 'item-field', 'item-search', 'item-attachment', 'template-save', 'template-get', 'template-import-keeper', 'generator-policy', 'generate', 'generator-history', 'generator-clear', 'totp', 'totp-import']);
+export const itemCommands = Object.freeze(['item-save', 'item-history', 'item-restore-preview', 'item-restore', 'item-field', 'item-search', 'item-attachment', 'template-save', 'template-get', 'template-import-keeper', 'generator-policy', 'generator-policy-preview', 'generator-policy-apply', 'generate', 'generator-history', 'generator-clear', 'totp', 'totp-import']);
 export async function runItemCommand(command, input, { client, readPrivate, writePrivate }) {
  check(itemCommands.includes(command), 'unknown_item_command');
  const items = new TypedItems(client), output = async value => { check(input.output, 'private_output_required'); await writePrivate(input.output, value); return { written: true }; };
@@ -30,6 +30,8 @@ export async function runItemCommand(command, input, { client, readPrivate, writ
   case 'template-save': return items.saveTemplate(input.vault, input.value, input.object);
   case 'template-get': return output(await items.template(input.vault, input.object, input.version));
   case 'template-import-keeper': return items.saveTemplate(input.vault, importKeeperTemplate(input.value), input.object);
+  case 'generator-policy-preview': return client.call('generator/policy/preview', { group: input.group ?? null, policy: input.policy, reason: input.reason });
+  case 'generator-policy-apply': return client.call('generator/policy/set', { group: input.group ?? null, policy: input.policy, reason: input.reason, confirmed: input.confirmed, review: input.review });
   case 'generator-policy': return { ...generator, history: { days: generator.policy.historyDays, encrypted: true, localOnly: true } };
   case 'totp': { const value = await items.field(input.vault, input.object, input.field ?? 'totp', input.action ?? 'copy'); return output(await totp(value)); }
   case 'totp-import': {

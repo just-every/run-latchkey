@@ -104,3 +104,5 @@ this fail-closed fence does not prove a directory adapter or its authority. Dele
 offboarded member cannot reactivate until a future reviewed fresh-authority path
 exists. Scheduling, DST handling, device delays, email changes and complete
 cryptographic hand-back remain unimplemented.
+
+Generator changes require review before application. Send `group`, `policy` and `reason` to `POST /policies/generator/preview` (or `ApiClient.previewGeneratorPolicy`, CLI command `policies.generator-preview`). Review the affected members, device inventory, effective constraints, sources and conflicts. Apply the reviewed `group`, `policy` and `reason` with `confirmed: true` and `review: <preview hash>` to `PUT /policies/generator` (`ApiClient.setGeneratorPolicy`, CLI command `policies.generator`). Missing confirmation returns `policy_confirmation_required` (400); missing review returns `policy_review_required` (400). A changed review returns `policy_review_changed` (409), requiring a fresh preview and confirmation. Preview does not write policy or imply device convergence.
