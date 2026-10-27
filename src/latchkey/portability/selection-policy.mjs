@@ -19,7 +19,7 @@ export async function selectionPolicyAuthenticated(route,input,ctx){
   need(input.approvals.every(row=>row.statement.expiresAt>commitNow),'export_approval_changed',409);
   const freshContext={...ctx,fenceArgs:ctx.fenceArgs.map(value=>value===ctx.now?commitNow:value)};
   await transact(freshContext,input.approvals[0].vault,[event('selection_release_authorized',planHash)],guards);
-  return {released:true,planHash,format,coverage:'Client-prepared file released; delivery is not verified.'};
+  return {released:true,planHash,format,coverage:'Release authority checked; file production is unverified and delivery is not verified.'};
  }
  if(![selectionRoutes.policy,selectionRoutes.setPolicy,selectionRoutes.authorize].includes(route))return null;
  const setting=route===selectionRoutes.setPolicy,authorizing=route===selectionRoutes.authorize;

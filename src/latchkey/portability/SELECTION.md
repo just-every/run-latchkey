@@ -52,7 +52,7 @@ A source change or policy revocation at that boundary refuses release. Audit
 separates attempted, refused and successful approval and release checks, recording
 opaque scope and plan references, counts, format, timestamps, expiry and refusal
 codes. It omits review text, content, filenames, signatures and keys. A successful
-release check describes a client-prepared file, not confirmed disk delivery. Turning the policy off or changing any selected data invalidates
+release check does not establish file production or disk delivery. Turning the policy off or changing any selected data invalidates
 an old plan. Plaintext output is the same signed JSON document, visibly unencrypted;
 opening or importing that file needs no export key. Policy consent does not travel
 in an installation archive and subject erasure deletes the policy.
