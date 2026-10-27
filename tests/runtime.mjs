@@ -367,7 +367,7 @@ try {
  const { runSharingJourneys } = await import('./latchkey-sharing.mjs')
  const sharingPrivateValues = await runSharingJourneys({ owner, member, db: productDb, mail, fetcher: fetchProduct })
  const { runGeneratorPolicyJourneys } = await import('./latchkey-generator-policy.mjs')
- const policyPrivateValues = await runGeneratorPolicyJourneys({ owner, member, db: productDb })
+ const policyPrivateValues = await runGeneratorPolicyJourneys({ owner, member, db: productDb, ownerPassword: 'synthetic-latchkey-21' })
  // The shipped command is also exercised in a separate Node process over
  // HTTPS; no secret is passed in argv or inherited environment.
  const cliDirectory = await mkdtemp(join(tmpdir(), 'latchkey-client-'))

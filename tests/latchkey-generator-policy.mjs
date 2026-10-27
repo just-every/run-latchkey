@@ -2,19 +2,25 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { VaultClient } from '../src/latchkey/client.mjs';
+import { id } from '../src/latchkey/crypto/envelope.mjs';
 import { SharingClient } from '../src/latchkey/sharing/client.mjs';
 import { runItemCommand } from '../scripts/latchkey/items-commands.mjs';
 import { GeneratorHistory, generatorHistoryKey } from '../src/latchkey/generator/index.mjs';
 
 // Called from the real Worker journey after both account clients are unlocked.
-export async function runGeneratorPolicyJourneys({ owner, member, db }) {
+export async function runGeneratorPolicyJourneys({ owner, member, db, ownerPassword }) {
  const directory = await mkdtemp(join(tmpdir(), 'synthetic-latchkey-1300-')), privateValues = [];
  const sharing = new SharingClient(owner), groups = [];
  const readPrivate = async path => JSON.parse(await readFile(path, 'utf8'));
  const writePrivate = async (path, value, replace = false) => writeFile(path, JSON.stringify(value), { mode: 0o600, flag: replace ? 'w' : 'wx' });
  const context = { client: member, readPrivate, writePrivate };
  const call = (client = member) => client.call('generator/policy', {});
- const set = (policy, group = null, reason = 'synthetic-latchkey-1301') => owner.call('generator/policy/set', { group, policy, reason });
+ const preview = (policy, group = null, reason = 'synthetic-latchkey-1301', client = owner) => client.call('generator/policy/preview', { group, policy, reason });
+ const apply = (plan, extra = {}, client = owner) => client.call('generator/policy/set', { group: plan.group, policy: plan.policy, reason: plan.reason, confirmed: true, review: plan.hash, ...extra });
+ const set = async (policy, group = null, reason = 'synthetic-latchkey-1301') => apply(await preview(policy, group, reason));
+ const policyRows = async () => (await db.prepare('SELECT * FROM lky_generator_policies WHERE tenant=? ORDER BY scope').bind(owner.profile.tenant).all()).results;
+ const auditRows = async () => (await db.prepare('SELECT * FROM lky_generator_policy_changes WHERE tenant=? ORDER BY id').bind(owner.profile.tenant).all()).results;
  const reject = (operation, code) => assert.rejects(operation, error => error.code === code);
  const history = join(directory, 'history.json'), output = join(directory, 'generated.json');
  let key, reopened;
@@ -22,7 +28,25 @@ export async function runGeneratorPolicyJourneys({ owner, member, db }) {
   assert.equal((await call(owner)).canManage, true); assert.equal((await call()).canManage, false);
   await reject(member.call('generator/policy/set', { group: null, policy: { historyDays: 0 }, reason: 'synthetic-latchkey-1302' }), 'owner_required');
   const company = { minLength: 28, maxLength: 100, minEntropyBits: 100, historyDays: 20 };
-  await set(company);
+  const policiesBefore = await policyRows(), changesBefore = await auditRows();
+  const plan = await preview(company);
+  assert.ok(plan.canApply); assert.equal(plan.conflicts.length, 0);
+  assert.ok(plan.members.some(row => row.account === owner.profile.account));
+  const memberPlan = plan.members.find(row => row.account === member.profile.account); assert.ok(memberPlan);
+  assert.equal(memberPlan.before.policy.minLength, 16); assert.equal(memberPlan.after.policy.minLength, 28);
+  assert.deepEqual(memberPlan.after.sources.map(row => row.scope), ['baseline', 'company']);
+  assert.ok(memberPlan.devices.some(row => row.id === member.profile.device));
+  assert.ok(memberPlan.devices.every(row => row.reachability === 'unknown' && row.convergence === 'unverified'));
+  assert.deepEqual(await policyRows(), policiesBefore); assert.deepEqual(await auditRows(), changesBefore);
+  await reject(apply(plan, { confirmed: false }), 'policy_confirmation_required');
+  await reject(apply(plan, { policy: { ...plan.policy, minLength: 29 } }), 'policy_review_changed');
+  await reject(apply(plan, { reason: 'synthetic-latchkey-1310' }), 'policy_review_changed');
+  await reject(preview(company, null, 'synthetic-latchkey-1311', member), 'owner_required');
+  await reject(apply(plan, {}, member), 'owner_required');
+  await apply(plan);
+  assert.equal((await auditRows()).length, changesBefore.length + 1);
+  assert.deepEqual((await policyRows()).find(row => row.scope === 'company').policy, JSON.stringify(plan.policy));
+  await reject(apply(plan), 'policy_review_changed');
   const effective = await call();
   assert.ok(effective.policy.minLength >= company.minLength && effective.policy.maxLength <= company.maxLength && effective.policy.historyDays <= company.historyDays);
   await reject(runItemCommand('generate', { history, output, policy: { minLength: 1, historyDays: 30 }, acknowledgedRetentionDays: effective.policy.historyDays, options: { length: company.minLength - 1 } }, context), 'password_length_policy');
@@ -41,8 +65,33 @@ export async function runGeneratorPolicyJourneys({ owner, member, db }) {
 
   await set({ ...company, historyDays: 10 });
   const a = (await sharing.createGroup([member.profile.account])).group, b = (await sharing.createGroup([member.profile.account])).group; groups.push(a, b);
+  const staleMembership = await preview(company, a);
+  await sharing.setGroup(a, []); await sharing.setGroup(a, [member.profile.account]);
+  const membershipPolicies = await policyRows(), membershipAudit = await auditRows();
+  await reject(apply(staleMembership), 'policy_review_changed');
+  assert.deepEqual(await policyRows(), membershipPolicies); assert.deepEqual(await auditRows(), membershipAudit);
+  const groupPreview = await preview(company, a);
+  assert.deepEqual(groupPreview.members.map(row => row.account), [member.profile.account]);
+  const stalePolicy = groupPreview;
+  await set({ ...company, historyDays: 9 });
+  await reject(apply(stalePolicy), 'policy_review_changed');
+  const pendingClient = new VaultClient(owner.origin, { cookie: owner.cookie, fetcher: owner.fetcher });
+  const pending = await pendingClient.beginEnrollment(owner.profile, ownerPassword);
+  await owner.approveEnrollment(pending.device, pending.fingerprint);
+  const staleDevices = await preview(company, a);
+  const enrolled = await pendingClient.completeEnrollment(pending.profile, ownerPassword);
+  await reject(apply(staleDevices), 'policy_review_changed');
+  const revokePlan = await preview(company, a);
+  await owner.call('device' + '/revoke', { device: enrolled.profile?.device ?? enrolled.device });
+  await reject(apply(revokePlan), 'policy_review_changed');
+  pendingClient.lock();
+  const foreign = id();
+  await db.prepare('UPDATE lky_share_groups SET tenant=? WHERE id=?').bind(foreign, b).run();
+  try { await reject(preview(company, b), 'not_found'); } finally { await db.prepare('UPDATE lky_share_groups SET tenant=? WHERE id=?').bind(owner.profile.tenant, b).run(); }
   const first = { minLength: 40, maxLength: 80, historyDays: 5 }, second = { minLength: 48, maxLength: 64, historyDays: 2 };
-  await set(first, a, 'synthetic-latchkey-1304'); await set(second, b, 'synthetic-latchkey-1305');
+  const cliPlan = await runItemCommand('generator-policy-preview', { group: a, policy: first, reason: 'synthetic-latchkey-1304' }, { ...context, client: owner });
+  await reject(runItemCommand('generator-policy-apply', { ...cliPlan, review: cliPlan.hash, confirmed: false }, { ...context, client: owner }), 'policy_confirmation_required');
+  await runItemCommand('generator-policy-apply', { ...cliPlan, review: cliPlan.hash, confirmed: true }, { ...context, client: owner }); await set(second, b, 'synthetic-latchkey-1305');
   const joined = await call();
   assert.ok(joined.policy.minLength >= second.minLength && joined.policy.maxLength <= second.maxLength && joined.policy.historyDays <= second.historyDays);
   assert.ok(joined.sources.some(source => source.group === a) && joined.sources.some(source => source.group === b));
@@ -62,7 +111,10 @@ export async function runGeneratorPolicyJourneys({ owner, member, db }) {
   const before = (await db.prepare('SELECT * FROM lky_generator_policies WHERE tenant=? ORDER BY scope').bind(owner.profile.tenant).all()).results;
   const auditBefore = (await db.prepare('SELECT * FROM lky_generator_policy_changes WHERE tenant=? ORDER BY id').bind(owner.profile.tenant).all()).results;
   await reject(set({ minLength: second.minLength, maxLength: second.minLength - 1 }, b), 'conflicting_generator_policy');
-  await reject(set({ ...company, minLength: first.maxLength + 1 }), 'conflicting_generator_policy');
+  const conflict = await preview({ ...company, minLength: first.maxLength + 1 });
+  assert.equal(conflict.canApply, false);
+  assert.ok(conflict.conflicts.some(row => row.reason.includes('81') && row.reason.includes('64') && row.sources.some(source => source.group === b)));
+  await reject(apply(conflict), 'conflicting_generator_policy');
   assert.deepEqual((await db.prepare('SELECT * FROM lky_generator_policies WHERE tenant=? ORDER BY scope').bind(owner.profile.tenant).all()).results, before);
   assert.deepEqual((await db.prepare('SELECT * FROM lky_generator_policy_changes WHERE tenant=? ORDER BY id').bind(owner.profile.tenant).all()).results, auditBefore);
   assert.ok(auditBefore.some(change => change.reason === 'synthetic-latchkey-1305' && change.actor === owner.profile.account && change.group_id === b));
@@ -76,7 +128,7 @@ export async function runGeneratorPolicyJourneys({ owner, member, db }) {
   await runItemCommand('generator-clear', { history: secondHistory, entry: 'synthetic-latchkey-1306', policy: { historyDays: 30 } }, context);
   reopened = new GeneratorHistory({ storage: { read: () => readPrivate(secondHistory), write: value => writePrivate(secondHistory, value, true) }, key, tenant: member.profile.tenant, account: member.profile.account });
   assert.equal((await reopened.list()).length, 0);
-  console.log('Generator policy: live company and group intersections, membership changes, owner-only audited changes, contradiction refusal, stricter-only CLI and encrypted history purge passed');
+  console.log('Generator policy: read-only reviewed impact, exact confirmation, stale policy, membership and device refusal; live company and group intersections, membership changes, owner-only audited changes, contradiction refusal, stricter-only CLI and encrypted history purge passed');
   return privateValues;
  } finally {
   reopened?.lock(); key?.fill(0);
