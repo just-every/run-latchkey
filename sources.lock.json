@@ -3722,7 +3722,7 @@
       "executable": false
     },
     "tests/latchkey-records.test.mjs": {
-      "sha256": "08756d60284e9933b40de2cf6b44b648ffd3e3e254f096f069cb9f81878ef1a2",
+      "sha256": "379fb4349b28980f0df597464c34596764c34bdbbe5f3e7c80f0bedae1638947",
       "executable": false
     },
     "tests/latchkey-recovery.mjs": {
