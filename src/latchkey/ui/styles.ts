@@ -32,8 +32,9 @@ body:has(.lk){padding:0;background:var(--rer-page,#fff)}
 .lk .lockup{display:inline-flex;align-items:center;gap:.6em;flex:none;min-height:24px;color:var(--ink);text-decoration:none;font:900 21px/1 var(--heading);letter-spacing:-.025em}.lk .lockup-mark{display:block;height:1.1em;width:auto}
 .lk .search{display:flex;align-items:center;gap:10px;flex:0 1000 360px;min-width:150px;height:40px;padding:0 10px 0 12px;border:1px solid var(--control);border-radius:var(--corner);font-weight:400;color:var(--muted)}.lk .search:focus-within{border-color:var(--ink);box-shadow:0 0 0 3px var(--ring)}
 .lk .search input,.lk .search input:focus-visible{border:0;outline:0;box-shadow:none;background:transparent;min-width:0;flex:1;padding:0;min-height:36px;color:var(--ink)}.lk kbd{font:13px/1 var(--rer-font-body,system-ui);color:var(--muted);border:1px solid var(--rule);border-radius:var(--corner);padding:3px 6px;white-space:nowrap}
-/* The search gives way first (its shrink factor dwarfs the tabs'); only a bar too full for both (a
-   demo's Run link just above 1300 px) lets the tab strip scroll, with its faded edges. */
+/* The search gives way first (its shrink factor dwarfs the tabs'); only a stacked bar's own tab row
+   (phones) is ever too narrow for every tab, and then it scrolls with faded edges. The search stays on
+   every destination, so the bar and its tabs are the same wherever you are. */
 .lk .tabs{display:flex;align-self:stretch;gap:24px;margin:0 auto;flex:0 1 auto;min-width:0;overflow-x:auto;scrollbar-width:none}.lk .tabs::-webkit-scrollbar{display:none}.lk .topbar:has(>[data-rer-demo-exit]) .search kbd{display:none}
 .lk .tabs button{align-self:stretch;flex:none;flex-direction:column;gap:0;min-height:64px;padding:0 2px;border:0;border-bottom:3px solid transparent;border-top:3px solid transparent;border-radius:0;background:none;font-weight:400;color:var(--ink)}
 /* An invisible bold copy of each label holds the tab at its active width, so the bar never shifts. */
@@ -126,21 +127,24 @@ body:has(.lk){padding:0;background:var(--rer-page,#fff)}
 .lk .lk-unlock{max-width:460px;margin:40px auto 0}.lk .lk-unlock h1{font-size:34px}.lk .lk-unlock .muted{font-size:15px;margin-bottom:24px}
 .lk .lk-unlock form{display:grid;gap:16px}.lk .lk-unlock form label+label{margin-top:0}.lk .lk-unlock form .primary{min-height:46px;font-size:16px;margin-top:6px}.lk .lk-unlock form .link{justify-self:start}.lk .lk-unlock .actions{margin:16px 0}
 
-/* The one-row top bar needs about 1250 px with its full gaps and 1180 px with the compact ones (a
-   demo's Run link adds about 100 px); below 1300 px it stacks (lockup and actions, the search, then
-   the tabs as their own scrolling row). */
-/* A demo's Run link needs about 100 px more in the one-row bar; tighter gaps keep every tab in view from 1366 px. */
-@media(min-width:1301px){.lk .topbar:has(>[data-rer-demo-exit]){gap:14px}.lk .topbar:has(>[data-rer-demo-exit]) .tabs{gap:16px}}
+/* The one-row top bar needs about 1250 px with its full gaps and 1180 px with the compact ones; below
+   1300 px it stacks (lockup and actions, the search, then the tabs as their own scrolling row). A
+   demo's Run link needs about 100 px more, so a demo's bar keeps tighter gaps and stacks below 1400 px:
+   the tabs never scroll in a one-row bar, so they sit still on every destination. */
+@media(min-width:1400px){.lk .topbar:has(>[data-rer-demo-exit]){gap:14px}.lk .topbar:has(>[data-rer-demo-exit]) .tabs{gap:16px}}
 @media(max-width:1359px){.lk .topbar{gap:20px;padding:0 24px}.lk .tabs{gap:18px}.lk .search{flex-basis:240px}}
 @media(max-width:1300px){.lk .topbar{flex-wrap:wrap;row-gap:0;padding:10px 20px 0}.lk .lockup{order:1;margin-right:auto}.lk .lockup:has(+[data-rer-demo-exit]){margin-right:0}.lk .topbar>[data-rer-demo-exit]{order:1;margin-right:auto}.lk .menu{order:2}.lk .lock{order:3}.lk .locked{order:2}.lk .docs{order:3}.lk .search{order:4;flex:1 1 100%;margin:12px 0 4px}
  .lk .tabs{order:5;flex:1 1 100%;margin:0 -20px;padding:0 20px}.lk .tabs button{min-height:48px}}
+@media(min-width:1301px) and (max-width:1399px){.lk .topbar:has(>[data-rer-demo-exit]){flex-wrap:wrap;row-gap:0;padding:10px 20px 0}.lk .topbar:has(>[data-rer-demo-exit])>:is(.lockup,[data-rer-demo-exit]){order:1}.lk .topbar>[data-rer-demo-exit]{margin-right:auto}
+ .lk .topbar:has(>[data-rer-demo-exit])>:is(.menu,.locked){order:2}.lk .topbar:has(>[data-rer-demo-exit])>:is(.lock,.docs){order:3}.lk .topbar:has(>[data-rer-demo-exit])>.search{order:4;flex:1 1 100%;margin:12px 0 4px}
+ .lk .topbar:has(>[data-rer-demo-exit])>.tabs{order:5;flex:1 1 100%;margin:0 -20px;padding:0 20px}.lk .topbar:has(>[data-rer-demo-exit])>.tabs button{min-height:48px}}
 @media(max-width:980px){.lk .page{padding:28px 20px 56px}
  .lk .items-head,.lk .item{grid-template-columns:minmax(0,1.5fr) minmax(0,1.3fr) minmax(0,.6fr) 16px;gap:4px 14px}.lk .items-head span:nth-child(3){display:none}.lk .detail-grid{grid-template-columns:1fr}
  .lk .item .name{grid-area:1/1}.lk .item .user{grid-area:1/2}.lk .item .changed{grid-area:1/3}.lk .item .chevron{grid-area:1/4}.lk .item .state{grid-area:2/1/3/3;margin-left:46px}.lk .item .state.none{display:none}}
 /* Phones: the lockup (and a demo's Run link) alone on the first row, then the search with Settings
    and Lock vault beside it, then the tabs. */
 @media(max-width:720px){.lk .url-rule{grid-template-columns:minmax(0,1fr)}.lk .url-rule>button{justify-self:start}}
-@media(max-width:640px){.lk{font-size:15px}.lk .topbar{padding:8px 16px 0;gap:10px}.lk .topbar:has(.menu)::after{content:'';order:2;flex:1 1 100%;height:0}.lk .search{order:3;flex:1 1 0;margin:10px 0 4px}.lk .menu{order:4;margin:10px 0 4px auto}.lk .lock{order:4;margin:10px 0 4px}.lk .search{gap:8px;padding:0 8px 0 10px}.lk .search kbd{display:none}.lk .lockup{font-size:19px}.lk .menu>summary,.lk .lock{min-height:36px;padding:0 10px;font-size:14px}.lk .tabs{margin:0 -16px;padding:0 16px;gap:18px}.lk .page{padding:22px 16px 48px}
+@media(max-width:640px){.lk{font-size:15px}.lk .topbar{padding:8px 16px 0;gap:10px}.lk .topbar:has(.menu)::after{content:'';order:2;flex:1 1 100%;height:0}.lk .search{order:3;flex:1 1 0;margin:10px 0 4px}.lk .menu{order:4;margin:10px 0 4px auto}.lk .lock{order:4;margin:10px 0 4px}.lk .search{gap:8px;padding:0 8px 0 10px}.lk .search kbd{display:none}.lk .lockup{font-size:19px}.lk .menu>summary,.lk .lock{min-height:36px;padding:0 10px;font-size:14px}.lk .tabs{margin:0 -16px;padding:0 16px;gap:16px}.lk .page{padding:22px 16px 48px}
  .lk .page-head{grid-template-columns:1fr;row-gap:18px;padding-bottom:20px;margin-bottom:16px}.lk .crumbs{margin:0 0 -8px}.lk .page-head h1{font-size:32px}.lk .subline{font-size:15px}.lk .head-side{justify-items:stretch}.lk .head-actions{flex-direction:column-reverse}.lk .head-actions button{width:100%}
  .lk .items-head{display:none}.lk .item{grid-template-columns:minmax(0,1fr) auto 14px;gap:2px 12px;padding:10px 14px;min-height:62px}.lk .item .user,.lk .item .state.none{display:none}.lk .name{gap:12px}.lk .item-title{display:block}
  .lk .item .name{grid-area:1/1}.lk .item .changed{grid-area:1/2}.lk .item .chevron{grid-area:1/3}.lk .item .state{grid-area:2/1/3/-1;margin-left:44px}
