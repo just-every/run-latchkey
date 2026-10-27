@@ -74,19 +74,23 @@ for(const width of [1440,390]){
   }
   }
   await healthJourney();
+  async function memberSuppressionJourney(){
   // Read-only members own their suppression history without acquiring item edit authority.
-  const member=await enroll(f,2640),memberHealth=new HealthClient(member),ownerHealth=new HealthClient(owner);
+  let memberNow=Date.now();const member=await enroll(f,2640),memberHealth=new HealthClient(member,{now:()=>memberNow}),ownerHealth=new HealthClient(owner);
   await member.pinAccount(owner.profile.account,await owner.identity().fingerprint);
   await owner.share(vault,member.profile.account,await member.identity().fingerprint,['read']);
   const memberItem=await typed.save(vault,createItem('login',{title:'Synthetic member review',values:{password:'aaaa'}}));
   const memberReport=await memberHealth.inspect(vault),memberFinding=memberReport.findings.find(r=>r.object===memberItem.object&&r.code==='weak-password');assert.ok(memberFinding);
-  await memberHealth.suppress(vault,memberFinding,{reason:'Synthetic member investigation'});
+  await memberHealth.suppress(vault,memberFinding,{reason:'Synthetic member investigation',until:memberNow+60000});
   const suppressed=await memberHealth.inspect(vault);assert.equal(suppressed.riskCount,memberReport.riskCount);assert.equal(suppressed.findings.find(r=>r.object===memberItem.object&&r.code==='weak-password').suppression.reason,'Synthetic member investigation');
   assert.equal((await ownerHealth.inspect(vault)).findings.find(r=>r.object===memberItem.object&&r.code==='weak-password').suppression,null);
+  memberNow+=60001;assert.equal((await memberHealth.inspect(vault)).findings.find(r=>r.object===memberItem.object&&r.code==='weak-password').suppression,null);memberNow=Date.now();
   assert.ok(!(await memberHealth.history(vault)).some(r=>r.reason==='Synthetic investigation'));
   await assert.rejects(member.put(vault,createItem('login',{title:'Forbidden member write'}),memberItem.object,1),e=>e.status===403);
   const ownRows=await member.call(['health','history'].join('/'),{vault});assert.equal(ownRows.rows.length,1);
   assert.ok(!JSON.stringify(ownRows).includes('Synthetic member investigation'));assert.ok(!JSON.stringify(ownRows).includes('observedAt'));
+  if(width===1440){const row=ownRows.rows[0],tampered=structuredClone(row.wrapped);tampered.envelope.ciphertext=(tampered.envelope.ciphertext[0]==='A'?'B':'A')+tampered.envelope.ciphertext.slice(1);await f.db.prepare('UPDATE lky_health_suppressions SET wrapped=? WHERE id=?').bind(JSON.stringify(tampered),row.id).run();await assert.rejects(memberHealth.history(vault),/invalid_key_signature/);await f.db.prepare('UPDATE lky_health_suppressions SET wrapped=? WHERE id=?').bind(JSON.stringify(row.wrapped),row.id).run();}
+
   await assert.rejects(member.call(['health','history'].join('/'),{vault,actor:owner.profile.account}),e=>e.status===400);
   const memberContext=await f.browser.newContext({ignoreHTTPSErrors:true,viewport:{width,height:1000}});
   const [cookieName,cookieValue]=member.cookie.split('=');await memberContext.addCookies([{name:cookieName,value:cookieValue,url:f.origin,secure:true}]);
@@ -102,12 +106,19 @@ for(const width of [1440,390]){
    await typed.save(vault,createItem('login',{title:'Synthetic member review revised',values:{password:'aaaa'}}),memberItem.object);
    assert.equal((await memberHealth.inspect(vault)).findings.find(r=>r.object===memberItem.object&&r.code==='weak-password').suppression,null);await assert.rejects(memberHealth.suppress(vault,memberFinding,{reason:'Stale member finding'}),/finding_changed/);
    const current=(await memberHealth.inspect(vault)).findings.find(r=>r.object===memberItem.object&&r.code==='weak-password');
+   await assert.rejects(new HealthClient(member,{now:()=>1}).suppress(vault,current,{reason:'Server expired snooze',until:Date.now()-1}),e=>e.code==='invalid_suppression');
+   const stale=Object.create(member);stale.call=(route,input)=>member.call(route,route===['health','suppress'].join('/')?{...input,revision:input.revision-1}:input);await assert.rejects(new HealthClient(stale).suppress(vault,current,{reason:'Stale source revision'}),e=>e.code==='health_source_changed');
+
    await assert.rejects(memberHealth.suppress(vault,current,{reason:'Expired member snooze',until:Date.now()-1}),/invalid_suppression/);
    const foreign=(await owner.createVault()).vault;await assert.rejects(memberHealth.history(foreign),e=>e.status===404);
-   await owner.rotate(vault,member.profile.account);await assert.rejects(memberHealth.history(vault),e=>e.status>=400);await assert.rejects(memberHealth.suppress(vault,current,{reason:'Revoked member'}),e=>e.status>=400);
+   const raced=Object.create(member);raced.call=async(route,input)=>{if(route===['health','suppress'].join('/'))await owner.rotate(vault,member.profile.account);return member.call(route,input)};await assert.rejects(new HealthClient(raced).suppress(vault,current,{reason:'Revocation during submission'}),e=>e.status>=400);
+   await assert.rejects(memberHealth.history(vault),e=>e.status>=400);await assert.rejects(memberHealth.suppress(vault,current,{reason:'Revoked member'}),e=>e.status>=400);
    const rows=await f.db.prepare('SELECT wrapped FROM lky_health_suppressions').all();assert.ok(!JSON.stringify(rows).includes('Synthetic member'));assert.equal((await ownerHealth.inspect(vault)).findings.find(r=>r.object===memberItem.object&&r.code==='weak-password').suppression,null);
+   const erasedMember=await owner.eraseItem(vault,memberItem.object,{confirmed:true});assert.equal(erasedMember.deleted.lky_health_suppressions,2);assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM lky_health_suppressions WHERE object_id=?').bind(memberItem.object).first()).n,0);
   }
 
+  }
+  await memberSuppressionJourney();
   console.log(`Security journeys ${width}: encrypted provider plan, padded HIBP, local risks, suppression, expiry, fresh version and outage passed.`);
  }finally{await f.close();}
 }

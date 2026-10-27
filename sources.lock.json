@@ -514,11 +514,11 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "f5682272d083951027d3e4295f51c0087950bb9c6993665087d3ba26f78c4bcc",
+      "sha256": "c9d6721409ecf294fe1cc142754e4737ad2f160b184a4b6d2dba2f1120cc6cab",
       "executable": false
     },
     "AGENTS.md": {
-      "sha256": "40f7f4d086ab68248010d324ec0093ee7d996152ca12082f279b0c0838e69c88",
+      "sha256": "6f58325aad1349c0c545d94cb476d7214a4173bba523251bc9c4c00339a384de",
       "executable": false
     },
     "base-copies.json": {
@@ -554,7 +554,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "0fc1a0bc5083654da2c8dd2064ae4a02d131fcfb1f1a041a95b0745539dd60a5",
+      "sha256": "58a7b509b8ea213270144416278e88a1a33fb037776e3d5a330304086ea88de6",
       "executable": false
     },
     "deploy-demo.json": {
@@ -575,6 +575,10 @@
     },
     "docs/backup-and-restore.md": {
       "sha256": "b7f06cd060692f1f8acbcd7bc666750aa7177a63783ea96e84b6e672ad64bb13",
+      "executable": false
+    },
+    "docs/CLAIMS.md": {
+      "sha256": "a365eed0617f75507e38d4176809dbefb83139c3619c9506762d39592ed47446",
       "executable": false
     },
     "docs/company-custody.md": {
@@ -611,6 +615,10 @@
     },
     "docs/msp.md": {
       "sha256": "a3b6338b6749b48b243c931f8cd7010548e3eb7bf191f76a2b0ffcb5bb0f31e8",
+      "executable": false
+    },
+    "docs/password-health.md": {
+      "sha256": "a743352240030f8791c1198874e5e6247d0aa0529dd7926bf1bd6a31953da895",
       "executable": false
     },
     "docs/reports.md": {
@@ -827,6 +835,10 @@
     },
     "migrations/core/0043_latchkey_rule_reviews.sql": {
       "sha256": "dce6a7fcfce992d450304220cdcc6bdc238a3a2273bb9b11000d9b0575c4173d",
+      "executable": false
+    },
+    "migrations/core/0044_latchkey_health_suppressions.sql": {
+      "sha256": "e26f6f28827e43a66750a23524ae1756bf607ffdc542108d6dc10248a2bb4be6",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -1047,6 +1059,10 @@
     },
     "scripts/build-deployment-spec.mjs": {
       "sha256": "51add7c21d89c37da66af54aa7e4d66a0c81ac9a870918a9cdf9b4dfedca6b7f",
+      "executable": false
+    },
+    "scripts/contract-docs.mjs": {
+      "sha256": "05964f4c53e9a3376e1c7096ee7f307c43567c340ad6d560f8670b91175a31a9",
       "executable": false
     },
     "scripts/delivery/base/artifact.mjs": {
@@ -1686,7 +1702,7 @@
       "executable": false
     },
     "src/latchkey/erasure/inventory.mjs": {
-      "sha256": "56a00e94300f63e1b920aafa4a7decc2ba24ef29ef29b3eb66356a02f516f0d2",
+      "sha256": "c7bc3fae94e31c03edbe9e9ae5d687a0b4e9a28b98d95f4d324cfe89008d9b0a",
       "executable": false
     },
     "src/latchkey/erasure/native-admission.d.mts": {
@@ -1710,11 +1726,11 @@
       "executable": false
     },
     "src/latchkey/erasure/subject-plan.mjs": {
-      "sha256": "265a7c35dfbffb3c2ad39aeea1760d2815956ce7eb4fd2c06e432106097e75c9",
+      "sha256": "a5110defbc851a91e1fe295a9866293843f92778a66a6017ed28a540790f7f3c",
       "executable": false
     },
     "src/latchkey/erasure/subject-schema.mjs": {
-      "sha256": "8c99ed3a2f1629659460f3d9f11514b304352099b24e3ad7965cffe9a2a2db16",
+      "sha256": "ff62ff618a7ee0b2b10cb531c6a2bdcce12553a5efc9cc0dec332d7221f52c42",
       "executable": false
     },
     "src/latchkey/erasure/subject.d.mts": {
@@ -1826,15 +1842,23 @@
       "executable": false
     },
     "src/latchkey/health/client.d.mts": {
-      "sha256": "a5951aca3068838156751fddcfa54f31b21359659a837e238473a2f5d69644ab",
+      "sha256": "fded8e38000e1af3c8df7dd1f5adb62112aeea5b40c6a1cf5db2c4259e9bcc40",
       "executable": false
     },
     "src/latchkey/health/client.mjs": {
-      "sha256": "a72d8332439e823c04e48b1e715c412691e91227af1ebb7270175409283bfe09",
+      "sha256": "6b78229e4207897507e12d0a6f1b26363b8b351a4e9187582f605e66f3b80af3",
       "executable": false
     },
     "src/latchkey/health/README.md": {
       "sha256": "dc19276887b95cced64860fc58383dc594684003ea43bbaf655aae123e158f4b",
+      "executable": false
+    },
+    "src/latchkey/health/service.d.mts": {
+      "sha256": "ccf804b6b68924808a1bef905124685c7b3d1f6e7e568911e2e8086b978152b7",
+      "executable": false
+    },
+    "src/latchkey/health/service.mjs": {
+      "sha256": "bcc66b2019100b562c74a544c4bf8e8e719903d7a35ca39e828bb07d563d2bb8",
       "executable": false
     },
     "src/latchkey/health/ui.tsx": {
@@ -3646,7 +3670,7 @@
       "executable": false
     },
     "tests/browser/security.mjs": {
-      "sha256": "fac2bd23a2af93983bc740008e0a8d5943ef59bafb9fd5b37981be9492e7c098",
+      "sha256": "c556fa1ad035cedf8450d41e53207b7496200787847ca592e48a74d4bdfe8782",
       "executable": false
     },
     "tests/browser/sharing.mjs": {
@@ -3754,11 +3778,11 @@
       "executable": false
     },
     "tests/latchkey-subject-erasure.mjs": {
-      "sha256": "57808185fd3d99ff349fb902e8723a854ed9a25f40ae6a991619a2f13c8d29e5",
+      "sha256": "38f8f29bee2bd77d51400f23f50d4f517f7f90c615e974ebdf87e51cdc8145d7",
       "executable": false
     },
     "tests/runtime.mjs": {
-      "sha256": "11ba2ba1a06703f9c70b6af8429be1aa4e813b931b6888c73ad043b3516c0c53",
+      "sha256": "85c2ae3121ef0ed0bd6b80e0a569381403792a790fbc26780060d16b6ed51624",
       "executable": false
     },
     "tests/site/site.test.mjs": {

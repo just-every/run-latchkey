@@ -12,6 +12,8 @@ CREATE TABLE lky_health_suppressions (
  wrapped TEXT NOT NULL,
  created_at INTEGER NOT NULL,
  source_revision INTEGER NOT NULL,
+ sequence INTEGER NOT NULL,
  active INTEGER NOT NULL CHECK(active IN (0,1))
 );
+CREATE UNIQUE INDEX lky_health_sequence ON lky_health_suppressions(tenant,actor,vault_id,sequence);
 CREATE INDEX lky_health_actor ON lky_health_suppressions(tenant,actor,vault_id);

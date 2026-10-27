@@ -515,7 +515,7 @@ try {
    try { expectedVersions[row.id] = (await owner.readVault(row.id)).versions; }
    catch(error) { const seen = owner.profile.seen[row.id]; throw new Error(`Source checkpoint epoch/revision ${row.epoch}/${row.revision} follows ${seen?.epoch}/${seen?.revision}`, { cause: error }); }
   }
-  const restoredHealth=(await restoreDb.prepare('SELECT * FROM lky_health_suppressions WHERE vault_id=? ORDER BY rowid').bind(healthRestore.vault).all()).results;
+  const restoredHealth=(await restoreDb.prepare('SELECT * FROM lky_health_suppressions WHERE vault_id=? ORDER BY sequence').bind(healthRestore.vault).all()).results;
   assert.equal(restoredHealth.length,2);assert.ok(restoredHealth.every(row=>row.active===0));
   assert.deepEqual(restoredHealth.map(row=>JSON.parse(row.wrapped)),healthRestore.rows.rows.map(row=>row.wrapped));
   const { exerciseRecordsRestore } = await import('./latchkey-restore.mjs')

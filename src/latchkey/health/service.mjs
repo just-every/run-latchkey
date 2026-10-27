@@ -1,5 +1,5 @@
 import {access,exact,guarded,has,need,uuid,vaultFor} from '../lifecycle/common.mjs';
-import {publicKey,validateEnvelope} from '../crypto/envelope.mjs';
+import {verifyWrapped} from '../crypto/envelope.mjs';
 import {subjectVaultWriteAllowed,subjectItemReplayKnown} from '../erasure/subject.mjs';
 export const suppressionBinding=(tenant,vault,record,generation)=>({tenant,vault,object:record,purpose:'health-suppression',epoch:generation,version:1});
 const routeName=verb=>['health',verb].join('/');
@@ -9,9 +9,9 @@ export async function healthAuthenticated(route,input,ctx){
  exact(input,writing?['vault','revision','object','version','record','code','until','wrapped']:['vault']);
  const vault=await vaultFor(ctx,input.vault),{first,all,stmt,event,guard}=access(ctx);
  need(has(vault,'read'),'permission_denied',403);
- const account=await first('SELECT generation FROM lky_accounts WHERE id=? AND tenant=?',ctx.actor,ctx.tenant);
+ const account=await first('SELECT generation,authority_key FROM lky_accounts WHERE id=? AND tenant=?',ctx.actor,ctx.tenant);
  if(!writing){
-  const rows=await all('SELECT * FROM lky_health_suppressions WHERE tenant=? AND actor=? AND vault_id=? ORDER BY rowid',ctx.tenant,ctx.actor,vault.id);
+  const rows=await all('SELECT * FROM lky_health_suppressions WHERE tenant=? AND actor=? AND vault_id=? ORDER BY sequence',ctx.tenant,ctx.actor,vault.id);
   need(await first(`SELECT 1 AS valid WHERE ${ctx.fence} AND EXISTS(SELECT 1 FROM lky_vaults v JOIN lky_recipients r ON r.vault_id=v.id WHERE v.id=? AND v.tenant=? AND v.revision=? AND r.account_id=? AND r.rights=?)`,...ctx.fenceArgs,vault.id,ctx.tenant,vault.revision,ctx.actor,vault.rights),'health_source_changed',409);
   return {epoch:vault.epoch,generation:account.generation,rows:rows.map(row=>({...row,wrapped:JSON.parse(row.wrapped)}))};
  }
@@ -27,7 +27,7 @@ export async function healthAuthenticated(route,input,ctx){
  const currentArgs=[vault.id,input.object,input.version,vault.id,input.object];
  need(await first('SELECT 1 WHERE '+current,...currentArgs),'finding_changed',409);
  need(JSON.stringify(input.wrapped).length<=20000,'invalid_suppression');
- try{exact(input.wrapped,['publicKey','envelope']);await publicKey(input.wrapped.publicKey,'wrap');validateEnvelope(input.wrapped.envelope,suppressionBinding(ctx.tenant,vault.id,input.record,account.generation));}catch{need(false,'invalid_suppression');}
- await guarded(ctx,[vault],[stmt('INSERT INTO lky_health_suppressions VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,1)',input.record,ctx.tenant,ctx.actor,vault.id,input.object,input.version,account.generation,vault.epoch,input.code,input.until,JSON.stringify(input.wrapped),ctx.now,vault.revision),event('health_suppressed',input.record)],[guard(current,currentArgs)]);
+ need(await verifyWrapped(input.wrapped,account.authority_key,ctx.actor,suppressionBinding(ctx.tenant,vault.id,input.record,account.generation)),'invalid_suppression');
+ await guarded(ctx,[vault],[stmt('INSERT INTO lky_health_suppressions SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,COALESCE(MAX(sequence),0)+1,1 FROM lky_health_suppressions WHERE tenant=? AND actor=? AND vault_id=?',input.record,ctx.tenant,ctx.actor,vault.id,input.object,input.version,account.generation,vault.epoch,input.code,input.until,JSON.stringify(input.wrapped),ctx.now,vault.revision,ctx.tenant,ctx.actor,vault.id),event('health_suppressed',input.record)],[guard(current,currentArgs)]);
  return {record:input.record};
 }

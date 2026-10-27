@@ -2,7 +2,7 @@ import { access, need } from './subject-common.mjs';
 // Reviewed source inventory, not an allow-all prefix. A new domain or column
 // needs an erasure mapping before person erasure can honestly proceed.
 const schema = {
- lky_health_suppressions:'id tenant actor vault_id object_id item_version generation epoch code until_at wrapped created_at source_revision active',
+ lky_health_suppressions:'id tenant actor vault_id object_id item_version generation epoch code until_at wrapped created_at source_revision sequence active',
  lky_recovery_custody:'id account generation kind custodian custodian_generation wrapped revoked_at',
  lky_recovery_cases:'id enrollment account generation session_id setup transfer_key expires_at approved_wrap consumed_at',
  lky_emergency_access:'id tenant owner contact owner_generation contact_generation vault epoch wrapped wait_ms expires_at requested_at cancelled_at',

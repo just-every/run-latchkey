@@ -170,7 +170,7 @@ export async function subjectPlan(ctx, subject) {
  // Every remaining readable column is checked too: a source/cache adapter
  // cannot silently introduce a second unclassified copy of this identity.
  // Encrypted client material is explicitly outstanding, never claimed clean.
- const opaque={lky_versions:['envelope'],lky_devices:['bundle'],lky_accounts:['opaque_setup','opaque_record','recovery_wrap'],lky_recipients:['wrapped_key'],lky_share_keys:['wrapped_key'],lky_links:['envelope'],rer_dependency_keys:['private_key']};
+ const opaque={lky_health_suppressions:['wrapped'],lky_versions:['envelope'],lky_devices:['bundle'],lky_accounts:['opaque_setup','opaque_record','recovery_wrap'],lky_recipients:['wrapped_key'],lky_share_keys:['wrapped_key'],lky_links:['envelope'],rer_dependency_keys:['private_key']};
  const observed=new Set(['lky_versions','lky_devices','lky_accounts','lky_nonces','rer_dependency_keys']);
  for(const table of schema.map(row=>row.name).filter(name=>!name.startsWith('sqlite_')&&!name.startsWith('_cf_')&&!name.startsWith('rer_portability_')&&!['d1_migrations','rer_migrations','_rer_deploy_migrations','_rer_portability_migrations'].includes(name))){
   const columns=await all(`PRAGMA table_info(${table})`),keys=columns.filter(c=>c.pk).sort((a,b)=>a.pk-b.pk).map(c=>c.name);

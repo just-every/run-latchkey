@@ -1,4 +1,4 @@
-import {bytes,id,json,unwrapRecipient,wrapRecipient} from '../crypto/envelope.mjs';
+import {bytes,id,json,unwrapSigned} from '../crypto/envelope.mjs';
 const suppressionBinding=(tenant,vault,record,generation)=>({tenant,vault,object:record,purpose:'health-suppression',epoch:generation,version:1});
 import {OrganizationClient} from '../collections/client.mjs';
 const value=(item,id)=>item.fields?.find(f=>f.id===id)?.value;
@@ -31,6 +31,7 @@ export class HealthClient {
   const loaded=await new OrganizationClient(this.client).load(vault),history=await this.history(vault),now=this.now(),inactive=new Set(loaded.lifecycle.filter(r=>r.state!=='active').map(r=>r.object));
   // Existing vault-encrypted owner observations remain historical evidence for their actor.
   history.unshift(...loaded.records.filter(r=>r.value.schema==='latchkey/health-suppression/v1'&&r.value.actor===this.client.profile.account).map(r=>({...r.value,record:r.object,active:true})));
+  for(const entry of history)entry.active=entry.active&&loaded.records.some(row=>row.object===entry.object&&row.version===entry.version)&&!inactive.has(entry.object)&&(entry.until===null||entry.until>now);
   let github=null;
   if(githubToken){try{const response=await this.fetcher('https://api.github.com/user',{headers:{Authorization:`Bearer ${githubToken}`,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'},credentials:'omit',redirect:'error',cache:'no-store',referrerPolicy:'no-referrer',signal:AbortSignal.timeout(15000)});if(response.ok){const data=await response.json();if(typeof data.login==='string'&&typeof data.two_factor_authentication==='boolean')github={login:data.login,mfa:data.two_factor_authentication};}}catch{}}
   const rangeCache=new Map();
@@ -63,8 +64,8 @@ export class HealthClient {
  async history(vault){
   const result=await this.client.call(['health','history'].join('/'),{vault}),profile=this.client.profile,rows=[];
   for(const row of result.rows){
-   const value=json(await unwrapRecipient(row.wrapped,this.client.bundle.root.recipient.privateKey,suppressionBinding(profile.tenant,vault,row.id,row.generation)));
-   if(value.actor!==profile.account||value.object!==row.object_id||value.version!==row.item_version||value.code!==row.code||value.until!==row.until_at)throw Error('invalid_suppression');
+   const value=json(await unwrapSigned(row.wrapped,this.client.bundle.root.recipient.privateKey,profile.authorityKey,profile.account,suppressionBinding(profile.tenant,vault,row.id,row.generation)));
+   if(value.actor!==profile.account||value.object!==row.object_id||value.version!==row.item_version||value.code!==row.code||value.until!==row.until_at||value.epoch!==row.epoch||value.sourceRevision!==row.source_revision)throw Error('invalid_suppression');
    rows.push({...value,record:row.id,active:row.active===1&&row.epoch===result.epoch&&row.generation===result.generation});
   }
   return rows;
@@ -73,8 +74,8 @@ export class HealthClient {
   if(typeof reason!=='string'||!reason.trim()||reason.length>500||until!==null&&(!Number.isSafeInteger(until)||until<=this.now()))throw Error('invalid_suppression');
   const loaded=await new OrganizationClient(this.client).load(vault);
   if(!loaded.records.some(r=>r.object===finding.object&&r.version===finding.version&&r.value.schema==='latchkey/item/v1')||loaded.lifecycle.some(r=>r.object===finding.object&&r.state!=='active'))throw Error('finding_changed');
-  const profile=this.client.profile,record=id(),payload={schema:'latchkey/health-suppression/v1',object:finding.object,version:finding.version,code:finding.code,reason:reason.trim(),until,actor:profile.account,observation:{source:finding.source,observedAt:finding.observedAt,code:finding.code,version:finding.version},recordedAt:this.now()};
-  const wrapped=await wrapRecipient(bytes(payload),profile.recipientKey,suppressionBinding(profile.tenant,vault,record,profile.generation));
+  const profile=this.client.profile,record=id(),payload={schema:'latchkey/health-suppression/v1',epoch:loaded.vault.epoch,sourceRevision:loaded.vault.revision,object:finding.object,version:finding.version,code:finding.code,reason:reason.trim(),until,actor:profile.account,observation:{source:finding.source,observedAt:finding.observedAt,code:finding.code,version:finding.version},recordedAt:this.now()};
+  const wrapped=await this.client.wrap(bytes(payload),profile.recipientKey,suppressionBinding(profile.tenant,vault,record,profile.generation));
   return this.client.call(['health','suppress'].join('/'),{vault,revision:loaded.vault.revision,object:finding.object,version:finding.version,record,code:finding.code,until,wrapped});
  }
 }
