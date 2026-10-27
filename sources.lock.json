@@ -2398,7 +2398,7 @@
       "executable": false
     },
     "src/latchkey/ui/generator-policy.tsx": {
-      "sha256": "47e9fdc9a621aec40f4d538a7f328a59ee656ca368e8d4ec73665e8cb5f3c0c8",
+      "sha256": "674a6a4fdfd9ea79ecc49bbcb62a5725d2299ed0bd696e9ca7a07d6e10bd9e99",
       "executable": false
     },
     "src/latchkey/ui/generator.tsx": {
@@ -3666,7 +3666,7 @@
       "executable": false
     },
     "tests/browser/vault.mjs": {
-      "sha256": "df06d52e728f8a3d62b5f49c673ee6f52caa1046975777d5373417d7a9556039",
+      "sha256": "65a553617c2440dec53cb368a9687780a07b740913d6e9bce61d37a055c04339",
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {
@@ -3730,7 +3730,7 @@
       "executable": false
     },
     "tests/latchkey-generator-policy.mjs": {
-      "sha256": "99471442fb7c146440318ad54955fff10da1d40937dce89f6924f241c773dd31",
+      "sha256": "95b54d27a31c3b82924fb6a01f04b7132e906c562d79b63dca5d1e8ed4082d4c",
       "executable": false
     },
     "tests/latchkey-items.mjs": {
