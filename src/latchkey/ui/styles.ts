@@ -152,4 +152,6 @@ body:has(.lk){padding:0;background:var(--rer-page,#fff)}
  .lk .form-grid{grid-template-columns:1fr}.lk .page>.empty{padding:40px 20px}.lk .page>.empty h1{font-size:26px}.lk .page>.empty button{width:100%}
  .lk .lk-unlock{margin-top:12px}.lk .lk-unlock h1{font-size:30px}.lk .error{align-items:flex-start;flex-wrap:wrap}
  .lk .page>.detail>h1{font-size:clamp(25px,7vw,32px)}.lk .result{padding-right:96px}.lk .result>details[open]{margin-right:-80px}.lk .row>.detail{padding-bottom:8px}}
+/* The narrowest phones keep the search, Settings and Lock vault together on one row. */
+@media(max-width:389px){.lk .topbar{column-gap:6px}.lk .search{min-width:128px;gap:6px;padding:0 6px 0 8px}.lk .search input{font-size:14px}.lk .menu>summary,.lk .lock{padding:0 8px}.lk .menu>summary{gap:8px}}
 `;
