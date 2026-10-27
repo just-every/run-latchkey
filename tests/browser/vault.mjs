@@ -112,7 +112,13 @@ async function generatorPolicyReviewJourney(width, output) {
    await new SharingClient(f.owner).setGroup(group, [f.owner.profile.account]);
    await f.page.getByRole('button', { name: 'Preview policy change' }).click(); await review.getByRole('checkbox').check();
   }
+  let releaseApply;
+  if (width === 1440) {
+   const paused = new Promise(resolve => { releaseApply = resolve; });
+   await f.page.route('**/api/latchkey/generator/policy/set', async route => { await paused; await route.continue(); });
+  }
   await review.getByRole('button', { name: 'Apply reviewed policy' }).click();
+  if (width === 1440) { try { await expect(f.page.getByRole('button', { name: 'Generate', exact: true })).toBeDisabled(); } finally { releaseApply(); } }
   await expect(f.page.getByRole('status').filter({ hasText: 'Policy saved' })).toContainText('Policy saved');
   if (width === 1440) assert.equal((await f.owner.call('generator' + '/policy', {})).policy.minLength, 36);
   await f.page.getByRole('button', { name: 'Generate', exact: true }).click();
