@@ -27,7 +27,7 @@ export async function reportsJourney(width){
   assert.equal(report.denominator,3);assert.equal(report.risky,2);assert.equal(report.unknown,2);assert.equal(report.clear,1);assert.equal(report.score,33);assert.equal(report.policyVersion,'local-health-v1');assert.equal(report.items.find(r=>r.object===first).status,'risk');assert.ok(report.items.find(r=>r.object===first).unknown.includes('Password breach feed unavailable; status unknown'));
   const views=report.usage.filter(r=>r.actor===owner.profile.account&&r.item===first&&r.action==='view');assert.equal(views.length,1);assert.equal(views[0].count,2);assert.ok(views[0].lastAccess>=report.from&&views[0].lastAccess<=report.asOf);assert.equal(views[0].maxReceiptDelay,0);
   assert.equal(report.adoption.enrolled,1);assert.equal(report.adoption.active,1);assert.equal(report.adoption.devices,1);assert.equal(report.adoption.extensionInstalled,null);assert.equal(report.adoption.neverUsed,null);assert.deepEqual(report.adoption.company,{invited:1,enrolled:1,inactive:0});
-  const afterUsage=await reportApi.source(vault,views[0].lastAccess+1,Date.now());assert.deepEqual(afterUsage.events.filter(e=>e.item===first&&e.action==='view'),[]);assert.ok(report.coverage.includes('Only current active permitted items; private and family vaults excluded. No retained daily or monthly trend source.'));
+  const afterUsage=await reportApi.source(vault,views[0].lastAccess+1,Date.now());assert.deepEqual(afterUsage.events.filter(e=>e.item===first&&e.action==='view'),[]);assert.ok(report.coverage.includes('Only current active permitted items; private and family vaults excluded. Historical coverage requires explicit dated captures.'));
   assert.ok(!JSON.stringify(report).includes('synthetic-latchkey-9100'));assert.ok(!JSON.stringify(report).includes('Synthetic finance login'));
   const reader=await enroll(f,9110),auditor=await enroll(f,9120);
   await owner.share(vault,reader.profile.account,await reader.identity().fingerprint,['read','export']);await reader.pinAccount(owner.profile.account,await owner.identity().fingerprint);
@@ -80,7 +80,52 @@ export async function reportsJourney(width){
   for(const [person,password] of [[reader,'synthetic-latchkey-9111'],[auditor,'synthetic-latchkey-9121']]){
    await f.page.getByRole('button',{name:'Lock vault',exact:true}).click();await f.page.getByLabel('Profile file').setInputFiles({name:'profile.json',mimeType:'application\u002fjson',buffer:Buffer.from(JSON.stringify(person.profile))});await f.page.getByLabel('Master password',{exact:true}).fill(password);await f.page.getByRole('button',{name:'Unlock vault',exact:true}).click();await expect(f.page.getByRole('button',{name:'New item',exact:true})).toBeEnabled();await f.page.getByLabel('Vault',{exact:true}).selectOption(vault);await f.page.locator('summary',{hasText:'Settings'}).click();await f.page.getByRole('button',{name:'Security reports',exact:true}).click();await expect(f.page.getByRole('alert')).toContainText('report vault owner required');await f.page.getByRole('button',{name:'Generate report',exact:true}).click();await expect(f.page.getByRole('alert')).toContainText('report vault owner required');await expect(f.page.getByRole('button',{name:'Export CSV',exact:true})).toHaveCount(0);await capture(person===reader?'reports-employee-refusal':'reports-reviewer-refusal');
   }
+  if(width===1440)await historyJourney();
   console.log(`reportsJourney ${width}: scoped posture, denominator, unknowns, retained usage, saved view, CSV, PDF, drilldown and refusals passed.`);
  }finally{await f.close();await rm(directory,{recursive:true,force:true});}
+}
+async function historyJourney(){
+ const realNow=Date.now;let clock=Date.parse('2031-02-28T23:59:59.999Z');Date.now=()=>clock;
+ const f=await vaultFixture({clock,persistent:true});
+ try{
+  const owner=f.owner,api=new ReportsClient(owner),vault=(await owner.createVault({kind:'company'})).vault;
+  const item=(await owner.put(vault,createItem('login',{title:'Synthetic historical login',values:{password:'synthetic-latchkey-9190'},fields:[{id:'site',label:'Site',type:'url',secret:false,required:false,value:'http://example.test'}]}))).object;
+  const refresh=async next=>{clock=Date.parse(next);await f.setClock(clock);await owner.requestIdentity('synthetic-latchkey-1100@example.test');const token=new URL(f.mail.at(-1).content.find(c=>c.type===['text','plain'].join('/')).value.match(/https:\/\/[^\s<>]+/)[0]).searchParams.get('token');await owner.confirmIdentity(token);await owner.unlock(owner.profile,f.password);};
+  await assert.rejects(api.capture(vault),/report_capture_confirmation_required/);
+  await api.capture(vault,{confirmed:true});const original=(await api.history(vault)).observations[0];
+  assert.equal(original.score,0);assert.equal(original.denominator,1);assert.equal(original.unknown,1);assert.equal(original.adoption.extensionInstalled,null);assert.equal(original.scoringPolicy.id,original.policyVersion);
+  await assert.rejects(api.capture(vault,{confirmed:true}),e=>e.code==='report_day_already_captured');
+  const wire=await owner.call(['reports','history'].join('/'),{vault});assert.equal(wire.observations.length,1);assert.ok(!JSON.stringify(wire).includes('local-health-v1'));assert.ok(!JSON.stringify(wire).includes('Synthetic historical login'));
+  await owner.put(vault,createItem('secure-note',{title:'Synthetic changed source',values:{note:'synthetic-latchkey-9191'}}),item);
+  assert.deepEqual((await api.history(vault)).observations[0],original);
+  await refresh('2031-03-01T00:00:00.000Z');await api.capture(vault,{confirmed:true});
+  for(const day of ['2031-11-30','2032-01-29','2032-02-21','2032-02-28']){await refresh(day+'T12:00:00.000Z');await api.capture(vault,{confirmed:true});}
+  const history=await api.history(vault);assert.equal(history.daily.length,365);assert.equal(history.daily[0].day,'2031-03-01');assert.equal(history.daily.at(-1).day,'2032-02-28');assert.equal(history.daily.filter(r=>r.observation).length,5);assert.equal(history.daily.filter(r=>!r.observation).length,360);
+  assert.deepEqual(history.observations[0],original);assert.equal(history.observations.at(-1).score,100);
+  assert.deepEqual(history.comparisons.map(c=>[c.range,c.day,c.scoreDelta]),[['7 days','2032-02-21',0],['30 days','2032-01-29',0],['90 days','2031-11-30',0],['12 months','2031-02-28',100]]);
+  assert.deepEqual(history.monthly.filter(m=>m.observedDays).map(m=>[m.month,m.observedDays,m.expectedDays,m.meanScore]),[['2031-02',1,28,0],['2031-03',1,31,100],['2031-11',1,30,100],['2032-01',1,31,100],['2032-02',2,28,100]]);
+  assert.deepEqual(history.monthly.filter(m=>!m.observedDays).map(m=>m.month),['2031-04','2031-05','2031-06','2031-07','2031-08','2031-09','2031-10','2031-12']);
+  for(const days of [7,30,90,365])assert.equal((await api.history(vault,{days})).daily.length,days);
+  const csv=await api.export(history,'csv'),pdf=await api.export(history,'pdf');assert.ok(csv.includes('"comparison","12 months","2031-02-28","100","0","100"'));assert.ok(csv.includes('"daily","2032-02-27","unknown","unknown","missing"'));assert.ok(csv.includes('local-health-v1'));assert.ok(pdf.startsWith('%PDF-1.4'));assert.ok(pdf.includes('monthly | 2031-02'));assert.ok(!csv.includes('synthetic-latchkey-9190'));
+  const family=(await owner.createVault({kind:'family'})).vault;for(const work of [()=>api.capture(family,{confirmed:true}),()=>api.history(family)])await assert.rejects(work,e=>e.code==='report_vault_owner_required');
+  await f.context.addCookies([{name:owner.cookie.split('=')[0],value:owner.cookie.slice(owner.cookie.indexOf('=')+1),url:f.origin,secure:true,httpOnly:true}]);
+  const reader=await enroll(f,9192);await owner.share(vault,reader.profile.account,await reader.identity().fingerprint,['read','export']);await reader.pinAccount(owner.profile.account,await owner.identity().fingerprint);
+  await assert.rejects(unwrapSigned(JSON.parse(wire.key.wrapped),reader.bundle.root.recipient.privateKey,owner.profile.authorityKey,owner.profile.account,{tenant:owner.profile.tenant,vault,object:owner.profile.account,purpose:'report-key',epoch:1,version:1}));
+  const other=new ReportsClient(reader);for(const work of [()=>other.history(vault),()=>other.capture(vault,{confirmed:true}),()=>other.export(history,'csv')])await assert.rejects(work,e=>e.code==='report_vault_owner_required');
+  const foreign=(await reader.createVault({kind:'company'})).vault;for(const work of [()=>api.history(foreign),()=>api.capture(foreign,{confirmed:true})])await assert.rejects(work,e=>e.code==='not_found');
+  const captureVault=(await owner.createVault({kind:'company'})).vault;
+  await f.page.addInitScript({content:`Date.now=()=>${clock}`});
+  await f.context.addCookies([{name:owner.cookie.split('=')[0],value:owner.cookie.slice(owner.cookie.indexOf('=')+1),url:f.origin,secure:true,httpOnly:true}]);
+  await f.page.setViewportSize({width:1440,height:1000});await f.page.goto(f.origin+'/app/vault');if(new URL(f.page.url()).pathname==='/setup'){await f.page.getByRole('checkbox').check();await f.page.getByRole('button',{name:'Finish setup',exact:true}).click();}
+  await f.page.getByLabel('Profile file').setInputFiles({name:'profile.json',mimeType:['application','json'].join('/'),buffer:Buffer.from(JSON.stringify(owner.profile))});await f.page.getByLabel('Master password',{exact:true}).fill(f.password);await f.page.getByRole('button',{name:'Unlock vault',exact:true}).click();await expect(f.page.getByRole('button',{name:'New item',exact:true})).toBeEnabled();await f.page.getByLabel('Vault',{exact:true}).selectOption(vault);await f.page.locator('summary',{hasText:'Settings'}).click();await f.page.getByRole('button',{name:'Security reports',exact:true}).click();
+  await f.page.getByLabel('Report range').selectOption('365');await f.page.getByRole('button',{name:'Show retained history',exact:true}).click();await expect(f.page.getByTestId('report-history')).toContainText('5 observed dates · 360 missing dates');await expect(f.page.getByTestId('report-history')).toContainText('12 months: 100 percentage points');
+  for(const width of [1440,390]){await f.page.setViewportSize({width,height:1000});assert.ok(await f.page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(output){await mkdir(output,{recursive:true});await f.page.screenshot({path:join(output,`reports-history-${width}.png`),fullPage:true});}}
+  const download=f.page.waitForEvent('download');await f.page.getByRole('button',{name:'Export history CSV',exact:true}).click();assert.ok((await readFile(await (await download).path(),'utf8')).includes('"comparison","12 months"'));
+  await f.page.getByRole('button',{name:'Vault',exact:true}).click();await f.page.getByLabel('Vault',{exact:true}).selectOption(captureVault);await f.page.locator('summary',{hasText:'Settings'}).click();await f.page.getByRole('button',{name:'Security reports',exact:true}).click();await f.page.getByLabel('Retain today’s encrypted observation').check();await f.page.getByRole('button',{name:'Capture today',exact:true}).click();await expect(f.page.getByTestId('report-history')).toContainText('1 observed dates');
+  // Replaying a previously valid capture after erasure cannot restore its data.
+  let replay;const call=owner.call.bind(owner);owner.call=async(route,input)=>{if(route===['reports','capture'].join('/'))replay=structuredClone(input);return call(route,input)};
+  const erasureVault=(await owner.createVault({kind:'company'})).vault,erasedItem=(await owner.put(erasureVault,createItem('secure-note',{title:'Synthetic erased report',values:{note:'synthetic-latchkey-9193'}}))).object;
+  await api.capture(erasureVault,{confirmed:true});const beforeErase=await api.history(erasureVault);await owner.eraseItem(erasureVault,erasedItem,{confirmed:true});assert.deepEqual((await api.history(erasureVault)).observations,[]);await assert.rejects(api.export(beforeErase,'csv'),/report_history_changed/);await assert.rejects(call(['reports','capture'].join('/'),replay),e=>e.code==='report_source_changed');
+ }finally{await f.close();Date.now=realNow;}
 }
 for(const width of [1440,390])await reportsJourney(width);

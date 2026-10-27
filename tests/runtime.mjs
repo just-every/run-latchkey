@@ -467,6 +467,8 @@ try {
  await member.put(personalVault, { ownership: 'personal', title: 'synthetic-latchkey-1402', secret: 'synthetic-latchkey-1404', attachment: personalAttachment }, personalItem.object);
  await rejected(owner.readVault(personalVault), 'not_found');
  const personalVersions = (await member.readVault(personalVault)).versions;
+ const {ReportsClient}=await import('../src/latchkey/reports/client.mjs');
+ const reportVault=(await owner.createVault({kind:'company'})).vault;await new ReportsClient(owner).capture(reportVault,{confirmed:true});
  const backupId = await records.exports.create('synthetic-latchkey-29')
  let backupStatus = await records.exports.status(backupId)
  for (let count = 0; backupStatus.phase !== 'complete' && count < 20; count++) backupStatus = await records.exports.advance(backupId, { maxParts: 100 })

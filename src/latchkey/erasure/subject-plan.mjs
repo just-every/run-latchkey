@@ -26,6 +26,9 @@ export async function subjectPlan(ctx, subject) {
  await select('lky_emergency_access','owner=? OR contact=?',[accountId,accountId]);
  await select('lky_company_custody','owner=? OR custodian=?',[accountId,accountId]);
  await select('lky_custody_reviews','actor=? OR instr(plan,?)>0 OR instr(plan,?)>0',[accountId,accountId,subject]);
+ // Adoption can include installation roster counts. Invalidate tenant aggregates.
+ await select('lky_report_observations','vault_id IN(SELECT id FROM lky_vaults WHERE tenant=?)',[ctx.tenant]);
+ await select('lky_report_keys',`owner=? OR vault_id IN (${own})`,[accountId,...ownArgs]);
  const ownedVaults=await select('lky_vaults','tenant=? AND owner=?',ownArgs);
  const remainingVaults=await select('lky_vaults','tenant=? AND owner IS NOT ?',[ctx.tenant,accountId],'observe');
  const devices=await select('lky_devices','account_id=?',[accountId]),deviceIds=devices.map(row=>row.id);
@@ -169,7 +172,7 @@ export async function subjectPlan(ctx, subject) {
  // Every remaining readable column is checked too: a source/cache adapter
  // cannot silently introduce a second unclassified copy of this identity.
  // Encrypted client material is explicitly outstanding, never claimed clean.
- const opaque={lky_versions:['envelope'],lky_devices:['bundle'],lky_accounts:['opaque_setup','opaque_record','recovery_wrap'],lky_recipients:['wrapped_key'],lky_share_keys:['wrapped_key'],lky_links:['envelope'],rer_dependency_keys:['private_key']};
+ const opaque={lky_report_observations:['envelope'],lky_report_keys:['wrapped'],lky_versions:['envelope'],lky_devices:['bundle'],lky_accounts:['opaque_setup','opaque_record','recovery_wrap'],lky_recipients:['wrapped_key'],lky_share_keys:['wrapped_key'],lky_links:['envelope'],rer_dependency_keys:['private_key']};
  const observed=new Set(['lky_versions','lky_devices','lky_accounts','lky_nonces','rer_dependency_keys']);
  for(const table of schema.map(row=>row.name).filter(name=>!name.startsWith('sqlite_')&&!name.startsWith('_cf_')&&!name.startsWith('rer_portability_')&&!['d1_migrations','rer_migrations','_rer_deploy_migrations','_rer_portability_migrations'].includes(name))){
   const columns=await all(`PRAGMA table_info(${table})`),keys=columns.filter(c=>c.pk).sort((a,b)=>a.pk-b.pk).map(c=>c.name);
