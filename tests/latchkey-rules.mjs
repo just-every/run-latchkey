@@ -100,12 +100,17 @@ export async function ruleLifecycleJourney() {
   await owner.call(reviewRoute('decide'),{review:campaign,key:reviewDetail.rows.find(r=>r.id===future.link).key,decision:'remove',reason:'Cancel scheduled access before it begins'});
   await refused(owner.call(reviewRoute('close'),{review:campaign}),'review_incomplete');
   await refused(call('reconcile-review',{rule:reviewRuleId,version:1,obligation:reviewObligation}),'rule_review_not_closed');
-  assert.equal((await owner.call(reviewRoute('get'),{review:campaign})).completeness.pendingRemovals,1);
+  assert.equal((await owner.call(reviewRoute('get'),{review:campaign})).completeness.pendingRemovals,2);
   await owner.call(reviewRoute('remove'),{review:campaign,key:externalRow.key});
+  assert.equal((await owner.call(reviewRoute('get'),{review:campaign})).completeness.pendingRemovals,1);
+  await refused(owner.call(reviewRoute('close'),{review:campaign}),'review_incomplete');
+  await owner.call(reviewRoute('remove'),{review:campaign,key:reviewDetail.rows.find(r=>r.id===future.link).key});
   assert.equal((await owner.call(reviewRoute('get'),{review:campaign})).completeness.pendingRemovals,0);
   reviewDetail=await owner.call(reviewRoute('reconcile'),{review:campaign,reviewer:owner.profile.account});
   for(const entry of reviewDetail.rows.filter(r=>!r.decision))await owner.call(reviewRoute('decide'),{review:campaign,key:entry.key,decision:'confirm',reason:'Reviewed the now revoked grant'});
   await owner.call(reviewRoute('close'),{review:campaign});
+  // Reintroduce future authority after close to exercise a stale report.
+  await f.db.prepare('UPDATE lky_links SET revoked_at=NULL WHERE id=?').bind(future.link).run();
   // A closed report's effective flag cannot stand in for removal of future access.
   await refused(call('reconcile-review',{rule:reviewRuleId,version:1,obligation:reviewObligation}),'rule_review_removal_pending');
   await f.schedule(clock);assert.equal((await call('get',{rule:reviewRuleId})).obligations[0].phase,'open');
@@ -171,7 +176,7 @@ export async function ruleLifecycleJourney() {
    await call('bind-review',{...binding,rule:entry.rule,obligation:entry.obligation,review:entry.review});
   }
   backlog.sort((a,b)=>a.obligation.localeCompare(b.obligation));const last=backlog.at(-1);
-  const lastDetail=await owner.call(reviewRoute('get'),{review:last.review});assert.equal(lastDetail.rows.length,2);
+  const lastDetail=await owner.call(reviewRoute('get'),{review:last.review});assert.equal(lastDetail.rows.length,3);
   for(const entry of lastDetail.rows){
    const actor=entry.subject===owner.profile.account?member:owner;
    if(actor===member)await owner.call(reviewRoute('assign'),{review:last.review,key:entry.key,reviewer:member.profile.account});
