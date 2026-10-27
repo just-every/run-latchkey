@@ -1,3 +1,4 @@
+import { reportKeyContext } from '../reports/history.mjs';
 import { canonicalJson } from '@runeditrun/rer/modules/portability';
 import { digest, id, verifyWrapped } from '../crypto/envelope.mjs';
 import { RecordsError, requireRecords as need, rewrapBinding, rewrapPlanHash, verifyDestinationRewrap } from './common.mjs';
@@ -30,6 +31,8 @@ async function inactiveVaults(ctx, plan) {
  const { first } = access(ctx);
  for (const vault of plan.vaults) {
   const check = vaultPredicate(vault);
+  const reportKey=await first('SELECT * FROM lky_report_keys WHERE vault_id=?',vault.vault);
+  need(canonicalJson(reportKey??null)===canonicalJson(vault.reportKey??null),'restored_report_key_changed',409);
   need(await first(`SELECT 1 AS allowed WHERE ${check.sql}`, ...check.args), 'restored_vault_changed', 409);
  }
 }
@@ -89,7 +92,8 @@ async function activate(input, ctx) {
  need(plan.destination.account === ctx.actor && plan.destination.tenant === ctx.tenant && plan.source.tenant === ctx.tenant && plan.source.account !== ctx.actor, 'destination_recipient_mismatch', 403);
  need(Array.isArray(input.wraps) && input.wraps.length === plan.vaults.length, 'restore_wrap_inventory');
  for (const [index, vault] of plan.vaults.entries()) {
-  const value = input.wraps[index]; exact(value, ['vault', 'epoch', 'revision', 'wrapped']);
+  const value = input.wraps[index]; exact(value, ['vault', 'epoch', 'revision', 'wrapped',...(vault.reportKey?['reportWrapped']:[])]);
+  need(!vault.reportKey||await verifyWrapped(value.reportWrapped,plan.destination.authorityKey,ctx.actor,reportKeyContext(vault.tenant,vault.vault,ctx.actor)),'destination_signature_required',403);
   need(value.vault === vault.vault && value.epoch === vault.epoch && value.revision === vault.revision && await verifyWrapped(value.wrapped, plan.destination.authorityKey, ctx.actor, rewrapBinding(vault.tenant, vault.vault, ctx.actor, vault.epoch)), 'destination_signature_required', 403);
  }
  const { stmt, guard, event } = access(ctx);
@@ -106,6 +110,7 @@ async function activate(input, ctx) {
    ...plan.vaults.flatMap((vault, index) => [
     stmt('UPDATE lky_vaults SET owner=?,revision=revision+1,mutation=? WHERE id=?', ctx.actor, row.id, vault.vault),
     stmt('INSERT INTO lky_recipients VALUES(?,?,?,?) ON CONFLICT(vault_id,account_id) DO UPDATE SET rights=excluded.rights,wrapped_key=excluded.wrapped_key', vault.vault, ctx.actor, JSON.stringify(restoreOwnerRights), JSON.stringify(input.wraps[index].wrapped)),
+    ...(vault.reportKey?[guard('EXISTS(SELECT 1 FROM lky_report_keys WHERE vault_id=? AND owner=? AND wrapped=?)',[vault.vault,vault.reportKey.owner,vault.reportKey.wrapped]),stmt('UPDATE lky_report_keys SET owner=?,wrapped=? WHERE vault_id=?',ctx.actor,canonicalJson(input.wraps[index].reportWrapped),vault.vault)]:[]),
     event('archive_vault_activated', vault.vault),
    ]),
    stmt("UPDATE lky_restore_preparations SET phase='activated',activated_at=?,activation=? WHERE id=?", ctx.now, input.activation, row.id),

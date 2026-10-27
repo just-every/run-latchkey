@@ -1,3 +1,4 @@
+import { reportKeyContext } from '../reports/history.mjs';
 import { canonicalJson } from '@runeditrun/rer/modules/portability';
 import { digest, publicKey, verify, verifyWrapped } from '../crypto/envelope.mjs';
 export class RecordsError extends Error { constructor(code, status = 400) { super(code); this.code = code; this.status = status; } }
@@ -36,6 +37,7 @@ export async function verifyDestinationRewrap({ plan, approval, sourceFingerprin
   requireRecords(vault.owner === source.account && vault.tenant === source.tenant && /^[0-9a-f-]{36}$/.test(vault.vault) && !seen.has(vault.vault)
    && Number.isSafeInteger(vault.epoch) && vault.epoch > 0 && Number.isSafeInteger(vault.revision) && vault.revision > 0, 'rewrap_plan_invalid'); seen.add(vault.vault);
   const wrapped = decision.wraps[index];
+  requireRecords(!vault.reportKey&&!wrapped.reportWrapped||vault.reportKey&&await verifyWrapped(wrapped.reportWrapped,source.authorityKey,source.account,reportKeyContext(vault.tenant,vault.vault,destination.account)),'rewrap_approval_invalid');
   requireRecords(wrapped.vault === vault.vault && wrapped.epoch === vault.epoch && wrapped.revision === vault.revision && Array.isArray(wrapped.rights) && wrapped.rights.length === 0
    && await verifyWrapped(wrapped.wrapped, source.authorityKey, source.account, rewrapBinding(vault.tenant, vault.vault, destination.account, vault.epoch)), 'rewrap_approval_invalid');
  }

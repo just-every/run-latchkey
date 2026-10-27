@@ -1,13 +1,14 @@
 // Buyer-side key custody only. These decisions/wraps are historical, inactive
 // restore material. A destination must separately authorize any activation.
 import { readArchive } from '@runeditrun/rer/modules/portability';
+import { reportKeyContext } from '../reports/history.mjs';
 import { sign, unwrapSigned, wrapSigned } from '../crypto/envelope.mjs';
 import { privateInput, fileStream, requireRecords } from './private-files.mjs';
 import { rewrapBinding as binding, decisionText, identities, rewrapPlanHash, verifyDestinationRewrap } from './common.mjs';
 export { rewrapPlanHash, verifyDestinationRewrap } from './common.mjs';
 async function inventory(input) {
  const handle = await privateInput(input);
- const accounts = [], vaults = [], recipients = [];
+ const accounts = [], vaults = [], recipients = [], reportKeys = [];
  let manifest, closing;
  try {
   for await (const record of readArchive(fileStream(handle))) {
@@ -18,9 +19,10 @@ async function inventory(input) {
     if (item.table === 'lky_accounts') accounts.push(item.row);
     if (item.table === 'lky_vaults') vaults.push(item.row);
     if (item.table === 'lky_recipients') recipients.push(item.row);
+    if (item.table === 'lky_report_keys') reportKeys.push(item.row);
    }
   }
-  return { manifest, closing, accounts, vaults, recipients };
+  return { manifest, closing, accounts, vaults, recipients, reportKeys };
  } finally { await handle.close(); }
 }
 async function buildPlan(data, source, destination, sourceFingerprint, destinationFingerprint) {
@@ -29,7 +31,7 @@ async function buildPlan(data, source, destination, sourceFingerprint, destinati
  requireRecords(account?.tenant === source.tenant && account.recipient_key === source.recipientKey && account.authority_key === source.authorityKey, 'source_owner_key_mismatch');
  const owned = data.vaults.filter(row => row.owner === source.account);
  requireRecords(owned.every(row => row.tenant === source.tenant), 'source_tenant_mismatch');
- const vaults = owned.map(row => ({ vault: row.id, tenant: row.tenant, owner: row.owner, epoch: row.epoch, revision: row.revision }));
+ const vaults = owned.map(row => ({ vault: row.id, tenant: row.tenant, owner: row.owner, epoch: row.epoch, revision: row.revision, ...(data.reportKeys.find(key=>key.vault_id===row.id)?{reportKey:data.reportKeys.find(key=>key.vault_id===row.id)}:{}) }));
  vaults.sort((a, b) => a.vault.localeCompare(b.vault));
  return {
   schema: 1, kind: 'latchkey-records-rewrap-plan', sourceIdentity: data.manifest.sourceIdentity,
@@ -58,7 +60,13 @@ export async function approveDestinationRewrap({ input, plan, approvedPlanHash, 
   const key = await unwrapSigned(original, client.bundle.root.recipient.privateKey, plan.source.authorityKey, plan.source.account, binding(vault.tenant, vault.vault, plan.source.account, vault.epoch));
   try {
    requireRecords(key.length === 32, 'invalid_vault_key');
-   wraps.push({ vault: vault.vault, epoch: vault.epoch, revision: vault.revision, rights: [],
+   let reportWrapped;
+   if(vault.reportKey){
+    requireRecords(vault.reportKey.owner===plan.source.account,'report_owner_key_mismatch');
+    const reportKey=await unwrapSigned(JSON.parse(vault.reportKey.wrapped),client.bundle.root.recipient.privateKey,plan.source.authorityKey,plan.source.account,reportKeyContext(vault.tenant,vault.vault,plan.source.account));
+    try{reportWrapped=await wrapSigned(reportKey,plan.destination.recipientKey,reportKeyContext(vault.tenant,vault.vault,plan.destination.account),plan.source.account,client.bundle.root.authority.privateKey);}finally{reportKey.fill(0);}
+   }
+   wraps.push({ ...(reportWrapped?{reportWrapped}:{}),vault: vault.vault, epoch: vault.epoch, revision: vault.revision, rights: [],
     wrapped: await wrapSigned(key, plan.destination.recipientKey, binding(vault.tenant, vault.vault, plan.destination.account, vault.epoch), plan.source.account, client.bundle.root.authority.privateKey) });
   } finally { key.fill(0); }
  }

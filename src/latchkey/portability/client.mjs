@@ -1,3 +1,4 @@
+import { reportKeyContext } from '../reports/history.mjs';
 import { unwrapSigned } from '../crypto/envelope.mjs';
 import { canonicalJson } from '@runeditrun/rer/modules/portability';
 import { requireRecords as need, rewrapBinding, verifyDestinationRewrap } from './common.mjs';
@@ -27,7 +28,9 @@ export class PortabilityClient {
    const key = await unwrapSigned(approval.decision.wraps[index].wrapped, client.bundle.root.recipient.privateKey, plan.source.authorityKey, plan.source.account, binding);
    try {
     need(key.length === 32, 'invalid_vault_key');
-    wraps.push({ vault: vault.vault, epoch: vault.epoch, revision: vault.revision, wrapped: await client.wrap(key, client.profile.recipientKey, binding) });
+    let reportWrapped;
+    if(vault.reportKey){const reportKey=await unwrapSigned(approval.decision.wraps[index].reportWrapped,client.bundle.root.recipient.privateKey,plan.source.authorityKey,plan.source.account,reportKeyContext(vault.tenant,vault.vault,client.profile.account));try{reportWrapped=await client.wrap(reportKey,client.profile.recipientKey,reportKeyContext(vault.tenant,vault.vault,client.profile.account));}finally{reportKey.fill(0);}}
+    wraps.push({ ...(reportWrapped?{reportWrapped}:{}),vault: vault.vault, epoch: vault.epoch, revision: vault.revision, wrapped: await client.wrap(key, client.profile.recipientKey, binding) });
    } finally { key.fill(0); }
   }
   const result = await client.call('archive/activate', { restore, approvedPlanHash, activation, rights, wraps });
