@@ -21,6 +21,9 @@ export async function subjectPlan(ctx, subject) {
   const entry={table,where,args,keys,columns:columns.map(c=>c.name),rows,action,set};snapshots.push(entry);if(action!=='observe')changes.push(entry);return rows;
  };
  const own='SELECT id FROM lky_vaults WHERE tenant=? AND owner=?',ownArgs=[ctx.tenant,accountId];
+ await select('lky_recovery_cases','account=? OR enrollment IN (SELECT id FROM lky_recovery_custody WHERE custodian=?)',[accountId,accountId]);
+ await select('lky_recovery_custody','account=? OR custodian=?',[accountId,accountId]);
+ await select('lky_emergency_access','owner=? OR contact=?',[accountId,accountId]);
  await select('lky_company_custody','owner=? OR custodian=?',[accountId,accountId]);
  await select('lky_custody_reviews','actor=? OR instr(plan,?)>0 OR instr(plan,?)>0',[accountId,accountId,subject]);
  const ownedVaults=await select('lky_vaults','tenant=? AND owner=?',ownArgs);
