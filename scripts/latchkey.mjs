@@ -11,6 +11,7 @@ import { RecordsError } from '../src/latchkey/portability/private-files.mjs';
 import { PortabilityClient } from '../src/latchkey/portability/client.mjs';
 import { recordsCommand } from './latchkey/records-commands.mjs';
 import { itemCommands, runItemCommand } from './latchkey/items-commands.mjs';
+import { privateOutput } from '../src/latchkey/portability/private-files.mjs';
 import { constants } from 'node:fs';
 import { resolve } from 'node:path';
 import { cacheIdentity,emptyCache,sealCache,openCache } from '../clients/shared/offline/cache.mjs';
@@ -95,7 +96,7 @@ try {
   const machine = await MachineClient.create(input.origin, input.runtimeKey);
   await writePrivate(input.machineProfile, machine); result = await MachineClient.identity(machine);
  } else if(command==='selection-open'){
-  const {SelectionExportClient}=await import('../src/latchkey/portability/selection.mjs');const value=await SelectionExportClient.open(await readPrivate(input.archive),input.exportKey);await writePrivate(input.output,value);result={written:true,planHash:value.planHash};
+  const {SelectionExportClient}=await import('../src/latchkey/portability/selection.mjs');const value=await SelectionExportClient.open(await readPrivate(input.archive),input.exportKey);await privateOutput(input.output,handle=>handle.writeFile(JSON.stringify(value)+'\n'));result={written:true,planHash:value.planHash,custody:'Private buyer-held file; external copies cannot be recalled.'};
  } else if (command === 'runtime-read') {
   const value = await MachineClient.read(await readPrivate(input.machineProfile), await readPrivate(input.grant), input.runtimeKey);
   await writePrivate(input.output, value); result = { written: true };
@@ -141,8 +142,8 @@ try {
   else { profile = await readPrivate(input.profile); client = new VaultClient(profile.origin); await client.unlock(profile, input.password); }
   switch (command) {
    case 'selection-policy': {const {SelectionExportClient}=await import('../src/latchkey/portability/selection.mjs');result=await new SelectionExportClient(client).setPlaintextPolicy(input.vault,input.allowPlaintext,{confirmed:input.confirmed});break;}
-   case 'selection-preview': {const {SelectionExportClient}=await import('../src/latchkey/portability/selection.mjs');const value=await new SelectionExportClient(client).preview(input.selection,{format:input.format});await writePrivate(input.output,value);result={written:true,planHash:value.planHash,selection:value.plan.selection,omissions:value.plan.omissions};break;}
-   case 'selection-export': {const {SelectionExportClient}=await import('../src/latchkey/portability/selection.mjs');const archive=await new SelectionExportClient(client).export(await readPrivate(input.plan),input.exportKey,{confirmed:input.confirmed,approvedPlanHash:input.approvedPlanHash,format:input.format});await writePrivate(input.output,archive);result={written:true};break;}
+   case 'selection-preview': {const {SelectionExportClient}=await import('../src/latchkey/portability/selection.mjs');const value=await new SelectionExportClient(client).preview(input.selection,{format:input.format,review:input.review});await writePrivate(input.output,value);result={written:true,planHash:value.planHash,selection:value.plan.selection,omissions:value.plan.omissions,review:value.plan.review,coverage:value.plan.coverage};break;}
+   case 'selection-export': {const {SelectionExportClient}=await import('../src/latchkey/portability/selection.mjs');const archive=await new SelectionExportClient(client).export(await readPrivate(input.plan),input.exportKey,{confirmed:input.confirmed,approvedPlanHash:input.approvedPlanHash,format:input.format});await privateOutput(input.output,handle=>handle.writeFile(JSON.stringify(archive)+'\n'));result={written:true,custody:'Private buyer-held file; external copies cannot be recalled.',warning:input.format==='plaintext'?'Unencrypted plaintext. Approval expiry cannot recall or erase this file.':null};break;}
    case 'selection-import': {const {SelectionExportClient}=await import('../src/latchkey/portability/selection.mjs');result=await new SelectionExportClient(client).reimport(await readPrivate(input.archive),input.exportKey,{confirmed:input.confirmed,approvedPlanHash:input.approvedPlanHash});break;}
    case 'erasure-scan': {const {scanErasureContent}=await import('../src/latchkey/erasure/client-scan.mjs');await writePrivate(input.output,await scanErasureContent(client,input.vault,input.terms));result={written:true};break;}
    case 'exit-plan': result=await client.call(['exit','plan'].join('/'),{});break;

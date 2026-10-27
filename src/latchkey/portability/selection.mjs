@@ -6,7 +6,8 @@ const need=(value,code)=>{if(!value)throw new ClientError(code)};
 const uuid=value=>typeof value==='string'&&/^[0-9a-f-]{36}$/.test(value);
 const schema='latchkey-selected-export-v1';
 const approvalText=plan=>canonicalJson([schema,plan]);
-async function collect(client,selection,format='encrypted'){
+async function collect(client,selection,format='encrypted',review={purpose:'Migration',target:'Buyer-held private file'}){
+ need(review&&Object.keys(review).sort().join()==='purpose,target'&&[review.purpose,review.target].every(value=>typeof value==='string'&&value.trim().length>0&&value.length<=500),'export_review_required');
  need(['encrypted','plaintext'].includes(format),'invalid_export_format');
  const visible=await client.call('vaults',{});
  if(selection==='company')selection=visible.filter(row=>row.kind==='company'&&row.owner===client.profile.account).map(row=>({vault:row.id,objects:null}));
@@ -27,12 +28,12 @@ async function collect(client,selection,format='encrypted'){
    vaults.push({vault:selected.vault,kind:visible.find(row=>row.id===selected.vault)?.kind,policyRevision:policy.revision,epoch:snapshot.result.epoch,revision:snapshot.result.revision,objects:chosen,omittedObjects:objects.filter(object=>!chosen.includes(object)),lifecycle,counts:{items:chosen.length,versions:versions.length,attachments:attachments.length,attachmentBytes:attachments.reduce((total,row)=>total+row.size,0)},versions});
   }finally{snapshot.key.fill(0)}
  }
- const plan={schema,source:{tenant:client.profile.tenant,account:client.profile.account,authorityKey:client.profile.authorityKey},selection:vaults.map(({versions,...row})=>row),contentHash:await digest(canonicalJson(vaults)),omittedVaults:visible.filter(row=>!vaults.some(vault=>vault.vault===row.id)).map(row=>({vault:row.id,counts:'not inspected'})).sort((a,b)=>a.vault.localeCompare(b.vault)),omissions:['Unselected items and vaults','Installation identities, private account keys and active authority','Non-item domains; use the full encrypted installation archive'],activeAuthority:false,format};
+ const plan={schema,review:{...review,consequences:'The buyer controls downloaded copies. Plaintext has no encryption and cannot be remotely recalled or expired.'},coverage:{basis:'Vaults visible to the current account only',completeCompany:false,selectedCompanyVaults:vaults.filter(row=>row.kind==='company').length,visibleCompanyVaults:visible.filter(row=>row.kind==='company').length,otherCompanyVaults:'unknown; not inspected'},source:{tenant:client.profile.tenant,account:client.profile.account,authorityKey:client.profile.authorityKey},selection:vaults.map(({versions,...row})=>row),contentHash:await digest(canonicalJson(vaults)),omittedVaults:visible.filter(row=>!vaults.some(vault=>vault.vault===row.id)).map(row=>({vault:row.id,counts:'not inspected'})).sort((a,b)=>a.vault.localeCompare(b.vault)),omissions:['Unselected items and vaults','Installation identities, private account keys and active authority','Non-item domains; use the full encrypted installation archive'],activeAuthority:false,format};
  return {plan,vaults,planHash:await digest(approvalText(plan))};
 }
 export class SelectionExportClient {
  constructor(client){this.client=client}
- async preview(selection,{format='encrypted'}={}){const {plan,planHash}=await collect(this.client,selection,format);return {plan,planHash}}
+ async preview(selection,{format='encrypted',review}={}){const {plan,planHash}=await collect(this.client,selection,format,review);return {plan,planHash}}
  async setPlaintextPolicy(vault,allowPlaintext,{confirmed=false}={}){
   need(confirmed===true,'exact_export_approval_required');const current=await this.client.call(selectionRoutes.policy,{vault});
   const statement={tenant:this.client.profile.tenant,vault,owner:this.client.profile.account,revision:current.revision+1,allowPlaintext};
@@ -41,18 +42,22 @@ export class SelectionExportClient {
  async export(preview,exportKey,{confirmed=false,approvedPlanHash,format='encrypted'}={}){
   need(format===preview?.plan?.format,'export_format_changed');
   need(confirmed===true&&approvedPlanHash===preview?.planHash,'exact_export_approval_required');
-  const fresh=await collect(this.client,preview.plan.selection.map(row=>({vault:row.vault,objects:row.objects})),format);
+  const fresh=await collect(this.client,preview.plan.selection.map(row=>({vault:row.vault,objects:row.objects})),format,{purpose:preview.plan.review.purpose,target:preview.plan.review.target});
   need(fresh.planHash===approvedPlanHash&&canonicalJson(fresh.plan)===canonicalJson(preview.plan),'export_plan_changed');
+  const approvals=[],expiresAt=Date.now()+240000;
   for(const row of fresh.plan.selection){
-   const statement={tenant:this.client.profile.tenant,vault:row.vault,owner:this.client.profile.account,vaultRevision:row.revision,policyRevision:row.policyRevision,format,planHash:approvedPlanHash,expiresAt:Date.now()+240000};
-   await this.client.call(selectionRoutes.authorize,{vault:row.vault,statement,signature:await sign(this.client.bundle.root.authority.privateKey,selectionApprovalText(statement)),confirmed:true});
+   const statement={tenant:this.client.profile.tenant,vault:row.vault,owner:this.client.profile.account,vaultRevision:row.revision,policyRevision:row.policyRevision,format,planHash:approvedPlanHash,counts:row.counts,expiresAt};
+   const approval={vault:row.vault,statement,signature:await sign(this.client.bundle.root.authority.privateKey,selectionApprovalText(statement)),confirmed:true};
+   await this.client.call(selectionRoutes.authorize,approval);approvals.push(approval);
   }
   const key=format==='encrypted'?decode(exportKey,32):null;need(!key||key.length===32,'invalid_key');
   try{
    const value={schema,plan:fresh.plan,planHash:fresh.planHash,vaults:fresh.vaults,signature:await sign(this.client.bundle.root.authority.privateKey,approvalText(fresh.plan))};
    const serialized=bytes(value);need(serialized.length<=1048560,'selected_export_size_limit');
-   if(format==='plaintext')return value;
-   return await seal(key,serialized,{tenant:'portable',vault:'selection',object:id(),purpose:'selected-export',epoch:1,version:1});
+   const archive=format==='plaintext'?value:await seal(key,serialized,{tenant:'portable',vault:'selection',object:id(),purpose:'selected-export',epoch:1,version:1});
+   // Recheck every selected vault together after encryption, at the release boundary.
+   await this.client.call(selectionRoutes.release,{approvals});
+   return archive;
   }finally{key?.fill(0)}
  }
  static async open(archive,exportKey){

@@ -1,5 +1,6 @@
 import { canonicalJson } from '@runeditrun/rer/modules/portability';
 import { bytes, encode, id } from '../crypto/envelope.mjs';
+import { selectionRoutes } from '../portability/selection-common.mjs';
 import { ApiError } from '../api/catalogue.mjs';
 const need=(value,code='invalid_audit_input',status=400)=>{if(!value)throw new ApiError(code,status)};
 const access=ctx=>({stmt:(sql,...args)=>ctx.db.prepare(sql).bind(...args),all:async(sql,...args)=>(await ctx.db.prepare(sql).bind(...args).all()).results,first:(sql,...args)=>ctx.db.prepare(sql).bind(...args).first()});
@@ -34,11 +35,19 @@ async function commitAudit(ctx,facts){
 }
 const reference=value=>typeof value==='string'&&/^[0-9a-f-]{36}$/.test(value)?value:null;
 const actions={'vault\u002fread':'view','item\u002fread':'view','vault\u002fexport':'export','vault\u002fcreate':'create','item\u002fput':'edit','vault\u002fshare':'grant','vault\u002frotate':'rotate','device\u002frevoke':'revoke','machine\u002fgrant':'grant','machine\u002frevoke':'revoke'};
-export function auditFacts(ctx,route,input,result,requestId){
- const category=['audit','vault','item','api','sharing','runtime','project','webhook','mcp','subject','recovery','enrollment','device','machine','generator','reviews','evidence','archive','checkout','people','admin'].find(value=>route.startsWith(value+'/'))??'authenticated';
- const action=route==='item\u002fauthorize'&&['copy','reveal','fill','history','attachment'].includes(input.action)?input.action:actions[route]??category+'_action';
+function selectionFacts(route,input){
+ if(!Object.values(selectionRoutes).includes(route))return {};
+ const number=value=>Number.isSafeInteger(value)&&value>=0?value:null;
+ const hash=value=>typeof value==='string'&&/^[A-Za-z0-9_-]{43}$/.test(value)?value:null;
+ const rows=route===selectionRoutes.release?(Array.isArray(input.approvals)?input.approvals.slice(0,100):[]):[input];
+ return {exportStage:route===selectionRoutes.release?'release_authority_check':route===selectionRoutes.authorize?'approval':route===selectionRoutes.setPolicy?'policy_change':'policy_read',exports:rows.map(row=>{const s=row?.statement;return {vault:reference(row?.vault),planHash:hash(s?.planHash),policyRevision:number(s?.policyRevision??s?.revision),sourceRevision:number(s?.vaultRevision),format:['encrypted','plaintext'].includes(s?.format)?s.format:null,expiresAt:number(s?.expiresAt),counts:s?.counts?Object.fromEntries(['items','versions','attachments','attachmentBytes'].map(key=>[key,number(s.counts[key])])):null}}),exportOutcome:route===selectionRoutes.release?'Prepared in buyer client; release check only. File delivery is not verified.':'No file production or delivery is established by this event.'};
+}
+export function auditFacts(ctx,route,input,result,requestId,reason=null){
+ const category=['selection','audit','vault','item','api','sharing','runtime','project','webhook','mcp','subject','recovery','enrollment','device','machine','generator','reviews','evidence','archive','checkout','people','admin'].find(value=>route.startsWith(value+'/'))??'authenticated';
+ const exportActions={[selectionRoutes.authorize]:'selection_approval',[selectionRoutes.release]:'selection_release',[selectionRoutes.setPolicy]:'selection_policy_change'};
+ const action=exportActions[route]??(route==='item\u002fauthorize'&&['copy','reveal','fill','history','attachment'].includes(input.action)?input.action:actions[route]??category+'_action');
  const ip=ctx.request?.headers.get('cf-connecting-ip');
- return {schema:'latchkey-audit-fact-v1',request:requestId,actor:ctx.actor,sponsor:ctx.actor,serviceIdentity:null,agent:null,device:ctx.device,ip:ip&&/^[a-fA-F0-9:.]{3,45}$/.test(ip)?ip:null,time:ctx.now,receiptTime:ctx.now,vault:reference(input.vault),item:reference(input.object),target:reference(input.operator??input.account??input.device??input.subscription??input.operation),action,permission:category,policyVersion:'unrecorded',result,...(route==='audit' + '/expire'?{retentionDays,expiryConfirmed:input.confirmed===true}:{}),coverage:'connected authenticated human request; intent and outcome are separate records'};
+ return {schema:'latchkey-audit-fact-v1',request:requestId,actor:ctx.actor,sponsor:ctx.actor,serviceIdentity:null,agent:null,device:ctx.device,ip:ip&&/^[a-fA-F0-9:.]{3,45}$/.test(ip)?ip:null,time:ctx.now,receiptTime:ctx.now,vault:reference(input.vault),item:reference(input.object),target:reference(input.operator??input.account??input.device??input.subscription??input.operation),action,permission:category,policyVersion:'unrecorded',result,reason,...selectionFacts(route,input),...(route==='audit' + '/expire'?{retentionDays,expiryConfirmed:input.confirmed===true}:{}),coverage:'connected authenticated human request; intent and outcome are separate records'};
 }
 export async function auditDisposition(ctx,row,reason){
  const disposition=canonicalJson({reason,at:ctx.now,...(reason==='retention'?{retentionDays}:{})});

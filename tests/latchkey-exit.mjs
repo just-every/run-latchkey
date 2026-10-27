@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
+import { createPortability } from '@runeditrun/rer/modules/portability';
+import archivePolicy from '../scripts/latchkey/archive-policy.mjs';
 import {promises as files} from 'node:fs';
-const {mkdtemp,writeFile,readFile,rm}=files;
+const {mkdtemp,writeFile,readFile,rm,stat,readdir,symlink}=files;
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import { vaultFixture } from './browser/fixture.mjs';
@@ -38,16 +40,21 @@ export async function ownerRunExitJourney() {
   await assert.rejects(selected.preview([{vault,objects:[login]}],{format:'plaintext'}),error=>error.code==='plaintext_export_policy_required');
   const invited=await f.fetcher(f.origin+'/auth/invite',{method:'POST',headers:{origin:f.origin,cookie:owner.cookie,'content-type':['application','json'].join('/')},body:JSON.stringify({email:'synthetic-latchkey-8025@example.test',displayName:'Synthetic export reader',role:'member'})});assert.equal(invited.status,202);
   const inviteToken=new URL(f.mail.at(-1).content.find(part=>part.type===['text','plain'].join('/')).value.match(/https:\/\/[^\s<>]+/)[0]).searchParams.get('token');
+  let otherOwnedVault;
   const reader=new VaultClient(f.origin,{fetcher:f.fetcher});try{
    await reader.confirmIdentity(inviteToken);const enrolled=await reader.register('synthetic-latchkey-8026');await reader.unlock(enrolled.profile,'synthetic-latchkey-8026');
    await reader.pinAccount(owner.profile.account,await digest(JSON.stringify([owner.profile.recipientKey,owner.profile.authorityKey])));
    await owner.share(vault,reader.profile.account,await digest(JSON.stringify([reader.profile.recipientKey,reader.profile.authorityKey])),['read']);
    await assert.rejects(new SelectionExportClient(reader).preview([{vault,objects:[login]}]),error=>error.code==='permission_denied');
    await assert.rejects(new SelectionExportClient(reader).setPlaintextPolicy(vault,true,{confirmed:true}),error=>error.code==='review_owner_required');
+   otherOwnedVault=(await reader.createVault()).vault;await reader.put(otherOwnedVault,{secret:'synthetic-latchkey-8030'});
+   await reader.share(otherOwnedVault,owner.profile.account,await digest(JSON.stringify([owner.profile.recipientKey,owner.profile.authorityKey])),['read']);
   }finally{reader.lock()}
   const freshPreview=await selected.preview([{vault,objects:[login]}]);
-  const expiredStatement={tenant:owner.profile.tenant,vault,owner:owner.profile.account,vaultRevision:freshPreview.plan.selection[0].revision,policyRevision:0,format:'encrypted',planHash:freshPreview.planHash,expiresAt:Date.now()-1};
-  await assert.rejects(owner.call(selectionRoutes.authorize,{vault,statement:expiredStatement,signature:await sign(owner.bundle.root.authority.privateKey,selectionApprovalText(expiredStatement)),confirmed:true}),error=>error.code==='export_approval_changed');
+  const expiredStatement={tenant:owner.profile.tenant,vault,owner:owner.profile.account,vaultRevision:freshPreview.plan.selection[0].revision,policyRevision:0,format:'encrypted',planHash:freshPreview.planHash,counts:freshPreview.plan.selection[0].counts,expiresAt:Date.now()-1};
+  const expiredApproval={vault,statement:expiredStatement,signature:await sign(owner.bundle.root.authority.privateKey,selectionApprovalText(expiredStatement)),confirmed:true};
+  await assert.rejects(owner.call(selectionRoutes.authorize,expiredApproval),error=>error.code==='export_approval_changed');
+  await assert.rejects(owner.call(selectionRoutes.release,{approvals:[expiredApproval]}),error=>error.code==='export_approval_changed');
   const selectionArchive=await selected.export(freshPreview,exportKey,{confirmed:true,approvedPlanHash:freshPreview.planHash});
   await assert.rejects(selected.reimport(selectionArchive,exportKey,{confirmed:true,approvedPlanHash:freshPreview.planHash}),error=>error.code==='fresh_installation_required');
   const selectionOpened=await SelectionExportClient.open(selectionArchive,exportKey);assert.deepEqual(selectionOpened.vaults[0].versions,expected.filter(row=>row.object===login));
@@ -55,7 +62,9 @@ export async function ownerRunExitJourney() {
   const altered=structuredClone(preview);altered.plan.selection[0].objects=[];await assert.rejects(selected.export(altered,exportKey,{confirmed:true,approvedPlanHash:preview.planHash}));
   const familyVault=(await owner.createVault({kind:'family'})).vault;await owner.put(familyVault,{secret:'synthetic-latchkey-8027'});
   const fullPreview=await selected.preview('company'),fullArchive=await selected.export(fullPreview,exportKey,{confirmed:true,approvedPlanHash:fullPreview.planHash});
-  assert.ok(fullPreview.plan.omittedVaults.some(row=>row.vault===familyVault));assert.ok(!JSON.stringify(fullPreview).includes('synthetic-latchkey-8027'));
+  assert.deepEqual(fullPreview.plan.omittedVaults,[familyVault,otherOwnedVault].sort().map(vault=>({vault,counts:'not inspected'})));
+  assert.deepEqual(fullPreview.plan.coverage,{basis:'Vaults visible to the current account only',completeCompany:false,selectedCompanyVaults:1,visibleCompanyVaults:2,otherCompanyVaults:'unknown; not inspected'});
+  assert.ok(!JSON.stringify(fullPreview).includes('synthetic-latchkey-8030'));assert.ok(!JSON.stringify(fullPreview).includes('synthetic-latchkey-8027'));
   assert.equal(fullPreview.plan.selection[0].counts.items,Object.keys(itemTypes).length+1);assert.equal(fullPreview.plan.selection[0].counts.attachments,1);assert.equal(fullPreview.plan.activeAuthority,false);
   const destination=await vaultFixture({browserEnabled:false});try{
    await assert.rejects(new SelectionExportClient(destination.owner).preview([{vault,objects:null}]));
@@ -66,16 +75,59 @@ export async function ownerRunExitJourney() {
   }finally{await destination.close()}
   await assert.rejects(selected.setPlaintextPolicy(vault,true,{confirmed:false}),error=>error.code==='exact_export_approval_required');
   await selected.setPlaintextPolicy(vault,true,{confirmed:true});
-  const plainPreview=await selected.preview([{vault,objects:[login]}],{format:'plaintext'});
+  // A real full archive is produced while the source plaintext policy is enabled.
+  const records=await createPortability({db:f.db,policy:archivePolicy}),backup=await records.exports.create();
+  let backupStatus;do{backupStatus=await records.exports.advance(backup,{maxParts:100})}while(backupStatus.phase!=='complete');
+  const archiveLines=(await new Response(await records.exports.download(backup)).text()).trim().split('\n').map(line=>JSON.parse(line));
+  assert.ok(!archiveLines[0].tables.some(row=>row.name==='lky_export_policies'));
+  assert.ok(archiveLines[0].excludedTables.includes('lky_export_policies'));
+  const restoredInstallation=await vaultFixture({browserEnabled:false,enrollOwner:false});try{
+   const destinationRecords=await createPortability({db:restoredInstallation.db,policy:archivePolicy});
+   const job=await destinationRecords.imports.create(archiveLines[0]);
+   for(const part of archiveLines.slice(1,-1))await destinationRecords.imports.uploadPart(job,part.index,part);
+   assert.equal((await destinationRecords.imports.finalize(job,{contentHash:archiveLines.at(-1).contentHash,archiveHash:archiveLines.at(-1).archiveHash})).phase,'complete');
+   const recovered=new VaultClient(restoredInstallation.origin,{fetcher:restoredInstallation.fetcher});try{
+    const enrolled=await recovered.recover({...f.enrolled.kit,origin:restoredInstallation.origin},f.password);await recovered.unlock(enrolled.profile,f.password);
+    assert.deepEqual(await recovered.call(selectionRoutes.policy,{vault}),{revision:0,allowPlaintext:false});
+    await assert.rejects(new SelectionExportClient(recovered).preview([{vault,objects:null}],{format:'plaintext'}),error=>error.code==='permission_denied');
+    assert.deepEqual((await recovered.call('vaults',{})).filter(row=>row.owner===recovered.profile.account).map(row=>JSON.parse(row.rights)),[[],[]]);
+   }finally{recovered.lock()}
+  }finally{await restoredInstallation.close()}
+  const plainPreview=await selected.preview([{vault,objects:[login]}],{format:'plaintext',review:{purpose:'synthetic-latchkey-8031',target:'synthetic-latchkey-8032'}});
+  assert.deepEqual(plainPreview.plan.review,{purpose:'synthetic-latchkey-8031',target:'synthetic-latchkey-8032',consequences:'The buyer controls downloaded copies. Plaintext has no encryption and cannot be remotely recalled or expired.'});
+  const changedReview=structuredClone(plainPreview);changedReview.plan.review.target='synthetic-latchkey-8033';
+  await assert.rejects(selected.export(changedReview,null,{confirmed:true,approvedPlanHash:plainPreview.planHash,format:'plaintext'}),error=>error.code==='export_plan_changed');
   await assert.rejects(selected.export(plainPreview,null,{confirmed:true,approvedPlanHash:plainPreview.planHash}),error=>error.code==='export_format_changed');
   const plaintext=await selected.export(plainPreview,null,{confirmed:true,approvedPlanHash:plainPreview.planHash,format:'plaintext'});
   assert.deepEqual((await SelectionExportClient.open(plaintext)).vaults[0].versions,expected.filter(row=>row.object===login));
-  const plainDestination=await vaultFixture({browserEnabled:false});try{const restored=await new SelectionExportClient(plainDestination.owner).reimport(plaintext,null,{confirmed:true,approvedPlanHash:plainPreview.planHash});assert.deepEqual((await plainDestination.owner.readVault(restored.restored[0].destination)).versions,expected.filter(row=>row.object===login))}finally{await plainDestination.close()}
+  const plainDestination=await vaultFixture({browserEnabled:false});try{const restored=await new SelectionExportClient(plainDestination.owner).reimport(plaintext,null,{confirmed:true,approvedPlanHash:plainPreview.planHash});assert.deepEqual((await plainDestination.owner.readVault(restored.restored[0].destination)).versions,expected.filter(row=>row.object===login));
+   assert.deepEqual(await plainDestination.owner.call(selectionRoutes.policy,{vault:restored.restored[0].destination}),{revision:0,allowPlaintext:false});
+   await assert.rejects(new SelectionExportClient(plainDestination.owner).preview([{vault:restored.restored[0].destination,objects:null}],{format:'plaintext'}),error=>error.code==='plaintext_export_policy_required');
+  }finally{await plainDestination.close()}
   const forged={tenant:owner.profile.tenant,vault,owner:owner.profile.account,revision:2,allowPlaintext:false};
   await assert.rejects(owner.call(selectionRoutes.setPolicy,{vault,statement:forged,signature:'synthetic-latchkey-8024',confirmed:true}),error=>error.code==='export_policy_changed');
   await selected.setPlaintextPolicy(vault,false,{confirmed:true});
   await assert.rejects(selected.export(plainPreview,null,{confirmed:true,approvedPlanHash:plainPreview.planHash,format:'plaintext'}),error=>error.code==='plaintext_export_policy_required');
   const policy=await owner.call(selectionRoutes.policy,{vault});assert.equal(policy.allowPlaintext,false);
+  // Race an earlier vault after its approval, through the real public mutation door.
+  const raceVault=(await owner.createVault()).vault;await owner.put(raceVault,{secret:'synthetic-latchkey-8034'});
+  const racePreview=await selected.preview([{vault,objects:[login]},{vault:raceVault,objects:null}]);
+  const originalCall=owner.call.bind(owner);let raced=false;
+  owner.call=async(name,input)=>{if(name===selectionRoutes.release&&!raced){raced=true;await owner.put(vault,createItem('secure-note',{title:'Synthetic export race',values:{note:'synthetic-latchkey-8035'}}));}return originalCall(name,input)};
+  try{await assert.rejects(selected.export(racePreview,exportKey,{confirmed:true,approvedPlanHash:racePreview.planHash}),error=>error.code==='export_approval_changed');assert.equal(raced,true)}finally{owner.call=originalCall}
+  await selected.setPlaintextPolicy(vault,true,{confirmed:true});
+  const revokePreview=await selected.preview([{vault,objects:[login]}],{format:'plaintext'});let revoked=false;
+  owner.call=async(name,input)=>{if(name===selectionRoutes.release&&!revoked){revoked=true;await selected.setPlaintextPolicy(vault,false,{confirmed:true});}return originalCall(name,input)};
+  try{await assert.rejects(selected.export(revokePreview,null,{confirmed:true,approvedPlanHash:revokePreview.planHash,format:'plaintext'}),error=>error.code==='export_approval_changed');assert.equal(revoked,true)}finally{owner.call=originalCall}
+  const audit=await owner.call(route('audit','list'),{filters:{action:'selection_release'},after:0,limit:200});
+  const released=audit.entries.filter(row=>row.result==='succeeded'),refused=audit.entries.filter(row=>row.result==='refused');
+  assert.ok(released.length>=3);assert.equal(refused.length,3);assert.deepEqual(refused.map(row=>row.reason),['export_approval_changed','export_approval_changed','export_approval_changed']);
+  const plainRelease=released.find(row=>row.exports.some(item=>item.planHash===plainPreview.planHash));assert.ok(plainRelease);
+  assert.deepEqual(plainRelease.exports,[{vault,planHash:plainPreview.planHash,policyRevision:1,sourceRevision:plainPreview.plan.selection[0].revision,format:'plaintext',expiresAt:plainRelease.exports[0].expiresAt,counts:{items:1,versions:2,attachments:0,attachmentBytes:0}}]);
+  assert.equal(plainRelease.actor,owner.profile.account);assert.ok(plainRelease.exports[0].expiresAt>plainRelease.time);assert.ok(plainRelease.exports[0].expiresAt<=plainRelease.time+300000);
+  assert.match(plainRelease.exportOutcome,/delivery is not verified/);
+  const auditText=JSON.stringify(audit);for(const secret of ['synthetic-latchkey-8031','synthetic-latchkey-8032',values.login.password,attachment.name,exportKey])assert.ok(!auditText.includes(secret));
+
   const stalePreview=await selected.preview([{vault,objects:[login]}]);await owner.put(vault,createItem('secure-note',{title:'Synthetic revision fence',values:{note:'synthetic-latchkey-8023'}}));
   await assert.rejects(selected.export(stalePreview,exportKey,{confirmed:true,approvedPlanHash:stalePreview.planHash}),error=>error.code==='export_plan_changed');
   // Restore the expected exit comparison after the intentionally changed scope.
@@ -83,9 +135,19 @@ export async function ownerRunExitJourney() {
   const cliDirectory=await mkdtemp(join(tmpdir(),'latchkey-selected-exit-'));try{
    const profile=join(cliDirectory,'profile.json'),plan=join(cliDirectory,'plan.json'),archive=join(cliDirectory,'selected.json'),output=join(cliDirectory,'opened.json');await writeFile(profile,JSON.stringify(owner.profile),{mode:0o600});
    const proposed=await command('selection-preview',{profile,password:f.password,selection:[{vault,objects:[login]}],output:plan},f.caFile);assert.equal(proposed.code,0,proposed.err);const planHash=JSON.parse(proposed.out).planHash;
-   const denied=await command('selection-export',{profile,password:f.password,plan,exportKey,output:archive,approvedPlanHash:planHash,confirmed:false},f.caFile);assert.equal(denied.code,1);assert.equal(JSON.parse(denied.err).error,'exact_export_approval_required');
+   const denied=await command('selection-export',{profile,password:f.password,plan,exportKey,output:archive,approvedPlanHash:planHash,confirmed:false},f.caFile);assert.equal(denied.code,1);assert.equal(JSON.parse(denied.err).error,'exact_export_approval_required');await assert.rejects(stat(archive),{code:'ENOENT'});
    const exported=await command('selection-export',{profile,password:f.password,plan,exportKey,output:archive,approvedPlanHash:planHash,confirmed:true},f.caFile);assert.equal(exported.code,0,exported.err);assert.ok(!(await readFile(archive,'utf8')).includes(values.login.password));
-   const opened=await command('selection-open',{archive,exportKey,output},f.caFile);assert.equal(opened.code,0,opened.err);assert.deepEqual(JSON.parse(await readFile(output,'utf8')).vaults[0].versions,expected.filter(row=>row.object===login));
+   const opened=await command('selection-open',{archive,exportKey,output},f.caFile);assert.equal(opened.code,0,opened.err);assert.equal((await stat(archive)).mode&0o777,0o600);assert.equal((await stat(output)).mode&0o777,0o600);
+   const repeated=await command('selection-open',{archive,exportKey,output},f.caFile);assert.equal(repeated.code,1);
+   const linked=join(cliDirectory,'linked.json');await symlink(output,linked);assert.equal((await command('selection-open',{archive,exportKey,output:linked},f.caFile)).code,1);
+   assert.deepEqual((await readdir(cliDirectory)).filter(name=>name.endsWith('.partial')),[]);
+   await selected.setPlaintextPolicy(vault,true,{confirmed:true});
+   const plainPlan=join(cliDirectory,'plain-plan.json'),plainFile=join(cliDirectory,'plain.json');
+   const reviewedPlain=await command('selection-preview',{profile,password:f.password,selection:[{vault,objects:[login]}],format:'plaintext',review:{purpose:'synthetic-latchkey-8036',target:'synthetic-latchkey-8037'},output:plainPlan},f.caFile);assert.equal(reviewedPlain.code,0,reviewedPlain.err);
+   const plainWritten=await command('selection-export',{profile,password:f.password,plan:plainPlan,format:'plaintext',output:plainFile,approvedPlanHash:JSON.parse(reviewedPlain.out).planHash,confirmed:true},f.caFile);assert.equal(plainWritten.code,0,plainWritten.err);assert.match(JSON.parse(plainWritten.out).warning,/Unencrypted plaintext/);
+   assert.equal((await stat(plainFile)).mode&0o777,0o600);assert.deepEqual(JSON.parse(await readFile(plainFile,'utf8')).vaults[0].versions,expected.filter(row=>row.object===login));
+   await selected.setPlaintextPolicy(vault,false,{confirmed:true});
+   assert.deepEqual((await readdir(cliDirectory)).filter(name=>name.endsWith('.partial')),[]);assert.deepEqual(JSON.parse(await readFile(output,'utf8')).vaults[0].versions,expected.filter(row=>row.object===login));
   }finally{await rm(cliDirectory,{recursive:true,force:true})}
   const before=await owner.exportVault(vault,exportKey),beforePlan=await owner.call(route('exit','plan'),{});assert.equal(beforePlan.commercial.state,'active');
   await owner.call(route('msp','commercial'),{status:'cancelled',reference:'synthetic-latchkey-8021',confirmed:true});

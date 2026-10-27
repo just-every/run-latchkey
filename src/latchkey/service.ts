@@ -56,7 +56,7 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
  let auditContext: any = null, auditRoute = '', auditInput: Row = {}, auditRequest = '';
  const response = async (value: unknown, status = 200, cookie?: string) => {
   const context = auditContext; auditContext = null;
-  if (context) await appendAudit(context, auditFacts(context, auditRoute, auditInput, status < 400 ? 'succeeded' : 'refused', auditRequest));
+  if (context) await appendAudit(context, auditFacts(context, auditRoute, auditInput, status < 400 ? 'succeeded' : 'refused', auditRequest, status >= 400 ? (value as Row).error ?? 'request_refused' : null));
   return Response.json(value, { status, headers: { ...headers, ...(cookie ? { 'set-cookie': cookie } : {}) } });
  };
  const first = (sql: string, ...args: any[]) => db.prepare(sql).bind(...args).first<Row>()
