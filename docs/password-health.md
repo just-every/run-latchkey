@@ -18,7 +18,12 @@ suppression changes. Previously decrypted copies cannot be recalled.
 Installation archives retain encrypted history, with all restored suppressions
 inactive. Destination vault access does not transfer another actor's private
 history or activate their decisions. Erasing an item removes its suppression
-records. Owner-reviewed person erasure removes that actor's records and records
+records. Unsigned legacy vault records are ignored, including after restore,
+because any vault writer could claim another actor. Owner-confirmed item erasure
+first removes dedicated legacy histories using the same signed erasure door.
+If cleanup is interrupted, the item remains and the owner can retry. A history
+containing unrelated versions requires separate explicit review before erasure.
+Owner-reviewed person erasure removes that actor's records and records
 replay fences in the later erasure journal. Another owner's encrypted content
 is not automatically redacted, and external copies remain outstanding.
 

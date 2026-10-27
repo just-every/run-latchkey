@@ -125,6 +125,15 @@ for(const width of [1440,390]){
    await assert.rejects(owner.eraseItem(vault,memberItem.object,{confirmed:true}),/legacy_suppression_erasure_review_required/);
    assert.equal((await owner.readItem(vault,mixed.object,true)).versions.length,2);
    await owner.eraseItem(vault,mixed.object,{confirmed:true});
+   const sourceRevision=(await owner.readVault(vault)).revision;
+   await assert.rejects(owner.eraseItem(vault,memberItem.object,{confirmed:true,revision:sourceRevision-1}),e=>e.code==='version_conflict');
+   assert.equal((await owner.readItem(vault,legacy.object)).versions.length,1);
+   const interrupted=Object.create(owner);
+   interrupted.call=(route,input)=>{if(route===['item','erase'].join('/')&&input.object===memberItem.object)throw Error('synthetic_erasure_interruption');return owner.call(route,input);};
+   await assert.rejects(interrupted.eraseItem(vault,memberItem.object,{confirmed:true}),/synthetic_erasure_interruption/);
+   assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM lky_versions WHERE vault_id=? AND object_id=?').bind(vault,legacy.object).first()).n,0);
+   assert.equal((await owner.readItem(vault,memberItem.object)).versions.at(-1).value.title,'Synthetic member review revised');
+   assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM lky_health_suppressions WHERE object_id=?').bind(memberItem.object).first()).n,2);
    const erasedMember=await owner.eraseItem(vault,memberItem.object,{confirmed:true});assert.equal(erasedMember.deleted.lky_health_suppressions,2);assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM lky_versions WHERE vault_id=? AND object_id=?').bind(vault,legacy.object).first()).n,0);await assert.rejects(owner.put(vault,{schema:'latchkey/health-suppression/v1'},legacy.object),e=>e.code==='item_erased');assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM lky_health_suppressions WHERE object_id=?').bind(memberItem.object).first()).n,0);
   }
 
