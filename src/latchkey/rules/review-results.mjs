@@ -1,5 +1,5 @@
 import { access, canonicalJson, guarded, has, need, vaultFor, LifecycleError } from '../lifecycle/common.mjs';
-import { inventory, inventoryGuard } from '../reviews/snapshot.mjs';
+import { inventory, inventoryGuard, removalEffective } from '../reviews/snapshot.mjs';
 import { scopeGuards } from './scope.mjs';
 
 // A full-vault campaign covers the rule's exact target within its narrower
@@ -44,14 +44,18 @@ export async function reconcileReview(ctx,row,value,obligation) {
  if(completed){need(link.result,'rule_review_not_observed',409);return {state:'review-result-recorded',review:link.review_id,result:JSON.parse(link.result)}}
  const result=JSON.parse(review.package),c=result.completeness;
  need(result.id===review.id&&result.vault===context.vault.id&&result.phase==='closed'&&result.closedAt===review.closed_at&&review.closed_at>=review.as_of&&result.rows.length>0&&c.total===result.rows.length&&c.decided===c.total&&c.pendingRemovals===0&&c.unreconciled===0&&result.rows.every(r=>['confirm','remove'].includes(r.decision)),'rule_review_incomplete',409);
- for(const reviewer of new Set(result.rows.map(r=>r.reviewer)))need(await first("SELECT 1 FROM lky_accounts a JOIN oa_operators o ON o.id=a.operator_id WHERE a.id=? AND a.tenant=? AND o.status='active'",reviewer,ctx.tenant),'rule_reviewer_unavailable',403);
+ const reviewerGuards=[];
+ for(const reviewer of new Set(result.rows.map(r=>r.reviewer))){
+  const sql="EXISTS(SELECT 1 FROM lky_accounts a JOIN oa_operators o ON o.id=a.operator_id WHERE a.id=? AND a.tenant=? AND o.status='active')",args=[reviewer,ctx.tenant];
+  need(await first(`SELECT 1 WHERE ${sql}`,...args),'rule_reviewer_unavailable',403);
+  reviewerGuards.push(guard(sql,args));
+ }
  const snapshots=await inventoryGuard(ctx,context.vault.id),current=await inventory(ctx,context.vault.id);
- // Future, pending and temporarily inactive grants still retain authority.
- // A historical effective flag cannot substitute for their actual removal.
- need(result.rows.filter(r=>r.decision==='remove').every(r=>r.effective&&!current.rows.some(live=>live.kind===r.kind&&live.id===r.id&&live.subject===r.subject&&!['revoked','expired','spent'].includes(live.status))),'rule_review_removal_pending',409);
+ // Re-observe removals rather than trusting an old effective flag or checkbox.
+ need(result.rows.filter(r=>r.decision==='remove').every(r=>r.effective&&removalEffective(current,r)),'rule_review_removal_pending',409);
  const summary=canonicalJson({review:review.id,closedAt:review.closed_at,total:c.total,decided:c.decided,removals:c.removals,providerState:'unknown'});
  try {
-  await guarded(ctx,[context.vault],[stmt("UPDATE lky_rule_obligations SET phase='review-result-recorded' WHERE id=?",obligation.id),stmt('UPDATE lky_rule_reviews SET result=?,recorded_at=? WHERE obligation=?',summary,ctx.now,obligation.id),event('rule_review_result_observed',row.id)],[...context.guards,...snapshots.map(g=>guard(g.sql,g.args)),guard("EXISTS(SELECT 1 FROM lky_rule_reviews WHERE obligation=? AND review_id=? AND binding=? AND phase='active' AND result IS NULL)",[obligation.id,link.review_id,link.binding])]);
+  await guarded(ctx,[context.vault],[stmt("UPDATE lky_rule_obligations SET phase='review-result-recorded' WHERE id=?",obligation.id),stmt('UPDATE lky_rule_reviews SET result=?,recorded_at=? WHERE obligation=?',summary,ctx.now,obligation.id),event('rule_review_result_observed',row.id)],[...context.guards,...reviewerGuards,...snapshots.map(g=>guard(g.sql,g.args)),guard("EXISTS(SELECT 1 FROM lky_rule_reviews WHERE obligation=? AND review_id=? AND binding=? AND phase='active' AND result IS NULL)",[obligation.id,link.review_id,link.binding])]);
  } catch(error) {
   const winner=await first('SELECT result FROM lky_rule_reviews WHERE obligation=?',obligation.id);
   if(winner?.result!==summary)throw error;
@@ -59,11 +63,15 @@ export async function reconcileReview(ctx,row,value,obligation) {
  return {state:'review-result-recorded',review:review.id,result:JSON.parse(summary)};
 }
 export async function reconcileBoundReviews(db,now) {
- const rows=(await db.prepare("SELECT c.*,v.definition,o.id AS obligation,a.operator_id FROM lky_rules c JOIN lky_rule_versions v ON v.rule_id=c.id AND v.version=c.version JOIN lky_rule_runs r ON r.rule_id=c.id AND r.version=c.version JOIN lky_rule_obligations o ON o.run_id=r.id JOIN lky_rule_reviews b ON b.obligation=o.id JOIN lky_accounts a ON a.id=c.owner JOIN oa_operators p ON p.id=a.operator_id WHERE c.active=1 AND p.status='active' AND p.role='owner' AND o.phase='open' AND b.phase='active' AND b.result IS NULL ORDER BY o.id LIMIT 100").all()).results;
- let completed=0;
+ let cursor='',completed=0;
+ while(true){
+ const rows=(await db.prepare("SELECT c.*,v.definition,o.id AS obligation,a.operator_id FROM lky_rules c JOIN lky_rule_versions v ON v.rule_id=c.id AND v.version=c.version JOIN lky_rule_runs r ON r.rule_id=c.id AND r.version=c.version JOIN lky_rule_obligations o ON o.run_id=r.id JOIN lky_rule_reviews b ON b.obligation=o.id JOIN lky_accounts a ON a.id=c.owner JOIN oa_operators p ON p.id=a.operator_id WHERE c.active=1 AND p.status='active' AND p.role='owner' AND o.phase='open' AND b.phase='active' AND b.result IS NULL AND o.id>? ORDER BY o.id LIMIT 100").bind(cursor).all()).results;
+ if(!rows.length)break;
+ cursor=rows.at(-1).obligation;
  for(const row of rows){
   const ctx={db,now,actor:row.owner,device:'rule-scheduler',tenant:row.tenant,fence:"EXISTS(SELECT 1 FROM lky_accounts a JOIN oa_operators o ON o.id=a.operator_id WHERE a.id=? AND a.tenant=? AND o.role='owner' AND o.status='active')",fenceArgs:[row.owner,row.tenant]};
   try{await reconcileReview(ctx,row,JSON.parse(row.definition),await access(ctx).first('SELECT * FROM lky_rule_obligations WHERE id=?',row.obligation));completed++}catch(error){if(!(error instanceof LifecycleError))throw error}
+ }
  }
  return completed;
 }
