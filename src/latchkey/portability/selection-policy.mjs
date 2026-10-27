@@ -5,6 +5,21 @@ import { verify } from '../crypto/envelope.mjs';
 import { exportPolicyText,selectionApprovalText,selectionRoutes } from './selection-common.mjs';
 export async function selectionPolicyAuthenticated(route,input,ctx){
  if(route===selectionRoutes.import)return importSelection(input,ctx);
+ if(route===selectionRoutes.outcome){
+  exact(input,['approvals','outcome']);
+  need(['private_file_written','private_file_write_failed'].includes(input.outcome),'invalid_export_outcome');
+  need(Array.isArray(input.approvals)&&input.approvals.length>0&&input.approvals.length<=100,'invalid_export_selection');
+  const {first}=access(ctx),identity=await first('SELECT authority_key FROM lky_accounts WHERE id=? AND tenant=?',ctx.actor,ctx.tenant);
+  for(const approval of input.approvals){
+   exact(approval,['vault','statement','signature','confirmed']);const s=approval.statement;
+   need(s?.owner===ctx.actor&&s.tenant===ctx.tenant&&s.vault===approval.vault&&await verify(identity.authority_key,approval.signature,selectionApprovalText(s)),'export_outcome_authority_required',403);
+   // An outcome can refer only to this actor's retained successful release.
+   // It never authorizes another export or recreates erased audit details.
+   need(await first("SELECT 1 FROM lky_audit_details d JOIN lky_audit_chain c ON c.id=d.id JOIN json_each(d.facts,'$.exports') e WHERE c.tenant=? AND json_extract(d.facts,'$.actor')=? AND json_extract(d.facts,'$.action')='selection_release' AND json_extract(d.facts,'$.result')='succeeded' AND json_extract(e.value,'$.vault')=? AND json_extract(e.value,'$.planHash')=? AND json_extract(e.value,'$.expiresAt')=? LIMIT 1",ctx.tenant,ctx.actor,approval.vault,s.planHash,s.expiresAt),'export_release_receipt_required',409);
+  }
+  return {recorded:true,basis:'Client-reported private-file outcome; independent delivery and external-copy custody are unverified.'};
+ }
+
  if(route===selectionRoutes.release){
   exact(input,['approvals']);need(Array.isArray(input.approvals)&&input.approvals.length>0&&input.approvals.length<=100,'invalid_export_selection');
   need(new Set(input.approvals.map(row=>row.vault)).size===input.approvals.length,'invalid_export_selection');

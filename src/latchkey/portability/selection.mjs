@@ -52,6 +52,7 @@ export class SelectionExportClient {
   return this.client.call(selectionRoutes.setPolicy,{vault,statement,signature:await sign(this.client.bundle.root.authority.privateKey,exportPolicyText(statement)),confirmed:true});
  }
  async export(preview,exportKey,{confirmed=false,approvedPlanHash,format='encrypted'}={}){
+  this.pendingRelease=null;
   need(format===preview?.plan?.format,'export_format_changed');
   need(confirmed===true&&approvedPlanHash===preview?.planHash,'exact_export_approval_required');
   need(preview.plan.review,'export_plan_changed');
@@ -70,8 +71,13 @@ export class SelectionExportClient {
    const archive=format==='plaintext'?value:await seal(key,serialized,{tenant:'portable',vault:'selection',object:id(),purpose:'selected-export',epoch:1,version:1});
    // Recheck every selected vault together after encryption, at the release boundary.
    await this.client.call(selectionRoutes.release,{approvals});
+   this.pendingRelease={approvals};
    return archive;
   }finally{key?.fill(0)}
+ }
+ async reportOutcome(outcome){
+  need(this.pendingRelease,'export_release_receipt_required');
+  return this.client.call(selectionRoutes.outcome,{...this.pendingRelease,outcome});
  }
  static async open(archive,exportKey){
   const plaintext=archive?.schema===schema&&archive.plan?.format==='plaintext';

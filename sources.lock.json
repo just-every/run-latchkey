@@ -514,7 +514,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "db84e2020e421c17d6cf64c01a5962767275890a20a0ed5eba26b90f0bdadb2a",
+      "sha256": "6bab826e0d4c3d9956d0157f7554506a2bcf326ee02dc59f80b6adb1ea1abd8f",
       "executable": false
     },
     "AGENTS.md": {
@@ -554,7 +554,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "35fc0e2fef1fe5546094611d2cbbb58ea433a116549b636e08a8009549b08651",
+      "sha256": "7ca25035b51911100e8c821bf732b7dc3c202c878d65cae6caa77a1bab7db764",
       "executable": false
     },
     "deploy-demo.json": {
@@ -1210,7 +1210,7 @@
       "executable": false
     },
     "scripts/latchkey.mjs": {
-      "sha256": "2b7af927f71a4c20f90d538bc807a4e9004edd3fbae26c31eaaba8068d4b0dae",
+      "sha256": "64197809d3331bdcde7045150bb5a01594d7f189fa95fa551ced9bcfd18e3d63",
       "executable": false
     },
     "scripts/latchkey/archive-policy.mjs": {
@@ -1530,7 +1530,7 @@
       "executable": false
     },
     "src/latchkey/audit/service.mjs": {
-      "sha256": "9b8316db76407d778444db2a3e003918594ce6e4d4c0ca1220a236ea9e253923",
+      "sha256": "cf2d76426b8ff10ab6ff7077e2796df4907ddb0f14fbb32cc3cbb80b23518f06",
       "executable": false
     },
     "src/latchkey/automation/client.d.mts": {
@@ -2010,7 +2010,7 @@
       "executable": false
     },
     "src/latchkey/portability/selection-common.mjs": {
-      "sha256": "640d1b3054750f87c8adcef568631f91a15badb08fe193bef3c42e98040efcc1",
+      "sha256": "b1936c09a3c4fd82b51f3b78be3f4bc1df5698c15675cc4b9f769fc0fd2bcfe5",
       "executable": false
     },
     "src/latchkey/portability/selection-import.mjs": {
@@ -2022,15 +2022,15 @@
       "executable": false
     },
     "src/latchkey/portability/selection-policy.mjs": {
-      "sha256": "dbc30b52eefce78d63cc74951eeaf34c29b2f7ad800f8d999f2c010175d7c26f",
+      "sha256": "c9be8d1b9d5825fbfeb1f41aa48f9d9d94627807e2542b69f36d293b7c1815c5",
       "executable": false
     },
     "src/latchkey/portability/SELECTION.md": {
-      "sha256": "33fbad9fed76a936145884a88814856c3592b7409ef30a5c30e21ce2372e0bb5",
+      "sha256": "01db6236fef42f16828fb41c031ebae1fe264180a9de95cdcac0c75c4fcb7309",
       "executable": false
     },
     "src/latchkey/portability/selection.mjs": {
-      "sha256": "92a0a9a612eedfb8ebb51adafe5865a29fdd5048fe1ebdd910e3076711a392ed",
+      "sha256": "6fee8e54568e6bed00a27148bcbef9eed05fdef3b3f8b3d2673b5f3a79d8ccca",
       "executable": false
     },
     "src/latchkey/portability/service.d.mts": {
@@ -3638,7 +3638,7 @@
       "executable": false
     },
     "tests/latchkey-exit.mjs": {
-      "sha256": "ba0d30493e6b0015c4b64d5abee8cb80dcf83f639015dfa891485e05f11a033f",
+      "sha256": "9d0a9439cbb8f144cc94737aada7e447a03ee304571b0a29cd7c6f7c1827630c",
       "executable": false
     },
     "tests/latchkey-generator-policy.mjs": {

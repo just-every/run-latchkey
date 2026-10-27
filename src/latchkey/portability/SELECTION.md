@@ -72,4 +72,10 @@ Ordinary failure removes the temporary file. Plaintext export prints an explicit
 unencrypted-file warning. A process or machine interruption can still leave a
 private partial file: inventory and confirmed migration cleanup are not yet
 implemented. Downloaded copies cannot be recalled, remotely expired or certified
-as erased. No export-delivery receipt is recorded in the service audit.
+as erased. After a successful private-file write, the connected CLI records a
+client-reported outcome against its retained successful release. Ordinary write
+failure records a distinct client-reported failure. Neither outcome proves
+independent delivery or custody of external copies. Output includes
+`auditRecorded`; false means the file was written but the audit report could
+not be confirmed. Offline opening makes no network request and records no
+connected file-outcome report. Interrupted reporting is not durably resumable.

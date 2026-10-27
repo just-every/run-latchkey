@@ -57,6 +57,7 @@ export async function ownerRunExitJourney() {
   const expiredApproval={vault,statement:expiredStatement,signature:await sign(owner.bundle.root.authority.privateKey,selectionApprovalText(expiredStatement)),confirmed:true};
   await assert.rejects(owner.call(selectionRoutes.authorize,expiredApproval),error=>error.code==='export_approval_changed');
   await assert.rejects(owner.call(selectionRoutes.release,{approvals:[expiredApproval]}),error=>error.code==='export_approval_changed');
+  await assert.rejects(owner.call(selectionRoutes.outcome,{approvals:[expiredApproval],outcome:'private_file_written'}),error=>error.code==='export_release_receipt_required');
   const selectionArchive=await selected.export(freshPreview,exportKey,{confirmed:true,approvedPlanHash:freshPreview.planHash});
   await assert.rejects(selected.reimport(selectionArchive,exportKey,{confirmed:true,approvedPlanHash:freshPreview.planHash}),error=>error.code==='fresh_installation_required');
   const selectionOpened=await SelectionExportClient.open(selectionArchive,exportKey);assert.deepEqual(selectionOpened.vaults[0].versions,expected.filter(row=>row.object===login));
@@ -138,7 +139,8 @@ export async function ownerRunExitJourney() {
    const profile=join(cliDirectory,'profile.json'),plan=join(cliDirectory,'plan.json'),archive=join(cliDirectory,'selected.json'),output=join(cliDirectory,'opened.json');await writeFile(profile,JSON.stringify(owner.profile),{mode:0o600});
    const proposed=await command('selection-preview',{profile,password:f.password,selection:[{vault,objects:[login]}],output:plan},f.caFile);assert.equal(proposed.code,0,proposed.err);const planHash=JSON.parse(proposed.out).planHash;
    const denied=await command('selection-export',{profile,password:f.password,plan,exportKey,output:archive,approvedPlanHash:planHash,confirmed:false},f.caFile);assert.equal(denied.code,1);assert.equal(JSON.parse(denied.err).error,'exact_export_approval_required');await assert.rejects(stat(archive),{code:'ENOENT'});
-   const exported=await command('selection-export',{profile,password:f.password,plan,exportKey,output:archive,approvedPlanHash:planHash,confirmed:true},f.caFile);assert.equal(exported.code,0,exported.err);assert.ok(!(await readFile(archive,'utf8')).includes(values.login.password));
+   const exported=await command('selection-export',{profile,password:f.password,plan,exportKey,output:archive,approvedPlanHash:planHash,confirmed:true},f.caFile);assert.equal(exported.code,0,exported.err);assert.equal(JSON.parse(exported.out).auditRecorded,true);
+   const writeFailed=await command('selection-export',{profile,password:f.password,plan,exportKey,output:archive,approvedPlanHash:planHash,confirmed:true},f.caFile);assert.equal(writeFailed.code,1);assert.deepEqual((await readdir(cliDirectory)).filter(name=>name.endsWith('.partial')),[]);assert.ok(!(await readFile(archive,'utf8')).includes(values.login.password));
    const opened=await command('selection-open',{archive,exportKey,output},f.caFile);assert.equal(opened.code,0,opened.err);assert.equal((await stat(archive)).mode&0o777,0o600);assert.equal((await stat(output)).mode&0o777,0o600);
    const repeated=await command('selection-open',{archive,exportKey,output},f.caFile);assert.equal(repeated.code,1);
    const linked=join(cliDirectory,'linked.json');await symlink(output,linked);assert.equal((await command('selection-open',{archive,exportKey,output:linked},f.caFile)).code,1);
@@ -146,8 +148,12 @@ export async function ownerRunExitJourney() {
    await selected.setPlaintextPolicy(vault,true,{confirmed:true});
    const plainPlan=join(cliDirectory,'plain-plan.json'),plainFile=join(cliDirectory,'plain.json');
    const reviewedPlain=await command('selection-preview',{profile,password:f.password,selection:[{vault,objects:[login]}],format:'plaintext',review:{purpose:'synthetic-latchkey-8036',target:'synthetic-latchkey-8037'},output:plainPlan},f.caFile);assert.equal(reviewedPlain.code,0,reviewedPlain.err);
-   const plainWritten=await command('selection-export',{profile,password:f.password,plan:plainPlan,format:'plaintext',output:plainFile,approvedPlanHash:JSON.parse(reviewedPlain.out).planHash,confirmed:true},f.caFile);assert.equal(plainWritten.code,0,plainWritten.err);assert.match(JSON.parse(plainWritten.out).warning,/Unencrypted plaintext/);
+   const plainWritten=await command('selection-export',{profile,password:f.password,plan:plainPlan,format:'plaintext',output:plainFile,approvedPlanHash:JSON.parse(reviewedPlain.out).planHash,confirmed:true},f.caFile);assert.equal(plainWritten.code,0,plainWritten.err);assert.equal(JSON.parse(plainWritten.out).auditRecorded,true);assert.match(JSON.parse(plainWritten.out).warning,/Unencrypted plaintext/);
    assert.equal((await stat(plainFile)).mode&0o777,0o600);assert.deepEqual(JSON.parse(await readFile(plainFile,'utf8')).vaults[0].versions,expected.filter(row=>row.object===login));
+   const outcomes=await owner.call(route('audit','list'),{filters:{action:'selection_outcome'},after:0,limit:200});
+   assert.deepEqual(outcomes.entries.filter(row=>row.result==='succeeded').map(row=>row.clientOutcome),['private_file_written','private_file_write_failed','private_file_written']);
+   for(const row of outcomes.entries){assert.match(row.exportOutcome,/Client-reported/);assert.ok(row.exports[0].planHash);assert.ok(!JSON.stringify(row).includes(archive));}
+   await assert.rejects(owner.call(selectionRoutes.outcome,{approvals:[],outcome:'synthetic-latchkey-8046'}),error=>error.code==='invalid_export_outcome');
    await selected.setPlaintextPolicy(vault,false,{confirmed:true});
    assert.deepEqual((await readdir(cliDirectory)).filter(name=>name.endsWith('.partial')),[]);assert.deepEqual(JSON.parse(await readFile(output,'utf8')).vaults[0].versions,expected.filter(row=>row.object===login));
   }finally{await rm(cliDirectory,{recursive:true,force:true})}
