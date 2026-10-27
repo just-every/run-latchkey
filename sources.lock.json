@@ -2206,11 +2206,11 @@
       "executable": false
     },
     "src/latchkey/reviews/state.mjs": {
-      "sha256": "f526f7be70689d33f7ecd2265261a4f98fea13b8bc186ecb294c98698a13eda0",
+      "sha256": "3ef0047f3952d621fbf76c5fcdc621f41cd602499039fd625670191f3cac98ea",
       "executable": false
     },
     "src/latchkey/reviews/ui.tsx": {
-      "sha256": "441feb927716c819bc8764f4dc49c32a913d8a384bd2b2bf7ee15b2ee8ce6c1b",
+      "sha256": "eedd13f83091125e3730419d876db538603091ed7db8b57deec7a31b74da3f54",
       "executable": false
     },
     "src/latchkey/rules/clock.mjs": {
@@ -2222,7 +2222,7 @@
       "executable": false
     },
     "src/latchkey/rules/review-results.mjs": {
-      "sha256": "de1617369c6637dc1df54f462459699dfc70ff040a8e34ab5b9b35dc585d6565",
+      "sha256": "47a675e7121e349c6588ded6f61d73594281187c04b2b9e82596740639458e1b",
       "executable": false
     },
     "src/latchkey/rules/scheduled.d.mts": {
@@ -3634,7 +3634,7 @@
       "executable": false
     },
     "tests/browser/reviews.mjs": {
-      "sha256": "4b13445521fb8752349bbabb116807180e37b344fe615bd46c01dd6c9115f5d8",
+      "sha256": "c42955d33e5bc50c16fdfc7786b4000adbf99eddd554982a2726c861f781384d",
       "executable": false
     },
     "tests/browser/rules.mjs": {
