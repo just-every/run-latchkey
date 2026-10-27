@@ -74,7 +74,7 @@ export function EvidencePanel({ client, review }: {client:any;review:string | {i
   <h2>Approved evidence delivery</h2>
   <p>Send signed company metadata to an independently authorized destination. Acceptance is a client-reported provider transport result; it is not auditor approval or certification. People, free-form reasons and credential references are omitted from outbound review evidence.</p>
   {error && <p className="error" role="alert">{error}</p>}{status && <p className="notice" role="status">{status}</p>}
-  {loading ? <p role="status">Loading evidence destinations…</p> : !owner ? <p className="notice">Only the review owner can configure or send this evidence.</p> : <>
+  {loading ? <p className="loading" role="status">Loading evidence destinations…</p> : !owner ? <p className="notice">Only the review owner can configure or send this evidence.</p> : <>
    <button disabled={busy} onClick={() => void act(async () => {}, 'Evidence destinations and deliveries refreshed.')}>Refresh evidence deliveries</button>
    {providers.map(([name, label, endpoint]) => <DestinationConfig key={`${reviewId}:${name}`} name={name} label={label} endpoint={endpoint} rows={destinations.filter(row => row.destination === name)} busy={busy} evidence={evidence} act={act}/>)}
    {!closed && <p className="notice">Close the review with every decision and removal effective before preparing evidence.</p>}

@@ -31,13 +31,15 @@ export function ItemAlias({ client, vault, vaultKind, row, onSaved }: { client: 
   return replacing ? 'New alias saved with this login. The old alias no longer forwards.' : 'Alias created and saved with this login.';
  });
  const ready = !!domain && !!mailbox && !!token && !busy;
- return <section className="section" aria-label="Hide my email"><h2>Hide my email</h2>
-  {current && <p>Alias {row.value.aliases?.find((entry: any) => entry.id === current.id)?.address ?? 'saved with this login'}: {current.state === 'active' ? (current.forwarding === 'configured' ? 'forwarding configured at the provider' : 'forwarding unavailable') : current.state}. {deliveryText(current.delivery, current.deliveryReportedAt)}.{current.failure && ` ${aliasMessage({ code: current.failure })}`}</p>}
+ // Setup stays folded under the open login; an existing alias's state and the last outcome stay in view.
+ return <section className="section alias" aria-label="Hide my email"><details><summary>Hide my email</summary>
   {!domains.length || !mailboxes.length ? <p className="muted">Add a ready forwarding domain and a verified mailbox under Settings, Email aliases, before creating an alias.</p> : <div className="form-grid">
    <label>Forwarding domain<select value={domain} disabled={busy} onChange={event => setDomain(event.target.value)}>{domains.map(x => <option key={x.id} value={x.id}>{x.domain}</option>)}</select></label>
    <label>Approved mailbox<select value={mailbox} disabled={busy} onChange={event => setMailbox(event.target.value)}>{mailboxes.map(x => <option key={x.id} value={x.id}>{x.address}</option>)}</select></label>
    <TokenField value={token} onChange={setToken} disabled={busy}/></div>}
   {domains.length > 0 && mailboxes.length > 0 && <div className="actions">{current?.state === 'active' ? <button disabled={!ready} onClick={() => void create(current)}>Replace alias</button> : !current && <button disabled={!ready} onClick={() => void create(null)}>Create alias and use as username</button>}</div>}
+  </details>
+  {current && <p>Alias {row.value.aliases?.find((entry: any) => entry.id === current.id)?.address ?? 'saved with this login'}: {current.state === 'active' ? (current.forwarding === 'configured' ? 'forwarding configured at the provider' : 'forwarding unavailable') : current.state}. {deliveryText(current.delivery, current.deliveryReportedAt)}.{current.failure && ` ${aliasMessage({ code: current.failure })}`}</p>}
   {error && <p role="alert" className="error">{error}</p>}{status && <p role="status">{status}</p>}
  </section>;
 }
