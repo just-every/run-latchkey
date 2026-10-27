@@ -15,6 +15,10 @@ expire; a changed item version, key epoch or account generation invalidates the
 old suppression. Losing read access prevents subsequent history reads and
 suppression changes. Previously decrypted copies cannot be recalled.
 
+Earlier observations stored in shared vault records remain visible as inactive
+history. Those records cannot verify the person named as their actor, so they
+cannot suppress a finding. Record a new personal decision after reviewing it.
+
 Installation archives retain encrypted history, with all restored suppressions
 inactive. Destination vault access does not transfer another actor's private
 history or activate their decisions. Erasing an item removes its suppression

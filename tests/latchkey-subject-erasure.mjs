@@ -42,11 +42,12 @@ export async function runSubjectErasureJourneys({owner,db,records,mail,post,fetc
  const personHealth=new HealthClient(person),ownerHealth=new HealthClient(owner),finding=(await personHealth.inspect(otherVault)).findings.find(row=>row.object===healthItem.object&&row.code==='weak-password');assert.ok(finding);
  await personHealth.suppress(otherVault,finding,{reason:'Synthetic erased member reason'});
  await ownerHealth.suppress(otherVault,finding,{reason:'Synthetic retained owner reason'});
- const personalHistory=(await person.call(['health','history'].join('/'),{vault:otherVault})).rows;assert.equal(personalHistory.length,1);
+ let personalHistory=(await person.call(['health','history'].join('/'),{vault:otherVault})).rows;assert.equal(personalHistory.length,1);
  const before=await backup(records);let preview=await owner.call('subject/erase-preview',{subject:operator});
  await personHealth.suppress(otherVault,finding,{reason:'Synthetic decision after review'});
  await rejects(owner.call('subject/erase',{subject:operator,confirmed:true,planHash:preview.planHash}),'subject_erasure_plan_changed');
  assert.deepEqual((await personHealth.history(otherVault)).map(row=>row.reason),['Synthetic erased member reason','Synthetic decision after review']);
+ personalHistory=(await person.call(['health','history'].join('/'),{vault:otherVault})).rows;assert.equal(personalHistory.length,2);
  preview=await owner.call('subject/erase-preview',{subject:operator});assert.equal(preview.counts['delete:lky_health_suppressions'],2);
  assert.equal(preview.complete,false);assert.equal(preview.requiresConfirmation,true);
  await rejects(owner.call('subject/erase',{subject:operator,confirmed:false,planHash:preview.planHash}),'subject_erasure_confirmation_required');
@@ -91,8 +92,10 @@ export async function runSubjectErasureJourneys({owner,db,records,mail,post,fetc
  const after=await backup(records),rows=after.lines.filter(row=>row.kind==='part').flatMap(part=>part.items).filter(item=>item.kind==='row');
  const exported=JSON.stringify(rows);for(const original of [email,name,operator,person.profile.account,person.profile.device,vault])assert.ok(!exported.includes(original),'removed identity/owned content must be absent from later exports');
  assert.ok(!rows.some(row=>row.table==='lky_health_suppressions'&&personalHistory.some(history=>history.id===row.row?.id)));
- const tombstone=Buffer.from(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(canonicalJson([after.lines[0].sourceIdentity,'lky_health_suppressions',{id:personalHistory[0].id}])))).toString('hex');
- assert.ok(after.lines[0].journal.includes(tombstone),'later journal fences the erased actor history');
+ for(const history of personalHistory){
+  const tombstone=Buffer.from(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(canonicalJson([after.lines[0].sourceIdentity,'lky_health_suppressions',{id:history.id}])))).toString('hex');
+  assert.ok(after.lines[0].journal.includes(tombstone),'later journal fences every erased actor history row');
+ }
  assert.ok(rows.some(row=>row.table==='lky_subject_fences'));assert.ok(rows.some(row=>row.table==='lky_subject_audit'));
  console.log('Person erasure: native third-person enrollment, reviewed owner confirmation, owned ciphertext/template/attachment deletion, shared-authority removal without unrelated value loss, anonymized audit/tamper checks, connected revocation and mandatory vault rekey, keyed replay and later exports passed; encrypted other-owner scans/external copies remain explicitly pending');
  return {privateValues:[person.bundle.root.recipient.privateKey,person.bundle.root.authority.privateKey,person.bundle.root.recovery.privateKey,person.bundle.signing.privateKey,password,'synthetic-latchkey-984','synthetic-latchkey-985','synthetic-latchkey-986','synthetic-latchkey-987','synthetic-latchkey-988','synthetic-latchkey-989','synthetic-latchkey-990','synthetic-latchkey-993'],erasedArchive:before.raw,laterJournal:{sourceIdentity:after.lines[0].sourceIdentity,epoch:after.lines[0].epoch,journal:after.lines[0].journal},operation:erased.operation};

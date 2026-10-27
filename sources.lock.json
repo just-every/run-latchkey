@@ -514,7 +514,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "1012cdc6dfa47b35743517ed3371fb9100bbd4af93829ebe603384f22c64583a",
+      "sha256": "bd42890af6cd573b6a02d0ef84fc6f7f71c83d21e4f2023e67ace33633a4e367",
       "executable": false
     },
     "AGENTS.md": {
@@ -554,7 +554,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "d9941337e53b1254d2bfb401076337ab19afa3c5096af2964e9b46c0859928df",
+      "sha256": "da04caf157a1b8b5252bf6232ba9cd156132e76df1c9cb19fb7dd8da76011161",
       "executable": false
     },
     "deploy-demo.json": {
@@ -618,7 +618,7 @@
       "executable": false
     },
     "docs/password-health.md": {
-      "sha256": "6bd3285bb03e328247990a2d396dd885027e9f55d5e308ab8db9be24898d6f1d",
+      "sha256": "77ef1d6f5a1a944b0ad58320171e7b652138cd09e8b61c8360c90ee04c6f3dbb",
       "executable": false
     },
     "docs/reports.md": {
@@ -3778,7 +3778,7 @@
       "executable": false
     },
     "tests/latchkey-subject-erasure.mjs": {
-      "sha256": "0bb918ca4c74dd99fbca8438ca329fcfc948df7e0b9dab4044ad084b6d2a32fa",
+      "sha256": "26b009ec8aba56ec6cd67adda024b1b64d2717078c934e0a1c52e4be38250e4e",
       "executable": false
     },
     "tests/runtime.mjs": {
