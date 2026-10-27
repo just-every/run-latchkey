@@ -38,7 +38,19 @@ export async function runSubjectErasureJourneys({owner,db,records,mail,post,fetc
  const ownerOperator=(await db.prepare('SELECT operator_id FROM lky_accounts WHERE id=?').bind(owner.profile.account).first()).operator_id;
  await rejects(owner.call('subject/erase-preview',{subject:ownerOperator}),'self_erasure_forbidden');
  const reportVault=(await person.createVault({kind:'company'})).vault;await person.put(reportVault,createItem('secure-note',{title:'Synthetic owned observation',values:{note:'synthetic-latchkey-994'}}));await new ReportsClient(person).capture(reportVault,{confirmed:true});
- const retainedVault=(await owner.createVault({kind:'company'})).vault;await new ReportsClient(owner).capture(retainedVault,{confirmed:true});
+ // A different company-vault owner has no installation roster authority.
+ // Erasing an unrelated person therefore leaves this source fingerprint unchanged.
+ const reportEmail='synthetic-latchkey-995@example.test',reportPassword='synthetic-latchkey-996';
+ assert.equal((await post('/auth/invite',{email:reportEmail,displayName:'Synthetic surviving report owner',role:'member'},owner.cookie)).status,202);
+ const reportLink=mail.at(-1).content.find(part=>part.type===['text','plain'].join('/')).value.match(/https:\/\/[^\s<>]+/)[0];
+ const reportOwner=new VaultClient(owner.origin,{fetcher});await reportOwner.confirmIdentity(new URL(reportLink).searchParams.get('token'));
+ const reportRegistered=await reportOwner.register(reportPassword);await reportOwner.unlock(reportRegistered.profile,reportPassword);
+ const retainedVault=(await reportOwner.createVault({kind:'company'})).vault,reportApi=new ReportsClient(reportOwner);
+ let replay;const originalCall=reportOwner.call.bind(reportOwner);
+ reportOwner.call=async(route,input)=>{if(route===['reports','capture'].join('/'))replay=structuredClone(input);return originalCall(route,input)};
+ try{await reportApi.capture(retainedVault,{confirmed:true});}finally{reportOwner.call=originalCall;}
+ assert.equal((await reportApi.history(retainedVault)).observations.length,1);
+
  const before=await backup(records),preview=await owner.call('subject/erase-preview',{subject:operator});
  assert.equal(preview.complete,false);assert.equal(preview.requiresConfirmation,true);
  await rejects(owner.call('subject/erase',{subject:operator,confirmed:false,planHash:preview.planHash}),'subject_erasure_confirmation_required');
@@ -46,6 +58,13 @@ export async function runSubjectErasureJourneys({owner,db,records,mail,post,fetc
  assert.ok(await db.prepare('SELECT id FROM oa_operators WHERE id=?').bind(operator).first());
  const erased=await owner.call('subject/erase',{subject:operator,confirmed:true,planHash:preview.planHash});
  assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM lky_report_observations').first()).n,0);assert.equal(await db.prepare('SELECT vault_id FROM lky_report_keys WHERE vault_id=?').bind(reportVault).first(),null);
+ // The surviving vault's revision need not change when only roster data was erased.
+ // Replay the exact accepted public-door request, then read the actual history.
+ let replayError;try{await originalCall(['reports','capture'].join('/'),replay);}catch(error){replayError=error;}
+ assert.deepEqual((await reportApi.history(retainedVault)).observations,[],'erased observation must remain absent after replay');
+ assert.equal(replayError?.code,'report_observation_erased');
+ await reportApi.capture(retainedVault,{confirmed:true});
+ assert.equal((await reportApi.history(retainedVault)).observations.length,1);
  assert.equal(erased.controlPlaneErased,true);assert.equal(erased.complete,false);
  assert.ok(erased.outstanding.some(row=>row.domain==='encrypted-client-content'&&row.vaults.includes(otherVault)));
  assert.ok(erased.outstanding.some(row=>row.domain==='disconnected-device-cache'&&row.state==='outstanding'));
@@ -79,7 +98,7 @@ export async function runSubjectErasureJourneys({owner,db,records,mail,post,fetc
  }
  const after=await backup(records),rows=after.lines.filter(row=>row.kind==='part').flatMap(part=>part.items).filter(item=>item.kind==='row');
  const exported=JSON.stringify(rows);for(const original of [email,name,operator,person.profile.account,person.profile.device,vault])assert.ok(!exported.includes(original),'removed identity/owned content must be absent from later exports');
- assert.ok(rows.some(row=>row.table==='lky_subject_fences'));assert.ok(rows.some(row=>row.table==='lky_subject_audit'));
+ assert.ok(rows.some(row=>row.table==='lky_subject_fences'));assert.ok(rows.some(row=>row.table==='lky_subject_fences'&&row.row.kind==='report-observation'));assert.ok(rows.some(row=>row.table==='lky_subject_audit'));
  console.log('Person erasure: native third-person enrollment, reviewed owner confirmation, owned ciphertext/template/attachment deletion, shared-authority removal without unrelated value loss, anonymized audit/tamper checks, connected revocation and mandatory vault rekey, keyed replay and later exports passed; encrypted other-owner scans/external copies remain explicitly pending');
  return {privateValues:[person.bundle.root.recipient.privateKey,person.bundle.root.authority.privateKey,person.bundle.root.recovery.privateKey,person.bundle.signing.privateKey,password,'synthetic-latchkey-984','synthetic-latchkey-985','synthetic-latchkey-986','synthetic-latchkey-987','synthetic-latchkey-988','synthetic-latchkey-989','synthetic-latchkey-990','synthetic-latchkey-993'],erasedArchive:before.raw,laterJournal:{sourceIdentity:after.lines[0].sourceIdentity,epoch:after.lines[0].epoch,journal:after.lines[0].journal},operation:erased.operation};
 }

@@ -1706,7 +1706,7 @@
       "executable": false
     },
     "src/latchkey/erasure/subject-commit.mjs": {
-      "sha256": "d1f8032cf828a7489cbcfc052eaa4e3d7384334b231aceeeb33f74b596bd7223",
+      "sha256": "e3239d12d1e7b6cc5f4d20378f4ab014fa95f465c3067850a71c72d07cbfa467",
       "executable": false
     },
     "src/latchkey/erasure/subject-common.mjs": {
@@ -2174,7 +2174,7 @@
       "executable": false
     },
     "src/latchkey/reports/service.mjs": {
-      "sha256": "33f87da0ad398f7609b730d43c823810b32c9254035e7e3c59eaaeaae490990b",
+      "sha256": "59bb7b098508cb79219d23e31c9ba26abc8b6dbdb6e403747c5190f2c5e07a2f",
       "executable": false
     },
     "src/latchkey/reports/ui.tsx": {
@@ -3762,7 +3762,7 @@
       "executable": false
     },
     "tests/latchkey-subject-erasure.mjs": {
-      "sha256": "251864a97aa888baf773b7342e776e1ccfaf282b852178882d6739d543fc9935",
+      "sha256": "cbbc06837f4f0724d6779be3eddc772d57e280b13d1131a9e32f76d03b652de1",
       "executable": false
     },
     "tests/runtime.mjs": {

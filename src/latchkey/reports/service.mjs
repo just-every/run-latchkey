@@ -1,3 +1,4 @@
+import {keyed} from '../erasure/subject-common.mjs';
 import {digest,validateEnvelope,verifyWrapped} from '../crypto/envelope.mjs';
 import {utcDay,observationContext,reportKeyContext} from './history.mjs';
 import {canonicalJson,guarded,has,uuid,access,exact,need,vaultFor} from '../lifecycle/common.mjs';
@@ -44,6 +45,10 @@ async function capture(input,ctx){
  need(input.confirmed===true,'report_capture_confirmation_required');
  uuid(input.id);need(Number.isSafeInteger(input.asOf)&&input.asOf<=ctx.now&&input.asOf>=ctx.now-300000&&utcDay(input.asOf)===utcDay(ctx.now),'report_capture_must_be_current',409);
  const vault=await ownerVault(input,ctx),{first,stmt,event,guard}=access(ctx);
+ const erasures=(await first('SELECT COUNT(*) AS n FROM lky_subject_erasures WHERE tenant=?',ctx.tenant)).n;
+ const hasFences=await first("SELECT 1 FROM lky_subject_fences WHERE tenant=? AND kind='report-observation' LIMIT 1",ctx.tenant);
+ const erasedDigest=hasFences?await keyed(ctx,'fence:report-observation',[vault.id,input.id]):null;
+ need(!erasedDigest||!await first("SELECT 1 FROM lky_subject_fences WHERE tenant=? AND kind='report-observation' AND digest=?",ctx.tenant,erasedDigest),'report_observation_erased',409);
  const source=await reportsAuthenticated(reportRoute,{vault:vault.id,from:input.from,to:input.asOf,filters:{}},ctx);
  need(source.revision===input.revision&&source.fingerprint===input.fingerprint,'report_source_changed',409);
  validateEnvelope(input.envelope,observationContext(ctx.tenant,vault.id,input.id));
@@ -56,6 +61,9 @@ async function capture(input,ctx){
   stmt('INSERT INTO lky_report_observations VALUES(?,?,?,?,?,?)',input.id,vault.id,utcDay(input.asOf),input.asOf,input.revision,canonicalJson(input.envelope)),
   event('report_observation_captured',input.id)
  ],[
+ // Fence an erasure racing this capture, including the first erasure.
+ guard('(SELECT COUNT(*) FROM lky_subject_erasures WHERE tenant=?)=?',[ctx.tenant,erasures]),
+ guard(erasedDigest?"NOT EXISTS(SELECT 1 FROM lky_subject_fences WHERE tenant=? AND kind='report-observation' AND digest=?)":"NOT EXISTS(SELECT 1 FROM lky_subject_fences WHERE tenant=? AND kind='report-observation')",erasedDigest?[ctx.tenant,erasedDigest]:[ctx.tenant]),
  guard(`(SELECT json_group_array(json_array(account,status,enrolledDevices)) FROM (SELECT a.id AS account,o.status,(SELECT COUNT(*) FROM lky_devices d WHERE d.account_id=a.id AND d.revoked_at IS NULL AND d.generation=a.generation) AS enrolledDevices FROM lky_recipients r JOIN lky_accounts a ON a.id=r.account_id JOIN oa_operators o ON o.id=a.operator_id WHERE r.vault_id=? AND a.tenant=? AND json_array_length(r.rights)>0 ORDER BY a.id))=?`,[vault.id,ctx.tenant,JSON.stringify(source.recipients.map(r=>[r.account,r.status,r.enrolledDevices]))]),
  ...(source.adoption.company?[guard(`(SELECT COUNT(*) FROM oa_operators WHERE status='invited')=? AND (SELECT COUNT(*) FROM oa_operators o JOIN lky_accounts a ON a.operator_id=o.id WHERE a.tenant=?)=? AND (SELECT COUNT(*) FROM oa_operators WHERE status='inactive')=?`,[source.adoption.company.invited,ctx.tenant,source.adoption.company.enrolled,source.adoption.company.inactive])]:[]),
  guard(key?'EXISTS(SELECT 1 FROM lky_report_keys WHERE vault_id=? AND owner=? AND wrapped=?)':'NOT EXISTS(SELECT 1 FROM lky_report_keys WHERE vault_id=?)',key?[vault.id,ctx.actor,key.wrapped]:[vault.id])]);
