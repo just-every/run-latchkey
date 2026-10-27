@@ -84,8 +84,12 @@ export async function runGeneratorPolicyJourneys({ owner, member, db, ownerPassw
   const enrolled = await pendingClient.completeEnrollment(pending.profile, ownerPassword);
   await reject(apply(staleDevices), 'policy_review_changed');
   const revokePlan = await preview(company, a);
+  const ownerInventory = await preview(company);
+  assert.deepEqual(ownerInventory.members.find(row => row.account === owner.profile.account).devices.filter(row => row.enrollment === 'enrolled').map(row => row.id).sort(), [owner.profile.device, enrolled.device].sort());
   await owner.call('device' + '/revoke', { device: enrolled.profile?.device ?? enrolled.device });
   await reject(apply(revokePlan), 'policy_review_changed');
+  const revokedInventory = (await preview(company)).members.find(row => row.account === owner.profile.account).devices;
+  assert.deepEqual(revokedInventory.find(row => row.id === enrolled.device), { id: enrolled.device, enrollment: 'revoked', reachability: 'unknown', convergence: 'unverified' });
   pendingClient.lock();
   const foreign = id();
   await db.prepare('UPDATE lky_share_groups SET tenant=? WHERE id=?').bind(foreign, b).run();
@@ -97,6 +101,17 @@ export async function runGeneratorPolicyJourneys({ owner, member, db, ownerPassw
   const joined = await call();
   assert.ok(joined.policy.minLength >= second.minLength && joined.policy.maxLength <= second.maxLength && joined.policy.historyDays <= second.historyDays);
   assert.ok(joined.sources.some(source => source.group === a) && joined.sources.some(source => source.group === b));
+  // Each group is feasible alone; their intersection for this member is not.
+  const overlapBefore = await policyRows(), overlapAudit = await auditRows();
+  const overlap = await preview({ ...first, minLength: 65 }, a);
+  assert.equal(overlap.canApply, false);
+  const overlapMember = overlap.members.find(row => row.account === member.profile.account);
+  assert.equal(overlapMember.before.policy.minLength, 48); assert.equal(overlapMember.before.policy.maxLength, 64);
+  assert.equal(overlapMember.after.policy.minLength, 65); assert.equal(overlapMember.after.policy.maxLength, 64);
+  assert.deepEqual(overlapMember.after.sources.filter(row => row.scope === 'group').map(row => row.group).sort(), [a, b].sort());
+  assert.ok(overlap.conflicts.some(row => row.account === member.profile.account && row.reason === 'Minimum length 65 exceeds maximum length 64.'));
+  await reject(apply(overlap), 'conflicting_generator_policy');
+  assert.deepEqual(await policyRows(), overlapBefore); assert.deepEqual(await auditRows(), overlapAudit);
   assert.ok(!(await call(owner)).sources.some(source => source.scope === 'group'));
   assert.ok(!JSON.stringify(joined.sources).includes(member.profile.account));
   await sharing.setGroup(b, []);
@@ -170,6 +185,20 @@ export async function runGeneratorApiJourney(f) {
  };
  try {
   await writeFile(join(directory, 'profile.json'), JSON.stringify(owner.profile), { mode: 0o600 });
+  // Use this fresh installation so earlier authentication journeys cannot
+  // consume the account's rate window before the second-device proof.
+  const second = new VaultClient(owner.origin, { cookie: owner.cookie, fetcher: owner.fetcher });
+  try {
+   const pending = await second.beginEnrollment(owner.profile, f.password);
+   await owner.approveEnrollment(pending.device, pending.fingerprint);
+   const profile = await second.completeEnrollment(pending.profile, f.password);
+   await second.unlock(profile, f.password);
+   const input = { group: null, policy: { minLength: 28 }, reason: 'synthetic-latchkey-1329' };
+   const plan = await api.previewGeneratorPolicy(input), before = await state();
+   await assert.rejects(new ApiClient(second).setGeneratorPolicy({ ...input, policy: plan.policy, confirmed: true, review: plan.hash }), error => error.code === 'policy_review_changed');
+   assert.deepEqual(await state(), before);
+   await owner.call('device' + '/revoke', { device: profile.device });
+  } finally { second.lock(); }
   const input = { group: null, policy: { minLength: 28 }, reason: 'synthetic-latchkey-1321' }, before = await state();
   const plan = await api.previewGeneratorPolicy(input);
   assert.equal(plan.members.find(row => row.account === owner.profile.account).after.policy.minLength, 28);
