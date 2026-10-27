@@ -81,6 +81,11 @@ for(const width of [1440,390]){
   await owner.share(vault,member.profile.account,await member.identity().fingerprint,['read']);
   const memberItem=await typed.save(vault,createItem('login',{title:'Synthetic member review',values:{password:'aaaa'}}));
   const memberReport=await memberHealth.inspect(vault),memberFinding=memberReport.findings.find(r=>r.object===memberItem.object&&r.code==='weak-password');assert.ok(memberFinding);
+  // A vault writer cannot impersonate another actor using the unsigned legacy format.
+  const legacy=await owner.put(vault,{schema:'latchkey/health-suppression/v1',actor:member.profile.account,object:memberItem.object,version:1,code:'weak-password',reason:'Synthetic forged member dismissal',until:null,observation:{source:'Synthetic legacy record',observedAt:memberNow,code:'weak-password',version:1}});
+  const forgedReport=await memberHealth.inspect(vault);
+  assert.equal(forgedReport.findings.find(r=>r.object===memberItem.object&&r.code==='weak-password').suppression,null,'unsigned legacy records must not suppress another actor findings');
+  assert.ok(!forgedReport.history.some(r=>r.reason==='Synthetic forged member dismissal'));
   await memberHealth.suppress(vault,memberFinding,{reason:'Synthetic member investigation',until:memberNow+60000});
   const suppressed=await memberHealth.inspect(vault);assert.equal(suppressed.riskCount,memberReport.riskCount);assert.equal(suppressed.findings.find(r=>r.object===memberItem.object&&r.code==='weak-password').suppression.reason,'Synthetic member investigation');
   assert.equal((await ownerHealth.inspect(vault)).findings.find(r=>r.object===memberItem.object&&r.code==='weak-password').suppression,null);
@@ -114,7 +119,13 @@ for(const width of [1440,390]){
    const raced=Object.create(member);raced.call=async(route,input)=>{if(route===['health','suppress'].join('/'))await owner.rotate(vault,member.profile.account);return member.call(route,input)};await assert.rejects(new HealthClient(raced).suppress(vault,current,{reason:'Revocation during submission'}),e=>e.status>=400);
    await assert.rejects(memberHealth.history(vault),e=>e.status>=400);await assert.rejects(memberHealth.suppress(vault,current,{reason:'Revoked member'}),e=>e.status>=400);
    const rows=await f.db.prepare('SELECT wrapped FROM lky_health_suppressions').all();assert.ok(!JSON.stringify(rows).includes('Synthetic member'));assert.equal((await ownerHealth.inspect(vault)).findings.find(r=>r.object===memberItem.object&&r.code==='weak-password').suppression,null);
-   const erasedMember=await owner.eraseItem(vault,memberItem.object,{confirmed:true});assert.equal(erasedMember.deleted.lky_health_suppressions,2);assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM lky_health_suppressions WHERE object_id=?').bind(memberItem.object).first()).n,0);
+   // Mixed histories need separate owner review; no unrelated version is silently erased.
+   const mixed=await owner.put(vault,{schema:'latchkey/health-suppression/v1',object:memberItem.object});
+   await owner.put(vault,{secret:'Synthetic unrelated retained content'},mixed.object);
+   await assert.rejects(owner.eraseItem(vault,memberItem.object,{confirmed:true}),/legacy_suppression_erasure_review_required/);
+   assert.equal((await owner.readItem(vault,mixed.object,true)).versions.length,2);
+   await owner.eraseItem(vault,mixed.object,{confirmed:true});
+   const erasedMember=await owner.eraseItem(vault,memberItem.object,{confirmed:true});assert.equal(erasedMember.deleted.lky_health_suppressions,2);assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM lky_versions WHERE vault_id=? AND object_id=?').bind(vault,legacy.object).first()).n,0);await assert.rejects(owner.put(vault,{schema:'latchkey/health-suppression/v1'},legacy.object),e=>e.code==='item_erased');assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM lky_health_suppressions WHERE object_id=?').bind(memberItem.object).first()).n,0);
   }
 
   }

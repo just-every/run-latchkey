@@ -468,7 +468,7 @@ try {
  await rejected(owner.readVault(personalVault), 'not_found');
  const personalVersions = (await member.readVault(personalVault)).versions;
  const {prepareHealthHistoryRestore}=await import('./latchkey-restore.mjs');
- const healthRestore=await prepareHealthHistoryRestore(owner);
+ const healthRestore=await prepareHealthHistoryRestore(owner,member.profile.account);
  const backupId = await records.exports.create('synthetic-latchkey-29')
  let backupStatus = await records.exports.status(backupId)
  for (let count = 0; backupStatus.phase !== 'complete' && count < 20; count++) backupStatus = await records.exports.advance(backupId, { maxParts: 100 })

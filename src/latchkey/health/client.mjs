@@ -29,8 +29,7 @@ export class HealthClient {
  constructor(client,{fetcher=fetch,now=()=>Date.now()}={}){this.client=client;this.fetcher=(url,init)=>fetcher(url,init);this.now=now;}
  async inspect(vault,{network=false,githubToken=''}={}) {
   const loaded=await new OrganizationClient(this.client).load(vault),history=await this.history(vault),now=this.now(),inactive=new Set(loaded.lifecycle.filter(r=>r.state!=='active').map(r=>r.object));
-  // Existing vault-encrypted owner observations remain historical evidence for their actor.
-  history.unshift(...loaded.records.filter(r=>r.value.schema==='latchkey/health-suppression/v1'&&r.value.actor===this.client.profile.account).map(r=>({...r.value,record:r.object,active:true})));
+  // Legacy vault records have no actor signature. They cannot establish anyone's decision, including after restore.
   for(const entry of history)entry.active=entry.active&&loaded.records.some(row=>row.object===entry.object&&row.version===entry.version)&&!inactive.has(entry.object)&&(entry.until===null||entry.until>now);
   let github=null;
   if(githubToken){try{const response=await this.fetcher('https://api.github.com/user',{headers:{Authorization:`Bearer ${githubToken}`,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'},credentials:'omit',redirect:'error',cache:'no-store',referrerPolicy:'no-referrer',signal:AbortSignal.timeout(15000)});if(response.ok){const data=await response.json();if(typeof data.login==='string'&&typeof data.two_factor_authentication==='boolean')github={login:data.login,mfa:data.two_factor_authentication};}}catch{}}

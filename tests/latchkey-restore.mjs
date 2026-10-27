@@ -73,12 +73,13 @@ export async function exerciseRecordsRestore({ archive, sourceClient, destinatio
 }
 
 // Called before the existing Records archive, then checked after its real rewrap.
-export async function prepareHealthHistoryRestore(client){
+export async function prepareHealthHistoryRestore(client,destinationActor){
  const vault=(await client.createVault()).vault,health=new HealthClient(client);
  const item=await client.put(vault,createItem('login',{title:'Synthetic restore health',values:{password:'aaaa'}}));
  const finding=(await health.inspect(vault)).findings.find(r=>r.object===item.object&&r.code==='weak-password');assert.ok(finding);
  await health.suppress(vault,finding,{reason:'Synthetic restore investigation'});
  await health.suppress(vault,finding,{reason:'Synthetic restore dismissal'});
+ await client.put(vault,{schema:'latchkey/health-suppression/v1',actor:destinationActor,object:item.object,version:1,code:'weak-password',reason:'Synthetic unsigned restored dismissal',until:null,observation:{source:'Synthetic legacy restore',observedAt:Date.now(),code:'weak-password',version:1}});
  const history=await health.history(vault);assert.deepEqual(history.map(r=>r.reason),['Synthetic restore investigation','Synthetic restore dismissal']);
  return {vault,item:item.object,rows:await client.call(['health','history'].join('/'),{vault})};
 }
