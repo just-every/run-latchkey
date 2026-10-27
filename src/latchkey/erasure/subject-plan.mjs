@@ -26,6 +26,7 @@ export async function subjectPlan(ctx, subject) {
  await select('lky_emergency_access','owner=? OR contact=?',[accountId,accountId]);
  await select('lky_company_custody','owner=? OR custodian=?',[accountId,accountId]);
  await select('lky_custody_reviews','actor=? OR instr(plan,?)>0 OR instr(plan,?)>0',[accountId,accountId,subject]);
+ await select('lky_health_suppressions',`tenant=? AND (actor=? OR vault_id IN (${own}))`,[ctx.tenant,accountId,...ownArgs]);
  const ownedVaults=await select('lky_vaults','tenant=? AND owner=?',ownArgs);
  const remainingVaults=await select('lky_vaults','tenant=? AND owner IS NOT ?',[ctx.tenant,accountId],'observe');
  const devices=await select('lky_devices','account_id=?',[accountId]),deviceIds=devices.map(row=>row.id);

@@ -1,3 +1,4 @@
+import {healthAuthenticated} from './health/service.mjs';
 import { recoverySession, recoveryAuthenticated } from './recovery/service.mjs'
 import {reportsAuthenticated} from './reports/service.mjs';
 import { selectionPolicyAuthenticated } from './portability/selection-policy.mjs'
@@ -275,6 +276,8 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
   if(meta)await rateApi(ctx)
   const recoveryResult=grant.recovery===0?await recoveryAuthenticated(route,input,ctx):null;
   if(recoveryResult!==null)return response(recoveryResult);
+  const healthResult=grant.recovery===0?await healthAuthenticated(route,input,ctx):null;
+  if(healthResult!==null)return response(healthResult);
   const reportResult=grant.recovery===0?await reportsAuthenticated(route,input,ctx):null;
   if(reportResult!==null)return response(reportResult);
   const exportPolicy=grant.recovery===0?await selectionPolicyAuthenticated(route,input,ctx):null;

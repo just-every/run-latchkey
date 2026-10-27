@@ -467,6 +467,8 @@ try {
  await member.put(personalVault, { ownership: 'personal', title: 'synthetic-latchkey-1402', secret: 'synthetic-latchkey-1404', attachment: personalAttachment }, personalItem.object);
  await rejected(owner.readVault(personalVault), 'not_found');
  const personalVersions = (await member.readVault(personalVault)).versions;
+ const {prepareHealthHistoryRestore}=await import('./latchkey-restore.mjs');
+ const healthRestore=await prepareHealthHistoryRestore(owner);
  const backupId = await records.exports.create('synthetic-latchkey-29')
  let backupStatus = await records.exports.status(backupId)
  for (let count = 0; backupStatus.phase !== 'complete' && count < 20; count++) backupStatus = await records.exports.advance(backupId, { maxParts: 100 })
@@ -513,6 +515,9 @@ try {
    try { expectedVersions[row.id] = (await owner.readVault(row.id)).versions; }
    catch(error) { const seen = owner.profile.seen[row.id]; throw new Error(`Source checkpoint epoch/revision ${row.epoch}/${row.revision} follows ${seen?.epoch}/${seen?.revision}`, { cause: error }); }
   }
+  const restoredHealth=(await restoreDb.prepare('SELECT * FROM lky_health_suppressions WHERE vault_id=? ORDER BY rowid').bind(healthRestore.vault).all()).results;
+  assert.equal(restoredHealth.length,2);assert.ok(restoredHealth.every(row=>row.active===0));
+  assert.deepEqual(restoredHealth.map(row=>JSON.parse(row.wrapped)),healthRestore.rows.rows.map(row=>row.wrapped));
   const { exerciseRecordsRestore } = await import('./latchkey-restore.mjs')
   const transferred = await exerciseRecordsRestore({ archive: backup, sourceClient: owner, destinationClient: recipient, expectedVersions });
   assert.ok(!transferred.vaults.some(row => row.vault === personalVault));

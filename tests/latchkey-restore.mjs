@@ -7,6 +7,8 @@ import { join } from 'node:path';
 import { planDestinationRewrap, approveDestinationRewrap } from '../src/latchkey/portability/rewrap.mjs';
 import { PortabilityClient } from '../src/latchkey/portability/client.mjs';
 import { ApiClient } from '../src/latchkey/api/client.mjs';
+import {HealthClient} from '../src/latchkey/health/client.mjs';
+import {createItem} from '../src/latchkey/items/types.mjs';
 import { digest } from '../src/latchkey/crypto/envelope.mjs';
 
 const identity = client => ({ account: client.profile.account, tenant: client.profile.tenant, recipientKey: client.profile.recipientKey, authorityKey: client.profile.authorityKey });
@@ -56,6 +58,9 @@ export async function exerciseRecordsRestore({ archive, sourceClient, destinatio
    if (expectedVersions?.[vault.vault]) assert.deepEqual(read.versions, expectedVersions[vault.vault]);
    const exported = await destinationClient.snapshot(vault.vault, 'export'); exported.key.fill(0);
    assert.equal(exported.result.owner, destination.account);
+   // Rewrapping vault access cannot transfer the original actor's personal suppression.
+   const health=await new HealthClient(destinationClient).inspect(vault.vault);
+   assert.deepEqual(health.history,[]);assert.ok(health.findings.every(finding=>finding.suppression===null));
   }
   const auditBefore = await destinationClient.call('audit', {});
   const repeated = await portability.activate({ restore: prepared.restore, approvedPlanHash: planHash, activation: 'synthetic-latchkey-57', rights: ownerRights });
@@ -65,4 +70,15 @@ export async function exerciseRecordsRestore({ archive, sourceClient, destinatio
   assert.equal(auditAfter.length, auditBefore.length);
   return { restore: prepared.restore, planHash, vaults: activated.vaults, unapprovedVaults: activated.unapprovedVaults };
  } finally { await rm(scratch, { recursive: true, force: true }); }
+}
+
+// Called before the existing Records archive, then checked after its real rewrap.
+export async function prepareHealthHistoryRestore(client){
+ const vault=(await client.createVault()).vault,health=new HealthClient(client);
+ const item=await client.put(vault,createItem('login',{title:'Synthetic restore health',values:{password:'aaaa'}}));
+ const finding=(await health.inspect(vault)).findings.find(r=>r.object===item.object&&r.code==='weak-password');assert.ok(finding);
+ await health.suppress(vault,finding,{reason:'Synthetic restore investigation'});
+ await health.suppress(vault,finding,{reason:'Synthetic restore dismissal'});
+ const history=await health.history(vault);assert.deepEqual(history.map(r=>r.reason),['Synthetic restore investigation','Synthetic restore dismissal']);
+ return {vault,item:item.object,rows:await client.call(['health','history'].join('/'),{vault})};
 }
