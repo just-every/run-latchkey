@@ -19,13 +19,16 @@ function ItemReference({ row }: { row: Selected }) {
 }
 
 // The search field stays in view; every other filter, the saved filters and how counts work fold
-// under one Filters control that names how many filters apply.
+// under one Filters control that names how many filters apply, and each applied filter shows as a
+// chip that removes it.
+const chipNames: Record<string, string> = { type: 'Type', tag: 'Tag', favorite: 'Favorite', owner: 'Owner', expiryBefore: 'Expires by', health: 'Health', state: 'State' };
+const chipValue = (key: string, value: unknown) => key === 'favorite' ? (value ? 'yes' : 'no') : key === 'expiryBefore' ? new Date(value as string | number).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }) : key === 'state' ? (value === 'trash' ? 'Trash' : 'Archived') : String(value);
 function SearchControls({ criteria, setCriteria, disabled, open, onToggle, children }: { criteria: Criteria; setCriteria: (value: Criteria) => void; disabled: boolean; open: boolean; onToggle: (open: boolean) => void; children: ReactNode }) {
  const update = (key: keyof Criteria, value: unknown) => {
   const next = { ...criteria }; if (value === '' || value === undefined) delete next[key]; else (next as any)[key] = value;
   setCriteria(next);
  };
- const applied = Object.entries(criteria).filter(([key, value]) => key !== 'query' && !(key === 'state' && value === 'active')).length;
+ const chips = Object.entries(criteria).filter(([key, value]) => key !== 'query' && !(key === 'state' && value === 'active')), applied = chips.length;
  return <div className="find">
   <label>Search permitted decrypted items<input type="search" maxLength={500} value={criteria.query ?? ''} disabled={disabled} onChange={event => update('query', event.target.value)}/></label>
   <details className="filters" open={open} onToggle={event => onToggle(event.currentTarget.open)}><summary>Filters{applied ? ` · ${applied} applied` : ''}</summary>
@@ -41,6 +44,7 @@ function SearchControls({ criteria, setCriteria, disabled, open, onToggle, child
   <label>Item state<select value={criteria.state ?? 'active'} disabled={disabled} onChange={event => update('state', event.target.value)}><option value="active">Active</option><option value="archived">Archived indefinitely</option><option value="trash">Trash: 30-day retention</option></select></label>
   </div>
   {children}</details>
+  {applied > 0 && <ul className="chips" aria-label="Applied filters">{chips.map(([key, value]) => <li key={key}><button type="button" className="chip" disabled={disabled} aria-label={`Remove filter ${chipNames[key] ?? key}: ${chipValue(key, value)}`} onClick={() => update(key as keyof Criteria, undefined)}>{chipNames[key] ?? key}: {chipValue(key, value)}<span aria-hidden="true">×</span></button></li>)}</ul>}
  </div>;
 }
 
@@ -219,7 +223,7 @@ export function OrganizationPanel({ client, vault, run, onChanged, names, onName
     {!visible.length && <div className="empty"><p>{criteria.state === 'trash' ? 'No permitted trash items match.' : criteria.state === 'archived' ? 'No permitted archived items match.' : 'No permitted active items match.'}</p></div>}
     {!!visible.length && <ul className="results">{visible.slice(0, limit).map(row => <li className="result" key={row.object}>
      <label className="check"><input type="checkbox" disabled={busy} checked={selection.some(item => item.vault === source && item.object === row.object)} onChange={event => updateSelection(row, event.target.checked)}/>{row.value.title}</label>
-     <p className="result-meta">{dots(meta(row))}</p>
+     <p className="result-meta"><span className="facts">{meta(row).map((fact, i) => <span key={i}>{fact}</span>)}</span></p>
      <details><summary>Details<span className="sr-only"> for {row.value.title}</span></summary>
       <div className="rule-view"><span>Object reference</span><span>{`${source}/${row.object}`}</span></div>
       <p>{typeLabel(row.value.type)}, version {row.version}.</p>

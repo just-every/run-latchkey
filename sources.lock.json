@@ -1614,7 +1614,7 @@
       "executable": false
     },
     "src/latchkey/collections/ui.tsx": {
-      "sha256": "e5706d38387274a3d6d7ae771b58643c3fa85c2b339f3184ea92a01dcc789c1a",
+      "sha256": "784b0326f6c321442f22229ae71e652a56d9771cf2d196d69acf5fe92c36b817",
       "executable": false
     },
     "src/latchkey/crypto/envelope.d.mts": {
@@ -2318,7 +2318,7 @@
       "executable": false
     },
     "src/latchkey/ui/editor.tsx": {
-      "sha256": "dd35888c93d6b0d2cb94ac4684b395972a64be3b6b46e670e3d7e96900aeb224",
+      "sha256": "10ff4265cf59092236272d2fbec4ec280ae6dbcf87358dd0c2d2f6affdd621cf",
       "executable": false
     },
     "src/latchkey/ui/erase.tsx": {
@@ -2373,8 +2373,12 @@
       "sha256": "b45384196a32a3976da84a6f5a829f51abbeccb580afac4c2ef1e432aa2b64b2",
       "executable": false
     },
+    "src/latchkey/ui/save-refusal.tsx": {
+      "sha256": "4b59c9888f5861c069b79904523032b213e5946e8435c4c26f12447df4b8363a",
+      "executable": false
+    },
     "src/latchkey/ui/styles.ts": {
-      "sha256": "5a789522604aab7dbe96e9b3c60a2ef3694c7198cc7a342f4a0a908df45e7e7c",
+      "sha256": "1b9c65c80c59696514f38b912d79a1aae7eca648da0592eb05de368569d8fd1d",
       "executable": false
     },
     "src/latchkey/ui/tabs.tsx": {

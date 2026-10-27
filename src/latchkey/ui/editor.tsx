@@ -4,11 +4,13 @@ import { DefinitionEditor, FieldValue, complex } from './field-editor';
 import { TotpCapture } from './capture';
 import { Passkeys } from './passkeys';
 import { Generator } from './generator';
-import type { Item, ItemRecord, Task } from './types';
-import { fieldLabel, matchLabel, typeLabel } from './labels';
+import type { Field, Item, ItemRecord, Task } from './types';
+import { fieldLabel, hasValue, matchLabel, typeLabel } from './labels';
 import { FieldProblem, SaveProblem, editable, invalid, mergeOnLatest, refusalOf, type Refusal } from './save-refusal';
 
 const list = (text: string) => text.split(',').map(value => value.trim()).filter(Boolean);
+// An empty one-time code or passkey of a built-in item: the capture flows below add it, so it is not drawn as a masked raw input.
+const captured = (item: Item, field: Field) => !item.template && item.type !== 'custom' && (field.id === 'totp' && field.type === 'otp' || field.id === 'passkey' && field.type === 'passkey') && !hasValue(field);
 
 export function ItemEditor({ row, client, templates, typed, vault, vaultKind, run, busy, onSave, onCancel }: { row?: ItemRecord; client: any; templates: any[]; typed: any; vault: string; vaultKind: string; run: Task; busy: boolean; onSave: (item: Item, row?: ItemRecord) => Promise<void>; onCancel: () => void }) {
  const initial = row ? editable(row.value) : { schema: 'latchkey/item/v1', type: 'login', title: '', fields: itemTypes.login.map(field => ({ ...field })), labels: [], tags: [], favorite: false, ownership: vaultKind === 'family' ? 'personal' : 'company', urls: [], attachments: [] };
@@ -39,7 +41,7 @@ export function ItemEditor({ row, client, templates, typed, vault, vaultKind, ru
   }); }}>
    <div className="credentials"><div className="form-grid"><div className="grid-field"><label>Title<input id="title-input" required maxLength={500} value={draft.title} {...invalid(refusal, 'title')} onChange={e => { clear('title'); update({ title: e.target.value }); }}/></label><FieldProblem refusal={refusal} field="title"/></div><label>Item type<select disabled={!!row} value={draft.type} onChange={e => { const type = e.target.value; update({ type, fields: (itemTypes[type] ?? []).map(field => ({ ...field })), template: undefined }); setTemplateId(''); }} >{[...Object.keys(itemTypes), 'custom'].map(type => <option key={type} value={type}>{typeLabel(type)}</option>)}</select></label></div>
     {!row && <label>Template<select value={templateId} onChange={e => { const id = e.target.value; setTemplateId(id); const template = templates.find(t => t.object === id); if (template) update({ type: 'custom', template: { object: id, version: template.version, definition: template.value }, fields: template.value.fields.map((field: any) => ({ ...field })) }); else update({ template: undefined }); }}><option value="">No template</option>{templates.map(t => <option key={t.object} value={t.object}>{t.value.name}</option>)}</select></label>}
-    {draft.fields.map((field, index) => <div className="edit-field" key={index}><FieldValue field={field} label={fieldLabel(draft, field)} onChange={value => setField(field.id, value)}/>{!itemTypes[draft.type]?.some(def => def.id === field.id) && !draft.template && <details><summary>Field settings</summary><DefinitionEditor field={field} onChange={next => update({ fields: draft.fields.map((f, i) => i === index ? next : f) })}/><button type="button" onClick={() => update({ fields: draft.fields.filter((_, i) => i !== index) })}>Remove field</button></details>}</div>)}
+    {draft.fields.map((field, index) => !captured(draft, field) && <div className="edit-field" key={index}><FieldValue field={field} label={fieldLabel(draft, field)} onChange={value => setField(field.id, value)}/>{!itemTypes[draft.type]?.some(def => def.id === field.id) && !draft.template && <details><summary>Field settings</summary><DefinitionEditor field={field} onChange={next => update({ fields: draft.fields.map((f, i) => i === index ? next : f) })}/><button type="button" onClick={() => update({ fields: draft.fields.filter((_, i) => i !== index) })}>Remove field</button></details>}</div>)}
     <div className="actions"><button type="button" onClick={() => update({ fields: [...draft.fields, { id: `custom-${crypto.randomUUID()}`, label: 'Custom field', type: 'text', secret: false }] })}>Add custom field</button>
     <button type="button" onClick={() => setGenerator(!generator)}>{generator ? 'Close generator' : 'Generate a password'}</button></div>
    </div>
