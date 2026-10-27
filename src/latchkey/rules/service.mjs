@@ -1,6 +1,7 @@
 import { access, exact, guarded, has, id, need, uuid, vaultFor, canonicalJson } from '../lifecycle/common.mjs';
 import { scopeGuards } from './scope.mjs';
 import { quarterBoundary } from './clock.mjs';
+import { reviewContext, matchingReview, reconcileReview } from './review-results.mjs';
 import { digest } from '../crypto/envelope.mjs';
 const path = (...parts) => parts.join('/');
 const name = path.bind(null,'rules');
@@ -35,7 +36,7 @@ async function rowFor(ctx,rule) {
 }
 async function snapshot(ctx,row) {
  const {all}=access(ctx);
- return {...row,versions:(await all('SELECT * FROM lky_rule_versions WHERE rule_id=? ORDER BY version',row.id)).map(v=>({...v,definition:JSON.parse(v.definition)})),runs:await all('SELECT * FROM lky_rule_runs WHERE rule_id=? ORDER BY slot,version',row.id),obligations:await all('SELECT o.* FROM lky_rule_obligations o JOIN lky_rule_runs r ON r.id=o.run_id WHERE r.rule_id=? ORDER BY o.created_at,o.id',row.id),decisions:await all('SELECT d.* FROM lky_rule_decisions d JOIN lky_rule_obligations o ON o.id=d.obligation JOIN lky_rule_runs r ON r.id=o.run_id WHERE r.rule_id=? ORDER BY d.created_at,d.id',row.id)};
+ return {...row,reviewBindings:await all('SELECT b.* FROM lky_rule_reviews b JOIN lky_rule_obligations o ON o.id=b.obligation JOIN lky_rule_runs r ON r.id=o.run_id WHERE r.rule_id=? ORDER BY b.bound_at,b.obligation',row.id),versions:(await all('SELECT * FROM lky_rule_versions WHERE rule_id=? ORDER BY version',row.id)).map(v=>({...v,definition:JSON.parse(v.definition)})),runs:await all('SELECT * FROM lky_rule_runs WHERE rule_id=? ORDER BY slot,version',row.id),obligations:await all('SELECT o.* FROM lky_rule_obligations o JOIN lky_rule_runs r ON r.id=o.run_id WHERE r.rule_id=? ORDER BY o.created_at,o.id',row.id),decisions:await all('SELECT d.* FROM lky_rule_decisions d JOIN lky_rule_obligations o ON o.id=d.obligation JOIN lky_rule_runs r ON r.id=o.run_id WHERE r.rule_id=? ORDER BY d.created_at,d.id',row.id)};
 }
 async function preview(ctx,value) {
  const vault=await definition(ctx,value);
@@ -75,6 +76,28 @@ export async function rulesAuthenticated(route,input,ctx) {
   const obligation=await first('SELECT o.* FROM lky_rule_obligations o JOIN lky_rule_runs r ON r.id=o.run_id WHERE o.id=? AND r.rule_id=? AND r.version=?',uuid(input.obligation),row.id,row.version);need(obligation?.phase==='waiting-approval','rule_approval_unavailable',409);
   const vault=await definition(ctx,value);
   await guarded(ctx,[vault],[stmt('INSERT INTO lky_rule_decisions VALUES(?,?,?,?,?)',id(),obligation.id,ctx.actor,input.decision,ctx.now),stmt('UPDATE lky_rule_obligations SET phase=? WHERE id=?',input.decision==='approve'?'approved':'denied',obligation.id),event('rule_rotation_decided',row.id)],[...await scopeGuards(ctx,value),guard("EXISTS(SELECT 1 FROM lky_rules WHERE id=? AND version=? AND active=1)",[row.id,row.version]),guard("EXISTS(SELECT 1 FROM lky_rule_obligations WHERE id=? AND phase='waiting-approval')",[obligation.id])]);return snapshot(ctx,await rowFor(ctx,row.id));
+ }
+ if(route===name('review-candidates')){
+  exact(input,['rule','version','obligation']);need(row.version===input.version,'rule_changed',409);
+  const obligation=await first('SELECT o.* FROM lky_rule_obligations o JOIN lky_rule_runs r ON r.id=o.run_id WHERE o.id=? AND r.rule_id=? AND r.version=?',uuid(input.obligation),row.id,row.version);
+  const context=await reviewContext(ctx,row,value,obligation),candidates=await all('SELECT id FROM lky_reviews WHERE tenant=? AND owner=? AND vault_id=? ORDER BY scheduled_at,id',ctx.tenant,ctx.actor,value.vault),matches=[];
+  for(const candidate of candidates){try{const review=await matchingReview(ctx,candidate.id,context);if(!await first('SELECT 1 FROM lky_rule_reviews WHERE review_id=?',review.id))matches.push({id:review.id,phase:review.phase,scheduledAt:review.scheduled_at,reviewer:review.reviewer})}catch(error){if(error.code!=='rule_review_mismatch')throw error}}
+  return matches;
+ }
+ if(route===name('bind-review')){
+  exact(input,['rule','version','obligation','review','slot','vault','scope','reviewer','confirmed']);need(input.confirmed===true,'rule_confirmation_required',403);need(row.version===input.version,'rule_changed',409);
+  const obligation=await first('SELECT o.* FROM lky_rule_obligations o JOIN lky_rule_runs r ON r.id=o.run_id WHERE o.id=? AND r.rule_id=? AND r.version=?',uuid(input.obligation),row.id,row.version);
+  const context=await reviewContext(ctx,row,value,obligation),b=context.binding;
+  need(input.slot===b.slot&&input.vault===b.vault&&input.reviewer===b.reviewer&&canonicalJson(input.scope)===canonicalJson(b.scope),'rule_review_mismatch',409);
+  const review=await matchingReview(ctx,uuid(input.review),context);
+  need(!await first('SELECT 1 FROM lky_rule_reviews WHERE obligation=? OR review_id=?',obligation.id,review.id),'rule_review_already_bound',409);
+  await guarded(ctx,[context.vault],[stmt("INSERT INTO lky_rule_reviews VALUES(?,?,?,'active',?,NULL,NULL)",obligation.id,review.id,canonicalJson(b),ctx.now),event('rule_review_bound',row.id)],[...context.guards,guard('EXISTS(SELECT 1 FROM lky_reviews WHERE id=? AND tenant=? AND owner=? AND vault_id=? AND reviewer=? AND phase=? AND scheduled_at=? AND due_at=?)',[review.id,ctx.tenant,ctx.actor,b.vault,b.reviewer,review.phase,review.scheduled_at,review.due_at])]);
+  return snapshot(ctx,await rowFor(ctx,row.id));
+ }
+ if(route===name('reconcile-review')){
+  exact(input,['rule','version','obligation']);need(row.version===input.version,'rule_changed',409);
+  const obligation=await first('SELECT o.* FROM lky_rule_obligations o JOIN lky_rule_runs r ON r.id=o.run_id WHERE o.id=? AND r.rule_id=? AND r.version=?',uuid(input.obligation),row.id,row.version);
+  need(obligation,'rule_review_unavailable',409);return reconcileReview(ctx,row,value,obligation);
  }
  if(route===name('complete')){
   exact(input,['rule','version','obligation','resultVersion','confirmed']);need(input.confirmed===true,'rule_confirmation_required',403);need(row.active===1&&row.version===input.version,'rule_changed',409);need(value.kind==='rotation','rule_rotation_required');

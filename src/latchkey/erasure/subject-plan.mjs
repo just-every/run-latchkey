@@ -78,6 +78,7 @@ export async function subjectPlan(ctx, subject) {
  // identities. Erasure invalidates affected packages rather than re-signing them.
  const rules=await all('SELECT c.*,v.definition FROM lky_rules c JOIN lky_rule_versions v ON v.rule_id=c.id WHERE c.tenant=?',ctx.tenant);
  const ruleIds=JSON.stringify([...new Set(rules.filter(row=>contains(JSON.stringify(row),identity)||ownedVaults.some(v=>contains(row.definition,[v.id]))).map(row=>row.id))]);
+ await select('lky_rule_reviews','obligation IN(SELECT o.id FROM lky_rule_obligations o JOIN lky_rule_runs r ON r.id=o.run_id WHERE r.rule_id IN(SELECT value FROM json_each(?)))',[ruleIds]);
  await select('lky_rule_decisions','obligation IN(SELECT o.id FROM lky_rule_obligations o JOIN lky_rule_runs r ON r.id=o.run_id WHERE r.rule_id IN(SELECT value FROM json_each(?)))',[ruleIds]);
  await select('lky_rule_obligations','run_id IN(SELECT id FROM lky_rule_runs WHERE rule_id IN(SELECT value FROM json_each(?)))',[ruleIds]);
  await select('lky_rule_runs','rule_id IN(SELECT value FROM json_each(?))',[ruleIds]);
@@ -88,6 +89,8 @@ export async function subjectPlan(ctx, subject) {
  const reviewRows=await all('SELECT * FROM lky_review_rows');
  const affectedReviews=reviews.filter(row=>contains(JSON.stringify(row),identity)||reviewRows.some(r=>r.review_id===row.id&&contains(JSON.stringify(r),identity))).map(row=>row.id);
  const reviewList=JSON.stringify(affectedReviews);
+ await select('lky_rule_obligations','id IN(SELECT obligation FROM lky_rule_reviews WHERE review_id IN(SELECT value FROM json_each(?)))',[reviewList],'redact',row=>({...row,phase:'inactive',result_version:null}));
+ await select('lky_rule_reviews','review_id IN (SELECT value FROM json_each(?))',[reviewList]);
  await select('lky_review_rows','review_id IN (SELECT value FROM json_each(?))',[reviewList]);
  await select('lky_review_reminders','review_id IN (SELECT value FROM json_each(?))',[reviewList]);
  const postureSources=await select('lky_evidence_sources',`owner=? OR vault_id IN (${own}) OR vault_id IN (SELECT value FROM json_each(?))`,[accountId,...ownArgs,JSON.stringify([...new Set([...affectedIds,...reviews.filter(row=>affectedReviews.includes(row.id)).map(row=>row.vault_id)])])]);
