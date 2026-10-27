@@ -78,6 +78,7 @@ export async function subjectPlan(ctx, subject) {
  await select('lky_rule_runs','rule_id IN(SELECT value FROM json_each(?))',[ruleIds]);
  await select('lky_rule_versions','rule_id IN(SELECT value FROM json_each(?))',[ruleIds]);
  await select('lky_rules','id IN(SELECT value FROM json_each(?))',[ruleIds]);
+ await select('lky_company_custody','owner=? OR custodian=?',[accountId,accountId]);
  await select('lky_export_policies',`vault_id IN (${own}) OR owner=?`,[...ownArgs,accountId]);
  const reviews=await all('SELECT * FROM lky_reviews');
  const reviewRows=await all('SELECT * FROM lky_review_rows');
