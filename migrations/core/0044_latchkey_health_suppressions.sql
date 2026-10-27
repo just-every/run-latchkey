@@ -7,7 +7,6 @@ CREATE TABLE lky_health_suppressions (
  item_version INTEGER NOT NULL,
  generation INTEGER NOT NULL,
  epoch INTEGER NOT NULL,
- code TEXT NOT NULL,
  until_at INTEGER,
  wrapped TEXT NOT NULL,
  created_at INTEGER NOT NULL,

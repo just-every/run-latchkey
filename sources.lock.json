@@ -514,7 +514,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "c9d6721409ecf294fe1cc142754e4737ad2f160b184a4b6d2dba2f1120cc6cab",
+      "sha256": "1012cdc6dfa47b35743517ed3371fb9100bbd4af93829ebe603384f22c64583a",
       "executable": false
     },
     "AGENTS.md": {
@@ -554,7 +554,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "58a7b509b8ea213270144416278e88a1a33fb037776e3d5a330304086ea88de6",
+      "sha256": "d9941337e53b1254d2bfb401076337ab19afa3c5096af2964e9b46c0859928df",
       "executable": false
     },
     "deploy-demo.json": {
@@ -618,7 +618,7 @@
       "executable": false
     },
     "docs/password-health.md": {
-      "sha256": "a743352240030f8791c1198874e5e6247d0aa0529dd7926bf1bd6a31953da895",
+      "sha256": "6bd3285bb03e328247990a2d396dd885027e9f55d5e308ab8db9be24898d6f1d",
       "executable": false
     },
     "docs/reports.md": {
@@ -838,7 +838,7 @@
       "executable": false
     },
     "migrations/core/0044_latchkey_health_suppressions.sql": {
-      "sha256": "e26f6f28827e43a66750a23524ae1756bf607ffdc542108d6dc10248a2bb4be6",
+      "sha256": "a55f65c22e1a11db4b1f50750821d08bbcb9d255acbfd8a0dadead17c31f3b81",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -1730,7 +1730,7 @@
       "executable": false
     },
     "src/latchkey/erasure/subject-schema.mjs": {
-      "sha256": "ff62ff618a7ee0b2b10cb531c6a2bdcce12553a5efc9cc0dec332d7221f52c42",
+      "sha256": "a5d7b58ac6a7509a4955295fea8b6c585e28a619de0483ac1034503069f6eab1",
       "executable": false
     },
     "src/latchkey/erasure/subject.d.mts": {
@@ -1846,7 +1846,7 @@
       "executable": false
     },
     "src/latchkey/health/client.mjs": {
-      "sha256": "6b78229e4207897507e12d0a6f1b26363b8b351a4e9187582f605e66f3b80af3",
+      "sha256": "d9ca751b243413a9caf8fa4fb2cf6cd66d95a3f22936f77433e15204ef014d7a",
       "executable": false
     },
     "src/latchkey/health/README.md": {
@@ -1858,7 +1858,7 @@
       "executable": false
     },
     "src/latchkey/health/service.mjs": {
-      "sha256": "bcc66b2019100b562c74a544c4bf8e8e719903d7a35ca39e828bb07d563d2bb8",
+      "sha256": "0b38c90970f7f80bd34a07bc7e54cdcd794d60d0ef6a52269f5a1c5f1772e5b4",
       "executable": false
     },
     "src/latchkey/health/ui.tsx": {
@@ -3670,7 +3670,7 @@
       "executable": false
     },
     "tests/browser/security.mjs": {
-      "sha256": "c556fa1ad035cedf8450d41e53207b7496200787847ca592e48a74d4bdfe8782",
+      "sha256": "430b5b044b2690476d93ae572c5691b783afac7c2235fad2a4a2e089594c747b",
       "executable": false
     },
     "tests/browser/sharing.mjs": {

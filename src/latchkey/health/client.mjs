@@ -65,7 +65,7 @@ export class HealthClient {
   const result=await this.client.call(['health','history'].join('/'),{vault}),profile=this.client.profile,rows=[];
   for(const row of result.rows){
    const value=json(await unwrapSigned(row.wrapped,this.client.bundle.root.recipient.privateKey,profile.authorityKey,profile.account,suppressionBinding(profile.tenant,vault,row.id,row.generation)));
-   if(value.actor!==profile.account||value.object!==row.object_id||value.version!==row.item_version||value.code!==row.code||value.until!==row.until_at||value.epoch!==row.epoch||value.sourceRevision!==row.source_revision)throw Error('invalid_suppression');
+   if(value.actor!==profile.account||value.object!==row.object_id||value.version!==row.item_version||value.until!==row.until_at||value.epoch!==row.epoch||value.sourceRevision!==row.source_revision)throw Error('invalid_suppression');
    rows.push({...value,record:row.id,active:row.active===1&&row.epoch===result.epoch&&row.generation===result.generation});
   }
   return rows;
@@ -76,6 +76,6 @@ export class HealthClient {
   if(!loaded.records.some(r=>r.object===finding.object&&r.version===finding.version&&r.value.schema==='latchkey/item/v1')||loaded.lifecycle.some(r=>r.object===finding.object&&r.state!=='active'))throw Error('finding_changed');
   const profile=this.client.profile,record=id(),payload={schema:'latchkey/health-suppression/v1',epoch:loaded.vault.epoch,sourceRevision:loaded.vault.revision,object:finding.object,version:finding.version,code:finding.code,reason:reason.trim(),until,actor:profile.account,observation:{source:finding.source,observedAt:finding.observedAt,code:finding.code,version:finding.version},recordedAt:this.now()};
   const wrapped=await this.client.wrap(bytes(payload),profile.recipientKey,suppressionBinding(profile.tenant,vault,record,profile.generation));
-  return this.client.call(['health','suppress'].join('/'),{vault,revision:loaded.vault.revision,object:finding.object,version:finding.version,record,code:finding.code,until,wrapped});
+  return this.client.call(['health','suppress'].join('/'),{vault,revision:loaded.vault.revision,object:finding.object,version:finding.version,record,until,wrapped});
  }
 }

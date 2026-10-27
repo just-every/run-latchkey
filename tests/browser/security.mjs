@@ -88,7 +88,7 @@ for(const width of [1440,390]){
   assert.ok(!(await memberHealth.history(vault)).some(r=>r.reason==='Synthetic investigation'));
   await assert.rejects(member.put(vault,createItem('login',{title:'Forbidden member write'}),memberItem.object,1),e=>e.status===403);
   const ownRows=await member.call(['health','history'].join('/'),{vault});assert.equal(ownRows.rows.length,1);
-  assert.ok(!JSON.stringify(ownRows).includes('Synthetic member investigation'));assert.ok(!JSON.stringify(ownRows).includes('observedAt'));
+  assert.ok(!JSON.stringify(ownRows).includes('Synthetic member investigation'));assert.ok(!JSON.stringify(ownRows).includes('observedAt'));assert.ok(!JSON.stringify(ownRows).includes('weak-password'));
   if(width===1440){const row=ownRows.rows[0],tampered=structuredClone(row.wrapped);tampered.envelope.ciphertext=(tampered.envelope.ciphertext[0]==='A'?'B':'A')+tampered.envelope.ciphertext.slice(1);await f.db.prepare('UPDATE lky_health_suppressions SET wrapped=? WHERE id=?').bind(JSON.stringify(tampered),row.id).run();await assert.rejects(memberHealth.history(vault),/invalid_key_signature/);await f.db.prepare('UPDATE lky_health_suppressions SET wrapped=? WHERE id=?').bind(JSON.stringify(row.wrapped),row.id).run();}
 
   await assert.rejects(member.call(['health','history'].join('/'),{vault,actor:owner.profile.account}),e=>e.status===400);
