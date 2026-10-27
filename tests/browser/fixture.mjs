@@ -43,7 +43,7 @@ export async function vaultFixture({webhook=false,browserEnabled=true,enrollOwne
  const owner=new VaultClient(origin,{cookie,fetcher}),password='synthetic-latchkey-1107',enrolled=enrollOwner?await owner.register(password):null;if(enrolled)await owner.unlock(enrolled.profile,password);
  const page=context?await context.newPage():null;
  return {caFile:join(directory,'cert.pem'),origin,get db(){return db},owner,password,enrolled,page,context,browser,mail,webhooks,fetcher,runtimeLogs,
-  restart:async()=>{if(!persistent)throw Error('Restart proof requires persistent fixture storage');await worker.dispose();worker=createWorker();db=await worker.getD1Database('DB')},
+  restart:async(time=null)=>{if(!persistent)throw Error('Restart proof requires persistent fixture storage');await worker.dispose();if(time!==null){modules[0].contents=`Date.now=()=>${Number(time)};\n`+await readFile('./dist/server/index.js','utf8')}worker=createWorker();db=await worker.getD1Database('DB')},
   archiveDatabase:()=>worker.getD1Database('ARCHIVE'),
   schedule:async(time=Date.now())=>(await worker.getWorker()).scheduled({scheduledTime:new Date(time),cron:'* * * * *'}),
   code:()=>{const value=mail.at(-1).content.find(c=>c.type==='text/plain').value.match(/Latchkey verification code: (\d{6})/);assert.ok(value);return value[1]},

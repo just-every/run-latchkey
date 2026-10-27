@@ -10,7 +10,7 @@ import { createItem } from '../../src/latchkey/items/types.mjs';
 const output=process.env.LATCHKEY_SCREENSHOTS,route=name=>['rules',name].join('/');
 if(output)await mkdir(output,{recursive:true});
 export async function rulesConsoleJourney(width) {
- const realNow=Date.now,clock=Date.now();Date.now=()=>clock;
+ const realNow=Date.now,clock=Date.parse('2031-11-15T12:00:00Z');Date.now=()=>clock;
  const f=await vaultFixture({clock});await f.page.addInitScript({content:`Date.now=()=>${clock}`});
  try {
   const quarter=new Date(clock);quarter.setUTCMonth(Math.floor(quarter.getUTCMonth()/3)*3,1);quarter.setUTCHours(0,0,0,0);const nextQuarter=new Date(quarter);nextQuarter.setUTCMonth(nextQuarter.getUTCMonth()+3);const laterQuarter=new Date(quarter);laterQuarter.setUTCMonth(laterQuarter.getUTCMonth()+6);
@@ -42,7 +42,7 @@ export async function rulesConsoleJourney(width) {
   await f.schedule(quarter.getTime());await f.schedule(nextQuarter.getTime());await panel.getByRole('button',{name:'Refresh rules',exact:true}).click();await expect(panel.getByRole('region',{name:'Rule history'})).toContainText('Runs retained: 2');
   const invitation=await f.fetcher(f.origin+'/auth/invite',{method:'POST',headers:{origin:f.origin,'content-type':['application','json'].join('/'),cookie:owner.cookie},body:JSON.stringify({email:'synthetic-latchkey-8550@example.test',displayName:'Independent rule reviewer',role:'member'})});assert.equal(invitation.status,202);
   const token=new URL(f.mail.at(-1).content.find(c=>c.type===['text','plain'].join('/')).value.match(/https:\/\/[^\s<>]+/)[0]).searchParams.get('token'),reviewer=new VaultClient(f.origin,{fetcher:f.fetcher});await reviewer.confirmIdentity(token);const enrolled=await reviewer.register('synthetic-latchkey-8551');await reviewer.unlock(enrolled.profile,'synthetic-latchkey-8551');
-  const shares=new SharingClient(owner);await shares.setPolicy({externalEnabled:true,domains:['example.test'],defaultDays:7,maxDays:30});const link=await shares.createLink(vault,resource.object,{recipient:'synthetic-latchkey-8552@example.test'});
+  const shares=new SharingClient(owner);await shares.setPolicy({externalEnabled:true,domains:['example.test'],defaultDays:7,maxDays:30});const link=await shares.createLink(vault,resource.object,{recipient:'synthetic-latchkey-8552@example.test',startsAt:clock+300000});
   const campaign=(await owner.call(['reviews','create'].join('/'),{vault,reviewer:owner.profile.account,scheduleAt:clock,dueAt:Math.min(clock+3600000,nextQuarter.getTime()-1),period:'Quarterly finance review'})).id;
   let detail=await owner.call(['reviews','get'].join('/'),{review:campaign});assert.equal(detail.rows.length,2);
   const ownRow=detail.rows.find(r=>r.subject===owner.profile.account),externalRow=detail.rows.find(r=>r.id===link.link);

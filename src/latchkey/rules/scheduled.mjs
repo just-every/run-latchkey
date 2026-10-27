@@ -5,8 +5,11 @@ import { scheduleSlot } from './clock.mjs';
 // The caller must supply the event clock. Replay never consults the wall clock.
 export async function runRuleSchedule(db,now) {
  need(Number.isSafeInteger(now)&&now>=0,'rule_clock_required');
- const rows=(await db.prepare("SELECT c.*,v.definition,a.operator_id FROM lky_rules c JOIN lky_rule_versions v ON v.rule_id=c.id AND v.version=c.version JOIN lky_accounts a ON a.id=c.owner JOIN oa_operators o ON o.id=a.operator_id WHERE c.active=1 AND a.tenant=c.tenant AND o.status='active' AND o.role='owner' ORDER BY c.created_at,c.id LIMIT 100").all()).results;
- let processed=0;
+ let cursor='',processed=0;
+ while(true){
+ const rows=(await db.prepare("SELECT c.*,v.definition,a.operator_id FROM lky_rules c JOIN lky_rule_versions v ON v.rule_id=c.id AND v.version=c.version JOIN lky_accounts a ON a.id=c.owner JOIN oa_operators o ON o.id=a.operator_id WHERE c.active=1 AND a.tenant=c.tenant AND o.status='active' AND o.role='owner' AND c.id>? ORDER BY c.id LIMIT 100").bind(cursor).all()).results;
+ if(!rows.length)break;
+ cursor=rows.at(-1).id;
  for(const row of rows){
   const value=JSON.parse(row.definition);if(now<value.startAt)continue;
   const {slot,startAt}=scheduleSlot(value,now),run=id();
@@ -34,6 +37,7 @@ export async function runRuleSchedule(db,now) {
    // A concurrent runner may win the unique slot. Other failures stay visible.
    if(!await first('SELECT 1 FROM lky_rule_runs WHERE rule_id=? AND version=? AND slot=?',row.id,row.version,slot))throw error;
   }
+ }
  }
  return {processed,completed:await reconcileBoundReviews(db,now)};
 }
