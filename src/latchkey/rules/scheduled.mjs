@@ -1,5 +1,6 @@
 import { access, guarded, has, id, need, vaultFor } from '../lifecycle/common.mjs';
 import { scopeGuards } from './scope.mjs';
+import { reconcileBoundReviews } from './review-results.mjs';
 import { scheduleSlot } from './clock.mjs';
 // The caller must supply the event clock. Replay never consults the wall clock.
 export async function runRuleSchedule(db,now) {
@@ -34,5 +35,5 @@ export async function runRuleSchedule(db,now) {
    if(!await first('SELECT 1 FROM lky_rule_runs WHERE rule_id=? AND version=? AND slot=?',row.id,row.version,slot))throw error;
   }
  }
- return {processed};
+ return {processed,completed:await reconcileBoundReviews(db,now)};
 }
