@@ -39,7 +39,7 @@ export function MspOwnerPanel({ client, run }: Props) {
   <h1>Service provider</h1>
   <p className="muted">Delegate company metadata and optional restrictive sharing policy changes. Providers receive no vault keys, item contents, runtime grants or export authority.</p>
   {error && <div className="error" role="alert">{error}</div>}{status && <p className="notice" role="status">{status}</p>}
-  {loading && <p role="status">Loading provider delegations…</p>}{busy && <p role="status">Updating provider delegation…</p>}
+  {loading && <p className="loading" role="status">Loading provider delegations…</p>}{busy && <p className="loading" role="status">Updating provider delegation…</p>}
   <button disabled={busy || loading} onClick={() => void act(async () => {}, 'Provider delegations refreshed.')}>Refresh delegations</button>
   <form className="tool-box" onSubmit={event => {
    event.preventDefault(); if (!identity || !consent) return;
