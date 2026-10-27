@@ -21,3 +21,12 @@ The installed `/` is the shared Lobby. `rer build --site` builds the separate st
 Use `rer describe` for effects, `rer doctor` for prerequisites, `rer verify` for trusted full verification, `rer reset --yes` only for an authorized local reset, and `rer deploy` for an authorized owner-account deployment. Stop owned servers before building. `rer export --output exports/installation.rer` and `rer import --input exports/installation.rer --yes` are installation backup/restore; restore needs an empty destination and has no reviewed-import plan or Undo. No product import screen exists yet.
 
 Before heavy work check the shared Mac's load. Keep one heavy job per session, low priority and few workers, use the shared heavy-slot helper, and stop every owned server/browser. Never read global secret files or print secret values. Never stop another checkout's processes or free another checkout's ports.
+
+## Contract documentation
+
+Lander-Regenerate for a touched clause on the held Base pin:
+`node scripts/contract-docs.mjs write LKY-011`, followed by
+`node scripts/contract-docs.mjs check LKY-011` (replace the clause ID or supply
+several). CONTRACT.md supplies status, evidence and gaps; the command preserves
+existing acceptance journeys and generates docs/CLAIMS.md. Regenerate the source
+lock after the final documentation change.

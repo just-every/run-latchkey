@@ -8,6 +8,7 @@ export async function inventory(ctx, vault, object) {
  const entries = [
   { table: 'lky_versions', keys: ['vault_id', 'object_id', 'version'], select: 'SELECT vault_id,object_id,version FROM lky_versions WHERE vault_id=? AND object_id=?', args: [vault, object] },
   {table:'lky_report_observations',keys:['id'],select:'SELECT id FROM lky_report_observations WHERE vault_id=?',args:[vault]},
+  {table:'lky_health_suppressions',keys:['id'],select:'SELECT id FROM lky_health_suppressions WHERE tenant=? AND vault_id=? AND object_id=?',args:[ctx.tenant,vault,object]},
   {table:'lky_checkouts',keys:['vault_id','object_id'],select:'SELECT vault_id,object_id FROM lky_checkouts WHERE vault_id=? AND object_id=?',args:[vault,object]},
   {table:'lky_lifecycle',keys:['vault_id','object_id'],select:'SELECT vault_id,object_id FROM lky_lifecycle WHERE vault_id=? AND object_id=?',args:[vault,object]},
   {table:'lky_bulk_operations',keys:['id'],select:'SELECT id FROM lky_bulk_operations WHERE tenant=? AND instr(plan,?)>0',args:[ctx.tenant,object]},

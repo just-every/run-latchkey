@@ -469,6 +469,8 @@ try {
  const personalVersions = (await member.readVault(personalVault)).versions;
  const {ReportsClient}=await import('../src/latchkey/reports/client.mjs');
  const reportVault=(await owner.createVault({kind:'company'})).vault;await new ReportsClient(owner).capture(reportVault,{confirmed:true});
+ const {prepareHealthHistoryRestore}=await import('./latchkey-restore.mjs');
+ const healthRestore=await prepareHealthHistoryRestore(owner,member);
  const backupId = await records.exports.create('synthetic-latchkey-29')
  let backupStatus = await records.exports.status(backupId)
  for (let count = 0; backupStatus.phase !== 'complete' && count < 20; count++) backupStatus = await records.exports.advance(backupId, { maxParts: 100 })
@@ -515,8 +517,11 @@ try {
    try { expectedVersions[row.id] = (await owner.readVault(row.id)).versions; }
    catch(error) { const seen = owner.profile.seen[row.id]; throw new Error(`Source checkpoint epoch/revision ${row.epoch}/${row.revision} follows ${seen?.epoch}/${seen?.revision}`, { cause: error }); }
   }
+  const restoredHealth=(await restoreDb.prepare('SELECT * FROM lky_health_suppressions WHERE vault_id=? ORDER BY actor,sequence').bind(healthRestore.vault).all()).results;
+  assert.equal(restoredHealth.length,4);assert.ok(restoredHealth.every(row=>row.active===0));
+  assert.deepEqual(restoredHealth.map(row=>JSON.parse(row.wrapped)),healthRestore.rows.toSorted((a,b)=>a.actor.localeCompare(b.actor)||a.sequence-b.sequence).map(row=>row.wrapped));
   const { exerciseRecordsRestore } = await import('./latchkey-restore.mjs')
-  const transferred = await exerciseRecordsRestore({ archive: backup, sourceClient: owner, destinationClient: recipient, expectedVersions });
+  const transferred = await exerciseRecordsRestore({ archive: backup, sourceClient: owner, destinationClient: recipient, expectedVersions, healthRestore });
   assert.ok(!transferred.vaults.some(row => row.vault === personalVault));
   assert.ok(transferred.unapprovedVaults.includes(personalVault));
   await rejected(recipient.readVault(personalVault), 'permission_denied');
