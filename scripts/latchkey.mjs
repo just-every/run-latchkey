@@ -141,6 +141,11 @@ try {
    const accounts = await accountRegistry(input); client = await accounts.switch(input.accountName,input.password); profile = client.profile; }
   else { profile = await readPrivate(input.profile); client = new VaultClient(profile.origin); await client.unlock(profile, input.password); }
   switch (command) {
+   case 'custody-revoke': {const {CompanyCustodyClient}=await import('../src/latchkey/people/custody-client.mjs');result=await new CompanyCustodyClient(client).revoke(input.vault,{confirmed:input.confirmed});break;}
+   case 'custody-enroll': {const {CompanyCustodyClient}=await import('../src/latchkey/people/custody-client.mjs');result=await new CompanyCustodyClient(client).enroll(input.vault,input.custodian,input.fingerprint,{confirmed:input.confirmed});break;}
+   case 'custody-accept': {const {CompanyCustodyClient}=await import('../src/latchkey/people/custody-client.mjs');result=await new CompanyCustodyClient(client).accept(input.vault,input.fingerprint,{confirmed:input.confirmed});break;}
+   case 'custody-preview': {const {CompanyCustodyClient}=await import('../src/latchkey/people/custody-client.mjs');await writePrivate(input.output,await new CompanyCustodyClient(client).preview(input.vault));result={written:true};break;}
+   case 'custody-handback': {const {CompanyCustodyClient}=await import('../src/latchkey/people/custody-client.mjs');result=await new CompanyCustodyClient(client).handback(await readPrivate(input.plan),{confirmed:input.confirmed,approvedPlanHash:input.approvedPlanHash});break;}
    case 'selection-policy': {const {SelectionExportClient}=await import('../src/latchkey/portability/selection.mjs');result=await new SelectionExportClient(client).setPlaintextPolicy(input.vault,input.allowPlaintext,{confirmed:input.confirmed});break;}
    case 'selection-preview': {const {SelectionExportClient}=await import('../src/latchkey/portability/selection.mjs');const value=await new SelectionExportClient(client).preview(input.selection,{format:input.format,review:input.review});await writePrivate(input.output,value);result={written:true,planHash:value.planHash,selection:value.plan.selection,omissions:value.plan.omissions,review:value.plan.review,coverage:value.plan.coverage};break;}
    case 'selection-export': {

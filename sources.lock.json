@@ -514,7 +514,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "6bab826e0d4c3d9956d0157f7554506a2bcf326ee02dc59f80b6adb1ea1abd8f",
+      "sha256": "a91cd747965e0d44a3df35af72412153d3e9e59b64e35efda6aabafbfa8a38a1",
       "executable": false
     },
     "AGENTS.md": {
@@ -526,7 +526,7 @@
       "executable": false
     },
     "CLAIMS.md": {
-      "sha256": "686f09568fcc395768bd1e97117ef51a07d24f605aa80312e93eb1b9750a4eda",
+      "sha256": "c87142b92892486fa42636a8d06de244dcc15ecc3fee9d73f69210841a1c78e3",
       "executable": false
     },
     "CLAUDE.md": {
@@ -554,7 +554,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "7ca25035b51911100e8c821bf732b7dc3c202c878d65cae6caa77a1bab7db764",
+      "sha256": "f0b2087d307a687eb85ac8723142cd6e026724e1e9a07e56860038f347bc9623",
       "executable": false
     },
     "deploy-demo.json": {
@@ -575,6 +575,10 @@
     },
     "docs/backup-and-restore.md": {
       "sha256": "b7f06cd060692f1f8acbcd7bc666750aa7177a63783ea96e84b6e672ad64bb13",
+      "executable": false
+    },
+    "docs/company-custody.md": {
+      "sha256": "226028e4117121bb61ff8d233e8bdcacf86ba510e84117c785cb1076467bf722",
       "executable": false
     },
     "docs/device-posture.md": {
@@ -807,6 +811,10 @@
     },
     "migrations/core/0040_latchkey_aliases.sql": {
       "sha256": "9519d21844ece7edac0df2f97420fe7f5c13bcc5e6b3a7c3838982e2a66ece5f",
+      "executable": false
+    },
+    "migrations/core/0041_latchkey_company_custody.sql": {
+      "sha256": "2d9656980fbb3ff5286d091d6a0d5eec47dc8c39717460806c799f34885eb336",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -1210,11 +1218,11 @@
       "executable": false
     },
     "scripts/latchkey.mjs": {
-      "sha256": "64197809d3331bdcde7045150bb5a01594d7f189fa95fa551ced9bcfd18e3d63",
+      "sha256": "933d727171948b4d4d35d51b10c93345287a1df653e76ef3b150017d9e01d3fb",
       "executable": false
     },
     "scripts/latchkey/archive-policy.mjs": {
-      "sha256": "dce3123a07baee3342a9c40be2908b6e6afa4059a16f71f178c563fa59a2b0af",
+      "sha256": "ad6c4136f903804d77a09aedaa0664d8ecb71230b532869a11f1cd9f1f71cd6b",
       "executable": false
     },
     "scripts/latchkey/items-commands.mjs": {
@@ -1486,7 +1494,7 @@
       "executable": false
     },
     "src/latchkey/api/catalogue.mjs": {
-      "sha256": "28cd212a765f5096301b8eb1181d7f413ecac61f90e65ee28d0542de5f223fbd",
+      "sha256": "1b1f493e8727aff6391788e2eb34b5ab605a907ead030408e5fb2466f06f842a",
       "executable": false
     },
     "src/latchkey/api/client.d.mts": {
@@ -1494,7 +1502,7 @@
       "executable": false
     },
     "src/latchkey/api/client.mjs": {
-      "sha256": "1697648d3cb0692852dd11e7db4cb3e58675a411e260603e58bed9141d8c5154",
+      "sha256": "aab4e3439bba5b0b19f642a3c6e2c968219d602a89759bfbf9901982379bad20",
       "executable": false
     },
     "src/latchkey/api/http.d.mts": {
@@ -1510,7 +1518,7 @@
       "executable": false
     },
     "src/latchkey/api/openapi.json": {
-      "sha256": "cbe6b5dba72fe1fb15b1685e3d6578022c2be677ad2101ad61421fd2c0c0fcd5",
+      "sha256": "e9cf2181a4212af5be6bb6bb9cd003b7a61b2ab46acc3796f04d144107664b85",
       "executable": false
     },
     "src/latchkey/api/pagination.mjs": {
@@ -1690,11 +1698,11 @@
       "executable": false
     },
     "src/latchkey/erasure/subject-plan.mjs": {
-      "sha256": "4cb90ae60a083d51e328d2d9aa061a04db26bfb76654e1fc19f5d101063e9a3d",
+      "sha256": "db7cd9cb0609bfcba9e7a9163d16a3a9972849804e16a8836ecc8337304eaa62",
       "executable": false
     },
     "src/latchkey/erasure/subject-schema.mjs": {
-      "sha256": "a0c05a777f99efb3de256062797fb58344498dc54ec9703fbd375d8925dd0a6d",
+      "sha256": "b5fef48b6e703b99754384a4af495f2b211902dd7b864240b00b4485f9bdd294",
       "executable": false
     },
     "src/latchkey/erasure/subject.d.mts": {
@@ -1961,8 +1969,16 @@
       "sha256": "be453fdbb51b049780709c31712c73025153ac4c6d071e7992fc85f962347a52",
       "executable": false
     },
+    "src/latchkey/people/custody-client.mjs": {
+      "sha256": "61e8eb17ec99f32446b730aa9a286aa0b40a4eea40bb083d2ad488aa6ee6f531",
+      "executable": false
+    },
+    "src/latchkey/people/custody.mjs": {
+      "sha256": "bed230bc92be1e63425d356420e9083e6f8b2272996ff2adad05a1ae7865e8ae",
+      "executable": false
+    },
     "src/latchkey/people/offboarding.mjs": {
-      "sha256": "9da5e74e715c9979e035abc8b418f150261286d2f06aab5478b6c1493becf835",
+      "sha256": "89e058e6ede577db79b97fbfe145e51ec2924c31f9b394e1109b0e2fa4d0fe02",
       "executable": false
     },
     "src/latchkey/people/permissions.d.mts": {
@@ -1978,7 +1994,7 @@
       "executable": false
     },
     "src/latchkey/people/service.mjs": {
-      "sha256": "796817d7b9a35797e50a8d5dfd32879f460ce830ddbbd8028d59f03132c2029f",
+      "sha256": "96960d0b19dd98a75db04969d6c53cd797cf6e228b8aee3a1057931211b8a437",
       "executable": false
     },
     "src/latchkey/portability/archive.mjs": {
@@ -3542,7 +3558,7 @@
       "executable": false
     },
     "tests/browser/fixture.mjs": {
-      "sha256": "b6e06c861ef53849093ad012fa719b2b34057f495c880157cdafb34982f460f2",
+      "sha256": "202626d6078f9cb0b5c625c5532dde219e70d668bbb8d13a165879f0b03cf12b",
       "executable": false
     },
     "tests/browser/msp-lifecycle.mjs": {
@@ -3629,6 +3645,10 @@
       "sha256": "2c0191b0f0dcf8ebf979584fe8bcb6c29b62bee621dea9dfed02df32b2a85673",
       "executable": false
     },
+    "tests/latchkey-custody.mjs": {
+      "sha256": "eb937ddaf0fb4f665c33d51c8dc3b1e469f79d48c58509bfe3d877c147cd4ac0",
+      "executable": false
+    },
     "tests/latchkey-erasure.mjs": {
       "sha256": "c3cd5eb58d567493354e5bd7109a7259e89e0ef7581c453e16194b2f0b3fe0d2",
       "executable": false
@@ -3678,7 +3698,7 @@
       "executable": false
     },
     "tests/runtime.mjs": {
-      "sha256": "1c7b3d271e9701e9b6851d5bc7ce3dd476910f89758beb4e64cf7a94d8568cae",
+      "sha256": "9db335634018e3123351643637eef7b4f4d407473f75dad15fecd71cba9f54ca",
       "executable": false
     },
     "tests/site/site.test.mjs": {

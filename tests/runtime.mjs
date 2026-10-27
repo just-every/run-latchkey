@@ -221,35 +221,7 @@ try {
  await assert.rejects(new VaultClient(productOrigin,{fetcher:fetchProduct}).confirmIdentity(new URL(firstInvitation).searchParams.get('token')));
  console.log('People HTTP journey: 25-row CSV preview, duplicate and invalid rows, independent rights, live revocation at native and signed doors, explicit invite confirmation, replay refusal, resend and cancelled-link denial passed');
 
- const offboardEmail='synthetic-latchkey-2300@example.test';
- await owner.call('api/users/invite',{email:offboardEmail,displayName:'Synthetic leaver',role:'member',returnTo:'/app/vault'});
- const offboardToken=new URL(mail.at(-1).content.find(content=>content.type==='text/plain').value.match(/https:\/\/[^\s<>]+/)[0]).searchParams.get('token');
- const leaver=new VaultClient(productOrigin,{fetcher:fetchProduct});await leaver.confirmIdentity(offboardToken);
- const leaverEnrollment=await leaver.register('synthetic-latchkey-2301');await leaver.unlock(leaverEnrollment.profile,'synthetic-latchkey-2301');
- const workVault=(await leaver.createVault({kind:'private-work'})).vault;
- const companyObject=(await leaver.put(workVault,{value:'synthetic-latchkey-2302'})).object;
- const familyVault=(await leaver.createVault({kind:'family'})).vault;
- const familyObject=(await leaver.put(familyVault,{value:'synthetic-latchkey-2303'})).object;
- const leaverOperator=(await owner.call('api/users/list',{})).find(row=>row.email===offboardEmail).id;
- const offboardInput={operator:leaverOperator,custodian:owner.profile.account,confirmed:true};
- assert.deepEqual((await owner.call('people' + '/member',{operator:leaverOperator})).authoritativeSource,['manual']);
- await rejected(member.call('people' + '/offboard',offboardInput),'independent_admin_permission_required');
- await productDb.prepare('INSERT INTO oa_external_identities VALUES(?,?,?)').bind('https://synthetic-latchkey-2304.example.test','synthetic-latchkey-2305',leaverOperator).run();
- const linkedPerson=await owner.call('people' + '/member',{operator:leaverOperator});
- assert.equal(linkedPerson.requiresReconciliation,true);assert.equal(linkedPerson.authoritativeSource,null);assert.equal(linkedPerson.authorityStatus,'lifecycle-authority-unverified');
- await rejected(owner.call('people' + '/offboard',offboardInput),'directory_reconciliation_required');
- await productDb.prepare('DELETE FROM oa_external_identities WHERE operator_id=?').bind(leaverOperator).run();
- const offboarded=await auditApi('POST','/people/offboard',offboardInput);
- assert.equal(offboarded.status,'suspended');assert.equal(offboarded.handback,'blocked-missing-enrolled-custody');
- assert.ok(offboarded.exposures.some(row=>row.vault===workVault&&row.item===companyObject&&row.custodian===owner.profile.account&&row.rotation==='pending-human-approval'));
- assert.ok(offboarded.exposures.every(row=>row.vault!==familyVault));
- assert.equal((await productDb.prepare('SELECT COUNT(*) AS n FROM lky_versions WHERE vault_id=? AND object_id=?').bind(familyVault,familyObject).first()).n,1);
- await assert.rejects(leaver.readVault(workVault));
- const again=await owner.call('people' + '/offboard',offboardInput);assert.equal(again.id,offboarded.id);
- await rejected(owner.call('subject' + '/erase-preview',{subject:leaverOperator}),'company_handback_pending');
- await assert.rejects(owner.call('api/users/status',{operator:leaverOperator,status:'active'}));
- assert.ok(!JSON.stringify(offboarded).includes('synthetic-latchkey-2302'));
- console.log('Manual offboarding HTTP journey: independent permission, authoritative-directory refusal, connected suspension, custodian-owned exposure, explicit missing-custody blocker, family preservation, replay and deletion and reactivation fences passed');
+ const {runCompanyCustodyJourney}=await import('./latchkey-custody.mjs');await runCompanyCustodyJourney();
 
  await rejected(member.put(vault, values[0]), 'permission_denied')
  await rejected(member.exportVault(vault, archiveKey), 'permission_denied')
@@ -551,7 +523,7 @@ try {
  // client API request/response payloads, and captured runtime error/log records.
  const serverState = JSON.stringify(await dump())
  const inspected = [serverState, restoredServerState, JSON.stringify(archive), JSON.stringify(traces), JSON.stringify(runtimeLogs), backup]
- const privateValues = ['synthetic-latchkey-2301','synthetic-latchkey-2302','synthetic-latchkey-2303','synthetic-latchkey-1400', 'synthetic-latchkey-1401', 'synthetic-latchkey-1402', 'synthetic-latchkey-1403', 'synthetic-latchkey-1404', ...subjectProof.privateValues, ...policyPrivateValues, ...erasureProof.privateValues, ...sharingPrivateValues, ...typedPrivateValues, ...cliPrivateValues, runtimeKey, 'synthetic-latchkey-21', password, 'synthetic-latchkey-10', enrolled.profile.deviceSecret, enrolled.kit.recoverySecret, recovered.profile.deviceSecret, recovered.kit.recoverySecret, owner.bundle.root.recipient.privateKey, owner.bundle.root.recovery.privateKey, owner.bundle.root.authority.privateKey, owner.bundle.signing.privateKey, archiveKey, ...values.flatMap(value => [value.title, value.value, value.custom.label, value.custom.secret, value.attachment.name, value.attachment.content])]
+ const privateValues = ['synthetic-latchkey-2310','synthetic-latchkey-2311','synthetic-latchkey-2312','synthetic-latchkey-2313','synthetic-latchkey-2301','synthetic-latchkey-2302','synthetic-latchkey-2303','synthetic-latchkey-1400', 'synthetic-latchkey-1401', 'synthetic-latchkey-1402', 'synthetic-latchkey-1403', 'synthetic-latchkey-1404', ...subjectProof.privateValues, ...policyPrivateValues, ...erasureProof.privateValues, ...sharingPrivateValues, ...typedPrivateValues, ...cliPrivateValues, runtimeKey, 'synthetic-latchkey-21', password, 'synthetic-latchkey-10', enrolled.profile.deviceSecret, enrolled.kit.recoverySecret, recovered.profile.deviceSecret, recovered.kit.recoverySecret, owner.bundle.root.recipient.privateKey, owner.bundle.root.recovery.privateKey, owner.bundle.root.authority.privateKey, owner.bundle.signing.privateKey, archiveKey, ...values.flatMap(value => [value.title, value.value, value.custom.label, value.custom.secret, value.attachment.name, value.attachment.content])]
  for (const [index, secret] of privateValues.entries()) for (let channel = 0; channel < inspected.length; channel++) {
   const locations = channel === 0 && inspected[channel].includes(secret) ? Object.entries(JSON.parse(serverState)).flatMap(([table, rows]) => [...new Set(rows.flatMap(row => Object.entries(row).filter(([, value]) => String(value).includes(secret)).map(([column]) => `${table}.${column}`)))]) : [];
   assert.ok(!inspected[channel].includes(secret), `private fixture ${index} in channel ${channel}; columns ${locations.join(',')}`)

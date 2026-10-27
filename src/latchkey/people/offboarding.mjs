@@ -8,7 +8,8 @@ export async function offboardingAuthenticated(route,input,ctx){
  const {first,all,stmt,event,guard}=access(ctx);
  if(route==='people' + '/offboarding'){
   exact(input,['operation']);const row=await first('SELECT * FROM lky_people_offboarding WHERE id=? AND tenant=?',uuid(input.operation),ctx.tenant);need(row,'not_found',404);
-  return {...row,exposures:await all('SELECT * FROM lky_people_exposures WHERE operation=? ORDER BY vault,item',row.id),effect};
+  const activeCustodian=await first("SELECT a.id FROM lky_accounts a JOIN oa_operators o ON o.id=a.operator_id WHERE a.id=? AND a.tenant=? AND o.role='owner' AND o.status='active'",row.custodian,ctx.tenant);
+  return {...row,handback:activeCustodian?row.handback:'blocked-no-active-owner-custodian',exposures:await all('SELECT * FROM lky_people_exposures WHERE operation=? ORDER BY vault,item',row.id),effect};
  }
  exact(input,route==='people' + '/member'?['operator']:['operator','custodian','confirmed']);
  const operator=uuid(input.operator),person=await first('SELECT o.id,o.role,o.status,o.version,a.id AS account FROM oa_operators o LEFT JOIN lky_accounts a ON a.operator_id=o.id AND a.tenant=? WHERE o.id=?',ctx.tenant,operator);need(person,'not_found',404);

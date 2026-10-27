@@ -14123,6 +14123,565 @@
           }
         }
       }
+    },
+    "/people/custody/enroll": {
+      "post": {
+        "operationId": "people_custody_enroll",
+        "summary": "Company custody enroll",
+        "x-latchkey-canonical-route": "people\u002fcustody\u002fenroll",
+        "security": [
+          {
+            "operatorSession": [],
+            "grant": [],
+            "deviceSignature": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-latchkey-nonce",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "x-latchkey-time",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized result. Scope, coverage gaps and outstanding obligations are returned explicitly.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Invitation accepted for delivery; does not grant decryption authority."
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Expired or invalid authentication"
+          },
+          "403": {
+            "description": "Denied policy or required fresh owner proof"
+          },
+          "404": {
+            "description": "Unknown or foreign ID"
+          },
+          "409": {
+            "description": "Concurrent authority or target change"
+          },
+          "429": {
+            "description": "Rate limited; Retry-After is seconds"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "vault",
+                  "enrollment",
+                  "confirmed"
+                ],
+                "properties": {
+                  "vault": {
+                    "type": "string"
+                  },
+                  "enrollment": {
+                    "type": "object"
+                  },
+                  "confirmed": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/people/custody/pending": {
+      "post": {
+        "operationId": "people_custody_pending",
+        "summary": "Company custody pending",
+        "x-latchkey-canonical-route": "people\u002fcustody\u002fpending",
+        "security": [
+          {
+            "operatorSession": [],
+            "grant": [],
+            "deviceSignature": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-latchkey-nonce",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "x-latchkey-time",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized result. Scope, coverage gaps and outstanding obligations are returned explicitly.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Invitation accepted for delivery; does not grant decryption authority."
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Expired or invalid authentication"
+          },
+          "403": {
+            "description": "Denied policy or required fresh owner proof"
+          },
+          "404": {
+            "description": "Unknown or foreign ID"
+          },
+          "409": {
+            "description": "Concurrent authority or target change"
+          },
+          "429": {
+            "description": "Rate limited; Retry-After is seconds"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "vault"
+                ],
+                "properties": {
+                  "vault": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/people/custody/accept": {
+      "post": {
+        "operationId": "people_custody_accept",
+        "summary": "Company custody accept",
+        "x-latchkey-canonical-route": "people\u002fcustody\u002faccept",
+        "security": [
+          {
+            "operatorSession": [],
+            "grant": [],
+            "deviceSignature": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-latchkey-nonce",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "x-latchkey-time",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized result. Scope, coverage gaps and outstanding obligations are returned explicitly.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Invitation accepted for delivery; does not grant decryption authority."
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Expired or invalid authentication"
+          },
+          "403": {
+            "description": "Denied policy or required fresh owner proof"
+          },
+          "404": {
+            "description": "Unknown or foreign ID"
+          },
+          "409": {
+            "description": "Concurrent authority or target change"
+          },
+          "429": {
+            "description": "Rate limited; Retry-After is seconds"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "vault",
+                  "enrollmentHash",
+                  "signature"
+                ],
+                "properties": {
+                  "vault": {
+                    "type": "string"
+                  },
+                  "enrollmentHash": {
+                    "type": "string"
+                  },
+                  "signature": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/people/custody/preview": {
+      "post": {
+        "operationId": "people_custody_preview",
+        "summary": "Company custody preview",
+        "x-latchkey-canonical-route": "people\u002fcustody\u002fpreview",
+        "security": [
+          {
+            "operatorSession": [],
+            "grant": [],
+            "deviceSignature": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-latchkey-nonce",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "x-latchkey-time",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized result. Scope, coverage gaps and outstanding obligations are returned explicitly.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Invitation accepted for delivery; does not grant decryption authority."
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Expired or invalid authentication"
+          },
+          "403": {
+            "description": "Denied policy or required fresh owner proof"
+          },
+          "404": {
+            "description": "Unknown or foreign ID"
+          },
+          "409": {
+            "description": "Concurrent authority or target change"
+          },
+          "429": {
+            "description": "Rate limited; Retry-After is seconds"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "vault"
+                ],
+                "properties": {
+                  "vault": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/people/custody/commit": {
+      "post": {
+        "operationId": "people_custody_commit",
+        "summary": "Company custody commit",
+        "x-latchkey-canonical-route": "people\u002fcustody\u002fcommit",
+        "security": [
+          {
+            "operatorSession": [],
+            "grant": [],
+            "deviceSignature": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-latchkey-nonce",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "x-latchkey-time",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized result. Scope, coverage gaps and outstanding obligations are returned explicitly.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Invitation accepted for delivery; does not grant decryption authority."
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Expired or invalid authentication"
+          },
+          "403": {
+            "description": "Denied policy or required fresh owner proof"
+          },
+          "404": {
+            "description": "Unknown or foreign ID"
+          },
+          "409": {
+            "description": "Concurrent authority or target change"
+          },
+          "429": {
+            "description": "Rate limited; Retry-After is seconds"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "plan",
+                  "planHash",
+                  "confirmed",
+                  "versions",
+                  "wrapped",
+                  "policy"
+                ],
+                "properties": {
+                  "plan": {
+                    "type": "object"
+                  },
+                  "planHash": {
+                    "type": "string"
+                  },
+                  "confirmed": {
+                    "type": "boolean"
+                  },
+                  "versions": {
+                    "type": "array",
+                    "items": {
+                      "type": "object"
+                    }
+                  },
+                  "wrapped": {
+                    "type": "object"
+                  },
+                  "policy": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/people/custody/revoke": {
+      "post": {
+        "operationId": "people_custody_revoke",
+        "summary": "Company custody revoke",
+        "x-latchkey-canonical-route": "people\u002fcustody\u002frevoke",
+        "security": [
+          {
+            "operatorSession": [],
+            "grant": [],
+            "deviceSignature": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-latchkey-nonce",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "x-latchkey-time",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized result. Scope, coverage gaps and outstanding obligations are returned explicitly.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Invitation accepted for delivery; does not grant decryption authority."
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Expired or invalid authentication"
+          },
+          "403": {
+            "description": "Denied policy or required fresh owner proof"
+          },
+          "404": {
+            "description": "Unknown or foreign ID"
+          },
+          "409": {
+            "description": "Concurrent authority or target change"
+          },
+          "429": {
+            "description": "Rate limited; Retry-After is seconds"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "vault",
+                  "confirmed"
+                ],
+                "properties": {
+                  "vault": {
+                    "type": "string"
+                  },
+                  "confirmed": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

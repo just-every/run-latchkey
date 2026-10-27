@@ -61,6 +61,13 @@ export class ApiClient {
 }
 
 export const commands={
+ 'custody.enroll':['POST','/people/custody/enroll'],
+ 'custody.accept':['POST','/people/custody/accept'],
+ 'custody.pending':['POST','/people/custody/pending'],
+ 'custody.preview':['POST','/people/custody/preview'],
+ 'custody.commit':['POST','/people/custody/commit'],
+ 'custody.revoke':['POST','/people/custody/revoke'],
+
  'activity.query':['POST','/activity/query'],'activity.csv':['POST','/activity/csv'],'activity.checkpoint':['GET','/activity/checkpoint'],'activity.verify':['POST','/activity/verify'],'activity.retention':['GET','/activity/retention'],'activity.expire':['POST','/activity/expiry'],
  'admin.permissions':['GET','/admin/permissions'],'admin.set-permissions':['PUT','/admin/permissions'],
  'people.preview':['POST','/people/preview'],'people.invite':['POST','/people/invitations'],'people.member':['POST','/people/member'],'people.offboard':['POST','/people/offboard'],'people.offboarding':['POST','/people/offboarding'],
