@@ -514,7 +514,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "dd223abd4a6d4e2af805ef8a74a4590d3c0148de81c5815eed9d5083890d4715",
+      "sha256": "3b50505b4cb413467e74de2a7115c30d0376eb32fa0d4bdc3c0cb48bce861717",
       "executable": false
     },
     "AGENTS.md": {
@@ -526,7 +526,7 @@
       "executable": false
     },
     "CLAIMS.md": {
-      "sha256": "686f09568fcc395768bd1e97117ef51a07d24f605aa80312e93eb1b9750a4eda",
+      "sha256": "3f9787b2aaad0205b6fe0516d23fba745e2feb1c3702eedff3da49db3b661cf8",
       "executable": false
     },
     "CLAUDE.md": {
@@ -554,7 +554,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "09e721e9f6d652eb8ea945f630b221e92c7c27a063af63a0fb02a6247634e4ae",
+      "sha256": "e10b323cf0c3977ec205f1b2810512f0a8d60b3d7e7de47a8fada5fb4cd62962",
       "executable": false
     },
     "deploy-demo.json": {
@@ -578,7 +578,7 @@
       "executable": false
     },
     "docs/company-custody.md": {
-      "sha256": "bccccd57ca29abf8640a89027a6f5cb558c16a897eb37b2d8ae72bc4bdf13920",
+      "sha256": "c9c02976d8de02ffeb0d69256b2c27973ec3e18977ff75fa5983f218f37bf8b9",
       "executable": false
     },
     "docs/device-posture.md": {
@@ -1494,7 +1494,7 @@
       "executable": false
     },
     "src/latchkey/api/catalogue.mjs": {
-      "sha256": "28cd212a765f5096301b8eb1181d7f413ecac61f90e65ee28d0542de5f223fbd",
+      "sha256": "3a7cfec8a1d9d416dbb341c124c303fe248c51dcae9480b05550a4e94177b8c6",
       "executable": false
     },
     "src/latchkey/api/client.d.mts": {
@@ -1502,7 +1502,7 @@
       "executable": false
     },
     "src/latchkey/api/client.mjs": {
-      "sha256": "1697648d3cb0692852dd11e7db4cb3e58675a411e260603e58bed9141d8c5154",
+      "sha256": "30da056cd611822ca468f407c71df9aebc1e209bdce1f98fbc11e37f730b0730",
       "executable": false
     },
     "src/latchkey/api/http.d.mts": {
@@ -1518,7 +1518,7 @@
       "executable": false
     },
     "src/latchkey/api/openapi.json": {
-      "sha256": "cbe6b5dba72fe1fb15b1685e3d6578022c2be677ad2101ad61421fd2c0c0fcd5",
+      "sha256": "aab2fea8db959dcf6d09a92a266ddb37cc4492ded685214ca243a7d4f1be4267",
       "executable": false
     },
     "src/latchkey/api/pagination.mjs": {
@@ -3570,7 +3570,7 @@
       "executable": false
     },
     "tests/browser/fixture.mjs": {
-      "sha256": "b6e06c861ef53849093ad012fa719b2b34057f495c880157cdafb34982f460f2",
+      "sha256": "202626d6078f9cb0b5c625c5532dde219e70d668bbb8d13a165879f0b03cf12b",
       "executable": false
     },
     "tests/browser/msp-lifecycle.mjs": {
@@ -3658,7 +3658,7 @@
       "executable": false
     },
     "tests/latchkey-custody.mjs": {
-      "sha256": "62174d25ea6cbe067713411c1ba438b6d7221718ba0d177eeff535ac17488423",
+      "sha256": "f2d86b587e3afddcc7111e35e6b5a25def49219e67f491a98811e6f623ca3e36",
       "executable": false
     },
     "tests/latchkey-erasure.mjs": {

@@ -16,11 +16,11 @@ export async function vaultFixture({webhook=false,browserEnabled=true,enrollOwne
  const socket=createServer();await new Promise(r=>socket.listen(0,'127.0.0.1',r));const port=socket.address().port;await new Promise(r=>socket.close(r));
  const directory=await mkdtemp(join(tmpdir(),'latchkey-browser-'));
  execFileSync('openssl',['req','-x509','-newkey','rsa:2048','-nodes','-keyout',join(directory,'key.pem'),'-out',join(directory,'cert.pem'),'-days','1','-subj','/CN=localhost','-addext','subjectAltName=IP:127.0.0.1,DNS:localhost'],{stdio:'pipe'});
- const tls={https:true,httpsKey:await readFile(join(directory,'key.pem'),'utf8'),httpsCert:await readFile(join(directory,'cert.pem'),'utf8')},origin=`https://127.0.0.1:${port}`,mail=[],webhooks=[];
+ const tls={https:true,httpsKey:await readFile(join(directory,'key.pem'),'utf8'),httpsCert:await readFile(join(directory,'cert.pem'),'utf8')},origin=`https://127.0.0.1:${port}`,mail=[],webhooks=[],runtimeLogs=[];
  const bindings={LATCHKEY_ERASURE_SECRET:encode(random()),AUTH_ORIGIN:origin,OWNER_EMAIL:'synthetic-latchkey-1100@example.test',SESSION_SECRET:'synthetic-latchkey-1101'.repeat(3),SETUP_TOKEN:'synthetic-latchkey-1102'.repeat(3),MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic-latchkey-1103',MAIL_FROM:'synthetic-latchkey-1104@example.test'};
  if(webhook)bindings.LATCHKEY_WEBHOOK_ORIGINS=JSON.stringify(['https://receiver.example.test']);
  const modules=[{type:'ESModule',path:join(process.cwd(),'dist/server/index.js')},...(await readdir('dist/server/assets')).filter(n=>/\.(?:js|wasm)$/.test(n)).map(n=>({type:n.endsWith('.wasm')?'CompiledWasm':'ESModule',path:join(process.cwd(),'dist/server/assets',n)}))];
- const worker=new Miniflare(convertV4MiniflareOptions({...tls,host:'127.0.0.1',port,modules,modulesRoot:join(process.cwd(),'dist/server'),assets:{directory:join(process.cwd(),'dist/client'),binding:'ASSETS',run_worker_first:true,routerConfig:{has_user_worker:true}},compatibilityDate:'2026-09-08',compatibilityFlags:['nodejs_compat'],d1Databases:{DB:'synthetic-latchkey-1105',ARCHIVE:'synthetic-latchkey-2080'},bindings,log:new Log(LogLevel.ERROR),outboundService:async request=>{
+ const worker=new Miniflare(convertV4MiniflareOptions({...tls,host:'127.0.0.1',port,modules,modulesRoot:join(process.cwd(),'dist/server'),assets:{directory:join(process.cwd(),'dist/client'),binding:'ASSETS',run_worker_first:true,routerConfig:{has_user_worker:true}},compatibilityDate:'2026-09-08',compatibilityFlags:['nodejs_compat'],d1Databases:{DB:'synthetic-latchkey-1105',ARCHIVE:'synthetic-latchkey-2080'},bindings,log:new Log(LogLevel.ERROR),handleStructuredLogs:value=>runtimeLogs.push(JSON.stringify(value)),outboundService:async request=>{
   if(webhook&&request.url==='https://receiver.example.test/hook'){webhooks.push({headers:Object.fromEntries(request.headers),body:await request.text()});return new Response(null,{status:webhooks.length===1?503:webhooks.length===2?302:204,headers:webhooks.length===2?{location:'https://unapproved.example.test/hook'}:{}})}
   assert.equal(request.url,'https://api.sendgrid.com/v3/mail/send');assert.equal(request.method,'POST');mail.push(await request.json());return new Response(null,{status:202,headers:{'x-message-id':'synthetic-latchkey-1106'}});
  }}));
@@ -42,7 +42,7 @@ export async function vaultFixture({webhook=false,browserEnabled=true,enrollOwne
  }
  const owner=new VaultClient(origin,{cookie,fetcher}),password='synthetic-latchkey-1107',enrolled=enrollOwner?await owner.register(password):null;if(enrolled)await owner.unlock(enrolled.profile,password);
  const page=context?await context.newPage():null;
- return {caFile:join(directory,'cert.pem'),origin,db,owner,password,enrolled,page,context,browser,mail,webhooks,fetcher,
+ return {caFile:join(directory,'cert.pem'),origin,db,owner,password,enrolled,page,context,browser,mail,webhooks,fetcher,runtimeLogs,
   archiveDatabase:()=>worker.getD1Database('ARCHIVE'),
   schedule:async(time=Date.now())=>(await worker.getWorker()).scheduled({scheduledTime:new Date(time),cron:'* * * * *'}),
   code:()=>{const value=mail.at(-1).content.find(c=>c.type==='text/plain').value.match(/Latchkey verification code: (\d{6})/);assert.ok(value);return value[1]},

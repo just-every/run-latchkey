@@ -6,17 +6,21 @@ import {join,resolve} from 'node:path';
 import { VaultClient } from '../src/latchkey/client.mjs';
 import {LifecycleClient} from '../src/latchkey/lifecycle/client.mjs';
 import {ProjectClient} from '../src/latchkey/projects/client.mjs';
-import {itemKey,open} from '../src/latchkey/crypto/envelope.mjs';
+import {itemKey,open,encode,random} from '../src/latchkey/crypto/envelope.mjs';
+import { requestApi } from '../src/latchkey/api/client.mjs';
 import { CustodyClient } from '../src/latchkey/people/custody-client.mjs';
 const refused=(promise,code)=>assert.rejects(promise,e=>e.code===code);
-export async function custodyJourney({owner,member,ownerPassword,memberPassword,caFile,productDb:db,mail,productOrigin,fetchProduct}){
+export async function custodyJourney({owner,member,ownerPassword,memberPassword,caFile,productDb:db,mail,productOrigin,fetchProduct,runtimeLogs=[]}){
+ const traces=[],wire=async(url,init)=>{const response=await fetchProduct(url,init);traces.push({url,request:init,response:await response.clone().text()});return response};
+ const ownerFetch=owner.fetcher,memberFetch=member.fetcher;owner.fetcher=wire;member.fetcher=wire;
+ const rest=client=>{const adapter=Object.create(client);adapter.call=(route,input)=>route.startsWith(['people','custody',''].join('/'))?requestApi(client,'POST','/'+route,input):client.call(route,input);return adapter};
  const directory=await mkdtemp(join(tmpdir(),'latchkey-custody-'));
  const cli=async(command,input,expected=0)=>{const child=spawn(process.execPath,[resolve('scripts/latchkey.mjs'),command],{env:{...process.env,NODE_EXTRA_CA_CERTS:caFile},stdio:['pipe','pipe','pipe']});let out='',err='';child.stdout.on('data',x=>out+=x);child.stderr.on('data',x=>err+=x);child.stdin.end(JSON.stringify(input));const code=await new Promise((resolve,reject)=>{child.once('error',reject);child.once('close',resolve)});assert.equal(code,expected,err);for(const secret of[ownerPassword,memberPassword,'synthetic-latchkey-7801','synthetic-latchkey-7802','synthetic-latchkey-7805',owner.bundle.root.recipient.privateKey])assert.ok(!out.includes(secret)&&!err.includes(secret),'CLI must not disclose secrets');return JSON.parse(expected?err:out)};
  try{
  const email='synthetic-latchkey-7800@example.test',password='synthetic-latchkey-7801';
  await owner.call(['api','users','invite'].join('/'),{email,displayName:'Custody leaver',role:'member',returnTo:'/app/vault'});
  const token=new URL(mail.at(-1).content.find(c=>c.type==='text/plain').value.match(/https:\/\/[^\s<>]+/)[0]).searchParams.get('token');
- const leaver=new VaultClient(productOrigin,{fetcher:fetchProduct});await leaver.confirmIdentity(token);const enrolled=await leaver.register(password);await leaver.unlock(enrolled.profile,password);
+ const leaver=new VaultClient(productOrigin,{fetcher:wire});await leaver.confirmIdentity(token);const enrolled=await leaver.register(password);await leaver.unlock(enrolled.profile,password);
  const vault=(await leaver.createVault()).vault,privateWork=(await leaver.createVault({kind:'private-work'})).vault,family=(await leaver.createVault({kind:'family'})).vault;
  const item=(await leaver.put(vault,{value:'synthetic-latchkey-7802',attachments:[{digest:'synthetic-latchkey-7803',data:'synthetic-latchkey-7804'}]})).object;
  await leaver.put(vault,{value:'synthetic-latchkey-7805'},item);
@@ -26,7 +30,8 @@ export async function custodyJourney({owner,member,ownerPassword,memberPassword,
  const life=new LifecycleClient(leaver);const trashed=await life.change(privateWork,trashItem,'trash',{confirmed:true});await life.change(privateWork,privateItem,'archived',{confirmed:true});
  const familyItem=(await leaver.put(family,{value:'synthetic-latchkey-7807'})).object;
  const oldSnapshot=await leaver.snapshot(vault),oldKey=oldSnapshot.key;
- const operator=(await owner.call(['api','users','list'].join('/'),{})).find(p=>p.email===email).id,custody=new CustodyClient(leaver),receiver=new CustodyClient(owner),fingerprint=await owner.identity().fingerprint;
+ const operator=(await owner.call(['api','users','list'].join('/'),{})).find(p=>p.email===email).id,custody=new CustodyClient(rest(leaver)),receiver=new CustodyClient(owner),fingerprint=await owner.identity().fingerprint;
+ const restReceiver=new CustodyClient(rest(owner));
  await refused(custody.enroll(vault,owner.profile.account,fingerprint),'custody_confirmation_required');
  await refused(custody.enroll(vault,owner.profile.account,'synthetic-latchkey-7808',{confirmed:true}),'recipient_mismatch');
  await refused(custody.enroll(vault,member.profile.account,await member.identity().fingerprint,{confirmed:true}),'active_owner_custodian_required');
@@ -45,14 +50,15 @@ export async function custodyJourney({owner,member,ownerPassword,memberPassword,
  await assert.rejects(leaver.readVault(vault));
  await refused(receiver.preview(op.id,'reactivate'),'company_handback_pending');
  await refused(new CustodyClient(member).preview(op.id),'named_custodian_required');
- const review=await receiver.preview(op.id);assert.deepEqual(review.plan.vaults.map(v=>v.vault).sort(),[vault,privateWork].sort());assert.equal(review.plan.vaults.reduce((n,v)=>n+v.versions,0),5);assert.equal(review.plan.vaults.reduce((n,v)=>n+v.items,0),4);
+ await refused(requestApi(member,'POST','/people/custody/preview',{operation:op.id,action:'handback'}),'named_custodian_required');
+ const review=await restReceiver.preview(op.id);assert.deepEqual(review.plan.vaults.map(v=>v.vault).sort(),[vault,privateWork].sort());assert.equal(review.plan.vaults.reduce((n,v)=>n+v.versions,0),5);assert.equal(review.plan.vaults.reduce((n,v)=>n+v.items,0),4);
  await refused(receiver.commit(review,{approvedPlanHash:review.planHash}),'custody_confirmation_required');
  await refused(receiver.commit({...review,plan:{...review.plan,action:'reactivate'}},{confirmed:true,approvedPlanHash:review.planHash}),'custody_review_changed');
  await refused(receiver.commit(review,{confirmed:true,approvedPlanHash:review.planHash}),'recipient_confirmation_required');
  await refused(receiver.trustSource(review,'synthetic-latchkey-7809'),'recipient_mismatch');
  await receiver.trustSource(review,await leaver.identity().fingerprint);
- await db.prepare('UPDATE lky_custody_reviews SET expires_at=0 WHERE id=?').bind(review.review).run();await refused(receiver.commit(review,{confirmed:true,approvedPlanHash:review.planHash}),'custody_review_expired');
- const stale=await receiver.preview(op.id);await db.prepare('UPDATE lky_vaults SET revision=revision+1 WHERE id=?').bind(vault).run();await refused(receiver.commit(stale,{confirmed:true,approvedPlanHash:stale.planHash}),'custody_review_changed');
+ await db.prepare('UPDATE lky_custody_reviews SET expires_at=0 WHERE id=?').bind(review.review).run();await refused(restReceiver.commit(review,{confirmed:true,approvedPlanHash:review.planHash}),'custody_review_expired');
+ const stale=await restReceiver.preview(op.id);await db.prepare('UPDATE lky_vaults SET revision=revision+1 WHERE id=?').bind(vault).run();await refused(restReceiver.commit(stale,{confirmed:true,approvedPlanHash:stale.planHash}),'custody_review_changed');
  let fresh=await receiver.preview(op.id);
  await db.prepare("UPDATE oa_operators SET role='owner' WHERE id=(SELECT operator_id FROM lky_accounts WHERE id=?)").bind(member.profile.account).run();
  await db.prepare("UPDATE oa_operators SET role='member' WHERE id=?").bind((await db.prepare('SELECT operator_id FROM lky_accounts WHERE id=?').bind(owner.profile.account).first()).operator_id).run();
@@ -76,16 +82,20 @@ export async function custodyJourney({owner,member,ownerPassword,memberPassword,
  await assert.rejects(owner.call(['api','users','status'].join('/'),{operator,status:'active'}));
  await db.prepare("UPDATE oa_operators SET role='owner' WHERE id=?").bind(operator).run();await refused(receiver.preview(op.id,'reactivate'),'offboarding_state_changed');await db.prepare("UPDATE oa_operators SET role='member' WHERE id=?").bind(operator).run();
  const activationPath=join(directory,'reactivation.json');assert.equal((await cli('custody-preview',{profile:ownerPath,password:ownerPassword,operation:op.id,action:'reactivate',output:activationPath})).written,true);
- const activation=JSON.parse(await readFile(activationPath,'utf8'));assert.deepEqual(activation.plan.vaults,[]);assert.equal((await receiver.commit(activation,{confirmed:true,approvedPlanHash:activation.planHash})).status,'reactivated');
+ const activation=JSON.parse(await readFile(activationPath,'utf8'));assert.deepEqual(activation.plan.vaults,[]);assert.equal((await restReceiver.commit(activation,{confirmed:true,approvedPlanHash:activation.planHash})).status,'reactivated');
  await assert.rejects(leaver.readVault(vault));
  await leaver.requestIdentity(email);const newToken=new URL(mail.at(-1).content.find(c=>c.type==='text/plain').value.match(/https:\/\/[^\s<>]+/)[0]).searchParams.get('token');await leaver.confirmIdentity(newToken);await leaver.unlock(enrolled.profile,password);
  await refused(leaver.readVault(vault),'not_found');await refused(leaver.readVault(privateWork),'not_found');assert.deepEqual((await leaver.readItem(family,familyItem)).versions[0].value,{value:'synthetic-latchkey-7807'});
  assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM lky_recipients WHERE vault_id=?').bind(vault).first()).n,1);
  const audit=await owner.call('audit',{});assert.ok(audit.some(e=>e.action==='company_handback_completed'));assert.ok(audit.some(e=>e.action==='membership_reactivated'));
  for(const secret of['synthetic-latchkey-7802','synthetic-latchkey-7805','synthetic-latchkey-7807'])assert.ok(!JSON.stringify(audit).includes(secret));
+ const tables=(await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT GLOB '_cf_*'").all()).results;
+ const storedState=JSON.stringify(await Promise.all(tables.map(async row=>(await db.prepare('SELECT * FROM "'+row.name+'"').all()).results)));
+ const inspected=[storedState,JSON.stringify(traces),JSON.stringify(runtimeLogs),JSON.stringify(await owner.exportVault(vault,encode(random())))];
+ for(const secret of[password,...[7802,7804,7805,7806,7807,7810].map(n=>'synthetic-latchkey-'+n),leaver.bundle.root.recipient.privateKey,leaver.bundle.root.authority.privateKey,owner.bundle.root.recipient.privateKey])for(const channel of inspected)assert.ok(!channel.includes(secret),'custody storage, encrypted export, client wire and logs must not contain plaintext or client keys');
  console.log('Company custody HTTP journey: explicit encrypted enrollment, owner-only reviewed key rotation, exact histories and family exclusion, stale and expired refusal, no-custodian refusal, replay and fresh membership-only reactivation passed');
  leaver.lock();
- }finally{await rm(directory,{recursive:true,force:true})}
+ }finally{owner.fetcher=ownerFetch;member.fetcher=memberFetch;await rm(directory,{recursive:true,force:true})}
 }
 
 export async function runCustodyJourney(){
@@ -96,6 +106,6 @@ export async function runCustodyJourney(){
   await f.owner.call(['api','users','invite'].join('/'),{email,displayName:'Independent custody member',role:'member',returnTo:'/app/vault'});
   const token=new URL(f.mail.at(-1).content.find(c=>c.type==='text/plain').value.match(/https:\/\/[^\s<>]+/)[0]).searchParams.get('token');
   const member=new VaultClient(f.origin,{fetcher:f.fetcher});await member.confirmIdentity(token);const enrolled=await member.register(password);await member.unlock(enrolled.profile,password);
-  await custodyJourney({owner:f.owner,member,ownerPassword:f.password,memberPassword:password,caFile:f.caFile,productDb:f.db,mail:f.mail,productOrigin:f.origin,fetchProduct:f.fetcher});
+  await custodyJourney({owner:f.owner,member,ownerPassword:f.password,memberPassword:password,caFile:f.caFile,productDb:f.db,mail:f.mail,productOrigin:f.origin,fetchProduct:f.fetcher,runtimeLogs:f.runtimeLogs});
  }finally{await f.close()}
 }

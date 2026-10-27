@@ -1,5 +1,9 @@
 // Canonical handlers remain the sole authority for rights, encryption and CAS.
 export const routes = [
+ ['POST','/people/custody/enroll',['people','custody','enroll'].join('/'),["vault","custodian","fingerprint","wrapped","revision","confirmed"]],
+ ['POST','/people/custody/preview',['people','custody','preview'].join('/'),["operation","action"]],
+ ['POST','/people/custody/source',['people','custody','source'].join('/'),["review","vault"]],
+ ['POST','/people/custody/commit',['people','custody','commit'].join('/'),["review","planHash","confirmed","vaults"]],
  ['POST','/people/member','people' + '/member',['operator']],
  ['POST','/people/offboard','people' + '/offboard',['operator','custodian','confirmed']],
  ['POST','/people/offboarding','people' + '/offboarding',['operation']],

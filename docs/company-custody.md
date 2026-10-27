@@ -53,6 +53,18 @@ account fingerprint. Confirm it independently before using it.
   `confirmed: true`. Hand-back also accepts `sourceFingerprint` to explicitly pin
   the former owner's keys when that account is already suspended.
 
+## Signed REST
+
+The same enrolled-device signing protocol exposes POST routes at
+`/api/latchkey/v1/people/custody/enroll`,
+`/api/latchkey/v1/people/custody/preview`,
+`/api/latchkey/v1/people/custody/source` and
+`/api/latchkey/v1/people/custody/commit`. Their exact fields appear in the
+public OpenAPI document. They call the same guarded handlers as the native
+client; REST supplies no weaker permission or alternative custody policy.
+The API CLI commands are `custody.enroll`, `custody.preview`, `custody.source`
+and `custody.commit`; ciphertext preparation still belongs in the trusted client.
+
 ## Current limits
 
 LKY-078 remains partial. Vaults with retained erasure proofs refuse transfer
