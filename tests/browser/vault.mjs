@@ -12,6 +12,7 @@ import { TypedItems } from '../../src/latchkey/items/client.mjs';
 import { createItem } from '../../src/latchkey/items/types.mjs';
 import { createAttachment } from '../../src/latchkey/items/attachments.mjs';
 import { SharingClient } from '../../src/latchkey/sharing/client.mjs';
+import { VaultClient } from '../../src/latchkey/client.mjs';
 const output=process.env.LATCHKEY_SCREENSHOTS;
 if(output)await mkdir(output,{recursive:true});
 const generatorOnly = process.argv.includes('--generator-policy');
@@ -77,6 +78,13 @@ async function generatorPolicyReviewJourney(width, output) {
  const capture = async name => { assert.ok(await f.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)); if (output) await f.page.screenshot({ path: join(output, `${name}-${width}.png`), fullPage: true }); };
  try {
   await f.owner.createVault();
+  const second = new VaultClient(f.origin, { cookie: f.owner.cookie, fetcher: f.fetcher });
+  try {
+   const pending = await second.beginEnrollment(f.owner.profile, f.password);
+   await f.owner.approveEnrollment(pending.device, pending.fingerprint);
+   const profile = await second.completeEnrollment(pending.profile, f.password);
+   await f.owner.call('device' + '/revoke', { device: profile.device });
+  } finally { second.lock(); }
   if (width === 1440) {
    const apiFixture = await vaultFixture({ browserEnabled: false });
    try { await runGeneratorApiJourney(apiFixture); } finally { await apiFixture.close(); }
@@ -101,6 +109,8 @@ async function generatorPolicyReviewJourney(width, output) {
   await review.waitFor();
   if (width === 1440) {
    await expect(review).toContainText('1 affected members'); await expect(review).toContainText(f.owner.profile.device);
+   await expect(review).toContainText('1 enrolled devices · 1 revoked or superseded device records');
+   await expect(review).toContainText('revoked · reachability unknown · convergence unverified');
    await expect(review).toContainText('Before: 16–256'); await expect(review).toContainText('After: 36–256');
    await expect(review).toContainText('Sources after: baseline · group ' + group);
    await expect(review).toContainText('reachability unknown');
