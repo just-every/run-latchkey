@@ -446,6 +446,15 @@ try {
  const { createPortability } = await import('../node_modules/@runeditrun/rer/modules/portability/index.mjs')
  const records = await createPortability({ db: productDb, policy: archivePolicy })
  const { runItemErasureJourneys, refuseErasedArchive } = await import('./latchkey-erasure.mjs')
+ // Start this independent journey in a fresh authentication rate window.
+ // Prior password, recovery and enrollment probes deliberately share this
+ // account and can exhaust its budget before the connected-erasure unlock.
+ // Expire only its login buckets; retain counts, every other limiter and the
+ // real password exchange and all erasure assertions below.
+ await productDb.prepare('UPDATE lky_limits SET window=-1 WHERE key IN (?,?)').bind(
+  await digest(new URL(productOrigin).hostname + ':start:' + owner.profile.account),
+  await digest(new URL(productOrigin).hostname + ':finish:' + owner.profile.account),
+ ).run()
  const erasureProof = await runItemErasureJourneys({ owner, member, db: productDb, records, mail, ownerPassword: 'synthetic-latchkey-21', fetcher: fetchProduct })
  const { runSubjectErasureJourneys } = await import('./latchkey-subject-erasure.mjs');
  const subjectProof = await runSubjectErasureJourneys({ owner, db: productDb, records, mail, post, fetcher: fetchProduct, erasureSecret: bindings.LATCHKEY_ERASURE_SECRET });

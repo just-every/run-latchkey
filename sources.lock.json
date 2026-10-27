@@ -3722,7 +3722,7 @@
       "executable": false
     },
     "tests/latchkey-generator-policy.mjs": {
-      "sha256": "7148daf14d9cfcadf46b424135da36b55cdbb5368f266168e9e3f1fc35651bf8",
+      "sha256": "99471442fb7c146440318ad54955fff10da1d40937dce89f6924f241c773dd31",
       "executable": false
     },
     "tests/latchkey-items.mjs": {
@@ -3758,7 +3758,7 @@
       "executable": false
     },
     "tests/runtime.mjs": {
-      "sha256": "fac494bc1f0b4a12f4bf607a5cd364ba62127d692c292d31832bf575d90f7275",
+      "sha256": "11c4765f54c599cbdd9d9c2bcd89dae6e7fbbaf24598123edb8958e41a813e65",
       "executable": false
     },
     "tests/site/site.test.mjs": {

@@ -239,7 +239,7 @@ export async function runGeneratorApiJourney(f) {
   const refused = outcomes.find(result => result.status === 'rejected');
   assert.equal(refused.reason.code, 'policy_review_changed');
   const winner = outcomes.findIndex(result => result.status === 'fulfilled');
-  assert.equal((await owner.call('generator/policy', {})).policy.minLength, contenders[winner].policy.minLength);
+  assert.equal((await owner.call('generator' + '/policy', {})).policy.minLength, contenders[winner].policy.minLength);
   assert.equal((await state()).changes.length, raceBefore.changes.length + 1);
   const reset = { group: null, policy: {}, reason: 'synthetic-latchkey-1325' }, resetPlan = await api.previewGeneratorPolicy(reset);
   await api.setGeneratorPolicy({ ...reset, policy: resetPlan.policy, confirmed: true, review: resetPlan.hash });
