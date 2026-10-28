@@ -514,7 +514,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "795c379d1ea27f9f1bbc77b64da8a5d538dc261b9c3f7d6be0aabee9236783d2",
+      "sha256": "e8cf019e8a43e2e8e572db54e9e603da16af1afff63f1a3b225dceb1ba80a33d",
       "executable": false
     },
     "AGENTS.md": {
@@ -554,7 +554,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "31d3fa78a81020c148ed72a2eaf0417ca3e2289980713dd51ae69a5021632488",
+      "sha256": "3f4d9435d8be4aada2d5ff0cd7989daae9f45c14dc0b5e08f560c5e0b1594b20",
       "executable": false
     },
     "deploy-demo.json": {
@@ -618,7 +618,7 @@
       "executable": false
     },
     "docs/password-health.md": {
-      "sha256": "0874d0e005321e39c6238fb5b2604512d581d8489c01fe0b5b53d5e077611434",
+      "sha256": "93cdd5f63a30f85e38fd5cd723264a086568805707b359102f008f11b39ce439",
       "executable": false
     },
     "docs/reports.md": {
@@ -2414,7 +2414,11 @@
       "executable": false
     },
     "src/latchkey/health/client.mjs": {
-      "sha256": "61289b9cdb5719df479b9efad7640f6cdcd44e777ae6f0e9de82c7a376fb3c53",
+      "sha256": "3d907265120f101ec522a5480cf89eca2575125cc6da314fd1407e8f703d1d6d",
+      "executable": false
+    },
+    "src/latchkey/health/practices.mjs": {
+      "sha256": "4660b7d9d5e570082e1b1667ce2ec4645d578903a328c8bfbd35cfa0745f54ed",
       "executable": false
     },
     "src/latchkey/health/README.md": {
@@ -2430,7 +2434,7 @@
       "executable": false
     },
     "src/latchkey/health/ui.tsx": {
-      "sha256": "85957ab7a0425a1b8c5913edc3f61eee096d4b34f114da235d9cebafcb9f1139",
+      "sha256": "b28c73243a9b21ea687456ae1a890b7b6f42c959c23f4cc681462c2bb927fa0a",
       "executable": false
     },
     "src/latchkey/items/attachments.mjs": {
@@ -4262,7 +4266,7 @@
       "executable": false
     },
     "tests/browser/security.mjs": {
-      "sha256": "80b3012ef88e1c74fed1819063f4a4adc9ab659947b2573de91908c7c65233c3",
+      "sha256": "18f9687d82ee03cd37d0404a7ae184a93b7edae453abf39321827e67ccab3070",
       "executable": false
     },
     "tests/browser/sharing.mjs": {

@@ -1,6 +1,7 @@
 import {bytes,id,json,unwrapSigned} from '../crypto/envelope.mjs';
 const suppressionBinding=(tenant,vault,record,generation)=>({tenant,vault,object:record,purpose:'health-suppression',epoch:generation,version:1});
 import {OrganizationClient} from '../collections/client.mjs';
+import {localPractices} from './practices.mjs';
 const value=(item,id)=>item.fields?.find(f=>f.id===id)?.value;
 const hex=bytes=>[...new Uint8Array(bytes)].map(n=>n.toString(16).padStart(2,'0')).join('').toUpperCase();
 const digest=async text=>hex(await crypto.subtle.digest('SHA-1',new TextEncoder().encode(text)));
@@ -59,8 +60,9 @@ export class HealthClient {
     }
    }
    if(item.type==='login'){const matched=github&&hosts(item).includes('github.com')&&String(value(item,'username')).toLowerCase()===github.login.toLowerCase();if(matched&&!github.mfa)add(row,'missing-mfa','GitHub authenticated user API; observed two-factor authentication disabled');if(!matched)unknown.push({object:row.object,coverage:'Site MFA capability and configuration unknown'});unknown.push({object:row.object,coverage:'Site passkey capability and configuration unknown'});}
-   if(['ssh-key','api-credential'].includes(item.type))unknown.push({object:row.object,coverage:'Provider key practices and expiry unknown'});
   }
+  const practices=localPractices(rows);unknown.push(...practices.unknown);
+  for(const {row,code,source,...extra}of practices.findings)add(row,code,source,extra);
   for(const group of passwords.values())if(group.length>1)for(const row of group)add(row,'reused-password','Local comparison of permitted active items',{related:group.filter(r=>r.object!==row.object).map(r=>({object:r.object,title:r.value.title}))});
   // Authority is checked again after external feed work; stale results are never returned after revoke.
   await this.validate(vault,loaded.vault.revision);

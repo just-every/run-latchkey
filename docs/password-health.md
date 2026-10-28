@@ -4,6 +4,19 @@ Open Password health in Settings after unlocking a permitted vault. Health check
 run in your client. Unknown feed coverage stays unknown, and a changed vault
 requires a fresh check.
 
+Local practice checks flag stored DSA public keys and RSA public keys shorter
+than 2048 bits. Missing, malformed and unsupported public-key formats remain
+unknown. This inspects the stored public key; it does not establish which
+algorithms a server accepts or how a private key is protected. Review each
+authorized destination and verify access before retiring an old key.
+
+The same check identifies identical API tokens in active permitted items in
+this vault. Related-item links stay within that scope; other vaults and earlier
+versions are excluded. Intentional references may share a token, so review the
+finding before changing credentials. Provider scopes, expiry, issuance and
+rotation remain unverified. Correcting a stored value removes its local finding
+after a fresh check, without claiming a provider change or complete health.
+
 A member with current read access can snooze or dismiss their own findings.
 Enter a reason and, for a snooze, a future time. This does not grant permission
 to edit the item or administer the vault. Another member or the vault owner has
