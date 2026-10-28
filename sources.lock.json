@@ -2134,7 +2134,7 @@
       "executable": false
     },
     "src/latchkey/audit/service.mjs": {
-      "sha256": "cf2d76426b8ff10ab6ff7077e2796df4907ddb0f14fbb32cc3cbb80b23518f06",
+      "sha256": "6f25f1327cccec2fabb3fd6f59a902c69828c7d968a37a01f8b4d16bf9e0a8ae",
       "executable": false
     },
     "src/latchkey/automation/client.d.mts": {
@@ -2158,7 +2158,7 @@
       "executable": false
     },
     "src/latchkey/automation/mcp.mjs": {
-      "sha256": "3b46f804e62429b63a1eb2aa38496e57a4c1e79d0c0f25e5d7ad6096cd10850a",
+      "sha256": "8295adad5b1058ecf8cdd0b8f59ad34750f180461bb13a27c8ea301d747ad237",
       "executable": false
     },
     "src/latchkey/automation/README.md": {
@@ -4218,7 +4218,7 @@
       "executable": false
     },
     "tests/browser/automation.mjs": {
-      "sha256": "a1063a38f582d9dc72d8dd285ff921c8c5a44b447c867878559a1fb4c05290e1",
+      "sha256": "fa324a4200ad10db2989cd05c86cc21b4599120a6311a049d4dd7e9089333156",
       "executable": false
     },
     "tests/browser/company-custody.mjs": {
