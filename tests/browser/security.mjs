@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
 import {join} from 'node:path';
+import {generateKeyPairSync} from 'node:crypto';
 import {expect} from '@playwright/test';
 import {vaultFixture} from './fixture.mjs';
 import {VaultClient} from '../../src/latchkey/client.mjs';
@@ -12,6 +13,13 @@ if(output)await mkdir(output,{recursive:true});
 const hex=async text=>Buffer.from(await crypto.subtle.digest('SHA-1',new TextEncoder().encode(text))).toString('hex').toUpperCase();
 const password='synthetic-latchkey-2600',freshPassword='synthetic-latchkey-2601-replaced';
 const fullHash=await hex(password),freshHash=await hex(freshPassword);
+const sshPublicKey=bits=>{
+ const key=generateKeyPairSync('rsa',{modulusLength:bits}).publicKey.export({format:'jwk'});
+ const field=value=>{const length=Buffer.alloc(4);length.writeUInt32BE(value.length);return Buffer.concat([length,value]);};
+ const integer=value=>{const raw=Buffer.from(value,'base64url');return field(raw[0]&128?Buffer.concat([Buffer.from([0]),raw]):raw);};
+ return 'ssh-rsa '+Buffer.concat([field(Buffer.from('ssh-rsa')),integer(key.e),integer(key.n)]).toString('base64');
+};
+const oldSshKey=sshPublicKey(1024),currentSshKey=sshPublicKey(2048);
 async function enroll(f,n){const response=await f.context.request.post(f.origin+'/auth/invite',{headers:{origin:f.origin},data:{email:`synthetic-latchkey-${n}@example.test`,displayName:'Synthetic reader',role:'member'}});assert.equal(response.status(),202);const token=new URL(f.mail.at(-1).content.find(c=>c.type==='text/plain').value.match(/https:\/\/[^\s<>]+/)[0]).searchParams.get('token');const client=new VaultClient(f.origin,{fetcher:f.fetcher});await client.confirmIdentity(token);const e=await client.register(`synthetic-latchkey-${n+1}`);await client.unlock(e.profile,`synthetic-latchkey-${n+1}`);return client;}
 for(const width of [1440,390]){
  const f=await vaultFixture();
@@ -25,6 +33,11 @@ for(const width of [1440,390]){
   await typed.save(vault,createItem('document',{title:'Synthetic expiring document',values:{expiry:expired}}));
   await typed.save(vault,createItem('card',{title:'Synthetic expiring card',values:{expiry:expired.slice(0,7)}}));
   await typed.save(vault,createItem('login',{title:'Synthetic weak HTTP login',values:{password:'a'.repeat(4)},fields:[{id:'website',label:'Website',type:'url',secret:false,value:'http://synthetic-latchkey.example.test'}]}));
+  const ssh=await typed.save(vault,createItem('ssh-key',{title:'Synthetic old SSH key',values:{publicKey:oldSshKey}}));
+  const safeSsh=await typed.save(vault,createItem('ssh-key',{title:'Synthetic current SSH key',values:{publicKey:currentSshKey}}));
+  await typed.save(vault,createItem('ssh-key',{title:'Synthetic unsupported SSH key',values:{publicKey:'synthetic-latchkey-2680'}}));
+  const api=await typed.save(vault,createItem('api-credential',{title:'Synthetic deployment token',values:{token:'synthetic-latchkey-2681'}}));
+  const duplicateApi=await typed.save(vault,createItem('api-credential',{title:'Synthetic duplicate token',values:{token:'synthetic-latchkey-2681'}}));
   // Fixed time drives expiry and snooze boundaries; wall-clock date never determines an assertion.
   await f.page.clock.install({time:new Date(baseline)});
   let outage=false,mfa=false,feedGate=null;const requests=[];
@@ -52,6 +65,30 @@ for(const width of [1440,390]){
   await settings('Password health');await f.page.getByLabel('GitHub token (optional)').fill('synthetic-latchkey-2630');await f.page.getByRole('button',{name:'Check with HIBP',exact:true}).click();await expect(f.page.getByRole('heading',{name:'Synthetic payroll login · breached password',exact:true})).toBeVisible();assert.ok(requests.length>=2);await expect(f.page.getByRole('heading',{name:'Synthetic payroll login · missing mfa',exact:true})).toBeVisible();await expect(f.page.getByRole('heading',{name:'Synthetic payroll login · compromised website',exact:true})).toBeVisible();
   const finding=()=>f.page.getByRole('article').filter({has:f.page.getByRole('heading',{name:'Synthetic payroll login · reused password',exact:true})});
   await expect(f.page.getByRole('heading',{name:'Synthetic expiring document · expiring item',exact:true})).toBeVisible();await expect(f.page.getByRole('heading',{name:'Synthetic expiring card · expiring item',exact:true})).toBeVisible();await expect(f.page.getByRole('heading',{name:'Synthetic weak HTTP login · insecure http',exact:true})).toBeVisible();
+  if(width===1440){
+   const oldKey=f.page.getByRole('article').filter({has:f.page.getByRole('heading',{name:'Synthetic old SSH key · outdated ssh key',exact:true})});
+   await expect(oldKey).toContainText('1024 bits');await expect(oldKey).toContainText('verify access before retiring it');
+   await expect(f.page.getByRole('heading',{name:'Synthetic current SSH key · outdated ssh key',exact:true})).toHaveCount(0);
+   await expect(f.page.getByRole('heading',{name:'Synthetic unsupported SSH key · outdated ssh key',exact:true})).toHaveCount(0);
+   await expect(f.page.getByText('SSH public key missing, malformed or unsupported; key strength unknown')).toBeVisible();
+   const token=f.page.getByRole('article').filter({has:f.page.getByRole('heading',{name:'Synthetic deployment token · reused secret',exact:true})});
+   await expect(token).toContainText('Synthetic duplicate token');await expect(token).toContainText('provider-confirmed issuance');
+   await expect(f.page.getByText('Provider secret scopes, expiry and rotation unverified').first()).toBeVisible();
+   await capture('health-practices');
+   await oldKey.getByRole('button',{name:'Open affected item',exact:true}).click();await expect(f.page.getByRole('heading',{name:'Synthetic old SSH key',exact:true})).toBeVisible();
+   await settings('Password health');await f.page.getByLabel('GitHub token (optional)').fill('synthetic-latchkey-2630');await f.page.getByRole('button',{name:'Check with HIBP',exact:true}).click();
+   const local=new HealthClient(owner),risk=await local.inspect(vault);assert.ok(risk.findings.some(r=>r.object===ssh.object&&r.code==='outdated-ssh-key'));assert.ok(risk.findings.some(r=>r.object===api.object&&r.code==='reused-secret'));assert.ok(!risk.findings.some(r=>r.object===safeSsh.object));
+   await local.suppress(vault,risk.findings.find(r=>r.object===api.object&&r.code==='reused-secret'),{reason:'Synthetic intentional token reference'});
+   const hidden=(await owner.createVault({kind:'family'})).vault;await typed.save(hidden,createItem('api-credential',{title:'Synthetic private token reference',values:{token:'synthetic-latchkey-2681'}}));
+   const legacy=(await owner.readItem(vault,ssh.object)).versions.at(-1),duplicate=(await owner.readItem(vault,duplicateApi.object)).versions.at(-1);
+   await owner.put(vault,{...legacy.value,fields:legacy.value.fields.map(field=>field.id==='publicKey'?{...field,value:currentSshKey}:field)},ssh.object,legacy.version);
+   await owner.put(vault,{...duplicate.value,fields:duplicate.value.fields.map(field=>field.id==='token'?{...field,value:'synthetic-latchkey-2682'}:field)},duplicateApi.object,duplicate.version);
+   const refreshed=await local.inspect(vault);assert.ok(!refreshed.findings.some(r=>r.code==='outdated-ssh-key'||r.code==='reused-secret'));assert.ok(refreshed.unknown.some(r=>r.object===ssh.object&&r.coverage.includes('provider replacement unverified')));assert.ok(refreshed.unknown.some(r=>r.object===api.object&&r.coverage.includes('rotation unverified')));assert.ok(!JSON.stringify(refreshed).includes('Synthetic private token reference'));
+   assert.ok(!JSON.stringify(refreshed).includes('synthetic-latchkey-2681'));assert.ok(!requests.some(request=>JSON.stringify(request).includes('synthetic-latchkey-2681')));
+   // Retained older versions do not remain active risks after the stored value changes.
+   await f.page.getByRole('button',{name:'Check with HIBP',exact:true}).click();await expect(f.page.getByRole('heading',{name:'Synthetic old SSH key · outdated ssh key',exact:true})).toHaveCount(0);await expect(f.page.getByRole('heading',{name:'Synthetic deployment token · reused secret',exact:true})).toHaveCount(0);
+  }
+  if(width===390)await capture('health-practices');
   const before=await f.page.getByRole('heading',{name:/underlying findings/}).textContent();await f.page.getByLabel('Suppression reason').fill('Synthetic investigation');await f.page.getByLabel('Snooze until').fill(snooze);await finding().getByRole('button',{name:'Snooze finding',exact:true}).click();await expect(finding()).toContainText('Suppressed: Synthetic investigation');assert.equal(await f.page.getByRole('heading',{name:/underlying findings/}).textContent(),before);await capture('health-snoozed');
   if(width===1440){
    let release,entered;const waiting=new Promise(resolve=>{entered=resolve});feedGate=()=>new Promise(resolve=>{release=resolve;entered()});
