@@ -2,6 +2,22 @@ import { access, need } from './subject-common.mjs';
 // Reviewed source inventory, not an allow-all prefix. A new domain or column
 // needs an erasure mapping before person erasure can honestly proceed.
 const schema = {
+ // Copied, unmounted agent/Business storage. The plan's existing full-content
+ // sweep refuses any unmapped person reference before erasure can commit.
+ agent_door_agents:'id name specialist sponsor sponsor_name revoked window requests',
+ agent_door_approvals:'id state saved approvals result version',
+ agent_door_audit:'sequence id at agent classes row evidence',
+ agent_door_calls:'agent key digest decision_id created_at state outcome',
+ agent_door_events:'sequence id uri event',
+ agent_door_reviews:'id state saved marked_by marked_at',
+ agent_door_state:'id envelope local_document local_revision local_paused decision_lock decision_until',
+ agent_door_usage:'decision_id at seed specialist agent classes',
+ bs_assert:'value',
+ bs_audit:'id actor action field changed_at',
+ bs_logo:'singleton sha256 type bytes',
+ bs_overrides:'field value actor changed_at',
+ bs_settings:'singleton rev document applied_at stopped token owner_id',
+ bs_team:'email operator_id invite state business_id business_role',
  lky_report_keys:'vault_id owner wrapped',lky_report_observations:'id vault_id day as_of source_revision envelope',
  lky_health_suppressions:'id tenant actor vault_id object_id item_version generation epoch until_at wrapped created_at source_revision sequence active',
  lky_recovery_custody:'id account generation kind custodian custodian_generation wrapped revoked_at',
