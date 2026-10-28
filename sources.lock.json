@@ -514,7 +514,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "e8cf019e8a43e2e8e572db54e9e603da16af1afff63f1a3b225dceb1ba80a33d",
+      "sha256": "ef8986f7fb54fe5f1d6a6e45b110ee758588c63061bd688308525a6b89853138",
       "executable": false
     },
     "AGENTS.md": {
@@ -554,7 +554,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "3f4d9435d8be4aada2d5ff0cd7989daae9f45c14dc0b5e08f560c5e0b1594b20",
+      "sha256": "7ea396f710b3977372cdb3ad205bfddd2d7cf63efb7b076c2ce2988b4186a457",
       "executable": false
     },
     "deploy-demo.json": {
@@ -578,7 +578,7 @@
       "executable": false
     },
     "docs/CLAIMS.md": {
-      "sha256": "615ff32d496f8d5a5a26964a79b370799ea0d4f3c3df070357d3c9ef44b2e7a6",
+      "sha256": "4e586490f31323601a1d8dd2be96769f92f4e638e68a14f490425153b63567ed",
       "executable": false
     },
     "docs/company-custody.md": {
