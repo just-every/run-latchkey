@@ -57,7 +57,7 @@ export function operatorAuth(env: Bindings) {
 }
 
 export function businessSettings(env: Bindings) {
- const auth = createOperatorAuth({db: env.DB, config: authConfig(env), mailSender: operatorMail(env), clientIp: request => request.headers.get('CF-Connecting-IP') ?? ''})
+ const auth = createOperatorAuth({db: env.DB, rolePolicy: peopleRolePolicy(env.DB), config: authConfig(env), mailSender: operatorMail(env), clientIp: request => request.headers.get('CF-Connecting-IP') ?? ''})
  return createBusinessSettings({db: env.DB, trust: env.RER_BUSINESS_TRUST, business: {settings: 1, values: ['display_name', 'owner_name', 'brand_color', 'logo', 'timezone'], team: {roles: {admin: 'admin', member: 'member'}}}, team: auth.businessTeam})
 }
 
