@@ -12,7 +12,7 @@ Read CONTRACT.md, ACCEPTANCE.md, RUN-LOCALLY.md and SOURCE.md. This is a new see
 
 For a real owner installation, use `rer install`, `rer setup --owner-email you@example.com`, then `rer dev`, or enter the mailbox through setup's prompt. Open RER_OPEN on this computer; native first-run setup is `/setup`. Local mail is silently suppressed. Keep private settings, sessions and credentials out of output and Git.
 
-Use this checkout's exact published @runeditrun/rer 0.2.85. No vendored CLI copy. The local scripts and OPERATIONS.json use bare rer verbs. Source is edition-owned; ./src/base/ and the adopted modules come through Base's export path at the revision in SOURCE.md. Preserve applied migrations and source custody. The static `/contract` renders root CONTRACT.md with Base's parser; a changed clause and its status must agree.
+Use this checkout's exact published @runeditrun/rer 0.2.91. No vendored CLI copy. The local scripts and OPERATIONS.json use bare rer verbs. Source is edition-owned; ./src/base/ and the adopted modules come through Base's export path at the revision in SOURCE.md. Preserve applied migrations and source custody. The static `/contract` renders root CONTRACT.md with Base's parser; a changed clause and its status must agree.
 
 Use `rer check`, `pnpm run typecheck` and the foundation's own touched tests locally. CI Verify is the full wall. Keep tests small and through public doors; do not add tests for scaffold copy or UI text. No tests at build or deploy time. No private research, logs or evidence in this public repo.
 

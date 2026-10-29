@@ -1,0 +1,200 @@
+{
+  "schema": "rer-agent-surface/1",
+  "seed": "latchkey",
+  "specialist": "credential-security",
+  "capabilities": [
+    "tools",
+    "policy",
+    "pause",
+    "audit",
+    "idempotency"
+  ],
+  "tools": [
+    {
+      "name": "latchkey.posture.read",
+      "scope": "posture:read",
+      "readOnly": true,
+      "classes": [
+        "standard"
+      ],
+      "clauses": [
+        "LKY-029",
+        "LKY-035"
+      ]
+    },
+    {
+      "name": "latchkey.access.requests",
+      "scope": "access:request",
+      "readOnly": true,
+      "classes": [
+        "standard"
+      ],
+      "clauses": [
+        "LKY-029",
+        "LKY-035"
+      ]
+    },
+    {
+      "name": "latchkey.access.request",
+      "scope": "access:request",
+      "readOnly": false,
+      "classes": [
+        "standard"
+      ],
+      "clauses": [
+        "LKY-029",
+        "LKY-035"
+      ]
+    }
+  ],
+  "notTools": [
+    {
+      "clauses": [
+        "LKY-001",
+        "LKY-035"
+      ],
+      "reason": "device"
+    },
+    {
+      "clauses": [
+        "LKY-029"
+      ],
+      "reason": "connector"
+    },
+    {
+      "clauses": [
+        "LKY-017",
+        "LKY-033"
+      ],
+      "reason": "import-door"
+    },
+    {
+      "clauses": [
+        "LKY-031"
+      ],
+      "reason": "installation"
+    },
+    {
+      "clauses": [
+        "LKY-032",
+        "LKY-035"
+      ],
+      "reason": "screen"
+    }
+  ],
+  "resources": [],
+  "escalations": [],
+  "spend": {
+    "none": true
+  },
+  "witness": {
+    "tool": "latchkey.access.requests",
+    "args": {}
+  },
+  "journey": [
+    {
+      "id": "posture",
+      "tool": "latchkey.posture.read",
+      "args": {
+        "vault": {
+          "$fixture": "vault",
+          "pointer": ""
+        }
+      },
+      "expect": [
+        {
+          "class": "standard",
+          "facts": {
+            "measure": 1
+          }
+        }
+      ],
+      "inject": {
+        "classes": [
+          "access"
+        ],
+        "policy": "autonomous",
+        "consent": "caller-authority"
+      }
+    },
+    {
+      "id": "request",
+      "tool": "latchkey.access.request",
+      "args": {
+        "vault": {
+          "$fixture": "vault",
+          "pointer": ""
+        },
+        "account": {
+          "$fixture": "recipient",
+          "pointer": ""
+        },
+        "objects": [
+          {
+            "$fixture": "item",
+            "pointer": ""
+          }
+        ],
+        "rights": [
+          "read"
+        ],
+        "expiresAt": {
+          "$fixture": "expiresAt",
+          "pointer": ""
+        }
+      },
+      "expect": [
+        {
+          "class": "standard",
+          "facts": {
+            "measure": 1
+          }
+        }
+      ],
+      "inject": {
+        "classes": [
+          "standard"
+        ],
+        "granted": true,
+        "confirmed": true
+      }
+    },
+    {
+      "id": "requests",
+      "tool": "latchkey.access.requests",
+      "args": {},
+      "expect": [
+        {
+          "class": "standard",
+          "facts": {
+            "measure": 1
+          }
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "owner": {
+      "initializer": "tests/agent/owner.mjs"
+    },
+    "reviewers": [
+      {
+        "label": "recipient",
+        "email": "synthetic-recipient@example.com",
+        "initializer": "tests/agent/recipient.mjs"
+      }
+    ],
+    "agent": {
+      "initializer": "tests/agent/initialize.mjs"
+    },
+    "fixtures": {
+      "module": "tests/agent/fixtures.mjs"
+    },
+    "replayAdmission": {
+      "prepare": [
+        "request"
+      ]
+    },
+    "journey": "tests/agent/journey.mjs"
+  }
+}

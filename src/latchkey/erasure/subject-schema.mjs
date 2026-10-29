@@ -2,7 +2,7 @@ import { access, need } from './subject-common.mjs';
 // Reviewed source inventory, not an allow-all prefix. A new domain or column
 // needs an erasure mapping before person erasure can honestly proceed.
 const schema = {
- // Copied, unmounted agent/Business storage. The plan's existing full-content
+ // Agent/Business storage. The plan's existing full-content
  // sweep refuses any unmapped person reference before erasure can commit.
  agent_door_agents:'id name specialist sponsor sponsor_name revoked window requests',
  agent_door_approvals:'id state saved approvals result version',
@@ -35,6 +35,8 @@ const schema = {
  lky_msp_captures:'id tenant vault owner device generation operator_version epoch revision observed_at total_active_items with_expiry expired_count active',
  lky_msp_delegations:'id tenant provider public_key console_origin scopes owner device generation operator_version expires_at created_at revoked_at',
  lky_msp_nonces:'delegation nonce expires_at',lky_msp_previews:'id delegation tenant hash before_policy after_policy policy_mutation expires_at operation',lky_msp_commercial:'tenant owner status reference recorded_at',
+ lky_agent_bindings:'agent_id credential_id',
+ lky_agent_requests:'request_id agent_id sponsor_id operation_id consent attribution',
  lky_automation_guard:'valid',lky_mcp_credentials:'id tenant owner vault_id token_hash public_key scopes source_device generation operator_version expires_at revoked_at created_at',lky_mcp_requests:'id tenant credential_id owner vault_id account_id recipient_generation fingerprint objects rights expires_at epoch vault_revision preview_hash phase revision created_at decided_at share_id',lky_webhook_subscriptions:'id tenant owner endpoint events secret source_device generation operator_version revision active created_at',lky_webhook_deliveries:'id subscription_id event_id payload phase attempts lease_until status created_at updated_at',lky_webhook_attempts:'id delivery_id subscription_revision started_at completed_at status outcome',
  lky_projects:'id tenant vault_id owner metadata_object created_at',lky_project_environments:'id project_id catalog_object created_at',lky_project_resources:'id environment_id vault_id object_id',lky_runtime_grants:'id tenant account_id device_id machine_id token_hash public_key recipient_key authority_key generation operator_version expires_at max_uses uses revoked_at created_at',lky_runtime_scopes:'id grant_id kind vault_id object_id epoch project_id environment_id path_hash can_read can_write wrapped_key payload source_version',lky_runtime_dependencies:'grant_id vault_id object_id epoch version',lky_runtime_guard:'value',
  lky_vault_capabilities:'vault_id account_id capability',lky_lifecycle:'vault_id object_id state state_version nonce trashed_at expires_at proof retention_active',lky_bulk_operations:'id tenant actor plan result active undone_at created_at',lky_lifecycle_guard:'value',

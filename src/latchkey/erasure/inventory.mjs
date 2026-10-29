@@ -21,6 +21,7 @@ export async function inventory(ctx, vault, object) {
   // activation preparations are scrubbed together as well.
   { table: 'lky_restore_preparations', keys: ['id'], select: 'SELECT id FROM lky_restore_preparations', args: [] },
  ];
+ entries.push({table:'lky_agent_requests',keys:['request_id'],select:'SELECT request_id FROM lky_agent_requests WHERE request_id IN(SELECT id FROM lky_mcp_requests WHERE tenant=? AND vault_id=? AND instr(objects,?)>0)',args:[ctx.tenant,vault,object]});
  entries.push({table:'lky_mcp_requests',keys:['id'],select:'SELECT id FROM lky_mcp_requests WHERE tenant=? AND vault_id=? AND instr(objects,?)>0',args:[ctx.tenant,vault,object]});
  const grants=await all('SELECT DISTINCT grant_id AS id FROM lky_runtime_scopes WHERE vault_id=? AND object_id=? UNION SELECT grant_id AS id FROM lky_runtime_dependencies WHERE vault_id=? AND object_id=?',vault,object,vault,object);const grantIds=JSON.stringify(grants.map(r=>r.id));
  entries.push({table:'lky_runtime_scopes',keys:['id'],select:'SELECT id FROM lky_runtime_scopes WHERE grant_id IN(SELECT value FROM json_each(?))',args:[grantIds]},{table:'lky_runtime_dependencies',keys:['grant_id','vault_id','object_id'],select:'SELECT grant_id,vault_id,object_id FROM lky_runtime_dependencies WHERE grant_id IN(SELECT value FROM json_each(?))',args:[grantIds]},{table:'lky_runtime_grants',keys:['id'],select:'SELECT id FROM lky_runtime_grants WHERE id IN(SELECT value FROM json_each(?))',args:[grantIds]});

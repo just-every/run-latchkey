@@ -1,3 +1,5 @@
+import {latchkeyAgentDoor} from './latchkey/agent-door/index.ts'
+import {businessSettings} from './auth.server'
 import { runRuleSchedule } from './latchkey/rules/scheduled.mjs'
 import { withDemo } from './modules/demo/index.mjs'
 import { seedDemo } from './demo'
@@ -32,6 +34,15 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
   async fetch(request, env, execution) {
     const asset = await staticAssetResponse(request, env)
     if (asset) return asset
+    const path = new URL(request.url).pathname
+    if (path === '/mcp' || path === '/api/latchkey/mcp' || path.startsWith('/agents') || path === '/api/rer/agent-policy' || path.startsWith('/.well-known/oauth-protected-resource')) {
+      const agent = await latchkeyAgentDoor(runtimeBindings(env)).handle(request)
+      if (agent) return agent
+    }
+    if (['/api/rer/business-settings', '/rer-business-logo', '/rer-business.css'].includes(path)) {
+      const settings = await businessSettings(runtimeBindings(env)).handle(request)
+      if (settings) return settings
+    }
     const auth = await authResponse(request, env)
     if (auth) return auth
     const vault = new URL(request.url).pathname.startsWith('/api/latchkey/') ? await latchkeyResponse(request, runtimeBindings(env), operatorAuth(runtimeBindings(env))) : null

@@ -210,6 +210,90 @@
       "name": "0035_latchkey_checkout.sql",
       "sha256": "10417a944d16ea289998373073305b231e9536ef3bae85ce76818db6418aa6bc",
       "sql": "CREATE TABLE lky_checkouts (\n vault_id TEXT NOT NULL REFERENCES lky_vaults(id),\n object_id TEXT NOT NULL,\n id TEXT NOT NULL UNIQUE,\n holder TEXT NOT NULL REFERENCES lky_accounts(id),\n version INTEGER NOT NULL,\n expires_at INTEGER NOT NULL,\n PRIMARY KEY(vault_id, object_id)\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0036_latchkey_audit.sql",
+      "sha256": "5a339bb132b316a3d5bf296945e96ee268cb0e3a0cf911f292e47d7be4dbc9d6",
+      "sql": "-- Authenticated facts are separate from identity-bearing retained details.\nCREATE TABLE lky_audit_chain (\n tenant TEXT NOT NULL, sequence INTEGER NOT NULL, id TEXT NOT NULL UNIQUE,\n previous_hash TEXT NOT NULL, commitment TEXT NOT NULL, hash TEXT NOT NULL,\n PRIMARY KEY(tenant,sequence)\n);\nCREATE TABLE lky_audit_details (\n id TEXT PRIMARY KEY, facts TEXT, disposition TEXT, authorization TEXT\n);\nCREATE TABLE lky_admin_permissions (\n tenant TEXT NOT NULL, account TEXT NOT NULL, permission TEXT NOT NULL,\n granted_by TEXT NOT NULL, granted_at INTEGER NOT NULL,\n PRIMARY KEY(tenant,account,permission)\n);\nCREATE TABLE lky_people_batches (\n id TEXT PRIMARY KEY, tenant TEXT NOT NULL, actor TEXT NOT NULL,\n preview_hash TEXT NOT NULL, result TEXT\n);\nCREATE TABLE lky_people_offboarding (\n id TEXT PRIMARY KEY,tenant TEXT NOT NULL,account TEXT NOT NULL,operator TEXT NOT NULL,\n custodian TEXT NOT NULL,started_at INTEGER NOT NULL,status TEXT NOT NULL,\n handback TEXT NOT NULL,coverage TEXT NOT NULL,UNIQUE(tenant,account)\n);\nCREATE TABLE lky_people_exposures (\n operation TEXT NOT NULL,vault TEXT NOT NULL,item TEXT NOT NULL,evidence TEXT NOT NULL,\n custodian TEXT NOT NULL,criticality TEXT NOT NULL,rotation TEXT NOT NULL,\n PRIMARY KEY(operation,vault,item)\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0037_latchkey_rules.sql",
+      "sha256": "b489d5a1d94156186c004037681beb524e9fe0248f035b317ec1ea4f4c521218",
+      "sql": "-- Rules retain immutable versions and decisions; scheduling never carries keys.\nCREATE TABLE lky_rules (\n id TEXT PRIMARY KEY, tenant TEXT NOT NULL, owner TEXT NOT NULL,\n version INTEGER NOT NULL, active INTEGER NOT NULL DEFAULT 0,\n created_at INTEGER NOT NULL\n);\nCREATE TABLE lky_rule_versions (\n rule_id TEXT NOT NULL REFERENCES lky_rules(id), version INTEGER NOT NULL,\n definition TEXT NOT NULL, created_at INTEGER NOT NULL,\n PRIMARY KEY(rule_id,version)\n);\nCREATE TABLE lky_rule_runs (\n id TEXT PRIMARY KEY, rule_id TEXT NOT NULL REFERENCES lky_rules(id),\n version INTEGER NOT NULL, slot INTEGER NOT NULL, state TEXT NOT NULL,\n created_at INTEGER NOT NULL, UNIQUE(rule_id,version,slot)\n);\nCREATE TABLE lky_rule_obligations (\n id TEXT PRIMARY KEY, run_id TEXT NOT NULL REFERENCES lky_rule_runs(id),\n object_id TEXT NOT NULL, recipient TEXT NOT NULL, source_version INTEGER NOT NULL,\n phase TEXT NOT NULL, result_version INTEGER, created_at INTEGER NOT NULL,\n UNIQUE(run_id,object_id,recipient)\n);\nCREATE TABLE lky_rule_decisions (\n id TEXT PRIMARY KEY, obligation TEXT NOT NULL REFERENCES lky_rule_obligations(id),\n actor TEXT NOT NULL, decision TEXT NOT NULL, created_at INTEGER NOT NULL\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0038_latchkey_export_policy.sql",
+      "sha256": "2fe7af898c1315343c5c6acbd73cc6e6998e76c5c75ddfd8045e20fe51aedef3",
+      "sql": "CREATE TABLE lky_export_policies (\n vault_id TEXT PRIMARY KEY REFERENCES lky_vaults(id) ON DELETE CASCADE,\n owner TEXT NOT NULL,\n revision INTEGER NOT NULL,\n allow_plaintext INTEGER NOT NULL CHECK(allow_plaintext IN (0,1)),\n statement TEXT NOT NULL,\n signature TEXT NOT NULL\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0039_latchkey_evidence_credentials.sql",
+      "sha256": "0dcf16f384fc655983feb0df0eab9a8d1619017d03b5c57a3789f8b8c5c2ead3",
+      "sql": "-- Only owner-signed ciphertext is retained; no provider token reaches the service.\nALTER TABLE lky_evidence_destinations ADD COLUMN credential TEXT;\nALTER TABLE lky_evidence_destinations ADD COLUMN credential_version INTEGER NOT NULL DEFAULT 0;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0040_latchkey_aliases.sql",
+      "sha256": "9519d21844ece7edac0df2f97420fe7f5c13bcc5e6b3a7c3838982e2a66ece5f",
+      "sql": "-- Hide-my-email aliases. Addresses and provider tokens never reach this service:\n-- an alias address lives in the encrypted login item, a provider token in the\n-- authorized person's client. These rows hold the relationship, ownership and\n-- provider-reported state that authorize and audit forwarding changes.\nCREATE TABLE lky_alias_domains (\n id TEXT PRIMARY KEY,tenant TEXT NOT NULL,owner TEXT NOT NULL,scope TEXT NOT NULL,\n provider TEXT NOT NULL,zone TEXT NOT NULL,domain TEXT NOT NULL,\n provider_status TEXT NOT NULL,routing_enabled INTEGER NOT NULL,observed_at INTEGER NOT NULL,\n active INTEGER NOT NULL,revision INTEGER NOT NULL,\n UNIQUE(tenant,scope,owner,zone)\n);\nCREATE TABLE lky_alias_mailboxes (\n id TEXT PRIMARY KEY,tenant TEXT NOT NULL,owner TEXT NOT NULL,scope TEXT NOT NULL,\n address TEXT NOT NULL,provider_ref TEXT,verified_at INTEGER,observed_at INTEGER NOT NULL,\n active INTEGER NOT NULL,revision INTEGER NOT NULL,\n UNIQUE(tenant,scope,owner,address)\n);\nCREATE TABLE lky_aliases (\n id TEXT PRIMARY KEY,tenant TEXT NOT NULL,owner TEXT NOT NULL,scope TEXT NOT NULL,\n vault_id TEXT NOT NULL,object_id TEXT NOT NULL,domain_id TEXT NOT NULL,mailbox_id TEXT NOT NULL,\n rule_ref TEXT,state TEXT NOT NULL,intent TEXT,next_mailbox TEXT,\n replaces TEXT,replaced_by TEXT,delivery TEXT NOT NULL,failure TEXT,\n revision INTEGER NOT NULL,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL,delivery_reported_at INTEGER\n);\nCREATE INDEX lky_aliases_object ON lky_aliases(vault_id,object_id);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0041_latchkey_company_custody.sql",
+      "sha256": "4133c9e8c8f458522ea6dd90da40bd04234ce4b947d5ca5ca765a60f88fb050f",
+      "sql": "-- Client-created ciphertext; enrollment is not authorization to transfer.\nCREATE TABLE lky_company_custody (\n vault_id TEXT PRIMARY KEY REFERENCES lky_vaults(id), tenant TEXT NOT NULL,\n owner TEXT NOT NULL, custodian TEXT NOT NULL, epoch INTEGER NOT NULL,\n generation INTEGER NOT NULL, wrapped TEXT NOT NULL, enrolled_at INTEGER NOT NULL\n);\nCREATE TABLE lky_custody_reviews (\n id TEXT PRIMARY KEY, tenant TEXT NOT NULL, actor TEXT NOT NULL,\n operation TEXT NOT NULL, action TEXT NOT NULL, plan TEXT NOT NULL,\n expires_at INTEGER NOT NULL, consumed_at INTEGER\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0042_latchkey_recovery.sql",
+      "sha256": "a550315849b7e2c491c5af644f78a34e645924aa9138b3116f76844faa793659",
+      "sql": "-- Recovery custody is explicit, generation-bound and excluded from archives.\nCREATE TABLE lky_recovery_custody (\n id TEXT PRIMARY KEY, account TEXT NOT NULL, generation INTEGER NOT NULL,\n kind TEXT NOT NULL CHECK(kind IN ('self','administrator')),\n custodian TEXT, custodian_generation INTEGER, wrapped TEXT NOT NULL,\n revoked_at INTEGER\n);\nCREATE TABLE lky_recovery_cases (\n id TEXT PRIMARY KEY, enrollment TEXT NOT NULL, account TEXT NOT NULL,\n generation INTEGER NOT NULL, session_id TEXT NOT NULL, setup TEXT NOT NULL,\n transfer_key TEXT NOT NULL, expires_at INTEGER NOT NULL,\n approved_wrap TEXT, consumed_at INTEGER\n);\nCREATE TABLE lky_emergency_access (\n id TEXT PRIMARY KEY, tenant TEXT NOT NULL, owner TEXT NOT NULL, contact TEXT NOT NULL,\n owner_generation INTEGER NOT NULL, contact_generation INTEGER NOT NULL,\n vault TEXT NOT NULL, epoch INTEGER NOT NULL, wrapped TEXT NOT NULL,\n wait_ms INTEGER NOT NULL CHECK(wait_ms>0), expires_at INTEGER NOT NULL,\n requested_at INTEGER, cancelled_at INTEGER\n);\n-- All present and future family-recipient doors share the custody boundary.\nCREATE TRIGGER lky_recovery_family_recipient_insert BEFORE INSERT ON lky_recipients\nWHEN EXISTS(SELECT 1 FROM lky_vaults WHERE id=NEW.vault_id AND kind='family')\n AND EXISTS(SELECT 1 FROM lky_recovery_custody e JOIN lky_accounts a ON a.id=e.account WHERE e.account=NEW.account_id AND e.kind='administrator' AND e.revoked_at IS NULL AND e.generation=a.generation)\nBEGIN SELECT RAISE(ABORT,'independent_family_account_required'); END;\nCREATE TRIGGER lky_recovery_family_recipient_update BEFORE UPDATE ON lky_recipients\nWHEN EXISTS(SELECT 1 FROM lky_vaults WHERE id=NEW.vault_id AND kind='family')\n AND EXISTS(SELECT 1 FROM lky_recovery_custody e JOIN lky_accounts a ON a.id=e.account WHERE e.account=NEW.account_id AND e.kind='administrator' AND e.revoked_at IS NULL AND e.generation=a.generation)\nBEGIN SELECT RAISE(ABORT,'independent_family_account_required'); END;\nCREATE TRIGGER lky_recovery_family_vault_update BEFORE UPDATE OF kind ON lky_vaults\nWHEN NEW.kind='family' AND EXISTS(SELECT 1 FROM lky_recipients r JOIN lky_recovery_custody e ON e.account=r.account_id JOIN lky_accounts a ON a.id=e.account WHERE r.vault_id=NEW.id AND e.kind='administrator' AND e.revoked_at IS NULL AND e.generation=a.generation)\nBEGIN SELECT RAISE(ABORT,'independent_family_account_required'); END;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0043_latchkey_rule_reviews.sql",
+      "sha256": "dce6a7fcfce992d450304220cdcc6bdc238a3a2273bb9b11000d9b0575c4173d",
+      "sql": "-- A campaign is evidence for one exact obligation, never reusable completion.\nCREATE TABLE lky_rule_reviews (\n obligation TEXT PRIMARY KEY REFERENCES lky_rule_obligations(id),\n review_id TEXT NOT NULL UNIQUE,\n binding TEXT NOT NULL, phase TEXT NOT NULL, bound_at INTEGER NOT NULL,\n result TEXT, recorded_at INTEGER\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0044_latchkey_health_suppressions.sql",
+      "sha256": "a55f65c22e1a11db4b1f50750821d08bbcb9d255acbfd8a0dadead17c31f3b81",
+      "sql": "CREATE TABLE lky_health_suppressions (\n id TEXT PRIMARY KEY,\n tenant TEXT NOT NULL,\n actor TEXT NOT NULL REFERENCES lky_accounts(id),\n vault_id TEXT NOT NULL REFERENCES lky_vaults(id),\n object_id TEXT NOT NULL,\n item_version INTEGER NOT NULL,\n generation INTEGER NOT NULL,\n epoch INTEGER NOT NULL,\n until_at INTEGER,\n wrapped TEXT NOT NULL,\n created_at INTEGER NOT NULL,\n source_revision INTEGER NOT NULL,\n sequence INTEGER NOT NULL,\n active INTEGER NOT NULL CHECK(active IN (0,1))\n);\nCREATE UNIQUE INDEX lky_health_sequence ON lky_health_suppressions(tenant,actor,vault_id,sequence);\nCREATE INDEX lky_health_actor ON lky_health_suppressions(tenant,actor,vault_id);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0044_latchkey_report_history.sql",
+      "sha256": "4a9059b0ecd9a5b062e3c7d58590f5abf1c869eaf0a5bad3a528c6a2ecfe0eaf",
+      "sql": "-- Owner-encrypted observations are data, never active authority.\nCREATE TABLE lky_report_keys (\n vault_id TEXT PRIMARY KEY REFERENCES lky_vaults(id),\n owner TEXT NOT NULL,\n wrapped TEXT NOT NULL\n);\nCREATE TABLE lky_report_observations (\n id TEXT PRIMARY KEY,\n vault_id TEXT NOT NULL REFERENCES lky_vaults(id),\n day TEXT NOT NULL,\n as_of INTEGER NOT NULL,\n source_revision INTEGER NOT NULL,\n envelope TEXT NOT NULL,\n UNIQUE(vault_id,day)\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0045_business_settings.sql",
+      "sha256": "a16f736a781aa3fe02a2e090c993f8c360c904f9fb6d86126acdab6e1f24e773",
+      "sql": "CREATE TABLE bs_settings (\n  singleton INTEGER PRIMARY KEY CHECK(singleton=1),\n  rev INTEGER NOT NULL DEFAULT 0,\n  document TEXT,\n  applied_at TEXT,\n  stopped INTEGER NOT NULL DEFAULT 0 CHECK(stopped IN(0,1)),\n  token TEXT NOT NULL DEFAULT ''\n);\nCREATE TABLE bs_overrides (\n  field TEXT PRIMARY KEY CHECK(field IN('display_name','owner_name','brand_color','logo','timezone')),\n  value TEXT NOT NULL,\n  actor TEXT NOT NULL,\n  changed_at TEXT NOT NULL\n);\nCREATE TABLE bs_logo (\n  singleton INTEGER PRIMARY KEY CHECK(singleton=1),\n  sha256 TEXT NOT NULL,\n  type TEXT NOT NULL,\n  bytes BLOB NOT NULL\n);\nCREATE TABLE bs_team (\n  email TEXT PRIMARY KEY,\n  operator_id TEXT,\n  invite INTEGER NOT NULL,\n  state TEXT NOT NULL CHECK(state IN('invited','active','inactive','conflict'))\n);\nCREATE TABLE bs_audit (\n  id INTEGER PRIMARY KEY,\n  actor TEXT NOT NULL,\n  action TEXT NOT NULL,\n  field TEXT,\n  changed_at TEXT NOT NULL\n);\n-- An INSERT of NULL fails the transaction if a concurrent write invalidated its fence.\nCREATE TABLE bs_assert (value INTEGER NOT NULL);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0046_business_people.sql",
+      "sha256": "51aa39622d866b987d71b6e37c9a8300e7f24c54a55611edaab669ed051b01cd",
+      "sql": "ALTER TABLE bs_settings ADD COLUMN owner_id TEXT CHECK(owner_id IS NULL OR owner_id <> '');\nALTER TABLE bs_team ADD COLUMN business_id TEXT CHECK(business_id IS NULL OR business_id <> '');\nALTER TABLE bs_team ADD COLUMN business_role TEXT CHECK(business_role IS NULL OR business_role IN('admin','member'));\nCREATE UNIQUE INDEX bs_team_business_id ON bs_team(business_id) WHERE business_id IS NOT NULL;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0047_agent_door.sql",
+      "sha256": "016d8a98b964385f5c4a13447361c3c783910a76aaf4606b0e0081482bc819cc",
+      "sql": "CREATE TABLE IF NOT EXISTS agent_door_state (\n  id INTEGER PRIMARY KEY CHECK(id=1), envelope TEXT, local_document TEXT,\n  local_revision INTEGER NOT NULL DEFAULT 0, local_paused INTEGER NOT NULL DEFAULT 0,\n  decision_lock TEXT, decision_until INTEGER\n);\nCREATE TABLE IF NOT EXISTS agent_door_agents (\n  id TEXT PRIMARY KEY, name TEXT NOT NULL, specialist TEXT, sponsor TEXT NOT NULL,\n  sponsor_name TEXT NOT NULL, revoked INTEGER NOT NULL DEFAULT 0,\n  window INTEGER NOT NULL DEFAULT 0, requests INTEGER NOT NULL DEFAULT 0\n);\nCREATE TABLE IF NOT EXISTS agent_door_audit (\n  sequence INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE, at TEXT NOT NULL,\n  agent TEXT NOT NULL, classes TEXT NOT NULL, row TEXT NOT NULL, evidence TEXT\n);\nCREATE INDEX IF NOT EXISTS agent_door_audit_agent ON agent_door_audit(agent,sequence);\nCREATE TABLE IF NOT EXISTS agent_door_calls (\n  agent TEXT NOT NULL, key TEXT NOT NULL, digest TEXT NOT NULL, decision_id TEXT NOT NULL,\n  created_at INTEGER NOT NULL, state TEXT NOT NULL, outcome TEXT, PRIMARY KEY(agent,key)\n);\nCREATE TABLE IF NOT EXISTS agent_door_approvals (\n  id TEXT PRIMARY KEY, state TEXT NOT NULL, saved TEXT NOT NULL, approvals TEXT NOT NULL DEFAULT '[]',\n  result TEXT, version INTEGER NOT NULL DEFAULT 0\n);\nCREATE TABLE IF NOT EXISTS agent_door_reviews (\n  id TEXT PRIMARY KEY, state TEXT NOT NULL, saved TEXT NOT NULL, marked_by TEXT, marked_at TEXT\n);\nCREATE TABLE IF NOT EXISTS agent_door_events (\n  sequence INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE, uri TEXT NOT NULL, event TEXT NOT NULL\n);\nCREATE INDEX IF NOT EXISTS agent_door_events_uri ON agent_door_events(uri,sequence);\nCREATE TABLE IF NOT EXISTS agent_door_usage (\n  decision_id TEXT PRIMARY KEY, at INTEGER NOT NULL, seed TEXT NOT NULL, specialist TEXT, agent TEXT NOT NULL,\n  classes TEXT NOT NULL\n);\nCREATE INDEX IF NOT EXISTS agent_door_usage_day ON agent_door_usage(at);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0048_latchkey_agent_bindings.sql",
+      "sha256": "5292a2303133ff45b92665b414b48bad3356491c8cf53f7aac29a6432e902333",
+      "sql": "-- Business agents reuse the exact native, device-held vault grant.\nCREATE TABLE lky_agent_bindings (\n agent_id TEXT PRIMARY KEY, credential_id TEXT NOT NULL REFERENCES lky_mcp_credentials(id)\n);\nCREATE TABLE lky_agent_requests (\n request_id TEXT PRIMARY KEY REFERENCES lky_mcp_requests(id), agent_id TEXT NOT NULL,\n sponsor_id TEXT NOT NULL, operation_id TEXT NOT NULL UNIQUE, consent TEXT, attribution TEXT NOT NULL\n);\n"
     }
   ],
   "compatibilityDate": "2026-09-08",

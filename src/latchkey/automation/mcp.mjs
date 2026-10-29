@@ -1,16 +1,12 @@
+import { latchkeyAgentDoor } from '../agent-door/index.ts';
 import { digest, encode, id, publicKey, random, signingText, verify } from '../crypto/envelope.mjs';
 import { canonicalJson } from '../reviews/common.mjs';
 import { sharingAuthenticated } from '../sharing/index.mjs';
 import { access, credentialLive, exact, human, need, transact, uuid } from './common.mjs';
 
 const scopes = ['posture:read', 'access:request'];
-const summary = row => ({ id: row.id, vault: row.vault_id, account: row.account_id, objects: JSON.parse(row.objects), rights: JSON.parse(row.rights), expiresAt: row.expires_at, fingerprint: row.fingerprint, recipientGeneration: row.recipient_generation, epoch: row.epoch, vaultRevision: row.vault_revision, previewHash: row.preview_hash, phase: row.phase, revision: row.revision, createdAt: row.created_at, decidedAt: row.decided_at, share: row.share_id });
-export const tools = [
- { name: 'latchkey_posture', description: 'Read allowed vault posture metadata; never returns item values or keys.', inputSchema: { type: 'object', properties: { vault: { type: 'string', format: 'uuid' } }, required: ['vault'], additionalProperties: false } },
- { name: 'latchkey_request_access', description: 'Request an exact grant by reference. Only the vault owner on a human session can decide and cryptographically fulfill it.', inputSchema: { type: 'object', properties: { vault: { type: 'string', format: 'uuid' }, account: { type: 'string', format: 'uuid' }, objects: { type: 'array', minItems: 1, maxItems: 200, items: { type: 'string', format: 'uuid' } }, rights: { type: 'array', minItems: 1, items: { enum: ['read', 'edit', 'export'] } }, expiresAt: { type: 'integer' } }, required: ['vault', 'account', 'objects', 'rights', 'expiresAt'], additionalProperties: false } },
-];
-
-async function machineTool(route, input, ctx) {
+const summary = row => ({ id: row.id, vault: row.vault_id, account: row.account_id, objects: JSON.parse(row.objects), rights: JSON.parse(row.rights), expiresAt: row.expires_at, fingerprint: row.fingerprint, recipientGeneration: row.recipient_generation, epoch: row.epoch, vaultRevision: row.vault_revision, previewHash: row.preview_hash, phase: row.phase, revision: row.revision, createdAt: row.created_at, decidedAt: row.decided_at, share: row.share_id, ...(row.prepared_by ? {preparedBy: row.prepared_by} : {}) });
+export async function machineTool(route, input, ctx) {
  const { first, all, stmt, event } = access(ctx), credential = ctx.credential;
  need(credential && credential.expires_at > ctx.now && !credential.revoked_at, 'machine_authority_expired', 401);
  const allowed = JSON.parse(credential.scopes);
@@ -20,10 +16,14 @@ async function machineTool(route, input, ctx) {
  need(vault, 'machine_authority_expired', 401);
  if (route === 'mcp/posture') {
   exact(input, ['vault']);
-  await event('mcp_posture_read', vault.id).run();
-  return { vault: vault.id, epoch: vault.epoch, revision: vault.revision, sourceTimestamp: ctx.now, valuesIncluded: false, mfa: 'unknown-not-implemented', openAccessRequests: (await first("SELECT COUNT(*) AS n FROM lky_mcp_requests WHERE credential_id=? AND phase='pending'", credential.id)).n };
+  return { vault: vault.id, epoch: vault.epoch, revision: vault.revision, valuesIncluded: false, mfa: 'unknown-not-implemented', openAccessRequests: (await first("SELECT COUNT(*) AS n FROM lky_mcp_requests WHERE credential_id=? AND phase='pending'", credential.id)).n };
  }
  exact(input, ['vault', 'account', 'objects', 'rights', 'expiresAt']);
+ if (ctx.agentOrigin) {
+  const prior = await first('SELECT r.* FROM lky_mcp_requests r JOIN lky_agent_requests a ON a.request_id=r.id WHERE a.operation_id=? AND r.credential_id=?', ctx.agentOrigin.operationId, credential.id);
+  if (prior) return {request: prior.id, phase: 'pending', previewHash: prior.preview_hash, requiresHumanOwnerApproval: true, granted: false};
+ }
+
  need(Array.isArray(input.objects) && input.objects.length > 0 && input.objects.length <= 200 && new Set(input.objects).size === input.objects.length);
  need(Array.isArray(input.rights) && input.rights.length > 0 && new Set(input.rights).size === input.rights.length && input.rights.includes('read') && input.rights.every(right => ['read','edit','export'].includes(right)), 'invalid_rights');
  need(Number.isSafeInteger(input.expiresAt) && input.expiresAt > ctx.now && input.expiresAt <= credential.expires_at, 'invalid_expiry');
@@ -37,12 +37,12 @@ async function machineTool(route, input, ctx) {
  const request = id(), rights = [...input.rights].sort(), fingerprint = await digest(JSON.stringify([recipient.recipient_key, recipient.authority_key]));
  const exactGrant = { request, vault: vault.id, owner: credential.owner, account: recipient.id, recipientGeneration: recipient.generation, fingerprint, objects, rights, expiresAt: input.expiresAt, epoch: vault.epoch, vaultRevision: vault.revision };
  const previewHash = await digest(canonicalJson(exactGrant));
- await transact(ctx, [stmt("INSERT INTO lky_mcp_requests VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',1,?,NULL,NULL)", request, ctx.tenant, credential.id, credential.owner, vault.id, recipient.id, recipient.generation, fingerprint, canonicalJson(objects), canonicalJson(rights), input.expiresAt, vault.epoch, vault.revision, previewHash, ctx.now), event('mcp_access_requested', request)], 'EXISTS(SELECT 1 FROM lky_vaults WHERE id=? AND epoch=? AND revision=?)', [vault.id, vault.epoch, vault.revision]);
+ await transact(ctx, [stmt("INSERT INTO lky_mcp_requests VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',1,?,NULL,NULL)", request, ctx.tenant, credential.id, credential.owner, vault.id, recipient.id, recipient.generation, fingerprint, canonicalJson(objects), canonicalJson(rights), input.expiresAt, vault.epoch, vault.revision, previewHash, ctx.now), event('mcp_access_requested', request), ...(ctx.agentOrigin ? [stmt('INSERT INTO lky_agent_requests(request_id,agent_id,sponsor_id,operation_id,consent,attribution) VALUES(?,?,?,?,?,?)', request, ctx.agentOrigin.agent.id, ctx.agentOrigin.person.id, ctx.agentOrigin.operationId, ctx.agentOrigin.consent ?? null, ctx.agentOrigin.actor.label)] : [])], 'EXISTS(SELECT 1 FROM lky_vaults WHERE id=? AND epoch=? AND revision=?)', [vault.id, vault.epoch, vault.revision]);
  return { request, phase: 'pending', previewHash, requiresHumanOwnerApproval: true, granted: false };
 }
 
 export async function automationPublic(route, input, ctx) {
- if (!['mcp', 'mcp/posture', 'mcp/requestaccess'].includes(route)) return null;
+ if (!['mcp/posture', 'mcp/requestaccess'].includes(route)) return null;
  const url = new URL(ctx.request.url), token = ctx.request.headers.get('authorization')?.match(/^Bearer ([A-Za-z0-9_-]{43})$/)?.[1];
  need(token, 'machine_authentication_required', 401);
  const hash = await digest(token), credential = await access(ctx).first(`SELECT * FROM lky_mcp_credentials c WHERE c.token_hash=? AND c.revoked_at IS NULL AND c.expires_at>? AND ${credentialLive('c')}`, hash, ctx.now);
@@ -54,21 +54,12 @@ export async function automationPublic(route, input, ctx) {
  const used = await first('INSERT INTO lky_limits(key,window,count) VALUES(?,?,1) ON CONFLICT(key) DO UPDATE SET count=CASE WHEN window=excluded.window THEN count+1 ELSE 1 END,window=excluded.window RETURNING count', 'mcp:' + hash, Math.floor(ctx.now / 60000));
  need(used.count <= 60, 'rate_limited', 429);
  need(await first('INSERT INTO lky_nonces VALUES(?,?,?) ON CONFLICT DO NOTHING RETURNING nonce', hash, nonce, credential.expires_at), 'request_replayed', 409);
- const scoped = { ...ctx, actor: credential.owner, device: credential.id, tenant: credential.tenant, credential, machine: true, fence: `EXISTS(SELECT 1 FROM lky_mcp_credentials c WHERE c.id=? AND c.revoked_at IS NULL AND c.expires_at>? AND ${credentialLive('c')})`, fenceArgs: [credential.id, ctx.now] };
- if (route !== 'mcp') return machineTool(route, input, scoped);
- need(input?.jsonrpc === '2.0', 'invalid_mcp_request');
- if(input.id === undefined && ['notifications/initialized','notifications/cancelled'].includes(input.method))return new Response(null,{status:202});
- need(typeof input.id === 'number' || typeof input.id === 'string','invalid_mcp_request');
- const reply = result => ({ jsonrpc: '2.0', id: input.id, result });
- if (input.method === 'initialize') return reply({ protocolVersion: '2025-06-18', capabilities: { tools: {} }, serverInfo: { name: 'latchkey', version: '1.0.0' } });
- if (input.method === 'ping') return reply({});
- if (input.method === 'tools/list') return reply({ tools: tools.filter(tool => JSON.parse(credential.scopes).includes(tool.name === 'latchkey_posture' ? 'posture:read' : 'access:request')) });
- if (input.method !== 'tools/call') return { jsonrpc: '2.0', id: input.id, error: { code: -32601, message: 'Method not found' } };
- const toolRoutes = { latchkey_posture: 'mcp/posture', latchkey_request_access: 'mcp/requestaccess' }, name = input.params?.name;
- const toolRoute = typeof name === 'string' && Object.hasOwn(toolRoutes, name) ? toolRoutes[name] : undefined;
- if (!toolRoute) return { jsonrpc: '2.0', id: input.id, error: { code: -32602, message: 'Unknown tool' } };
- try { const value = await machineTool(toolRoute, input.params.arguments, scoped); return reply({ content: [{ type: 'text', text: JSON.stringify(value) }], structuredContent: value, isError: false }); }
- catch (error) { return reply({ content: [{ type: 'text', text: error?.code ?? 'request_refused' }], isError: true }); }
+ const result = await latchkeyAgentDoor(ctx.env).invoke(route === 'mcp/posture' ? 'latchkey.posture.read' : 'latchkey.access.request',
+  {...input, ...(route === 'mcp/requestaccess' ? {idempotency_key: nonce} : {})},
+  {person: {id: credential.operator_id ?? (await first('SELECT operator_id FROM lky_accounts WHERE id=?', credential.owner)).operator_id},
+   agent: {id: credential.id, name: 'Scoped vault client', specialist: 'credential-security'}, scopes: JSON.parse(credential.scopes), clientId: credential.id});
+ need(result.outcome === 'done', result.code ?? 'approval_required', 403);
+ return result.result;
 }
 
 export async function mcpAuthenticated(route, input, ctx) {
@@ -76,12 +67,14 @@ export async function mcpAuthenticated(route, input, ctx) {
  await human(ctx);
  const { first, all, stmt, event } = access(ctx);
  if (route === 'mcp/credential/issue') {
-  exact(input, ['vault', 'publicKey', 'scopes', 'expiresAt', 'confirmed']); need(input.confirmed === true, 'human_approval_required', 403);
+  exact(Object.fromEntries(Object.entries(input).filter(([key]) => key !== 'agent')), ['vault', 'publicKey', 'scopes', 'expiresAt', 'confirmed']);
+  if (input.agent !== undefined) need(typeof input.agent === 'string' && input.agent.length > 0 && input.agent.length <= 200 && !/[\x00-\x1f]/.test(input.agent), 'invalid_agent'); need(input.confirmed === true, 'human_approval_required', 403);
   const vault = await first('SELECT * FROM lky_vaults WHERE id=? AND tenant=? AND owner=?', uuid(input.vault), ctx.tenant, ctx.actor); need(vault, 'vault_owner_required', 403);
   need(Array.isArray(input.scopes) && input.scopes.length > 0 && new Set(input.scopes).size === input.scopes.length && input.scopes.every(scope => scopes.includes(scope)), 'invalid_scopes');
   need(Number.isSafeInteger(input.expiresAt) && input.expiresAt > ctx.now, 'invalid_expiry'); await publicKey(input.publicKey, 'sign');
   const account = await first('SELECT generation FROM lky_accounts WHERE id=?', ctx.actor), token = encode(random()), credential = id();
   await transact(ctx, [stmt('INSERT INTO lky_mcp_credentials VALUES(?,?,?,?,?,?,?,?,?,?,?,NULL,?)', credential, ctx.tenant, ctx.actor, vault.id, await digest(token), input.publicKey, canonicalJson(input.scopes), ctx.device, account.generation, ctx.session.operator.version, input.expiresAt, ctx.now), event('mcp_credential_issued', credential)], 'EXISTS(SELECT 1 FROM lky_vaults WHERE id=? AND owner=?)', [vault.id, ctx.actor]);
+  if (input.agent) await transact(ctx, [stmt('INSERT INTO lky_agent_bindings(agent_id,credential_id) VALUES(?,?)', input.agent, credential)]);
   return { credential, token, vault: vault.id, scopes: input.scopes, expiresAt: input.expiresAt };
  }
  if (route === 'mcp/credential/revoke') {
@@ -89,8 +82,8 @@ export async function mcpAuthenticated(route, input, ctx) {
   need(await first('SELECT id FROM lky_mcp_credentials WHERE id=? AND tenant=? AND owner=?', credential, ctx.tenant, ctx.actor), 'not_found', 404);
   await transact(ctx, [stmt('UPDATE lky_mcp_credentials SET revoked_at=? WHERE id=?', ctx.now, credential), event('mcp_credential_revoked', credential)]); return { credential, revoked: true };
  }
- if (route === 'mcp/requests') { exact(input, []); return (await all('SELECT * FROM lky_mcp_requests WHERE tenant=? AND owner=? ORDER BY created_at,id', ctx.tenant, ctx.actor)).map(summary); }
- const row = await first('SELECT r.* FROM lky_mcp_requests r JOIN lky_vaults v ON v.id=r.vault_id WHERE r.id=? AND r.tenant=? AND r.owner=? AND v.owner=?', uuid(input.request), ctx.tenant, ctx.actor, ctx.actor);
+ if (route === 'mcp/requests') { exact(input, []); return (await all('SELECT r.*,(SELECT attribution FROM lky_agent_requests WHERE request_id=r.id) AS prepared_by FROM lky_mcp_requests r WHERE tenant=? AND owner=? ORDER BY created_at,id', ctx.tenant, ctx.actor)).map(summary); }
+ const row = await first('SELECT r.*,(SELECT attribution FROM lky_agent_requests WHERE request_id=r.id) AS prepared_by FROM lky_mcp_requests r JOIN lky_vaults v ON v.id=r.vault_id WHERE r.id=? AND r.tenant=? AND r.owner=? AND v.owner=?', uuid(input.request), ctx.tenant, ctx.actor, ctx.actor);
  need(row, 'not_found', 404);
  if (route === 'mcp/ownerpreview') { exact(input, ['request']); return summary(row); }
  if (route === 'mcp/ownerapprove') {

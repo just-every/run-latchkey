@@ -1,5 +1,5 @@
 export { AutomationError } from './common.mjs';
-export { automationPublic, tools } from './mcp.mjs';
+export { automationPublic } from './mcp.mjs';
 import { mcpAuthenticated } from './mcp.mjs';
 import { webhooksAuthenticated } from './webhooks.mjs';
 export async function automationAuthenticated(route,input,ctx) {

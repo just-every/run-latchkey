@@ -31,16 +31,18 @@ export async function mcpRequest({origin,route='mcp',input,token,privateKey,fetc
  const url=new URL(origin);
  if(url.origin!==origin||!(url.protocol==='https:'||url.protocol==='http:'&&['localhost','127.0.0.1','[::1]'].includes(url.hostname))||!['mcp','mcp/posture','mcp/requestaccess'].includes(route))throw new AutomationError('invalid_mcp_origin');
  const path='/api/latchkey/'+route,body=JSON.stringify(input),nonce=id(),time=String(Date.now());
- const response=await fetcher(origin+path,{method:'POST',redirect:'error',credentials:'omit',headers:{origin,'content-type':'application/json',accept:'application/json, text/event-stream',authorization:'Bearer '+token,'x-latchkey-nonce':nonce,'x-latchkey-time':time,'x-latchkey-signature':await sign(privateKey,signingText('POST',path,token,nonce,time,await digest(body)))},body});
+ const response=await fetcher(origin+path,{method:'POST',redirect:'error',credentials:'omit',headers:{origin,'content-type':'application/json',accept:'application/json, text/event-stream','mcp-protocol-version':'2025-11-25',authorization:'Bearer '+token,'x-latchkey-nonce':nonce,'x-latchkey-time':time,'x-latchkey-signature':await sign(privateKey,signingText('POST',path,token,nonce,time,await digest(body)))},body});
  let value;try{value=await response.json();}catch{throw new AutomationError('mcp_unavailable',response.status);}
- if(!response.ok)throw new AutomationError(typeof value.error==='string'&&/^[a-z_]{1,64}$/.test(value.error)?value.error:'mcp_refused',response.status);
+ if(value?.jsonrpc==='2.0' && value.error && response.status===400)return value;
+ if(!response.ok && value?.error?.code===-32001)throw new AutomationError('unauthenticated',response.status);
+ if(!response.ok)throw new AutomationError(typeof (value.code??value.error)==='string'&&/^[a-z_]{1,64}$/.test(value.code??value.error)?(value.code??value.error):'mcp_refused',response.status);
  return value;
 }
 export class McpClient {
  constructor(options){this.options=options;}
  request(method,params={}){return mcpRequest({...this.options,input:{jsonrpc:'2.0',id:id(),method,params}});}
- initialize(){return this.request('initialize',{protocolVersion:'2025-06-18',capabilities:{},clientInfo:{name:'latchkey-client',version:'1.0.0'}});}
+ initialize(){return this.request('initialize',{protocolVersion:'2025-11-25',capabilities:{},clientInfo:{name:'latchkey-client',version:'1.0.0'}});}
  tools(){return this.request('tools/list');}
- posture(vault){return this.request('tools/call',{name:'latchkey_posture',arguments:{vault}});}
- requestAccess(value){return this.request('tools/call',{name:'latchkey_request_access',arguments:value});}
+ posture(vault){return this.request('tools/call',{name:'latchkey.posture.read',arguments:{vault}});}
+ requestAccess(value){return this.request('tools/call',{name:'latchkey.access.request',arguments:{...value,idempotency_key:id()}});}
 }

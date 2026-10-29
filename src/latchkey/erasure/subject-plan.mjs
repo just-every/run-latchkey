@@ -52,6 +52,8 @@ export async function subjectPlan(ctx, subject) {
  await select('lky_lifecycle',`vault_id NOT IN (${own}) AND instr(proof,?)>0`,[...ownArgs,accountId],'redact',row=>({...row,proof:null,retention_active:0}));
  await select('lky_bulk_operations',`actor=? OR instr(plan,?)>0`,[accountId,accountId]);
  const credentials=await select('lky_mcp_credentials',`owner=? OR vault_id IN (${own})`,[accountId,...ownArgs]);
+ await select('lky_agent_bindings','credential_id IN(SELECT value FROM json_each(?))',[JSON.stringify(credentials.map(r=>r.id))]);
+ await select('lky_agent_requests','sponsor_id=? OR request_id IN(SELECT id FROM lky_mcp_requests WHERE owner=? OR account_id=?)',[subject,accountId,accountId]);
  await select('lky_mcp_requests',`owner=? OR account_id=? OR credential_id IN(SELECT value FROM json_each(?))`,[accountId,accountId,JSON.stringify(credentials.map(r=>r.id))]);
  const mspCaptures=await select('lky_msp_captures',`owner=? OR vault IN (${own})`,[accountId,...ownArgs]);
  const mspDelegations=await select('lky_msp_delegations','owner=?',[accountId]);

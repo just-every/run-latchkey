@@ -10,13 +10,20 @@ The listing preparation refreshes recorded Base copies to rer-v0.2.80 at commit 
 
 `src/modules/agent-door`, `src/modules/business-settings` and their theme/icon
 dependencies in `src/foundation/runtime` are verbatim source from Base commit
-`d555e789cffb744a9f83d76ebe42a2e3bdd7a055`. `base-copies.json` records the
+`2135c394939f4a737adabdc8003b0e667b31ac5a`. `base-copies.json` records the
 individual bytes and executable modes. Base's module unit tests and Business
 settings test signing fixtures are excluded from the runtime copy.
 
 Additive migrations `0045_business_settings.sql`, `0046_business_people.sql` and
 `0047_agent_door.sql` install their storage without replacing applied history.
-The copied modules are not mounted in Latchkey's Worker. Existing client-held
-authority and the documented posture/access-request interface remain the active
-product doors; copying source does not establish shared-door conformance or
-Business-agent support.
+The production Worker mounts the copied door before application auth and redirects.
+The runtime pin is rer-v0.2.91; the independently pinned published CLI is
+`@runeditrun/rer` 0.2.91. The native adapters live in
+`src/latchkey/agent-door`. Migration `0048_latchkey_agent_bindings.sql` binds
+Business agents to existing device-held scoped credentials and retains native
+request attribution. Applied migrations are unchanged.
+
+The source was acquired as an authenticated GitHub API archive. The installed
+edition-authoring CLI recorded the runtime, Business settings and foundation
+copies and refreshed the selected record against that archive. Upstream tests
+are omitted by the authoring export's `testSource` filter.

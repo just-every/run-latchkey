@@ -2,7 +2,11 @@
 
 Integrate `automationAuthenticated(route,input,ctx)` after normal signed-human authentication and the existing live fence, before vault-specific fallback. Context is `{db,env,now,actor,device,tenant,session,fence,fenceArgs}`; optional `fetcher` is the network-edge dependency. Add `AutomationError` to the service's safe code/status catch. Only real enrolled human devices pass owner decisions; machines, recovery/enrollment sessions and a bare session cannot approve them.
 
-Call `automationPublic(route,input,{db,env,now,request,raw})` before human-session authentication for `mcp`, `mcp/posture` and `mcp/requestaccess`. It performs its own scoped-machine authentication. It returns null for unrelated routes. For MCP notifications it returns an HTTP `Response` with 202: return that directly, rather than serializing it as JSON. Other results use the service's normal JSON response. Keep the existing origin/host/body bounds. Never log credentials, raw request bodies, private signing keys or signatures.
+The production Worker mounts the shared Base agent door before app auth. It owns
+`/mcp` and the compatible `/api/latchkey/mcp` path. Native signed REST posture
+and request-access endpoints enter the same door through `invoke`; they retain
+their signature, nonce and narrow native credentials. There is one policy and
+MCP dispatcher. See [the agent guide](../../../docs/agents.md).
 
 ## MCP scope and exact human approval
 
@@ -10,7 +14,14 @@ The vault owner issues an independent credential through signed-human `mcp/crede
 
 `mcpRequest` and `McpClient` sign actual wire requests with `Authorization: Bearer <token>` and the existing `x-latchkey-nonce`, `x-latchkey-time`, `x-latchkey-signature` headers. They do not use or persist a human cookie. The signature uses actual method, full path/query, token, nonce, milliseconds timestamp and digest of the exact raw JSON. The token holder also needs the independently held private signing key.
 
-The `mcp` endpoint implements stateless JSON-RPC 2.0 initialize, ping, tools/list, tools/call and initialized/cancelled notifications using MCP protocol `2025-06-18`. Its only tools are `latchkey_posture` and `latchkey_request_access`. It never exposes approval tools. Direct authenticated equivalents are `mcp/posture {vault}` and `mcp/requestaccess {vault,account,objects,rights,expiresAt}`. Posture returns opaque vault identifiers, revision/epoch, timestamp, request count and explicitly unknown MFA state; never values, key material, envelopes or filenames. Request fields are stable references, with no instruction text or free-form grant expansion.
+The shared endpoint supports MCP `2026-07-28` and `2025-11-25`. Its native tools
+are `latchkey.posture.read`, `latchkey.access.request` and
+`latchkey.access.requests`. Configure a complete owner policy at `/agents`
+before calling; unanswered policy and Pause refuse without effects. The native
+client uses the supported November protocol and supplies an idempotency key for
+each request. Reuse that key to retry the exact mutation; changed inputs conflict.
+The request records intent only; it changes no access and is class `standard`.
+There is no approval, key wrapping, reveal, provider change or export tool.
 
 Access requests capture exact object versions, recipient fingerprint/generation, rights, expiry, vault epoch/revision and a hash. They create **no grant**. Human-owner routes:
 
