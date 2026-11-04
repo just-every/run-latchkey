@@ -7,7 +7,7 @@ export async function links(route, input, ctx) {
  if (route === 'sharing/link/create') {
   await activeItem(ctx,uuid(input.vault),uuid(input.object));
   exact(input, ['link', 'vault', 'object', 'sourceVersion', 'verifierHash', 'passwordSalt', 'passwordRequired', 'recipient', 'envelope', 'startsAt', 'expiresAt', 'maxViews']);
-  const vault = await sourceVault(ctx, input.vault), link = uuid(input.link), object = uuid(input.object), recipient = email(input.recipient);
+  const vault = await sourceVault(ctx, input.vault, true), link = uuid(input.link), object = uuid(input.object), recipient = email(input.recipient);
   const rules = await policy(ctx); need(domainAllowed(rules, recipient), 'external_sharing_blocked', 403);
   need(typeof input.passwordRequired === 'boolean'); hashString(input.passwordSalt); hashString(input.verifierHash); integer(input.maxViews, 1, 1000); integer(input.sourceVersion);
   const latest = await first('SELECT MAX(version) AS version FROM lky_versions WHERE vault_id=? AND object_id=?', vault.id, object);

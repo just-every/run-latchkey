@@ -183,7 +183,25 @@ export async function directPermissionsJourney(f) {
   await owner.share(vault,member.profile.account,await member.identity().fingerprint,['read','edit','reveal','copy'],{version:2});await page.getByRole('button',{name:'Refresh',exact:true}).click();await expect(page.getByRole('button',{name:'Edit',exact:true})).toBeEnabled();
   await select(['history']);await apply();await page.getByRole('button',{name:'Refresh',exact:true}).click();await expect(page.getByRole('button',{name:'Reveal Password',exact:true})).toBeDisabled();await expect(page.getByRole('button',{name:'Copy Password',exact:true})).toBeDisabled();
   await page.locator('summary').filter({hasText:/^History/}).click();await expect(page.getByRole('button',{name:/Version 1 · Created/})).toBeVisible();await page.getByRole('button',{name:/Version 1 · Created/}).click();await expect(page.getByRole('heading',{name:'Preview version 1',exact:true})).toBeVisible();await expect(page.getByText('Direct permission service',{exact:true})).toBeVisible();
+  // Removing one action clears an already opened history without requiring
+  // a manual refresh or removing the recipient's other direct actions.
+  await select(['copy']);await apply();
+  await expect(page.getByRole('heading',{name:'Preview version 1',exact:true})).toHaveCount(0,{timeout:15000});
+  await expect(page.getByRole('alert').filter({hasText:'Your vault permissions changed.'})).toBeVisible();
+  await page.getByRole('button',{name:'Refresh',exact:true}).click();
+  await expect(page.getByText('History: denied by the current vault grant.',{exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Copy Password',exact:true})).toBeEnabled();
   await select(['reveal']);await apply();await page.getByRole('button',{name:'Refresh',exact:true}).click();await expect(page.getByRole('button',{name:'Copy Password',exact:true})).toBeDisabled();await page.getByRole('button',{name:'Reveal Password',exact:true}).click();await expect(page.getByLabel('Password',{exact:true})).toHaveValue(secret);
+  // Narrowing a live grant also clears a revealed field while retaining
+  // read access. A fresh open returns to the masked independent view.
+  await select(['copy']);await apply();
+  await expect(page.getByLabel('Password',{exact:true})).toHaveCount(0,{timeout:15000});
+  assert.ok(!(await page.content()).includes(secret));
+  await page.getByRole('button',{name:'Refresh',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Reveal Password',exact:true})).toBeDisabled();
+  await select(['reveal']);await apply();await page.getByRole('button',{name:'Refresh',exact:true}).click();
+  await page.getByRole('button',{name:'Reveal Password',exact:true}).click();
+  await expect(page.getByLabel('Password',{exact:true})).toHaveValue(secret);
   const rightsPath='/api/latchkey/'+['vault','rights'].join('/');
   const failedPoll=page.waitForEvent('requestfailed',request=>new URL(request.url()).pathname===rightsPath);
   await page.route('**'+rightsPath,route=>route.abort('failed'));await failedPoll;

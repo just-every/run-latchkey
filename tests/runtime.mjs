@@ -390,8 +390,19 @@ try {
  const {TypedItems,createItem}=await import('../src/latchkey/items/index.mjs');
  const directSecrets=['synthetic-latchkey-9430','synthetic-latchkey-9431'];
  const memberItems=new TypedItems(member);
+ const {SharingClient,PublicLinkClient}=await import('../src/latchkey/sharing/client.mjs');
+ const directOwnerSharing=new SharingClient(owner),savedSharingPolicy=await directOwnerSharing.policy();
+ const {RuntimeGrantClient}=await import('../src/latchkey/runtime/grant-client.mjs');
+ const {resolveRuntime}=await import('../src/latchkey/runtime/client.mjs');
+ const {fieldReference}=await import('../src/latchkey/projects/model.mjs');
  for(const [index,kind] of ['company','private-work'].entries()){
   const directVault=(await owner.createVault({kind})).vault;directVaults.push(directVault);
+  // Each populated direct-recipient journey has its own external request
+  // window, independent of the prior sharing journey and the wall clock.
+  // Retain counts; do not change any limit or the link-specific buckets.
+  const externalWindows=await Promise.all(['preview','challenge','open'].map(action=>digest(new URL(productOrigin).hostname+':external-sharing:sharing/link/'+action)));
+  await productDb.prepare('UPDATE lky_limits SET window=-1 WHERE key IN (?,?,?)').bind(...externalWindows).run();
+
   const item=createItem('login',{title:`Direct rights ${kind}`,values:{password:directSecrets[index]}}),object=(await owner.put(directVault,item)).object;
   await owner.put(directVault,{...item,title:`Direct rights current ${kind}`},object);
   const base=`/api/latchkey/v1/vaults/${directVault}`,path=`${base}/items/${object}`;
@@ -410,9 +421,54 @@ try {
   await rejected(member.previewRights(directVault,member.profile.account,fingerprint,['read']),'permission_denied');
   await rejected(member.call('vault/share',{...legacyShare,revision:currentDirectRevision}),'permission_denied');
   assert.deepEqual((await member.call('vault' + '/rights',{vault:directVault})).actions,{reveal:false,copy:false,history:false});
+  // Export is a raw-value door too: atomic actions without current read
+  // authority cannot turn an explicitly denied preview into an archive.
+  const noRead=['export','reveal','copy','history'];
+  assert.deepEqual((await owner.previewRights(directVault,member.profile.account,fingerprint,noRead)).actions,{reveal:false,copy:false,history:false});
+  await owner.share(directVault,member.profile.account,fingerprint,noRead,{version:2});
+  await rejected(member.exportVault(directVault,archiveKey),'permission_denied');
+  await rejected(requestApi(member,'GET',base),'permission_denied');
+  // Existing machine authority must follow its sponsor's current direct
+  // actions, even while read and share remain granted.
+  await owner.share(directVault,member.profile.account,fingerprint,['read','export','share','reveal','copy','history'],{version:2});
+  const directRuntimeKey=encode(random()),directMachine=await MachineClient.create(productOrigin,directRuntimeKey),directIdentity=await MachineClient.identity(directMachine);
+  let capturedMachine;const memberCall=member.call;
+  member.call=function(route,input){if(route==='machine/grant')capturedMachine=structuredClone(input);return memberCall.call(this,route,input)};
+  let directMachineGrant;
+  try{directMachineGrant=await member.grantMachine(directVault,object,directIdentity,directIdentity.fingerprint)}finally{member.call=memberCall}
+  assert.equal((await MachineClient.read(directMachine,directMachineGrant,directRuntimeKey,{fetcher:fetchProduct})).fields[0].value,directSecrets[index]);
+  let projectedGrant,projectedInput;
+  const reference=fieldReference(directVault,object,'password');
+  if(kind==='company'){
+   const call=member.call;
+   member.call=function(route,input){if(route==='runtime/grant')projectedInput=structuredClone(input);return call.call(this,route,input)};
+   try{projectedGrant=await new RuntimeGrantClient(member).grant(directIdentity,directIdentity.fingerprint,[{reference}])}finally{member.call=call}
+  }
+  const projectedRead=()=>resolveRuntime({profile:directMachine,grant:projectedGrant,runtimeKey:directRuntimeKey,references:{credential:reference},fetcher:fetchProduct});
+  if(projectedGrant)assert.equal((await projectedRead()).credential,directSecrets[index]);
+  const memberSharing=new SharingClient(member);
+  let capturedSharing,capturedLink;const sharingCall=member.call;
+  member.call=function(route,input){if(route==='sharing/grant')capturedSharing=structuredClone(input);if(route==='sharing/link/create')capturedLink=structuredClone(input);return sharingCall.call(this,route,input)};
+  let delegatedShare,directLink;
+  const directLinkRecipient=mail.find(row=>row.subject==='Latchkey recipient verification').personalizations[0].to[0].email;
+  await directOwnerSharing.setPolicy({externalEnabled:true,domains:[directLinkRecipient.split('@')[1]],defaultDays:1,maxDays:1});
+  try{
+   delegatedShare=await memberSharing.grant(directVault,{recipients:[{account:member.profile.account,fingerprint}],objects:[object],rights:['read','export']});
+   directLink=await memberSharing.createLink(directVault,object,{recipient:directLinkRecipient,maxViews:10});
+  }finally{member.call=sharingCall}
+  assert.equal((await memberSharing.read(delegatedShare.share,object)).value.fields[0].value,directSecrets[index]);
+  cliPrivateValues.push(directRuntimeKey,directLink.url);
+  const outside=new PublicLinkClient(directLink.url,{fetcher:fetchProduct});
+  let openedInput;const publicRequest=outside.request;
+  outside.request=function(route,input){if(route==='open')openedInput=structuredClone(input);return publicRequest.call(this,route,input)};
+  const challenge=await outside.challenge(directLinkRecipient);
+  const code=mail.at(-1).content.find(row=>row.type==='text/plain').value.match(/Latchkey verification code: (\d{6})/)[1];
+  assert.equal((await outside.open(challenge.challenge,code)).value.fields[0].value,directSecrets[index]);
+
+
   for(let mask=0;mask<8;mask++){
    const actions=['reveal','copy','history'],selected=actions.filter((_,bit)=>mask&(1<<bit));
-   await owner.share(directVault,member.profile.account,fingerprint,['read','export',...selected],{version:2});
+   await owner.share(directVault,member.profile.account,fingerprint,['read','export','share',...selected],{version:2});
    const effective=await requestApi(member,'GET',`${base}/rights`);assert.equal(effective.version,2);assert.equal(effective.legacy,false);
    for(const action of actions)assert.equal(effective.actions[action],selected.includes(action));
    for(const action of ['reveal','copy']){
@@ -430,6 +486,55 @@ try {
    const rawItem=member.readItem(directVault,object);
    if((mask&3)===3)assert.equal((await rawItem).versions[0].version,2);else await rejected(rawItem,'permission_denied');
    assert.equal((await member.viewVault(directVault)).versions.length,1,'view supplies only current ciphertext');
+   for(const action of ['read','export']){
+    const sharedRead=memberSharing.read(delegatedShare.share,object,action);
+    if((mask&3)===3)assert.equal((await sharedRead).value.fields[0].value,directSecrets[index]);
+    else await rejected(sharedRead,'share_unavailable');
+   }
+   if((mask&3)===3)await outside.preview();
+   else {
+    const views=(await productDb.prepare('SELECT views FROM lky_links WHERE id=?').bind(directLink.link).first()).views;
+    await rejected(outside.preview(),'link_unavailable');
+    await rejected(outside.request('open',openedInput),'link_unavailable');
+    await rejected(member.call('sharing/grant',capturedSharing),'permission_denied');
+    await rejected(member.call('sharing/link/create',capturedLink),'permission_denied');
+    assert.equal((await productDb.prepare('SELECT views FROM lky_links WHERE id=?').bind(directLink.link).first()).views,views);
+   }
+   const machineRead=MachineClient.read(directMachine,directMachineGrant,directRuntimeKey,{fetcher:fetchProduct});
+   if((mask&3)===3)assert.equal((await machineRead).fields[0].value,directSecrets[index]);
+   else {
+    await rejected(machineRead,'machine_authority_expired');
+    await rejected(member.call('machine/grant',capturedMachine),'permission_denied');
+   }
+   if(projectedGrant){
+    if((mask&3)===3)assert.equal((await projectedRead()).credential,directSecrets[index]);
+    else {
+     await rejected(projectedRead(),'machine_authority_expired');
+     await rejected(member.call('runtime/grant',projectedInput),'permission_denied');
+    }
+   }
+
+
+  }
+  const validDirect=(await productDb.prepare('SELECT capability FROM lky_vault_capabilities WHERE vault_id=? AND account_id=?').bind(directVault,member.profile.account).first()).capability;
+  try{
+   for(const bad of [legacyShare.capability,{...JSON.parse(validDirect),signature:encode(random(64))}]){
+    await productDb.prepare('UPDATE lky_vault_capabilities SET capability=? WHERE vault_id=? AND account_id=?').bind(JSON.stringify(bad),directVault,member.profile.account).run();
+    await rejected(memberSharing.read(delegatedShare.share,object),'share_unavailable');
+    await rejected(outside.preview(),'link_unavailable');
+    await rejected(MachineClient.read(directMachine,directMachineGrant,directRuntimeKey,{fetcher:fetchProduct}),'machine_authority_expired');
+    if(projectedGrant)await rejected(projectedRead(),'machine_authority_expired');
+   }
+  }finally{await productDb.prepare('UPDATE lky_vault_capabilities SET capability=? WHERE vault_id=? AND account_id=?').bind(validDirect,directVault,member.profile.account).run()}
+  if(kind==='company'){
+   await owner.put(directVault,{...item,title:'Direct rights newer revision'},object);
+   await owner.share(directVault,member.profile.account,fingerprint,['read','export','share','reveal','copy'],{version:2});
+   assert.equal((await member.readItem(directVault,object)).versions[0].version,3);
+   await rejected(memberSharing.read(delegatedShare.share,object),'share_unavailable');
+   await rejected(outside.preview(),'link_unavailable');
+   await owner.share(directVault,member.profile.account,fingerprint,['read','export','share','reveal','copy','history'],{version:2});
+   assert.equal((await memberSharing.read(delegatedShare.share,object)).version,2);
+   await outside.preview();
   }
   // Capture a real signed input, then exercise forged, replayed and foreign
   // grants at the public door. Refusals leave the live rights unchanged.
@@ -456,6 +561,7 @@ try {
   // Keep an explicitly versioned grant and data for the real Base restore below.
   await owner.share(directVault,member.profile.account,fingerprint,['read','history'],{version:2});
  }
+ await directOwnerSharing.setPolicy({externalEnabled:savedSharingPolicy.externalEnabled,domains:savedSharingPolicy.domains,defaultDays:savedSharingPolicy.defaultDays,maxDays:savedSharingPolicy.maxDays});
  // The compatibility SDK door is explicitly versioned and visibly legacy.
  const legacy=(await owner.createVault()).vault;await owner.share(legacy,member.profile.account,fingerprint,['read'],{version:1});
  assert.equal((await member.call('vault' + '/rights',{vault:legacy})).legacy,true);
@@ -486,11 +592,19 @@ try {
  for(const [command,extra] of [['item-field',{field:'password',action:'reveal'}],['item-history',{}],['read',{}],['export',{exportKey:archiveKey}]]){
   const deniedFile=join(cliDirectory,`direct-denied-${command}.json`);assert.equal((await runCli(command,{...cliInput,...extra,output:deniedFile},1)).error,'permission_denied');await assert.rejects(stat(deniedFile),{code:'ENOENT'});
  }
+ await owner.share(cliVault,member.profile.account,fingerprint,['read','reveal'],{version:2});
+ const revealOutput=join(cliDirectory,'direct-reveal.json');await runCli('item-field',{...cliInput,field:'password',action:'reveal',output:revealOutput});assert.equal(JSON.parse(await readFile(revealOutput,'utf8')).value,directSecrets[0]);
+ const deniedCopy=join(cliDirectory,'direct-reveal-only-copy.json');assert.equal((await runCli('item-field',{...cliInput,field:'password',action:'copy',output:deniedCopy},1)).error,'permission_denied');await assert.rejects(stat(deniedCopy),{code:'ENOENT'});
  await owner.share(cliVault,member.profile.account,fingerprint,['read','history'],{version:2});
- const historyOutput=join(cliDirectory,'direct-history.json');await runCli('item-history',{...cliInput,output:historyOutput});assert.equal(JSON.parse(await readFile(historyOutput,'utf8')).length,2);
+ const historyOutput=join(cliDirectory,'direct-history.json');await runCli('item-history',{...cliInput,output:historyOutput});assert.equal(JSON.parse(await readFile(historyOutput,'utf8')).length,3);
+ for(const action of ['reveal','copy']){
+  const denied=join(cliDirectory,`direct-history-only-${action}.json`);
+  assert.equal((await runCli('item-field',{...cliInput,field:'password',action,output:denied},1)).error,'permission_denied');await assert.rejects(stat(denied),{code:'ENOENT'});
+ }
+
  cliPrivateValues.push(...directSecrets);
  const auditFacts=JSON.stringify(await auditApi('POST','/activity/query',{filters:{},after:0,limit:200}));for(const secret of directSecrets)assert.ok(!auditFacts.includes(secret));
- console.log('Independent direct rights: company and private-work matrices, current-only view, raw read and export bypass refusal, REST and CLI, signed stale and forged capability refusal, revocation, rotation version preservation, erasure replay fences and secret-free audit passed');
+ console.log('Independent direct rights: company and private-work matrices, current-only view, read-required export, raw read and delegated machine bypass refusal, REST and CLI, signed stale and forged capability refusal, revocation, rotation version preservation, erasure replay fences and secret-free audit passed');
 
   const invite = await post('/auth/invite', { email: 'synthetic-latchkey-26@example.test', displayName: 'Synthetic CLI member', role: 'member' }, owner.cookie)
   assert.equal(invite.status, 202)
@@ -670,6 +784,12 @@ try {
   await other.unlock(otherAccount.profile, 'synthetic-latchkey-20')
   assert.notEqual(otherAccount.profile.tenant, recovered.profile.tenant)
   await rejected(other.readVault(vault), 'not_found')
+  for(const directVault of directVaults){
+   await rejected(other.call('vault' + '/rights',{vault:directVault}),'not_found');
+   await rejected(other.call('item/read',{vault:directVault,object:objects[0],history:false,action:'copy'}),'not_found');
+   await rejected(other.previewRights(directVault,other.profile.account,await other.identity().fingerprint,['read','copy']),'not_found');
+  }
+
   const otherVault = (await other.createVault()).vault, otherObject = (await other.put(otherVault, values[0])).object
   const transplanted = JSON.parse(original.envelope)
   transplanted.context = { ...transplanted.context, tenant: otherAccount.profile.tenant, vault: otherVault, object: otherObject, epoch: 1, version: 1 }

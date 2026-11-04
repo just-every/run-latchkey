@@ -130,12 +130,15 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
    const hash = await digest(string(request.headers.get('x-latchkey-grant'), 100))
    const machine = await first(`SELECT m.*,a.tenant FROM lky_machines m JOIN lky_accounts a ON a.id=m.account_id JOIN oa_operators o ON o.id=a.operator_id JOIN lky_devices d ON d.id=m.device_id JOIN lky_vaults v ON v.id=m.vault_id JOIN lky_recipients r ON r.vault_id=v.id AND r.account_id=a.id WHERE m.id=? AND m.token_hash=? AND m.revoked_at IS NULL AND m.expires_at>? AND m.generation=a.generation AND m.operator_version=o.version AND o.status='active' AND d.account_id=a.id AND d.generation=a.generation AND d.revoked_at IS NULL AND v.tenant=a.tenant AND v.epoch=m.epoch AND EXISTS(SELECT 1 FROM json_each(r.rights) WHERE value='read') AND EXISTS(SELECT 1 FROM json_each(r.rights) WHERE value='share')`, identifier(input.machine), hash, now)
    if (!machine) refuse('machine_authority_expired', 401)
+   const source = await first('SELECT * FROM lky_vaults WHERE id=?', machine.vault_id)
+   const permissions = await currentDirectRights(db, source!, machine.account_id)
+   if (!permissions.actions.reveal || !permissions.actions.copy) refuse('machine_authority_expired', 401)
    await activeItem({db},machine.vault_id,machine.object_id)
    const nonce = identifier(request.headers.get('x-latchkey-nonce')), time = string(request.headers.get('x-latchkey-time'), 20)
    if (!/^\d+$/.test(time) || Math.abs(now - Number(time)) > 60000) refuse('request_expired', 401)
    if (!await verify(machine.public_key, string(request.headers.get('x-latchkey-signature')), signingText(meta?.signatureMethod??'POST', meta?.signaturePath??url.pathname, string(request.headers.get('x-latchkey-grant'), 100), nonce, time, await digest(raw)))) refuse('invalid_signature', 403)
    if (!await first('INSERT INTO lky_nonces VALUES(?,?,?) ON CONFLICT DO NOTHING RETURNING nonce', hash, nonce, machine.expires_at)) refuse('request_replayed', 409)
-   const value = await first('SELECT version,envelope FROM lky_versions WHERE vault_id=? AND object_id=? ORDER BY version DESC LIMIT 1', machine.vault_id, machine.object_id)
+   const value = await first('SELECT version,envelope FROM lky_versions WHERE vault_id=? AND object_id=? AND EXISTS(SELECT 1 FROM lky_vaults WHERE id=? AND revision=? AND epoch=?) ORDER BY version DESC LIMIT 1', machine.vault_id, machine.object_id, source!.id, source!.revision, source!.epoch)
    if (!value) refuse('not_found', 404)
    await event(machine.account_id, machine.id, 'runtime_read', machine.object_id).run()
    return response({ tenant: machine.tenant, vault: machine.vault_id, object: machine.object_id, epoch: machine.epoch, version: value.version, envelope: JSON.parse(value.envelope), wrapped: JSON.parse(machine.wrapped_key) })
@@ -380,7 +383,7 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
   if (!vault) refuse('not_found', 404)
   const permissions = await currentDirectRights(db, vault, actor)
   const has = (right: string) => { if (!permissions.rights.includes(right)) refuse('permission_denied', 403) }
-  const requireRawRights = () => { has('reveal'); has('copy'); has('history') }
+  const requireRawRights = () => { has('read'); has('reveal'); has('copy'); has('history') }
   if (route === 'vault' + '/rights') { exact(input, ['vault']); has('read'); return response({ vault: vault.id, revision: vault.revision, kind: vault.kind, owner: vault.owner, ...permissions }) }
   if (route === ['vault','rights','preview'].join('/')) {
    exact(input, ['vault','account','fingerprint','rights']);
@@ -424,7 +427,7 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
    return response({ vault: vault.id, tenant, epoch: vault.epoch, revision: vault.revision, owner: vault.owner, wrapped: JSON.parse(vault.wrapped_key), permissions, versions: await all(route==='vault' + '/view' ? 'SELECT object_id,version,envelope FROM lky_versions v WHERE vault_id=? AND version=(SELECT MAX(version) FROM lky_versions latest WHERE latest.vault_id=v.vault_id AND latest.object_id=v.object_id) ORDER BY object_id' : 'SELECT object_id,version,envelope FROM lky_versions WHERE vault_id=? ORDER BY object_id,version', vault.id), erased: (await all('SELECT proof FROM lky_erased_items WHERE vault_id=?', vault.id)).map(row => JSON.parse(row.proof)), recipients: (JSON.parse(vault.rights) as string[]).includes('share') ? await all('SELECT r.account_id,r.rights,a.generation,a.recipient_key,a.authority_key,c.capability FROM lky_recipients r JOIN lky_accounts a ON a.id=r.account_id LEFT JOIN lky_vault_capabilities c ON c.vault_id=r.vault_id AND c.account_id=r.account_id WHERE r.vault_id=?', vault.id) : [] })
   }
   if (route === 'machine/grant') {
-   exact(input, ['vault', 'object', 'machine', 'deviceKey', 'recipientKey', 'fingerprint', 'wrapped', 'tokenHash', 'expiresInSeconds']); has('read'); has('share')
+   exact(input, ['vault', 'object', 'machine', 'deviceKey', 'recipientKey', 'fingerprint', 'wrapped', 'tokenHash', 'expiresInSeconds']); has('read'); has('share'); has('reveal'); has('copy')
    await activeItem({db},vault.id,input.object)
    const object = identifier(input.object), machine = identifier(input.machine), ttl = integer(input.expiresInSeconds)
    if (ttl > 3600) refuse('invalid_expiry')

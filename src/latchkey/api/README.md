@@ -134,7 +134,12 @@ The versions endpoint separately requires `history`. Raw current item reads
 require both reveal and copy; raw whole-vault reads and exports also require
 history, and exports still require export permission. Attachment downloads require
 copy. Version-two fill through the generic field door requires all three actions;
-independent fill modes remain separate unfinished work. Current-view ciphertext
+independent fill modes remain separate unfinished work. Original and projected
+machine grants and delegated sharing also require the source member's current
+reveal and copy actions before issuing raw values. Removing either action stops
+those online reads and new delegations. A delegated older item version also
+requires current history permission at its source. Revoking an existing share or link remains
+available. Current-view ciphertext
 is available to a reader for local rendering and search; it is not a raw-history
 or export grant. None of these application controls cryptographically conceals
 plaintext from a recipient already holding ciphertext and its local decryption
