@@ -232,7 +232,7 @@ export async function selectedExitJourney(output = process.env.LATCHKEY_SCREENSH
   const audit = await keeper.call(['audit', 'list'].join('/'), { filters: {}, after: 0, limit: 200 });
   const leakText = JSON.stringify({ requests, importRequests, audit, runtime: [...f.runtimeLogs, ...destination.runtimeLogs] });
   for (const secret of ['synthetic-latchkey-8171', 'synthetic-latchkey-8172', 'synthetic-latchkey-8173', 'synthetic-latchkey-8174', 'synthetic-latchkey-8175', 'synthetic-latchkey-8176', 'synthetic-latchkey-8177', 'synthetic-latchkey-8178', exportKey, attachment.name]) assert.ok(!leakText.includes(secret), 'export material leaked to service requests or audit');
-  console.log('PROBE LKY-017 authority and leakage: real non-owner export/import and final device revocation -> refusal without download; file, key, review and secret values absent from requests and audit');
+  console.log('PROBE LKY-017 authority and leakage: real non-owner export and import and final device revocation -> refusal without download; file, key, review and secret values absent from requests and audit');
   console.log('PASS selectedExitJourney: source and destination browser flow at 1440; changed screens and overflow smoke at 390');
  } finally { keeper?.lock(); importDevice?.lock(); reader?.client.lock(); destinationReader?.client.lock(); await importContext?.close(); await reader?.context.close(); await destinationReader?.context.close(); await destination.close(); await f.close(); }
 }
