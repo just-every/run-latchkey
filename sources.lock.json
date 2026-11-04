@@ -558,7 +558,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "33ed062b293cbf9eeb5c25fda38bd296bec1178c5c931c8ed54f0b0955844d70",
+      "sha256": "f1ef1a5de320f88a0d6dea0ac5ed6f6b3d9737079be72401169163fa41778954",
       "executable": false
     },
     "deploy-demo.json": {
@@ -3250,7 +3250,7 @@
       "executable": false
     },
     "src/latchkey/ui/types.ts": {
-      "sha256": "e87e24095c0433261a3dfd8e5a0db3b625eba9bca33e1e83cf2fd65acf3f58ed",
+      "sha256": "3b9ff5f2c29eee5c20c4395631a0354bfb604900e5851a4d85967a5a410706b2",
       "executable": false
     },
     "src/latchkey/ui/unlock.tsx": {
@@ -3258,7 +3258,7 @@
       "executable": false
     },
     "src/latchkey/ui/vault.tsx": {
-      "sha256": "8feae7a21e0518c6f7a4e45ff7a5864917913c789eb41fd43251a5b44d0e7f89",
+      "sha256": "1fca5ea34ee344fb32b7abde6691d50d79b7a2b2efa5bcdcb897157d50f556c8",
       "executable": false
     },
     "src/mail.server.d.mts": {
@@ -4970,7 +4970,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "46f8699180e37b1574e4432830e948b09e71c142819cfe80ab364c7da4b60d2d",
+      "sha256": "4b571abd70066c50c2f8193235cf201e85385a93ff10a4e40ce4143d6d9a04ba",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
