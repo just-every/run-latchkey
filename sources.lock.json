@@ -558,7 +558,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "f1ef1a5de320f88a0d6dea0ac5ed6f6b3d9737079be72401169163fa41778954",
+      "sha256": "b7f1a8a894b7ccff2a3dda6e7ce6fb447b06e6541188f0139db540dce908c669",
       "executable": false
     },
     "deploy-demo.json": {
@@ -3274,7 +3274,7 @@
       "executable": false
     },
     "src/latchkey/ui/vault.tsx": {
-      "sha256": "1fca5ea34ee344fb32b7abde6691d50d79b7a2b2efa5bcdcb897157d50f556c8",
+      "sha256": "04c108d7c3f2a4e8e0e7618f7f9c027e15992260ddf682b703a5ece10b18e473",
       "executable": false
     },
     "src/mail.server.d.mts": {
