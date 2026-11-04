@@ -116,13 +116,27 @@ export class SelectionExportClient {
     prepared.push({source:source.vault,vault,kind:source.kind,wrapped:await this.client.wrap(key,this.client.profile.recipientKey,{tenant:this.client.profile.tenant,vault,object:this.client.profile.account,purpose:'vault-key',epoch:1,version:1}),versions,lifecycle:(source.lifecycle??[]).map(row=>({...row,retentionActive:false})).sort((a,b)=>a.object.localeCompare(b.object))});
    }finally{key.fill(0)}
   }
-  await this.client.call(selectionRoutes.import,{sourceTenant:value.plan.source.tenant,planHash:value.planHash,vaults:prepared,confirmed:true});
+  let interrupted=false;
+  try{await this.client.call(selectionRoutes.import,{sourceTenant:value.plan.source.tenant,planHash:value.planHash,vaults:prepared,confirmed:true})}
+  catch(cause){
+   // A transport failure cannot establish whether the atomic write committed.
+   // Inspect these exact prepared destinations; never submit a second import.
+   if(cause instanceof ClientError&&cause.status>=400&&cause.status<500)throw cause;
+   interrupted=true;
+  }
   const restored=[];
+  try{
+  const visible=await this.client.call('vaults',{});
+  need(visible.length===prepared.length&&prepared.every(row=>visible.some(vault=>vault.id===row.vault&&vault.owner===this.client.profile.account&&vault.kind===row.kind)),'export_reconciliation_failed');
   for(const [index,source] of value.vaults.entries()){
    const destination=prepared[index].vault,actual=await this.client.readVault(destination),lifecycle=(await this.client.call(['lifecycle','list'].join('/'),{vault:destination})).items;
    need(await digest(canonicalJson(actual.versions))===await digest(canonicalJson(source.versions))&&canonicalJson(lifecycle)===canonicalJson(prepared[index].lifecycle),'export_reconciliation_failed');
    restored.push({source:source.vault,destination,counts:source.counts,historyGaps:source.historyGaps??[],lifecycle,contentHash:await digest(canonicalJson(actual.versions)),access:'New destination owner only; source grants and active authority were not imported.'});
   }
-  return {complete:true,restored,omissions:value.plan.omissions,laterErasure:'An old file without a later erasure journal cannot establish subsequent erasure.'};
+  }catch(cause){
+   if((cause instanceof ClientError&&['device_revoked','authority_expired','account_key_changed','locked'].includes(cause.code))||cause?.status===401)throw cause;
+   throw new ClientError('selected_import_unverified');
+  }
+  return {complete:true,interrupted,restored,omissions:value.plan.omissions,laterErasure:'An old file without a later erasure journal cannot establish subsequent erasure.'};
  }
 }

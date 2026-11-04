@@ -195,7 +195,14 @@ export async function ownerRunExitJourney() {
    const token=new URL(historyDestination.mail.at(-1).content.find(part=>part.type===['text','plain'].join('/')).value.match(/https:\/\/[^\s<>]+/)[0]).searchParams.get('token');
    const destinationMember=new VaultClient(historyDestination.origin,{fetcher:historyDestination.fetcher});await destinationMember.confirmIdentity(token);const memberEnrollment=await destinationMember.register('synthetic-latchkey-8045');await destinationMember.unlock(memberEnrollment.profile,'synthetic-latchkey-8045');
    await assert.rejects(new SelectionExportClient(destinationMember).reimport(sparse,null,{confirmed:true,approvedPlanHash:sparse.planHash}),error=>error.code==='destination_owner_required');assert.deepEqual(await historyDestination.owner.call('vaults',{}),[]);
-   const restored=await importer.reimport(sparse,null,{confirmed:true,approvedPlanHash:sparse.planHash});assert.equal(restored.restored.length,4);
+   let importAttempts=0;
+   historyDestination.owner.call=async(name,input)=>{if(name===selectionRoutes.import){importAttempts++;throw new TypeError('Synthetic transport interruption')}return call(name,input)};
+   try{await assert.rejects(importer.reimport(sparse,null,{confirmed:true,approvedPlanHash:sparse.planHash}),error=>error.code==='selected_import_unverified');assert.equal(importAttempts,1);assert.deepEqual(await call('vaults',{}),[])}finally{historyDestination.owner.call=call}
+   historyDestination.owner.call=async(name,input)=>{const result=await call(name,input);if(name===selectionRoutes.import){importAttempts++;throw new TypeError('Synthetic response interruption')}return result};
+   let restored;
+   try{restored=await importer.reimport(sparse,null,{confirmed:true,approvedPlanHash:sparse.planHash})}finally{historyDestination.owner.call=call}
+   assert.equal(restored.interrupted,true);assert.equal(restored.restored.length,4);assert.equal(importAttempts,2);
+   console.log('PROBE LKY-017 interrupted import: failed transport before commit -> unknown outcome and no writes; lost response after atomic commit -> four exact destinations reconciled without retry');
    for(const source of sparse.vaults){const target=restored.restored.find(row=>row.source===source.vault);assert.deepEqual((await historyDestination.owner.readVault(target.destination)).versions,source.versions);assert.deepEqual((await historyDestination.owner.call(route('lifecycle','list'),{vault:target.destination})).items,source.lifecycle.map(row=>({...row,retentionActive:false})));assert.deepEqual(await historyDestination.owner.call(selectionRoutes.policy,{vault:target.destination}),{revision:0,allowPlaintext:false});}
    const history=restored.restored.find(row=>row.source===lifecycleVault);
    await historyDestination.schedule(Math.max(...source.lifecycle.map(row=>row.expiresAt??0))+86400000);
