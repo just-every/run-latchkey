@@ -51,8 +51,9 @@ export class SelectionExportClient {
   const statement={tenant:this.client.profile.tenant,vault,owner:this.client.profile.account,revision:current.revision+1,allowPlaintext};
   return this.client.call(selectionRoutes.setPolicy,{vault,statement,signature:await sign(this.client.bundle.root.authority.privateKey,exportPolicyText(statement)),confirmed:true});
  }
- async export(preview,exportKey,{confirmed=false,approvedPlanHash,format='encrypted'}={}){
+ async export(preview,exportKey,{confirmed=false,approvedPlanHash,format='encrypted',signal}={}){
   this.pendingRelease=null;
+  need(!signal?.aborted,'export_cancelled');
   need(format===preview?.plan?.format,'export_format_changed');
   need(confirmed===true&&approvedPlanHash===preview?.planHash,'exact_export_approval_required');
   need(preview.plan.review,'export_plan_changed');
@@ -62,6 +63,7 @@ export class SelectionExportClient {
   for(const row of fresh.plan.selection){
    const statement={tenant:this.client.profile.tenant,vault:row.vault,owner:this.client.profile.account,vaultRevision:row.revision,policyRevision:row.policyRevision,format,planHash:approvedPlanHash,counts:row.counts,expiresAt};
    const approval={vault:row.vault,statement,signature:await sign(this.client.bundle.root.authority.privateKey,selectionApprovalText(statement)),confirmed:true};
+   need(!signal?.aborted,'export_cancelled');
    await this.client.call(selectionRoutes.authorize,approval);approvals.push(approval);
   }
   const key=format==='encrypted'?decode(exportKey,32):null;need(!key||key.length===32,'invalid_key');
@@ -70,6 +72,7 @@ export class SelectionExportClient {
    const serialized=bytes(value);need(serialized.length<=1048560,'selected_export_size_limit');
    const archive=format==='plaintext'?value:await seal(key,serialized,{tenant:'portable',vault:'selection',object:id(),purpose:'selected-export',epoch:1,version:1});
    // Recheck every selected vault together after encryption, at the release boundary.
+   need(!signal?.aborted,'export_cancelled');
    await this.client.call(selectionRoutes.release,{approvals});
    this.pendingRelease={approvals};
    return archive;

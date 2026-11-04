@@ -154,6 +154,16 @@ export async function ownerRunExitJourney() {
    assert.deepEqual(outcomes.entries.filter(row=>row.result==='succeeded').map(row=>row.clientOutcome),['private_file_written','private_file_write_failed','private_file_written']);
    for(const row of outcomes.entries){assert.match(row.exportOutcome,/Client-reported/);assert.ok(row.exports[0].planHash);assert.ok(!JSON.stringify(row).includes(archive));}
    await assert.rejects(owner.call(selectionRoutes.outcome,{approvals:[],outcome:'synthetic-latchkey-8046'}),error=>error.code==='invalid_export_outcome');
+   const browserPreview=await selected.preview([{vault,objects:[login]}]);
+   await selected.export(browserPreview,exportKey,{confirmed:true,approvedPlanHash:browserPreview.planHash});
+   await selected.reportOutcome('browser_download_initiated');await selected.reportOutcome('browser_download_failed');
+   const browserOutcomes=await owner.call(route('audit','list'),{filters:{action:'selection_outcome'},after:0,limit:200});
+   assert.deepEqual(browserOutcomes.entries.filter(row=>row.result==='succeeded'&&row.clientOutcome?.startsWith('browser_')).map(row=>row.clientOutcome),['browser_download_initiated','browser_download_failed']);
+   for(const row of browserOutcomes.entries.filter(row=>row.result==='succeeded'&&row.clientOutcome?.startsWith('browser_'))){assert.match(row.exportOutcome,/Client-reported/);assert.match(row.exportOutcome,/not verified/);assert.ok(!JSON.stringify(row).includes(exportKey));}
+   const controller=new AbortController(),call=owner.call.bind(owner);let releaseCalls=0;
+   owner.call=async(name,input)=>{if(name===selectionRoutes.release)releaseCalls++;const result=await call(name,input);if(name===selectionRoutes.authorize)controller.abort();return result};
+   try{await assert.rejects(selected.export(browserPreview,exportKey,{confirmed:true,approvedPlanHash:browserPreview.planHash,signal:controller.signal}),error=>error.code==='export_cancelled');assert.equal(releaseCalls,0);}finally{owner.call=call}
+
    await selected.setPlaintextPolicy(vault,false,{confirmed:true});
    assert.deepEqual((await readdir(cliDirectory)).filter(name=>name.endsWith('.partial')),[]);assert.deepEqual(JSON.parse(await readFile(output,'utf8')).vaults[0].versions,expected.filter(row=>row.object===login));
   }finally{await rm(cliDirectory,{recursive:true,force:true})}

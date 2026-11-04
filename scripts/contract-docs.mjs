@@ -24,8 +24,10 @@ for(const id of ids){
  const cells=lines[clause.row-1].split(/(?<!\\)\|/).slice(1,-1).map(cell=>cell.trim());
  const entries=acceptance.split('\n'),index=entries.findIndex(line=>line.startsWith(`- **${id} — `));
  if(index<0)throw Error('acceptance journey missing: '+id);
- const evidence=entries[index].indexOf(' Evidence: '),remaining=entries[index].indexOf(' Remaining scope: ');
- const marker=evidence>=0?evidence:remaining;
+ // Older clause journeys use Proven and Remaining for these same boundaries.
+ // Keep their acceptance text while deriving evidence and gaps from CONTRACT.md.
+ const boundaries=[' Evidence: ',' Remaining scope: ',' Proven: ',' Remaining: '].map(value=>entries[index].indexOf(value)).filter(value=>value>=0);
+ const marker=boundaries.length?Math.min(...boundaries):-1;
  if(marker<0)throw Error('acceptance evidence boundary missing: '+id);
  const journey=entries[index].slice(0,marker).replace(/Status: (?:done|partial|missing)\.\*\*/,`Status: ${clause.status}.**`);
  entries[index]=`${journey} Evidence: ${cells[4]} Gap: ${cells[5]}`;

@@ -39,6 +39,7 @@
         "node tests/browser/reviews.mjs",
         "node tests/latchkey-rules.mjs",
         "node tests/latchkey-exit.mjs",
+        "perl -e 'alarm 1200; exec @ARGV' -- node tests/browser/exit.mjs",
         "node tests/browser/rules.mjs",
         "node --test tests/latchkey-records.test.mjs tests/latchkey-local-records.test.mjs"
       ]

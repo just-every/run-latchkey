@@ -79,3 +79,37 @@ independent delivery or custody of external copies. Output includes
 `auditRecorded`; false means the file was written but the audit report could
 not be confirmed. Offline opening makes no network request and records no
 connected file-outcome report. Interrupted reporting is not durably resumable.
+
+## Browser encrypted selection
+
+Unlock the source at `/app/vault`, then open **Settings → Export and import**.
+Choose whole owned vaults or individual records, including inactive records.
+Review the exact encrypted plan: purpose, intended target, copy custody, source
+and policy revisions, included counts, omitted item references and uninspected
+vaults. Company completeness remains false and inaccessible company totals stay
+unknown. Preview and Cancel do not authorize release or write destination data.
+
+Generate and save a buyer key, or load an independently retained 32-byte
+base64url key file. Retain it separately from the encrypted selection and confirm
+that custody explicitly. The final confirmation applies only to the displayed
+plan. Download rechecks live source, owner and policy authority through
+`SelectionExportClient`; stale review or revoked authority requires a new review.
+The existing one-megabyte envelope limit still applies. The browser reports only
+`browser_download_initiated` or `browser_download_failed` as client-reported
+outcomes after successful release. Neither event verifies saving or delivery.
+Interrupted outcome reporting and independently verified delivery remain unproved.
+
+At a fresh destination, enroll its owner and unlock `/app/vault`. Open the same
+Settings action even when there are no vaults. Choose **Import selection**, load
+the encrypted JSON and the separately retained key, and open locally. Review its
+exact counts and omissions, then separately confirm import into fresh owner-only
+vaults. Wrong keys, tampering, a source installation, a nonempty destination and
+non-owner authority refuse. The existing atomic importer verifies every included
+version and attachment digest, preserves lifecycle observations with retention
+inactive, and denies plaintext by default. Source grants and active installation
+authority never travel. An old file cannot prove later erasure.
+
+Key and file contents stay in unlocked browser memory; no key, filename, purpose,
+intended target or secret value is sent to audit. Cancel and leaving this panel
+clear its retained form state. Browser plaintext ceremonies, full installation
+recovery, external-copy cleanup and recall are not supplied by this screen.
