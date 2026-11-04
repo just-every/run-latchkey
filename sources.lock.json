@@ -558,7 +558,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "33ed062b293cbf9eeb5c25fda38bd296bec1178c5c931c8ed54f0b0955844d70",
+      "sha256": "b183a2212013cfcd8b25e9a6846f3b4b6ec22af75d6d4301e1929fab1b1c5a11",
       "executable": false
     },
     "deploy-demo.json": {
@@ -614,7 +614,7 @@
       "executable": false
     },
     "docs/migration/bitwarden-and-lastpass.md": {
-      "sha256": "c45ccca2f866182f08bbc90e26d9a9ab042afc1ab20d139a86edd3db534df568",
+      "sha256": "e5bad3cfd4da0622834e4d718a61213f10fe02c4a6fb04dd5b9da46901ed7938",
       "executable": false
     },
     "docs/migration/passbolt.md": {
@@ -1810,7 +1810,7 @@
       "executable": false
     },
     "scripts/latchkey/migration-commands.mjs": {
-      "sha256": "6c0c2ef181160dd06b78ba4acedcbc9d5e77a30f5bf67681c509e1d7a9c80920",
+      "sha256": "489bc9a57eaf64339d9aa08da52c0f734ca39ced4af00bd2bd43c743556894fc",
       "executable": false
     },
     "scripts/latchkey/msp-commands.mjs": {
@@ -2698,7 +2698,7 @@
       "executable": false
     },
     "src/latchkey/migration/core.mjs": {
-      "sha256": "ab10a008df25d4b5ac1496127727e7b3111d7ab508ad2e160b38dd1d0d08af1e",
+      "sha256": "3dcf1e8e95eecb7073421c44933d1a8b0bf5c23174c39c8d4c80f31af334a8c2",
       "executable": false
     },
     "src/latchkey/migration/passbolt-csv.mjs": {
@@ -2707,6 +2707,18 @@
     },
     "src/latchkey/migration/passbolt.mjs": {
       "sha256": "3b545a79af93a0df488f7d160fc657e6ed3eafd6e79afd104a3fd3e50027784c",
+      "executable": false
+    },
+    "src/latchkey/migration/plan.d.mts": {
+      "sha256": "e355e7056f33f92f75c629f3b71117d6297dd3d828014b4519596e108b9472bb",
+      "executable": false
+    },
+    "src/latchkey/migration/plan.mjs": {
+      "sha256": "eb4d424f4fa72a3aed55e057bd0e93965f7cceba89a29b1fd61ed5591932464b",
+      "executable": false
+    },
+    "src/latchkey/migration/ui.tsx": {
+      "sha256": "4eda1f7cf0fd437e29f8b8b80a0292b5a9cd25970964349a8813c4b34f951ca3",
       "executable": false
     },
     "src/latchkey/msp/client.d.mts": {
@@ -3258,7 +3270,7 @@
       "executable": false
     },
     "src/latchkey/ui/vault.tsx": {
-      "sha256": "8feae7a21e0518c6f7a4e45ff7a5864917913c789eb41fd43251a5b44d0e7f89",
+      "sha256": "45b94d0fa80773662c890c63937fdd9af8a7664bbe1d0f74f6608762d0923a41",
       "executable": false
     },
     "src/mail.server.d.mts": {
@@ -4818,7 +4830,7 @@
       "executable": false
     },
     "tests/browser/passbolt.mjs": {
-      "sha256": "242f2dfafca13f868f1b8ab4e10936813b227f366ff12a90033aab325957e0e2",
+      "sha256": "e5171387e393a4cdf3d40139372837f44b9e3b227904cd988172c2942ce23432",
       "executable": false
     },
     "tests/browser/projects.mjs": {
@@ -4930,7 +4942,7 @@
       "executable": false
     },
     "tests/latchkey-records.test.mjs": {
-      "sha256": "379fb4349b28980f0df597464c34596764c34bdbbe5f3e7c80f0bedae1638947",
+      "sha256": "2eb1b9bfc7724699b40bf678dafc1ac7bc74d97281335c31821843fb0a84f8ce",
       "executable": false
     },
     "tests/latchkey-recovery.mjs": {
