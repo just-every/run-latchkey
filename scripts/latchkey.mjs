@@ -209,7 +209,9 @@ try {
    case 'put': result = await client.put(input.vault, input.value, input.object); break;
    case 'read': { const value = await client.readVault(input.vault); await writePrivate(input.output, value); result = { written: true, versions: value.versions.length }; break; }
    case 'trust': result = await client.pinAccount(input.account, input.fingerprint); break;
-   case 'share': result = await client.share(input.vault, input.account, input.fingerprint, input.rights); break;
+   case 'rights-preview': result = await client.previewRights(input.vault, input.account, input.fingerprint, input.rights); break;
+   case 'rights': result = await client.call('vault/rights', {vault:input.vault}); break;
+   case 'share': result = await client.share(input.vault, input.account, input.fingerprint, input.rights, {version:input.rightsVersion ?? 2, revision:input.revision}); break;
    case 'rotate': result = await client.rotate(input.vault, input.remove ?? null, input.confirmedKeys ?? {}); break;
    case 'export': { const archive = await client.exportVault(input.vault, input.exportKey); await writePrivate(input.output, archive); result = { written: true }; break; }
    case 'runtime-grant': { const grant = await client.grantMachine(input.vault, input.object, input.identity, input.fingerprint, input.expiresInSeconds); await writePrivate(input.output, grant); result = { machine: grant.machine, expires: grant.expires }; break; }
