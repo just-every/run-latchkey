@@ -34,6 +34,7 @@ async function invite(f){
 export async function offlineTotpJourney(){
  const f=await vaultFixture({browserEnabled:false}),directory=await mkdtemp(join(tmpdir(),'latchkey-offline-'));
  const outputs=[],logs=[],cacheKey=encode(random()),firstSecret='synthetic-latchkey-9602',latestSecret='synthetic-latchkey-9603';
+ const privateKeys=[f.owner.bundle.root.recipient.privateKey,f.owner.bundle.root.authority.privateKey,f.owner.bundle.signing.privateKey];
  let closed=false,sequence=0;
  const file=name=>join(directory,name+'.json');
  const store=async(path,value)=>writeFile(path,JSON.stringify(value),{mode:0o600});
@@ -48,9 +49,11 @@ export async function offlineTotpJourney(){
  }
  async function code(input,options={}){
   const output=file('output-'+sequence++);outputs.push(output);
-  await command('cache-totp',{...input,output},options);
+  const response=await command('cache-totp',{...input,output},options);
   assert.equal((await stat(output)).mode&0o777,0o600);
-  return JSON.parse(await readFile(output,'utf8'));
+  const result=JSON.parse(await readFile(output,'utf8'));
+  assert.ok(!response.out.includes(result.code)&&!response.err.includes(result.code));
+  return result;
  }
  async function refused(input,error){
   const output=file('refused-'+sequence++);
@@ -153,7 +156,7 @@ export async function offlineTotpJourney(){
   const invalidated=file('invalidated');await store(invalidated,{...identity,state:'invalidated'});await refused({...input,cache:invalidated},'offline_cache_invalidated');
   console.log('PROBE LKY-038 refusal and custody: legacy, ambiguous, unverifiable and invalidated caches, busy cache and missing, existing or conflicting output -> refused without overwrites');
   for(const value of[durable,...logs,...await Promise.all(outputs.map(path=>readFile(path,'utf8')))]){
-   for(const secret of[firstSecret,latestSecret,base32(firstSecret),base32(latestSecret),cacheKey,f.password,f.enrolled.profile.envelope?.ciphertext].filter(Boolean))assert.ok(!value.includes(secret));
+   for(const secret of[firstSecret,latestSecret,base32(firstSecret),base32(latestSecret),cacheKey,f.password,...privateKeys])assert.ok(!value.includes(secret));
   }
   console.log('PROBE LKY-038 secret custody: encrypted cache, stdout, stderr and private code files inspected -> no seeds, cache key or master password; code files mode 0600');
  }finally{if(!closed)await f.close();await rm(directory,{recursive:true,force:true})}
