@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { createRequire } from 'node:module';
 import { createPortability } from '@runeditrun/rer/modules/portability';
 import { recordsCommand } from '../scripts/latchkey/records-commands.mjs';
-import { encode, random, id, keypair, digest, wrapSigned, unwrapSigned } from '../src/latchkey/crypto/envelope.mjs';
+import { bytes, decode, encode, random, id, keypair, digest, wrapSigned, unwrapSigned } from '../src/latchkey/crypto/envelope.mjs';
 
 const fromWrangler = createRequire(import.meta.resolve('wrangler/package.json'));
 const { Miniflare, convertV4MiniflareOptions, Log, LogLevel } = fromWrangler('miniflare');
@@ -227,6 +227,13 @@ test('Passbolt CSV command preserves quoted multiline values and recovers omitte
   assert.equal(receipt.items, 2); assert.equal(receipt.blocked, 1);
   await passboltCommand('passbolt-review', { preview: output, previewKey, output: review, confirmed: true });
   const { plan } = JSON.parse(await readFile(review));
+  const { openMigrationPreview } = await import('../src/latchkey/migration/plan.mjs');
+  const encrypted = new Uint8Array(await readFile(output));
+  assert.deepEqual((await openMigrationPreview(encrypted, previewKey)).plan, plan);
+  await assert.rejects(openMigrationPreview(encrypted, encode(random())), /cannot_decrypt/);
+  const tampered = JSON.parse(new TextDecoder().decode(encrypted));
+  const ciphertext = decode(tampered.envelope.ciphertext); ciphertext[0] ^= 1; tampered.envelope.ciphertext = encode(ciphertext);
+  await assert.rejects(openMigrationPreview(bytes(tampered), previewKey), /cannot_decrypt/);
   assert.equal(plan.rows[0].item.fields.find(field => field.id === 'secretNote').value, 'synthetic-latchkey-1440\nsecond line, with "quotes"');
   assert.equal(plan.rows[0].item.fields.find(field => field.id === 'expiry').value, '2030-01-02T00:00:00.000Z');
   assert.equal((await totp(plan.rows[0].item.fields.find(field => field.id === 'totp').value, 59000)).code, '94287082');
@@ -384,6 +391,13 @@ test('LastPass 40-folder CSV preview reconciles duplicates and omissions without
   assert.equal(receipt.folders, 40); assert.deepEqual(receipt.counts, { source: 41, imported: 0, duplicate: 1, rejected: 40, ready: 0 });
   await migrationCommand('migration-review', { preview: output, previewKey, output: review, confirmed: true });
   const { plan } = JSON.parse(await readFile(review));
+  const { openMigrationPreview } = await import('../src/latchkey/migration/plan.mjs');
+  const encrypted = new Uint8Array(await readFile(output));
+  assert.deepEqual((await openMigrationPreview(encrypted, previewKey)).plan, plan);
+  await assert.rejects(openMigrationPreview(encrypted, encode(random())), /cannot_decrypt/);
+  const tampered = JSON.parse(new TextDecoder().decode(encrypted));
+  const ciphertext = decode(tampered.envelope.ciphertext); ciphertext[0] ^= 1; tampered.envelope.ciphertext = encode(ciphertext);
+  await assert.rejects(openMigrationPreview(bytes(tampered), previewKey), /cannot_decrypt/);
   assert.equal(plan.rows[0].item.fields.find(field => field.id === 'sourceNote').value, records[0].extra);
   assert.ok(plan.rows.filter(row => !row.duplicate).every(row => row.gaps.includes('shared_rights_and_owner_mapping_required')));
   assert.ok(plan.tasks.every(task => task.owner === base.sourceOwner && task.state === 'unresolved')); assert.equal(plan.cutoverComplete, false);
@@ -459,5 +473,15 @@ test('Migration personal batches resume and apply deltas without overwriting a d
   await assert.rejects(importMigration(f.owner, plan, input), { code: 'migration_destination_changed' });
   rows = await f.owner.readVault(vault); assert.equal(rows.versions.length, 3); assert.equal(rows.versions.find(row => row.version === 3).value.fields.find(field => field.id === 'password').value, 'synthetic-latchkey-1633');
   const audit = JSON.stringify(await f.owner.call('audit', {})); assert.ok(!audit.includes('synthetic-latchkey-1604')); assert.ok(!audit.includes('synthetic-latchkey-1633'));
+  const { validateMigrationPlan } = await import('../src/latchkey/migration/plan.mjs');
+  const inconsistent = structuredClone(plan); inconsistent.counts.ready++;
+  await assert.rejects(validateMigrationPlan(inconsistent), { code: 'invalid_migration_preview' });
+  const named = (await f.owner.createVault({ kind: 'family' })).vault;
+  await f.owner.put(named, { schema: 'latchkey/vault-meta/v1', title: 'synthetic-latchkey-1650' });
+  assert.equal((await importMigration(f.owner, plan, { ...input, vault: named })).imported, 1);
+  const imported = (await f.owner.readVault(named)).versions.find(row => row.value.migration);
+  await f.owner.eraseItem(named, imported.object, { confirmed: true });
+  await assert.rejects(importMigration(f.owner, plan, { ...input, vault: named }), { code: 'item_erased' });
+  assert.equal((await f.owner.readVault(named)).versions.filter(row => row.value.migration).length, 0);
  } finally { await f.close(); }
 });

@@ -1,6 +1,6 @@
 import Papa from 'papaparse';
 import { readBitwarden } from './bitwarden.mjs';
-import { bytes, digest, decode } from '../crypto/envelope.mjs';
+import { bytes, digest } from '../crypto/envelope.mjs';
 import { createItem } from '../items/types.mjs';
 import { check } from '../items/fields.mjs';
 import { parseTotpUri, validateTotp } from '../totp/index.mjs';
@@ -80,36 +80,4 @@ export async function previewMigration({ data, source, sourceOrigin, sourceOwner
  return { plan, hash: await digest(bytes(plan)) };
 }
 
-// Restricted initial import follows the owner-confirmed LKY-045 ruling.
-// Every row is checked before the first write; interruption leaves deterministic
-// source identities that a repeat can resume. Writes use the vault's CAS fence.
-export async function importMigration(client, plan, { approvedHash, vault, confirmed, ownership, sourceOwner }) {
- check(confirmed === true && ownership === 'personal' && sourceOwner === plan.sourceOwner, 'personal_import_confirmation_required');
- check(plan?.schema === 'latchkey-migration-preview-v1' && approvedHash === await digest(bytes(plan)), 'migration_approval_mismatch');
- check(plan.rows.length > 0 && plan.rows.every(row => row.duplicate || row.item && !row.gaps.length), 'migration_discrepancies_unresolved');
- check((await client.call('vaults', {})).find(row => row.id === vault)?.kind === 'family', 'personal_destination_required');
- const snapshot = await client.snapshot(vault);
- try {
-  check(snapshot.result.owner === client.profile.account && snapshot.result.recipients.length === 1 && snapshot.result.recipients[0].account_id === client.profile.account, 'private_destination_required');
-  const versions = await client.decodeVersions(snapshot), latest = new Map();
-  for (const row of versions) if (!latest.has(row.object) || latest.get(row.object).version < row.version) latest.set(row.object, row);
-  const namespace = [plan.source, plan.sourceOrigin, plan.sourceOwner];
-  check([...latest.values()].every(row => JSON.stringify(row.value.migration?.namespace) === JSON.stringify(namespace)), 'empty_destination_required');
-  const writes = []; let unchanged = 0;
-  for (const row of plan.rows.filter(row => !row.duplicate)) {
-   const raw = decode(await digest(bytes([...namespace, row.source]))).slice(0, 16); raw[6] = raw[6] & 15 | 64; raw[8] = raw[8] & 63 | 128;
-   const hex = [...raw].map(n => n.toString(16).padStart(2, '0')).join('');
-   const object = `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`, old = latest.get(object);
-   if (old?.value.migration.sourceRowHash === row.sourceRowHash) { unchanged++; continue; }
-   if (old) {
-    const current = { ...old.value }; delete current.migration; delete current.change;
-    check(await digest(bytes(current)) === old.value.migration.itemHash, 'migration_destination_changed');
-   }
-   const item = structuredClone(row.item);
-   writes.push({ object, version: old?.version ?? 0, value: { ...item, migration: { namespace, source: row.source, sourceRowHash: row.sourceRowHash, itemHash: await digest(bytes(item)), approvedHash, cutoverComplete: false }, change: { author: client.profile.account, time: new Date().toISOString(), action: 'edit' } } });
-  }
-  let revision = snapshot.result.revision;
-  for (const row of writes) revision = (await client.put(vault, row.value, row.object, row.version, revision)).revision;
-  return { imported: writes.length, unchanged, duplicate: plan.counts.duplicate, cutoverComplete: false };
- } finally { snapshot.key.fill(0); }
-}
+export { importMigration } from './plan.mjs';
