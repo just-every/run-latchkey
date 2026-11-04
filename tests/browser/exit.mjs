@@ -129,6 +129,24 @@ export async function selectedExitJourney(output = process.env.LATCHKEY_SCREENSH
    await page.getByLabel('Buyer export key file', { exact: true }).setInputFiles(file('buyer.key', exportKey));
    await page.getByLabel('I retained the buyer key separately from the export', { exact: true }).check(); await review.click();
   };
+  await restoreExportReview();
+  let finishCancelledRelease, markCancelledRelease;
+  const cancelledResponse = new Promise(resolve => { finishCancelledRelease = resolve; }), cancellingResponse = new Promise(resolve => { markCancelledRelease = resolve; });
+  await page.route('**/api/latchkey/selection/release', async route => {
+   const response = await route.fetch(); assert.equal(response.status(), 200); markCancelledRelease();
+   await cancelledResponse; await route.fulfill({ response });
+  }, { times: 1 });
+  await approval.check(); await exportButton.click(); await cancellingResponse;
+  const cancelPending = page.getByRole('button', { name: 'Cancel and clear', exact: true });
+  await expect(cancelPending).toBeEnabled(); await cancelPending.focus(); await page.keyboard.press('Enter');
+  await expect(exact).toHaveCount(0); await expect(page.getByRole('status').filter({ hasText: 'No buyer key loaded.' })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'No download will start from this review.' })).toBeVisible(); finishCancelledRelease();
+  await expect(page.getByRole('alert')).toContainText('Export cancelled');
+  assert.equal(downloads.length, 1);
+  const cancelledOutcomes = await f.owner.call(['audit', 'list'].join('/'), { filters: { action: 'selection_outcome' }, after: 0, limit: 200 });
+  assert.equal(cancelledOutcomes.entries.filter(row => row.clientOutcome === 'release_cancelled' && row.result === 'succeeded').length, 2);
+  await capture(page, 'release-cancelled', output);
+  console.log('PROBE LKY-017 pending Cancel: keyboard Cancel while the real release response is pending -> immediate review and key clearing, no download when response arrives, client-reported cancellation');
   for (const boundary of ['before', 'after']) {
    await restoreExportReview();
    const attempts = requests.filter(row => row.path.endsWith('/' + selectionRoutes.release)).length;

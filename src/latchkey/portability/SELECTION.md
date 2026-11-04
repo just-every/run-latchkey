@@ -105,6 +105,9 @@ The browser clears the review and buyer key and reports that release may have
 been recorded, while saving and delivery are unverified. It never resends the
 release automatically. Leaving the panel during an in-flight release also
 prevents a late download; a returned successful release is reported as cancelled.
+**Cancel and clear** remains available during release, including from the keyboard.
+It clears review and key immediately and prevents file output when the pending
+response arrives. A release already accepted by the service is not undone.
 These client-reported interruption outcomes require the same retained successful
 release as other outcomes. A failed request before release cannot manufacture
 a successful receipt. If the report itself cannot reach the service or authority
