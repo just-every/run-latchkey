@@ -99,7 +99,7 @@ export function SelectionPanel({ client, vaults, onImported }: { client: any; va
    <SelectionReview preview={preview}/>
    {mode === 'import' && <p>Import creates new owner-only vaults, preserves included history and lifecycle observations, and keeps retention inactive and plaintext denied. Source grants and policies confer no access.</p>}
    <label className="check"><input type="checkbox" disabled={busy} checked={approved} onChange={e => setApproved(e.target.checked)}/>{mode === 'export' ? 'I approve this exact encrypted selection, purpose, target and copy custody' : 'I approve this exact selection into fresh owner-only vaults'}</label>
-   <div className="actions">{mode === 'export' ? <button className="primary" disabled={busy || !approved || !key || !retained} onClick={() => void run(release)}>Download encrypted selection</button> : <button className="primary" disabled={busy || !approved || !key} onClick={() => void run(async () => { const value = await api.reimport(archive, key, { confirmed: approved, approvedPlanHash: preview.planHash }); if (active.current) { clear(); setResult(value); setStatus('Import reconciled. Fresh owner-only vaults created; retention inactive and plaintext denied.'); } })}>Import reviewed selection</button>}</div>
+   <div className="actions">{mode === 'export' ? <button className="primary" disabled={busy || !approved || !key || !retained} onClick={() => void run(release)}>Download encrypted selection</button> : <button className="primary" disabled={busy || !approved || !key} onClick={() => void run(async () => { const value = await api.reimport(archive, key, { confirmed: approved, approvedPlanHash: preview.planHash }); if (active.current) { clear(); setResult(value); setStatus(value.interrupted ? 'Import reconciled. The response was interrupted; current destination reads verified all included content. No import retry was sent.' : 'Import reconciled. Fresh owner-only vaults created; retention inactive and plaintext denied.'); } })}>Import reviewed selection</button>}</div>
   </div>}
   {result && <div aria-label="Import reconciliation"><h2>Reconciled destination</h2>{result.restored.map((row: any) => <article key={row.destination}><p><code>{row.source}</code> → <code>{row.destination}</code></p><Counts counts={row.counts}/><p>{row.access}</p><p>{row.lifecycle.length} lifecycle observations · {row.historyGaps.length} disclosed history gaps · retention inactive</p></article>)}<p>{result.laterErasure}</p><button disabled={busy} onClick={() => void run(onImported)}>Open imported vaults</button></div>}
   <button disabled={busy} onClick={cancel}>Cancel and clear</button>
@@ -127,6 +127,7 @@ function explain(cause: unknown) {
   fresh_installation_required: 'Import requires a different, fresh installation.', empty_export_destination_required: 'Import requires a fresh destination with no visible vaults.',
   destination_owner_required: 'Only the current destination installation owner may import this selection.',
   export_reconciliation_failed: 'The destination could not be reconciled. Inspect its vaults before attempting further imports.',
+  selected_import_unverified: 'The import outcome could not be verified. Vaults may already exist. Inspect the destination before another import; no retry was sent.',
  };
  return messages[code] ?? message(cause);
 }

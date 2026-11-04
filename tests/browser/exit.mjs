@@ -181,10 +181,25 @@ export async function selectedExitJourney(output = process.env.LATCHKEY_SCREENSH
   console.log('PROBE LKY-017 destination authority: reviewed browser import after real owner-device revocation -> refusal, cleared key and no destination vaults');
 
   await upload(archive); await keyFile(exportKey); await openFile.click();
+  await to.route('**/api/latchkey/selection/import', route => route.abort('failed'), { times: 1 });
+  await to.getByLabel('I approve this exact selection into fresh owner-only vaults', { exact: true }).check();
+  await to.getByRole('button', { name: 'Import reviewed selection', exact: true }).click();
+  await expect(to.getByRole('alert')).toContainText('The import outcome could not be verified');
+  await expect(importReview).toHaveCount(0); assert.deepEqual(await destination.owner.call('vaults', {}), []);
+  assert.equal(importRequests.filter(row => row.path.endsWith('/' + selectionRoutes.import)).length, 1);
+  await capture(to, 'import-unverified', output);
+  console.log('PROBE LKY-017 unavailable import: browser transport refusal -> unverified outcome, cleared review, no automatic retry or destination writes');
+  await upload(archive); await keyFile(exportKey); await openFile.click();
   const importButton = to.getByRole('button', { name: 'Import reviewed selection', exact: true }); await expect(importButton).toBeDisabled();
+  // Commit through the real Worker, then drop its response. The browser must
+  // reconcile the exact prepared destinations without sending another import.
+  await to.route('**/api/latchkey/selection/import', async route => { const response = await route.fetch(); assert.equal(response.status(), 200); await route.abort('failed'); }, { times: 1 });
   await to.getByLabel('I approve this exact selection into fresh owner-only vaults', { exact: true }).focus(); await to.keyboard.press('Space'); await importButton.focus(); await to.keyboard.press('Enter');
   await expect(to.getByRole('heading', { name: 'Reconciled destination', exact: true })).toBeVisible();
   await expect(to.getByRole('status').filter({ hasText: 'Import reconciled.' })).toBeVisible();
+  await expect(to.getByRole('status').filter({ hasText: 'No import retry was sent.' })).toBeVisible();
+  assert.equal(importRequests.filter(row => row.path.endsWith('/' + selectionRoutes.import)).length, 2);
+  console.log('PROBE LKY-017 interrupted import: atomic browser import with lost response -> current reads reconcile exact content and lifecycle, one import request');
   const restored = await destination.owner.call('vaults', {}); assert.equal(restored.length, 2);
   for (const source of opened.vaults) {
    const target = restored.find(row => row.kind === source.kind); assert.equal(target.owner, destination.owner.profile.account);
