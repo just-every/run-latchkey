@@ -25,7 +25,7 @@ export function SelectionPanel({ client, vaults, onImported }: { client: any; va
    if (!active.current) return;
    setPreview(null); setApproved(false); setResult(null);
    const code = (cause as any)?.code;
-   if (['device_revoked', 'authority_expired', 'account_key_changed', 'permission_denied', 'not_found', 'review_owner_required'].includes(code) || (cause as any)?.status === 401) clear();
+   if (['device_revoked', 'authority_expired', 'account_key_changed', 'permission_denied', 'not_found', 'review_owner_required', 'selected_export_unverified', 'export_cancelled'].includes(code) || (cause as any)?.status === 401) clear();
    setError(explain(cause));
   } finally { if (active.current) setBusy(false); }
  };
@@ -119,6 +119,8 @@ function explain(cause: unknown) {
  const code = (cause as any)?.code ?? (cause instanceof Error ? cause.message : undefined);
  const messages: Record<string, string> = {
   export_plan_changed: 'Source data or policy changed. Review the selection again.', export_approval_changed: 'Current authority, source or policy changed. Review the selection again.',
+  selected_export_unverified: 'The release response was interrupted. No selection download was started. Release may have been recorded; saving and delivery are unverified. The review and buyer key were cleared. Start a fresh review before another export.',
+  export_cancelled: 'Export cancelled. No selection download was started. A release check may already have been recorded.',
   browser_download_failed: 'The browser download could not be initiated. Review again before retrying. Saving and delivery are unverified.',
   selected_export_size_limit: 'This selection exceeds the supported file size. Choose fewer items or use Records for a full installation archive.',
   encrypted_selection_required: 'Choose an encrypted selected export. Plaintext browser ceremonies are not supported.',
