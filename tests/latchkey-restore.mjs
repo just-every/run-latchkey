@@ -10,6 +10,8 @@ import { PortabilityClient } from '../src/latchkey/portability/client.mjs';
 import { ApiClient } from '../src/latchkey/api/client.mjs';
 import {HealthClient} from '../src/latchkey/health/client.mjs';
 import {createItem} from '../src/latchkey/items/types.mjs';
+import { TypedItems } from '../src/latchkey/items/client.mjs';
+import { attachmentBytes } from '../src/latchkey/items/attachments.mjs';
 import { digest } from '../src/latchkey/crypto/envelope.mjs';
 
 const identity = client => ({ account: client.profile.account, tenant: client.profile.tenant, recipientKey: client.profile.recipientKey, authorityKey: client.profile.authorityKey });
@@ -55,10 +57,23 @@ export async function exerciseRecordsRestore({ archive, sourceClient, destinatio
   await refused(destinationClient.call('archive/activate', { restore: prepared.restore, approvedPlanHash: 'synthetic-latchkey-56', activation: 'synthetic-latchkey-57', rights: ownerRights, wraps: [] }));
   const activated = await portability.activate({ restore: prepared.restore, approvedPlanHash: planHash, activation: 'synthetic-latchkey-57', rights: ownerRights });
   assert.equal(activated.phase, 'activated'); assert.equal(activated.activeAuthority, true);
+  const restoredKeyTypes = new Set();
   for (const vault of plan.vaults) {
    if(observations[vault.vault])assert.deepEqual((await new ReportsClient(destinationClient).history(vault.vault)).observations,observations[vault.vault]);
    const read = await destinationClient.readVault(vault.vault);
    if (expectedVersions?.[vault.vault]) assert.deepEqual(read.versions, expectedVersions[vault.vault]);
+   const typed = new TypedItems(destinationClient);
+   for (const row of read.versions.filter(row => row.value.schema === 'latchkey/item/v1' && ['ssh-key', 'server', 'certificate'].includes(row.value.type))) {
+    restoredKeyTypes.add(row.value.type);
+    const field = row.value.fields.find(field => field.id === 'privateKey');
+    assert.ok(field.value.includes('\n') && field.value.endsWith('\n'));
+    const original = expectedVersions[vault.vault].find(original => original.object === row.object && original.version === row.version);
+    assert.deepEqual(Buffer.from(field.value), Buffer.from(original.value.fields.find(field => field.id === 'privateKey').value));
+    for (const attachment of row.value.attachments) {
+     const opened = await typed.attachment(vault.vault, row.object, attachment.id, row.version);
+     assert.deepEqual(opened.data, await attachmentBytes(original.value.attachments.find(file => file.id === attachment.id)));
+    }
+   }
    const exported = await destinationClient.snapshot(vault.vault, 'export'); exported.key.fill(0);
    assert.equal(exported.result.owner, destination.account);
    // Rewrapping vault access cannot transfer the original actor's personal suppression.
@@ -77,6 +92,7 @@ export async function exerciseRecordsRestore({ archive, sourceClient, destinatio
     assert.deepEqual(fresh.history.map(row=>row.active),[false,false,true]);
    }
   }
+  assert.deepEqual([...restoredKeyTypes].sort(), ['certificate', 'server', 'ssh-key']);
   const auditBefore = await destinationClient.call('audit', {});
   const repeated = await portability.activate({ restore: prepared.restore, approvedPlanHash: planHash, activation: 'synthetic-latchkey-57', rights: ownerRights });
   assert.equal(repeated.restore, prepared.restore);

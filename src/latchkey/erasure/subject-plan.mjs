@@ -139,8 +139,10 @@ export async function subjectPlan(ctx, subject) {
  const redact=async(table,predicate,convert)=>{
   const rows=await all(`SELECT * FROM ${table}`),selected=rows.filter(predicate);if(!selected.length)return;
   const keys=(await all(`PRAGMA table_info(${table})`)).filter(c=>c.pk).sort((a,b)=>a.pk-b.pk).map(c=>c.name);
-  const clauses=selected.map(()=>`(${keys.map(k=>`${k}=?`).join(' AND ')})`).join(' OR '),args=selected.flatMap(row=>keys.map(k=>row[k]));
-  await select(table,clauses,args,'redact',convert);
+  // A long audit history must not grow an OR expression past D1's depth limit.
+  // Keep each complete primary key together, with a single bound key list.
+  const selectedKeys=JSON.stringify(selected.map(row=>keys.map(key=>row[key])));
+  await select(table,`json_array(${keys.join(',')}) IN (SELECT value FROM json_each(?))`,[selectedKeys],'redact',convert);
  };
  const auditRedactions=new Map();
  for(const row of await all('SELECT d.* FROM lky_audit_details d JOIN lky_audit_chain c ON c.id=d.id WHERE c.tenant=? AND d.facts IS NOT NULL',ctx.tenant)){

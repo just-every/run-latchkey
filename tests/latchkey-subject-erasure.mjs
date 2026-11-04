@@ -4,6 +4,7 @@ import {canonicalJson} from '@runeditrun/rer/modules/portability';
 import {HealthClient} from '../src/latchkey/health/client.mjs';
 import {createItem} from '../src/latchkey/items/types.mjs';
 import { SelectionExportClient } from '../src/latchkey/portability/selection.mjs';
+import { TypedItems } from '../src/latchkey/items/client.mjs';
 import { VaultClient } from '../src/latchkey/client.mjs';
 import { SharingClient } from '../src/latchkey/sharing/client.mjs';
 import { createAttachment } from '../src/latchkey/items/attachments.mjs';
@@ -32,6 +33,13 @@ export async function runSubjectErasureJourneys({owner,db,records,mail,post,fetc
  await person.pinAccount(owner.profile.account,await digest(JSON.stringify([owner.profile.recipientKey,owner.profile.authorityKey])));
  await owner.share(otherVault,person.profile.account,identity,['read']);
  assert.equal((await person.readItem(otherVault,kept.object)).versions[0].value.secret,'synthetic-latchkey-990');
+ const typed = new TypedItems(person), typedRecords = [];
+ for (const [index, type] of ['ssh-key', 'server', 'certificate'].entries()) {
+  const value = createItem(type, { title: `Synthetic person erased ${type}`, values: { privateKey: `synthetic-latchkey-${8500 + index}\nsynthetic-latchkey-${8510 + index}\n` }, attachments: [attachment] });
+  const written = await typed.save(vault, value); await typed.save(vault, { ...value, tags: ['Synthetic retained edit'] }, written.object);
+  await typed.restore(vault, written.object, 1, { confirmed: true, expectedVersion: 2 });
+  typedRecords.push({ object: written.object, value });
+ }
  const personalSharing=new SharingClient(person),group=await personalSharing.createGroup();
  const policyInput={group:group.group,policy:{historyDays:1},reason:email};
  const policyReview=await owner.call('generator/policy/preview',policyInput);
@@ -97,6 +105,12 @@ export async function runSubjectErasureJourneys({owner,db,records,mail,post,fetc
  assert.equal(await db.prepare('SELECT id FROM lky_accounts WHERE id=?').bind(person.profile.account).first(),null);
  assert.equal(await db.prepare('SELECT id FROM lky_vaults WHERE id=?').bind(vault).first(),null);
  assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM lky_versions WHERE vault_id=?').bind(vault).first()).n,0);
+ for (const row of typedRecords) {
+  await assert.rejects(typed.history(vault, row.object), error => error.status === 401);
+  await assert.rejects(typed.restore(vault, row.object, 1, { confirmed: true }), error => error.status === 401);
+  await assert.rejects(typed.save(vault, row.value, row.object), error => error.status === 401);
+ }
+
  assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM lky_recipients WHERE account_id=?').bind(person.profile.account).first()).n,0);
  await assert.rejects(person.readVault(otherVault),error=>error.status===401||error.status===403);
  assert.equal((await owner.readItem(otherVault,kept.object)).versions[0].value.secret,'synthetic-latchkey-990');
@@ -117,6 +131,7 @@ export async function runSubjectErasureJourneys({owner,db,records,mail,post,fetc
  if(erasureSecret){
   const ctx={db,tenant:owner.profile.tenant,env:{LATCHKEY_ERASURE_SECRET:erasureSecret}};
   assert.equal(await subjectReplayKnown(ctx,'email',email),true);assert.equal(await subjectReplayKnown(ctx,'operator',operator),true);assert.equal(await subjectItemReplayKnown(ctx,vault,item.object),true);
+  for (const row of typedRecords) assert.equal(await subjectItemReplayKnown(ctx,vault,row.object),true);
  }
  const after=await backup(records),rows=after.lines.filter(row=>row.kind==='part').flatMap(part=>part.items).filter(item=>item.kind==='row');
  const exported=JSON.stringify(rows);for(const original of [email,name,operator,person.profile.account,person.profile.device,vault])assert.ok(!exported.includes(original),'removed identity/owned content must be absent from later exports');
@@ -129,5 +144,5 @@ export async function runSubjectErasureJourneys({owner,db,records,mail,post,fetc
  const legacyTombstone=Buffer.from(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(canonicalJson([after.lines[0].sourceIdentity,'lky_versions',{vault_id:otherVault,object_id:legacyHistory.object,version:1}])))).toString('hex');
  assert.ok(after.lines[0].journal.includes(legacyTombstone),'later journal fences the explicitly erased legacy ciphertext');
  console.log('Person erasure: native third-person enrollment, reviewed owner confirmation, owned ciphertext/template/attachment deletion, shared-authority removal without unrelated value loss, anonymized audit/tamper checks, connected revocation and mandatory vault rekey, keyed replay and later exports passed; encrypted other-owner scans/external copies remain explicitly pending');
- return {privateValues:[person.bundle.root.recipient.privateKey,person.bundle.root.authority.privateKey,person.bundle.root.recovery.privateKey,person.bundle.signing.privateKey,password,'synthetic-latchkey-984','synthetic-latchkey-985','synthetic-latchkey-986','synthetic-latchkey-987','synthetic-latchkey-988','synthetic-latchkey-989','synthetic-latchkey-990','synthetic-latchkey-993'],erasedArchive:before.raw,laterJournal:{sourceIdentity:after.lines[0].sourceIdentity,epoch:after.lines[0].epoch,journal:after.lines[0].journal},operation:erased.operation};
+ return {privateValues:[...typedRecords.flatMap(row => row.value.fields.find(field => field.id === 'privateKey').value.trim().split('\n')),person.bundle.root.recipient.privateKey,person.bundle.root.authority.privateKey,person.bundle.root.recovery.privateKey,person.bundle.signing.privateKey,password,'synthetic-latchkey-984','synthetic-latchkey-985','synthetic-latchkey-986','synthetic-latchkey-987','synthetic-latchkey-988','synthetic-latchkey-989','synthetic-latchkey-990','synthetic-latchkey-993'],erasedArchive:before.raw,laterJournal:{sourceIdentity:after.lines[0].sourceIdentity,epoch:after.lines[0].epoch,journal:after.lines[0].journal},operation:erased.operation};
 }

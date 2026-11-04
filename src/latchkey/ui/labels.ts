@@ -31,3 +31,6 @@ export function itemSummary(item: Item) {
 export const hasValue = (field: Field) => field.value != null && field.value !== '';
 // Joins parts with " · ", the dot bound to the part after it, so a wrapped line never ends on it.
 export const dots = (parts: string[]) => parts.join(' ·\u00a0');
+
+// Presentation only: stored private-key definitions remain secret fields.
+export const multilineKey = (item: Pick<Item, 'type' | 'template'>, field: Field) => !item.template && ['ssh-key', 'server', 'certificate'].includes(item.type) && field.id === 'privateKey' && field.type === 'secret' && field.secret;

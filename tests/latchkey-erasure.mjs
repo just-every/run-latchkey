@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {ReportsClient} from '../src/latchkey/reports/client.mjs';
 import {createItem} from '../src/latchkey/items/types.mjs';
+import { TypedItems } from '../src/latchkey/items/client.mjs';
 import { VaultClient } from '../src/latchkey/client.mjs';
 import { SharingClient, PublicLinkClient } from '../src/latchkey/sharing/client.mjs';
 import { MachineClient } from '../src/latchkey/machine.mjs';
@@ -42,6 +43,15 @@ export async function runItemErasureJourneys({ owner, member, db, records, mail,
  assert.equal((await MachineClient.read(machine, grant, runtimeKey, { fetcher })).secret, 'synthetic-latchkey-955');
  const reportVault=(await owner.createVault({kind:'company'})).vault,reportItem=(await owner.put(reportVault,createItem('secure-note',{title:'Synthetic observation erasure',values:{note:'synthetic-latchkey-958'}}))).object;
  const reportApi=new ReportsClient(owner);await reportApi.capture(reportVault,{confirmed:true});
+ const typed = new TypedItems(owner), typedRecords = [];
+ for (const [index, type] of ['ssh-key', 'server', 'certificate'].entries()) {
+  const key = `synthetic-latchkey-${8400 + index}\nsynthetic-latchkey-${8410 + index}\n`;
+  privateValues.push(...key.trim().split('\n'));
+  const value = createItem(type, { title: `Synthetic erased ${type}`, values: { privateKey: key }, attachments: [attachment] });
+  const written = await typed.save(vault, value); await typed.save(vault, { ...value, tags: ['Synthetic later edit'] }, written.object);
+  await typed.restore(vault, written.object, 1, { confirmed: true, expectedVersion: 2 });
+  typedRecords.push({ object: written.object, value });
+ }
  const before = await archive(records), journalBefore = (await db.prepare('SELECT COUNT(*) AS n FROM rer_portability_journal').first()).n;
  const revision = (await owner.readVault(vault)).revision;
  assert.equal((await owner.call('item/erasure-status', { vault, object })).erased, false);
@@ -81,6 +91,15 @@ export async function runItemErasureJourneys({ owner, member, db, records, mail,
   ['copies', "SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND (name GLOB 'rer_portability_snap_*' OR name GLOB 'rer_portability_stage_*')", []],
  ]) assert.equal((await (args.length ? db.prepare(sql).bind(...args) : db.prepare(sql)).first()).n, 0, table);
  assert.equal((await owner.readItem(vault, kept.object)).versions[0].value.secret, 'synthetic-latchkey-956');
+ for (const row of typedRecords) {
+  await assert.rejects(new TypedItems(member).restore(vault, row.object, 1, { confirmed: true }), error => error.status === 403 || error.status === 404);
+  const erasedTyped = await owner.eraseItem(vault, row.object, { confirmed: true });
+  assert.equal(erasedTyped.deleted.lky_versions, 3);
+  await rejects(typed.history(vault, row.object), 'not_found');
+  await rejects(typed.restore(vault, row.object, 1, { confirmed: true }), 'not_found');
+  await rejects(typed.save(vault, row.value, row.object), 'item_erased');
+  assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM lky_versions WHERE vault_id=? AND object_id=?').bind(vault, row.object).first()).n, 0);
+ }
  assert.equal((await owner.readVault(vault)).versions.length, 1);
  assert.equal((await recipient.read(mixed.share, kept.object)).value.secret, 'synthetic-latchkey-956');
  await rejects(owner.readItem(vault, object, true), 'not_found');
@@ -97,6 +116,10 @@ export async function runItemErasureJourneys({ owner, member, db, records, mail,
  assert.ok(laterJournal.epoch > before.lines[0].epoch && laterJournal.journal.length > before.lines[0].journal.length);
  const archiveRows = after.lines.filter(line => line.kind === 'part').flatMap(part => part.items).filter(item => item.kind === 'row');
  assert.ok(!archiveRows.some(item => item.table === 'lky_versions' && item.row.object_id === object));
+ for (const row of typedRecords) {
+  assert.ok(!archiveRows.some(item => item.table === 'lky_versions' && item.row.object_id === row.object));
+  assert.ok(archiveRows.some(item => item.table === 'lky_erased_items' && item.row.object_id === row.object));
+ }
  assert.ok(!archiveRows.some(item => item.table === 'lky_links' && item.row.object_id === object));
  assert.ok(archiveRows.some(item => item.table === 'lky_erased_items' && item.row.object_id === object));
  console.log('Item erasure: explicit owner confirmation, stale-revision refusal, all histories/attachments/link copies/wraps/runtime deletion, value-free attributed receipt, idempotency, same-object replay fence and in-flight Base transfer invalidation passed');

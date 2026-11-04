@@ -27,7 +27,7 @@ export async function runTypedItemJourneys({ owner, vault, reader }) {
    values[definition.id] = definition.type === 'otp' ? { ...identity, secret: seed }
     : definition.type === 'number' ? 443 : definition.type === 'date' ? '2030-01-01'
     : definition.type === 'email' ? `${privateValue()}@example.test`
-    : definition.type === 'url' ? `https://${privateValue()}.example.test/` : privateValue();
+    : definition.type === 'url' ? `https://${privateValue()}.example.test/` : definition.id === 'privateKey' ? `${privateValue()}\n${privateValue()}\n\n${privateValue()}\n` : privateValue();
   }
   const fileValue = privateValue(), attachment = await createAttachment(`${privateValue()}.txt`, new TextEncoder().encode(fileValue), 'text/plain');
   const extra = { id: 'custom-1', label: privateValue(), type: 'secret', secret: true, value: privateValue() };
