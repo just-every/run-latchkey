@@ -558,7 +558,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "33ed062b293cbf9eeb5c25fda38bd296bec1178c5c931c8ed54f0b0955844d70",
+      "sha256": "d91188f21c241962fe10b8bfd320ef5f96b71af4511da5590bc80628574979a1",
       "executable": false
     },
     "deploy-demo.json": {
@@ -623,6 +623,10 @@
     },
     "docs/msp.md": {
       "sha256": "a3b6338b6749b48b243c931f8cd7010548e3eb7bf191f76a2b0ffcb5bb0f31e8",
+      "executable": false
+    },
+    "docs/operations/service-recovery.md": {
+      "sha256": "60b8f37619ab4c25e6a93cbb19826bdb99b1e441e3605a9224fc3fee2703f2ca",
       "executable": false
     },
     "docs/password-health.md": {
@@ -1798,7 +1802,7 @@
       "executable": false
     },
     "scripts/latchkey.mjs": {
-      "sha256": "6e6f208dad0a45c419a101c8455dc188c7a8c27643a382ccd17ce22f806a3066",
+      "sha256": "ee42e4771d913586bbb6897e9e58bc3d279af2fd8fcaaf1c06e21d63b34fe055",
       "executable": false
     },
     "scripts/latchkey/archive-policy.mjs": {
@@ -1843,6 +1847,10 @@
     },
     "scripts/latchkey/records-local.mjs": {
       "sha256": "6b4397f751a9027670bdd43c9bcb0c6112cd21b44dfb2d9432262606d0ab901e",
+      "executable": false
+    },
+    "scripts/latchkey/records-recovery.mjs": {
+      "sha256": "7e82008d8cc13149e6fcbb0ba47de9352dbb2c8d145267170c89bb7a3fdfb633",
       "executable": false
     },
     "scripts/latchkey/run-command.mjs": {
@@ -2798,7 +2806,7 @@
       "executable": false
     },
     "src/latchkey/portability/archive.mjs": {
-      "sha256": "7a7a86d4b0edc503032b640cd9f5118ee9f24fe7f78337fb33e9c404b044bdb4",
+      "sha256": "0672b9fc0ef9cf50a148ac9c5548d01b71adec51cd9369e289a766b4c53647d2",
       "executable": false
     },
     "src/latchkey/portability/client.mjs": {
@@ -4802,7 +4810,7 @@
       "executable": false
     },
     "tests/browser/fixture.mjs": {
-      "sha256": "84b3343f7e3615332e8263e6e56bc22a62c6d8013f0d28409361258ebf110230",
+      "sha256": "c0ceb8633925545e11401a202fec7604e96afd62d0e513ad37c2ca7d94de00c0",
       "executable": false
     },
     "tests/browser/msp-lifecycle.mjs": {
@@ -4926,7 +4934,7 @@
       "executable": false
     },
     "tests/latchkey-local-records.test.mjs": {
-      "sha256": "a417d45fdd79735266c13e6ccab1e2582e1b5e3aee75e5d04ba5475e341a629e",
+      "sha256": "79118dfab1ebbf30118e47e7d0750a49cdd7a950cabba676009b1757c2ee06a5",
       "executable": false
     },
     "tests/latchkey-records.test.mjs": {
@@ -4938,7 +4946,7 @@
       "executable": false
     },
     "tests/latchkey-restore.mjs": {
-      "sha256": "add5c023edeb51f7c1fda0590f91a7577f5746011fd118f804a524627bf85b79",
+      "sha256": "326f80bc0e4b486d7128a0c47b95846fb8f4a634e6e1368afa13557e236713fd",
       "executable": false
     },
     "tests/latchkey-rules.mjs": {
