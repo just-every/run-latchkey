@@ -123,7 +123,7 @@ export async function serviceRecoveryRehearsal({ directory, checkout, command, w
  const { AutomationClient } = await import('../src/latchkey/automation/client.mjs');
  const route = (...parts) => parts.join('/');
  const source = await vaultFixture({ browserEnabled: false, webhook: true });
- let destination, sourceClosed = false, second;
+ let destination, sourceClosed = false, second, nonOwner;
  try {
   // Distinct source members have distinct edge addresses; ordinary invitation
   // and confirmation limits stay enabled rather than deleting limiter records.
@@ -135,7 +135,12 @@ export async function serviceRecoveryRehearsal({ directory, checkout, command, w
   let secondEnrollment;
   for (let index = 1; index < 1000; index++) {
    const email = [`synthetic-latchkey-rehearsal-${index}`, 'example.test'].join('@');
-   await owner.call(route('api', 'users', 'invite'), { email, displayName: `Synthetic member ${index}`, role: 'member', returnTo: '/app/vault' });
+   if (index === 999) {
+    const csv = `email,displayName\n${email},Synthetic member ${index}`;
+    const preview = await owner.call(route('people', 'preview'), { csv });
+    const invitation = await owner.call(route('people', 'invite'), { csv, previewHash: preview.previewHash, confirmed: true });
+    assert.equal(invitation.rows[0].status, 'accepted');
+   } else await owner.call(route('api', 'users', 'invite'), { email, displayName: `Synthetic member ${index}`, role: 'member', returnTo: '/app/vault' });
    const token = new URL(source.mail.at(-1).content.find(part => part.type === ['text', 'plain'].join('/')).value.match(/https:\/\/[^\s<>]+/)[0]).searchParams.get('token');
    const member = new VaultClient(source.origin, { fetcher: sourceFetcher });
    await member.confirmIdentity(token);
@@ -143,6 +148,8 @@ export async function serviceRecoveryRehearsal({ directory, checkout, command, w
    if (index === 1) {
     second = member; secondEnrollment = enrolled;
     owners.push({ name: 'Synthetic continuity owner', kit: structuredClone(enrolled.kit), password });
+   } else if (index === 2) {
+    nonOwner = member; await member.unlock(enrolled.profile, password);
    } else member.lock();
    if (index % 100 === 0) console.log(`Recovery source: ${index + 1} real enrolled members`);
   }
@@ -165,6 +172,10 @@ export async function serviceRecoveryRehearsal({ directory, checkout, command, w
   const erasurePreview = await owner.call(route('subject', 'erase-preview'), { subject: erasedPerson.id });
   const erased = await owner.call(route('subject', 'erase'), { subject: erasedPerson.id, confirmed: true, planHash: erasurePreview.planHash });
   assert.equal(erased.controlPlaneErased, true);
+  for (const email of [erasedEmail, ['synthetic-latchkey-uninvited-rehearsal', 'example.test'].join('@')]) {
+   await assert.rejects(nonOwner.call(route('api', 'users', 'invite'), { email, displayName: 'Synthetic unauthorized invitation', role: 'member', returnTo: '/app/vault' }), error => error.status === 403 && error.code === 'forbidden');
+  }
+  nonOwner.lock(); nonOwner = null;
   await assert.rejects(owner.call(route('api', 'users', 'invite'), { email: erasedEmail, displayName: 'Synthetic source replay attempt', role: 'member', returnTo: '/app/vault' }), error => error.code === 'erased_identity');
   const automation = new AutomationClient(owner);
   const subscription = await automation.subscribe({ endpoint: 'https://receiver.example.test/hook', events: ['vault_created'], secret: encode(random()), confirmed: true });
@@ -296,13 +307,15 @@ export async function serviceRecoveryRehearsal({ directory, checkout, command, w
   for (const [index, material] of owners.entries()) {
    const profile = join(directory, `fresh-profile-${index}.json`), newKit = join(directory, `fresh-kit-${index}.json`);
    const kit = JSON.parse(await readFile(material.kit, 'utf8'));
+   const invalidKit = join(directory, `invalid-owner-kit-${index}.json`);
+   await writeFile(invalidKit, JSON.stringify({ ...kit, recoverySecret: encode(random()) }), { mode: 0o600 });
    const recovery = { origin: approvedOrigin, approvedOrigin, kit: material.kit, password: material.password, confirmed: true, profile, newKit };
    const cli = (input, code = 1) => command(root, input, code, 'records-recover', { certificate: destination.caFile });
    const before = await destination.db.prepare('SELECT generation FROM lky_accounts WHERE id=?').bind(kit.account).first();
    assert.equal((await cli({ ...recovery, confirmed: false })).error, 'recovery_confirmation_required');
    assert.equal((await cli({ ...recovery, approvedOrigin: sourceOrigin })).error, 'destination_origin_confirmation_required');
    await cli({ ...recovery, password: 'synthetic-latchkey-wrong-password' });
-   if (index === 1) await cli({ ...recovery, kit: wrongKit });
+   await cli({ ...recovery, kit: invalidKit });
    assert.equal((await destination.db.prepare('SELECT generation FROM lky_accounts WHERE id=?').bind(kit.account).first()).generation, before.generation);
    await assert.rejects(stat(profile), { code: 'ENOENT' });
    await assert.rejects(stat(newKit), { code: 'ENOENT' });
@@ -389,6 +402,6 @@ export async function serviceRecoveryRehearsal({ directory, checkout, command, w
   console.log('PROBE LKY-056 inactive operations: old token, direct grant, link, send, schedule and approved rotation -> refused or no effects after restore and after fresh vault activation');
   console.log('PROBE LKY-056 erasure continuity: malformed and wrong retained erasure keys -> refused before destination writes; correct key verifies archived receipt and refuses erased-person reinvitation after recovery');
  } finally {
-  second?.lock(); if (!sourceClosed) await source.close(); await destination?.close();
+  second?.lock(); nonOwner?.lock(); if (!sourceClosed) await source.close(); await destination?.close();
  }
 }

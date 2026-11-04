@@ -1,5 +1,6 @@
 import { ApiError } from './catalogue.mjs';
 import { subjectAdmission } from '../erasure/admission.mjs';
+import { peopleRolePolicy } from '../people/permissions.mjs';
 
 // Public Base administration remains responsible for policy, step-up, last-owner
 // protection, role validation, current-version CAS and session invalidation.
@@ -19,6 +20,9 @@ export async function usersAuthenticated(route,input,ctx){
   // original signed REST bytes. Base requires POST for its public admin methods.
   const request=new Request(ctx.request.url,{method:'POST',headers:ctx.request.headers});
   if(route==='api/users/invite'){
+   // Refuse unauthorized callers before consulting identity-erasure history.
+   // Use the same current role policy that Base applies to the final write.
+   if(!await peopleRolePolicy(ctx.db)({actor:ctx.session.operator,action:'operators:invite',role:input.role}))throw new ApiError('forbidden',403);
    await subjectAdmission(ctx,[['email',input.email]]);
    return await ctx.auth.invite(request,input);
   }
