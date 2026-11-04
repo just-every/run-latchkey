@@ -153,3 +153,17 @@ export async function openRecordsArchive({ input, output, exportKey: suppliedKey
   });
  } finally { material.fill(0); await source.close(); }
 }
+
+// Inspect a sealed archive without publishing its decrypted installation state.
+// The callback owns no file after return, including when validation refuses.
+export async function withOpenedRecordsArchive(input, inspect) {
+ const { mkdtemp, rm } = await import('node:fs/promises');
+ const { tmpdir } = await import('node:os');
+ const { join } = await import('node:path');
+ const directory = await mkdtemp(join(tmpdir(), 'latchkey-recovery-'));
+ try {
+  const output = join(directory, 'installation.rer');
+  const receipt = await openRecordsArchive({ ...input, output });
+  return await inspect(output, receipt);
+ } finally { await rm(directory, { recursive: true, force: true }); }
+}

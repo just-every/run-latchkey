@@ -1798,7 +1798,7 @@
       "executable": false
     },
     "scripts/latchkey.mjs": {
-      "sha256": "6e6f208dad0a45c419a101c8455dc188c7a8c27643a382ccd17ce22f806a3066",
+      "sha256": "ee42e4771d913586bbb6897e9e58bc3d279af2fd8fcaaf1c06e21d63b34fe055",
       "executable": false
     },
     "scripts/latchkey/archive-policy.mjs": {
@@ -2798,7 +2798,7 @@
       "executable": false
     },
     "src/latchkey/portability/archive.mjs": {
-      "sha256": "7a7a86d4b0edc503032b640cd9f5118ee9f24fe7f78337fb33e9c404b044bdb4",
+      "sha256": "0672b9fc0ef9cf50a148ac9c5548d01b71adec51cd9369e289a766b4c53647d2",
       "executable": false
     },
     "src/latchkey/portability/client.mjs": {
@@ -4790,7 +4790,7 @@
       "executable": false
     },
     "tests/browser/fixture.mjs": {
-      "sha256": "84b3343f7e3615332e8263e6e56bc22a62c6d8013f0d28409361258ebf110230",
+      "sha256": "7706c89424e91b78c6b2201190cb865c0d7421f29fa2c9ac2367bc3b87aaaf9f",
       "executable": false
     },
     "tests/browser/msp-lifecycle.mjs": {
