@@ -46,6 +46,9 @@ export async function diagnosticsJourney(output = process.env.LATCHKEY_SCREENSHO
    console.error(values[1]);
   }, canaries);
   await page.waitForLoadState('networkidle');
+  // The item history signs its read asynchronously; wait for the real vault
+  // operation to finish before measuring diagnostic traffic.
+  await expect(page.getByRole('button', { name: 'Refresh', exact: true })).toBeEnabled();
   page.on('request', request => requests.push({ url: request.url(), body: request.postData() ?? '', headers: request.headers() }));
   page.on('download', download => downloads.push(download));
   await openDiagnostics(page);

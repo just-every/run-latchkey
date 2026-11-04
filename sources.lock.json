@@ -4822,7 +4822,7 @@
       "executable": false
     },
     "tests/browser/diagnostics.mjs": {
-      "sha256": "6a253d6f63f825837a69af92d5718f54297ce96a85117138045823db838555f9",
+      "sha256": "3ffc91b65874b87ca38de74c55760a31c1c47d5857c05b29438561bed2be10ce",
       "executable": false
     },
     "tests/browser/exit.mjs": {
