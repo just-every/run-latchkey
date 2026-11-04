@@ -3170,7 +3170,7 @@
       "executable": false
     },
     "src/latchkey/ui/detail.tsx": {
-      "sha256": "a5987bda7d9be74c0625831829ab587e800c87d09f2035aef6973e22885fea0c",
+      "sha256": "2b76380707823b27b577cd96b381b2eb9178281aa2f6fd278feae7d8c514389a",
       "executable": false
     },
     "src/latchkey/ui/editor.tsx": {
@@ -3258,7 +3258,7 @@
       "executable": false
     },
     "src/latchkey/ui/vault.tsx": {
-      "sha256": "ccaa55749d3a9894254526738ad69e470c564f86ad77738bccc5725c2785456e",
+      "sha256": "881b75ea5884fa5d3fed4d206e43bde71b8e92f032dc7013723a657f728f613e",
       "executable": false
     },
     "src/mail.server.d.mts": {
@@ -4810,7 +4810,7 @@
       "executable": false
     },
     "tests/browser/organization.mjs": {
-      "sha256": "1cc2dd8393d5b26737cb8211bf1aa24daeb79338314694f41cf5163281cff573",
+      "sha256": "49fbe2e0bff28a967cb93253e649fc96030e72d6af766ef2ba68b9b1252cd019",
       "executable": false
     },
     "tests/browser/passbolt.mjs": {
