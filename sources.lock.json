@@ -558,7 +558,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "e3387cec41b6cff4934760dec1db6ebc669f829e9c2663744af32091a5f65e31",
+      "sha256": "1a3077617f58eab654908e5d7fb9ace6a548d1a767468bf62ca5f8d4b9924796",
       "executable": false
     },
     "deploy-demo.json": {
@@ -626,7 +626,7 @@
       "executable": false
     },
     "docs/operations/service-recovery.md": {
-      "sha256": "60b8f37619ab4c25e6a93cbb19826bdb99b1e441e3605a9224fc3fee2703f2ca",
+      "sha256": "2f2443f56e9a78f12783e92e08e6b80e809f3976519731c9a0b775e6ece99abe",
       "executable": false
     },
     "docs/password-health.md": {
@@ -1850,7 +1850,7 @@
       "executable": false
     },
     "scripts/latchkey/records-recovery.mjs": {
-      "sha256": "7e82008d8cc13149e6fcbb0ba47de9352dbb2c8d145267170c89bb7a3fdfb633",
+      "sha256": "fb58e91cebed078ba86e56edab381e439224fd7b046ded3bad0a6009caaeca73",
       "executable": false
     },
     "scripts/latchkey/run-command.mjs": {
@@ -2314,7 +2314,7 @@
       "executable": false
     },
     "src/latchkey/api/users.mjs": {
-      "sha256": "e2578c7865d7923690e61e97b93308d86e912fa418b71ee404e007216f45c2ce",
+      "sha256": "07f66fafeb6395e3a645883bb88009d4cd4e2cf07521c660feddc3c3172581c7",
       "executable": false
     },
     "src/latchkey/audit/service.d.mts": {
@@ -2802,7 +2802,7 @@
       "executable": false
     },
     "src/latchkey/people/service.mjs": {
-      "sha256": "96960d0b19dd98a75db04969d6c53cd797cf6e228b8aee3a1057931211b8a437",
+      "sha256": "6b35d1782f5556aeecdb25b564559fdee8d9edb9bb6398029ab8d69b67daf268",
       "executable": false
     },
     "src/latchkey/portability/archive.mjs": {
@@ -4922,7 +4922,7 @@
       "executable": false
     },
     "tests/latchkey-local-records.test.mjs": {
-      "sha256": "79118dfab1ebbf30118e47e7d0750a49cdd7a950cabba676009b1757c2ee06a5",
+      "sha256": "221e28ce005f00f2f117afde4fe1f94c47549123fe18e6528831a9f83418a3db",
       "executable": false
     },
     "tests/latchkey-records.test.mjs": {
@@ -4934,7 +4934,7 @@
       "executable": false
     },
     "tests/latchkey-restore.mjs": {
-      "sha256": "326f80bc0e4b486d7128a0c47b95846fb8f4a634e6e1368afa13557e236713fd",
+      "sha256": "ae2344e35ef3a4e889f3214b550694f8e046352143dae2b8cab580ce21504603",
       "executable": false
     },
     "tests/latchkey-rules.mjs": {

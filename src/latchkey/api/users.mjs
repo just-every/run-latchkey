@@ -1,4 +1,5 @@
 import { ApiError } from './catalogue.mjs';
+import { subjectAdmission } from '../erasure/admission.mjs';
 
 // Public Base administration remains responsible for policy, step-up, last-owner
 // protection, role validation, current-version CAS and session invalidation.
@@ -17,7 +18,10 @@ export async function usersAuthenticated(route,input,ctx){
   // This method conversion happens only AFTER the service has validated the
   // original signed REST bytes. Base requires POST for its public admin methods.
   const request=new Request(ctx.request.url,{method:'POST',headers:ctx.request.headers});
-  if(route==='api/users/invite')return await ctx.auth.invite(request,input);
+  if(route==='api/users/invite'){
+   await subjectAdmission(ctx,[['email',input.email]]);
+   return await ctx.auth.invite(request,input);
+  }
   if(route==='api/users/role')return await ctx.auth.setRole(request,input.operator,input.role);
   if(route==='api/users/status')return await ctx.auth.setOperatorStatus(request,input.operator,input.status);
   if(route==='api/users/cancel-invitation')return await ctx.auth.cancelInvitation(request,input.operator);

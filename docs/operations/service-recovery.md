@@ -45,6 +45,15 @@ The receipt reports complete member, enrolled-account, item, version and part
 totals without returning recovery factors or decrypted values. A successful
 material check alone does not prove an import will pass schema validation.
 
+The retained erasure key must decode to 32 bytes. When the archive contains
+person-erasure receipts, the check authenticates every receipt with that key
+before creating destination storage. A different valid-length key refuses too:
+otherwise restored keyed fences could fail to recognize an erased person.
+The receipt's `erasureKey.verifiedReceipts` reports the number checked. If there
+are no archived receipts, `sourceKeyEstablished` is false; a format check cannot
+establish that this is the original key. Independently retain and verify its
+custody before relying on that kit. This check cannot establish later erasure.
+
 When a trusted later Base journal is available, supply its private raw archive
 path as `journal` to both recovery commands. The existing local importer applies
 its later erasure fence. The receipt always warns that an offline file cannot
@@ -67,6 +76,10 @@ and new private `profile` and `newKit` paths. This explicitly enrolls a fresh
 device and retires the archived generation's device authority and kit. Missing or
 wrong factors cannot recover. Recovered installation ownership grants no restored
 vault access by itself.
+Unconfirmed recovery, a different approved origin, wrong factors and replay of
+an old kit refuse without creating the requested profile or replacement kit.
+The profile and replacement kit are new owner-only files. Retain the replacement
+kit independently; the prior kit cannot be reused after successful recovery.
 
 For a source owner's vaults, recover that owner on the destination first. Use its
 fresh unlocked profile with `records-rewrap-plan` and `records-rewrap-approve` for
@@ -90,3 +103,6 @@ real enrolled source population and the emitted Worker, real Base export and the
 local restore command. Its detailed restore checks live in
 `tests/latchkey-restore.mjs`. Provider mail is an official-schema network edge;
 no live provider recovery or mailbox delivery is claimed.
+The same rehearsal uses the documented `records-recover` command for both owners,
+checks operational refusals before and after explicit vault activation, and
+refuses erased-person invitations through both individual and batch doors.
