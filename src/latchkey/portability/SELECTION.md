@@ -118,6 +118,10 @@ intended target or secret value is sent to audit. Cancel and leaving this panel
 clear its retained form state. Browser plaintext ceremonies, full installation
 recovery, external-copy cleanup and recall are not supplied by this screen.
 
+The already loaded browser can open and verify the encrypted file with the
+buyer key while disconnected from the service. Import still requires live
+destination owner authority; offline review grants no import approval.
+
 ## Interrupted selected imports
 
 After submitting the single atomic import, the client reconciles its exact
@@ -125,9 +129,10 @@ prepared destination identifiers, current ownership and kinds, every included
 version and attachment digest, and inactive lifecycle observations through live
 reads. If the commit response is lost, those same reads can establish success
 without resubmitting the import. An unavailable read or a mismatching destination
-reports an unverified outcome; vaults may already exist. Inspect the destination
-before another import. A refused current credential never becomes a successful
-reconciliation. The browser clears the review after an unverified result and
+reports an unverified outcome; vaults may already exist. In the browser, lock
+and unlock the installation to load its current vaults before another import. A refused current credential never becomes a successful
+reconciliation. If an included item is erased before reconciliation completes,
+the changed content refuses success; reconciliation never writes that item back. The browser clears the review after an unverified result and
 requires a fresh review for another attempt.
 
 This bounded response-loss handling retains no pending files, keys or plans in
