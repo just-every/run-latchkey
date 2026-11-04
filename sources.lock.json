@@ -542,11 +542,11 @@
       "executable": false
     },
     "clients/shared/offline/cache.mjs": {
-      "sha256": "a5624c9cef00ada06cd90015511003d89ab39072261c97c37cd768cb363edfd1",
+      "sha256": "796f34f01f753549249b51d9aebc6e38473cee0bb9c60779bb10c6583d170902",
       "executable": false
     },
     "clients/shared/offline/README.md": {
-      "sha256": "7ac7634d083ae442810a781eed18aef83dd687cb4239a192fe97c9b186c609c4",
+      "sha256": "c133362f5a8a548743612c02d120d3da69f7ebb645838991d698a593346bc655",
       "executable": false
     },
     "clients/shared/passkeys/platform.mjs": {
@@ -558,7 +558,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "33ed062b293cbf9eeb5c25fda38bd296bec1178c5c931c8ed54f0b0955844d70",
+      "sha256": "277076d509c6c59fd7b11c091ac75b8de0383a7310a472c0114c0e9a40d42bcd",
       "executable": false
     },
     "deploy-demo.json": {
@@ -1798,7 +1798,7 @@
       "executable": false
     },
     "scripts/latchkey.mjs": {
-      "sha256": "6e6f208dad0a45c419a101c8455dc188c7a8c27643a382ccd17ce22f806a3066",
+      "sha256": "9a1e9ae23fdf1b7ea0c8771cf7ce2ced04ecfa1857a16b99729c4946b9c1eccb",
       "executable": false
     },
     "scripts/latchkey/archive-policy.mjs": {
@@ -1815,6 +1815,10 @@
     },
     "scripts/latchkey/msp-commands.mjs": {
       "sha256": "a250677238202512b2bdfa82e52c46fff0d5173f21bb02144316c2d8771f28bf",
+      "executable": false
+    },
+    "scripts/latchkey/offline-commands.mjs": {
+      "sha256": "192d9fad14f72b25394a8cb78fcc15c1024b6df6f9117a65e60b05c5378ec51b",
       "executable": false
     },
     "scripts/latchkey/opaque-worker.d.mts": {
@@ -4929,6 +4933,10 @@
       "sha256": "a417d45fdd79735266c13e6ccab1e2582e1b5e3aee75e5d04ba5475e341a629e",
       "executable": false
     },
+    "tests/latchkey-offline.mjs": {
+      "sha256": "19bb26032fe6a414f8df9755851bffd2efda30c9ef9df2a6a1d375e50c7b7222",
+      "executable": false
+    },
     "tests/latchkey-records.test.mjs": {
       "sha256": "379fb4349b28980f0df597464c34596764c34bdbbe5f3e7c80f0bedae1638947",
       "executable": false
@@ -4970,7 +4978,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "46f8699180e37b1574e4432830e948b09e71c142819cfe80ab364c7da4b60d2d",
+      "sha256": "44265d49631f981f07188dafb90770758dc078da6f97cafa7f30f800d6e06aa8",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
