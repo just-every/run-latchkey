@@ -18,14 +18,14 @@ export function SelectionPanel({ client, vaults, onImported }: { client: any; va
  const active = useRef(true), releaseSignal = useRef(new AbortController());
  useEffect(() => { active.current = true; releaseSignal.current = new AbortController(); return () => { active.current = false; releaseSignal.current.abort(); }; }, []);
  const invalidate = () => { setPreview(null); setApproved(false); setResult(null); setError(''); setStatus(''); };
- const clear = () => { invalidate(); setScope([]); setItems({}); setKey(''); setRetained(false); setArchive(null); };
+ const clear = () => { invalidate(); setScope([]); setItems({}); setKey(''); setRetained(false); setArchive(null); setPurpose('Migration'); setTarget('Buyer-held private file'); };
  const run = async (work: () => Promise<void>) => {
   setBusy(true); setError(''); setStatus('');
   try { await work(); } catch (cause) {
    if (!active.current) return;
    setPreview(null); setApproved(false); setResult(null);
    const code = (cause as any)?.code;
-   if (['device_revoked', 'authority_expired', 'account_key_changed', 'permission_denied', 'not_found', 'review_owner_required'].includes(code) || (cause as any)?.status === 401) { setItems({}); setScope([]); setKey(''); setRetained(false); setArchive(null); }
+   if (['device_revoked', 'authority_expired', 'account_key_changed', 'permission_denied', 'not_found', 'review_owner_required'].includes(code) || (cause as any)?.status === 401) clear();
    setError(explain(cause));
   } finally { if (active.current) setBusy(false); }
  };
@@ -59,6 +59,7 @@ export function SelectionPanel({ client, vaults, onImported }: { client: any; va
   if (!active.current) return;
   let outcome = 'browser_download_failed';
   try { download('latchkey-selection.json', JSON.stringify(value)); outcome = 'browser_download_initiated'; }
+  catch { throw { code: 'browser_download_failed' }; }
   finally {
    try { await api.reportOutcome(outcome); }
    catch { if (active.current) setError('The browser outcome could not be recorded. Delivery is unverified.'); }
@@ -118,6 +119,7 @@ function explain(cause: unknown) {
  const code = (cause as any)?.code ?? (cause instanceof Error ? cause.message : undefined);
  const messages: Record<string, string> = {
   export_plan_changed: 'Source data or policy changed. Review the selection again.', export_approval_changed: 'Current authority, source or policy changed. Review the selection again.',
+  browser_download_failed: 'The browser download could not be initiated. Review again before retrying. Saving and delivery are unverified.',
   selected_export_size_limit: 'This selection exceeds the supported file size. Choose fewer items or use Records for a full installation archive.',
   encrypted_selection_required: 'Choose an encrypted selected export. Plaintext browser ceremonies are not supported.',
   cannot_decrypt: 'The key or encrypted file could not be verified. Nothing was imported.', invalid_selected_export: 'The file integrity could not be verified. Nothing was imported.', invalid_envelope: 'The file integrity could not be verified. Nothing was imported.', invalid_encoding: 'The key or file encoding is invalid. Nothing was imported.',

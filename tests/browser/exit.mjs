@@ -38,7 +38,7 @@ async function member(f, suffix) {
  return { client, context, page: await context.newPage(), password };
 }
 export async function selectedExitJourney(output = process.env.LATCHKEY_SCREENSHOTS) {
- const f = await vaultFixture(), destination = await vaultFixture(); let reader, destinationReader, keeper;
+ const f = await vaultFixture(), destination = await vaultFixture(); let reader, destinationReader, keeper, importDevice, importContext;
  const requests = [], downloads = [], importRequests = [];
  f.page.on('request', request => { if (request.url().includes('/api/latchkey/')) requests.push({ path: new URL(request.url()).pathname, body: request.postData() ?? '' }); });
  f.page.on('download', value => downloads.push(value));
@@ -78,9 +78,13 @@ export async function selectedExitJourney(output = process.env.LATCHKEY_SCREENSH
   await capture(page, 'item-review', output);
   await page.getByRole('button', { name: 'Cancel and clear', exact: true }).click();
   await expect(exact).toHaveCount(0); assert.equal(mutations().length, 0); assert.equal(downloads.length, 0);
+  await expect(page.getByLabel('Export purpose', { exact: true })).toHaveValue('Migration');
+  await expect(page.getByLabel('Intended target', { exact: true })).toHaveValue('Buyer-held private file');
   console.log('PROBE LKY-017 cancellation: browser item review then Cancel -> no authorization, release, download or import');
 
-  await choose.check(); await review.click();
+  await choose.check();
+  await page.getByLabel('Export purpose', { exact: true }).fill('synthetic-latchkey-8177'); await page.getByLabel('Intended target', { exact: true }).fill('synthetic-latchkey-8178');
+  await review.click();
   const keyDownload = page.waitForEvent('download'); await page.getByRole('button', { name: 'Generate and save buyer key', exact: true }).click(); const exportKey = (await contents(await keyDownload)).trim(); assert.equal(decode(exportKey).length, 32);
   await page.getByLabel('I retained the buyer key separately from the export', { exact: true }).check();
   const approval = page.getByLabel('I approve this exact encrypted selection, purpose, target and copy custody', { exact: true });
@@ -101,6 +105,23 @@ export async function selectedExitJourney(output = process.env.LATCHKEY_SCREENSH
   await page.getByLabel(new RegExp(`Select .*${other.slice(0, 8)}`)).check(); await review.click();
   await expect(exact).toContainText('Complete company: no'); await expect(exact).toContainText('unknown; not inspected'); await expect(exact).toContainText('2 lifecycle observations');
   await capture(page, 'vault-review', output);
+  // Fail the browser's actual download initiation after a real release. The
+  // retained outcome must distinguish that failure from a delivery receipt.
+  await page.evaluate(() => {
+   const original = HTMLAnchorElement.prototype.click;
+   HTMLAnchorElement.prototype.click = function () {
+    if (this.download === 'latchkey-selection.json') { HTMLAnchorElement.prototype.click = original; throw new DOMException('Synthetic download refusal', 'NotAllowedError'); }
+    return original.call(this);
+   };
+  });
+  await approval.check(); await exportButton.click();
+  await expect(page.getByRole('alert')).toContainText('browser download could not be initiated');
+  assert.equal(downloads.length, 1); await expect(exact).toHaveCount(0);
+  const failedOutcome = await f.owner.call(['audit', 'list'].join('/'), { filters: { action: 'selection_outcome' }, after: 0, limit: 200 });
+  assert.equal(failedOutcome.entries.filter(row => row.clientOutcome === 'browser_download_failed' && row.result === 'succeeded').length, 1);
+  await capture(page, 'download-refused', output);
+  console.log('PROBE LKY-017 download failure: real release followed by refused browser initiation -> no selection download, distinct client-reported failure and a new review required');
+  await review.click();
   await approval.focus(); await page.keyboard.press('Space');
   const selectionDownload = page.waitForEvent('download'); await exportButton.focus(); await page.keyboard.press('Enter');
   const archiveText = await contents(await selectionDownload), archive = JSON.parse(archiveText);
@@ -140,6 +161,25 @@ export async function selectedExitJourney(output = process.env.LATCHKEY_SCREENSH
   await memberPage.getByLabel('I approve this exact selection into fresh owner-only vaults', { exact: true }).check(); await memberPage.getByRole('button', { name: 'Import reviewed selection', exact: true }).click();
   await expect(memberPage.getByRole('alert')).toContainText('Only the current destination installation owner'); assert.deepEqual(await destination.owner.call('vaults', {}), []);
 
+  // A second real owner device reviews the file, then loses authority at the
+  // atomic import door. The still-enrolled owner can subsequently import it.
+  importDevice = new VaultClient(destination.origin, { cookie: destination.owner.cookie, fetcher: destination.fetcher });
+  const importEnrollment = await importDevice.beginEnrollment(destination.owner.profile, destination.password);
+  await destination.owner.approveEnrollment(importEnrollment.device, importEnrollment.fingerprint);
+  const importProfile = await importDevice.completeEnrollment(importEnrollment.profile, destination.password); await importDevice.unlock(importProfile, destination.password);
+  importContext = await destination.browser.newContext({ ignoreHTTPSErrors: true });
+  const separator = importDevice.cookie.indexOf('=');
+  await importContext.addCookies([{ name: importDevice.cookie.slice(0, separator), value: importDevice.cookie.slice(separator + 1), url: destination.origin, secure: true, httpOnly: true, sameSite: 'Lax' }]);
+  const revokedPage = await importContext.newPage(); await openPanel(destination, revokedPage, importDevice, destination.password);
+  await revokedPage.getByRole('button', { name: 'Import selection', exact: true }).click();
+  await revokedPage.getByLabel('Encrypted selection file', { exact: true }).setInputFiles(file('selected.json', archive)); await revokedPage.getByLabel('Buyer export key file', { exact: true }).setInputFiles(file('buyer.key', exportKey)); await revokedPage.getByRole('button', { name: 'Open encrypted file', exact: true }).click();
+  await revokedPage.getByLabel('I approve this exact selection into fresh owner-only vaults', { exact: true }).check();
+  await revokedPage.route('**/api/latchkey/selection/import', async route => { await destination.owner.call(['device', 'revoke'].join('/'), { device: importDevice.profile.device }); await route.continue(); }, { times: 1 });
+  await revokedPage.getByRole('button', { name: 'Import reviewed selection', exact: true }).click();
+  await expect(revokedPage.getByRole('alert')).toBeVisible(); await expect(revokedPage.getByRole('region', { name: 'Exact selection review' })).toHaveCount(0);
+  await expect(revokedPage.getByRole('status').filter({ hasText: 'No buyer key loaded.' })).toBeVisible(); assert.deepEqual(await destination.owner.call('vaults', {}), []);
+  console.log('PROBE LKY-017 destination authority: reviewed browser import after real owner-device revocation -> refusal, cleared key and no destination vaults');
+
   await upload(archive); await keyFile(exportKey); await openFile.click();
   const importButton = to.getByRole('button', { name: 'Import reviewed selection', exact: true }); await expect(importButton).toBeDisabled();
   await to.getByLabel('I approve this exact selection into fresh owner-only vaults', { exact: true }).focus(); await to.keyboard.press('Space'); await importButton.focus(); await to.keyboard.press('Enter');
@@ -175,6 +215,6 @@ export async function selectedExitJourney(output = process.env.LATCHKEY_SCREENSH
   for (const secret of ['synthetic-latchkey-8171', 'synthetic-latchkey-8172', 'synthetic-latchkey-8173', 'synthetic-latchkey-8174', 'synthetic-latchkey-8175', 'synthetic-latchkey-8176', 'synthetic-latchkey-8177', 'synthetic-latchkey-8178', exportKey, attachment.name]) assert.ok(!leakText.includes(secret), 'export material leaked to service requests or audit');
   console.log('PROBE LKY-017 authority and leakage: real non-owner export/import and final device revocation -> refusal without download; file, key, review and secret values absent from requests and audit');
   console.log('PASS selectedExitJourney: source and destination browser flow at 1440; changed screens and overflow smoke at 390');
- } finally { keeper?.lock(); reader?.client.lock(); destinationReader?.client.lock(); await reader?.context.close(); await destinationReader?.context.close(); await destination.close(); await f.close(); }
+ } finally { keeper?.lock(); importDevice?.lock(); reader?.client.lock(); destinationReader?.client.lock(); await importContext?.close(); await reader?.context.close(); await destinationReader?.context.close(); await destination.close(); await f.close(); }
 }
 if (process.argv[1] === import.meta.filename) await selectedExitJourney();

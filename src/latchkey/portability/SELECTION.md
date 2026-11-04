@@ -88,6 +88,8 @@ Review the exact encrypted plan: purpose, intended target, copy custody, source
 and policy revisions, included counts, omitted item references and uninspected
 vaults. Company completeness remains false and inaccessible company totals stay
 unknown. Preview and Cancel do not authorize release or write destination data.
+Cancel also resets the purpose and intended target to their defaults, alongside the selected
+scope, opened file, buyer key and exact confirmation.
 
 Generate and save a buyer key, or load an independently retained 32-byte
 base64url key file. Retain it separately from the encrypted selection and confirm
@@ -96,7 +98,8 @@ plan. Download rechecks live source, owner and policy authority through
 `SelectionExportClient`; stale review or revoked authority requires a new review.
 The existing one-megabyte envelope limit still applies. The browser reports only
 `browser_download_initiated` or `browser_download_failed` as client-reported
-outcomes after successful release. Neither event verifies saving or delivery.
+outcomes after successful release. A refused browser initiation requires a new
+review before retrying and records a distinct failure outcome. Neither event verifies saving or delivery.
 Interrupted outcome reporting and independently verified delivery remain unproved.
 
 At a fresh destination, enroll its owner and unlock `/app/vault`. Open the same
@@ -104,8 +107,9 @@ Settings action even when there are no vaults. Choose **Import selection**, load
 the encrypted JSON and the separately retained key, and open locally. Review its
 exact counts and omissions, then separately confirm import into fresh owner-only
 vaults. Wrong keys, tampering, a source installation, a nonempty destination and
-non-owner authority refuse. The existing atomic importer verifies every included
-version and attachment digest, preserves lifecycle observations with retention
+non-owner authority refuse. A destination device revoked after review is refused
+at import without creating vaults; the browser clears the opened review and key.
+The existing atomic importer verifies every included version and attachment digest, preserves lifecycle observations with retention
 inactive, and denies plaintext by default. Source grants and active installation
 authority never travel. An old file cannot prove later erasure.
 
