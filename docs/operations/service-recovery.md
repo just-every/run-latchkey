@@ -45,6 +45,11 @@ The receipt reports complete member, enrolled-account, item, version and part
 totals without returning recovery factors or decrypted values. A successful
 material check alone does not prove an import will pass schema validation.
 
+When a trusted later Base journal is available, supply its private raw archive
+path as `journal` to both recovery commands. The existing local importer applies
+its later erasure fence. The receipt always warns that an offline file cannot
+establish whether a still newer journal exists.
+
 Run `records-recovery-restore` with the same object plus `confirmed: true`, a
 private `checkpoint` path, `partsPerRun` (1 to 128) and `finalize: true` when ready.
 It validates materials before opening the destination, decrypts into temporary

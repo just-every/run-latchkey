@@ -44,7 +44,7 @@ export async function vaultFixture({webhook=false,browserEnabled=true,enrollOwne
  }
  const owner=new VaultClient(origin,{cookie,fetcher}),password='synthetic-latchkey-1107',enrolled=enrollOwner?await owner.register(password):null;if(enrolled)await owner.unlock(enrolled.profile,password);
  const page=context?await context.newPage():null;
- return {caFile:join(directory,'cert.pem'),origin,get db(){return db},owner,password,enrolled,page,context,browser,mail,webhooks,fetcher,runtimeLogs,
+ return {caFile:join(directory,'cert.pem'),origin,erasureSecret:bindings.LATCHKEY_ERASURE_SECRET,get db(){return db},owner,password,enrolled,page,context,browser,mail,webhooks,fetcher,runtimeLogs,
   restart:async(time=null)=>{if(!persistent)throw Error('Restart proof requires persistent fixture storage');if(time!==null)currentClock=time;await worker.dispose();worker=await createWorker();db=await worker.getD1Database('DB')},
   setClock:async value=>{if(!persistent)throw Error('Clock changes require persistent fixture storage');currentClock=value;await worker.dispose();worker=await createWorker();db=await worker.getD1Database('DB')},
   archiveDatabase:()=>worker.getD1Database('ARCHIVE'),

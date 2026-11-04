@@ -625,6 +625,10 @@
       "sha256": "a3b6338b6749b48b243c931f8cd7010548e3eb7bf191f76a2b0ffcb5bb0f31e8",
       "executable": false
     },
+    "docs/operations/service-recovery.md": {
+      "sha256": "60b8f37619ab4c25e6a93cbb19826bdb99b1e441e3605a9224fc3fee2703f2ca",
+      "executable": false
+    },
     "docs/password-health.md": {
       "sha256": "93cdd5f63a30f85e38fd5cd723264a086568805707b359102f008f11b39ce439",
       "executable": false
@@ -1843,6 +1847,10 @@
     },
     "scripts/latchkey/records-local.mjs": {
       "sha256": "6b4397f751a9027670bdd43c9bcb0c6112cd21b44dfb2d9432262606d0ab901e",
+      "executable": false
+    },
+    "scripts/latchkey/records-recovery.mjs": {
+      "sha256": "7e82008d8cc13149e6fcbb0ba47de9352dbb2c8d145267170c89bb7a3fdfb633",
       "executable": false
     },
     "scripts/latchkey/run-command.mjs": {
@@ -4790,7 +4798,7 @@
       "executable": false
     },
     "tests/browser/fixture.mjs": {
-      "sha256": "7706c89424e91b78c6b2201190cb865c0d7421f29fa2c9ac2367bc3b87aaaf9f",
+      "sha256": "c0ceb8633925545e11401a202fec7604e96afd62d0e513ad37c2ca7d94de00c0",
       "executable": false
     },
     "tests/browser/msp-lifecycle.mjs": {
@@ -4914,7 +4922,7 @@
       "executable": false
     },
     "tests/latchkey-local-records.test.mjs": {
-      "sha256": "a417d45fdd79735266c13e6ccab1e2582e1b5e3aee75e5d04ba5475e341a629e",
+      "sha256": "79118dfab1ebbf30118e47e7d0750a49cdd7a950cabba676009b1757c2ee06a5",
       "executable": false
     },
     "tests/latchkey-records.test.mjs": {
@@ -4926,7 +4934,7 @@
       "executable": false
     },
     "tests/latchkey-restore.mjs": {
-      "sha256": "add5c023edeb51f7c1fda0590f91a7577f5746011fd118f804a524627bf85b79",
+      "sha256": "326f80bc0e4b486d7128a0c47b95846fb8f4a634e6e1368afa13557e236713fd",
       "executable": false
     },
     "tests/latchkey-rules.mjs": {
