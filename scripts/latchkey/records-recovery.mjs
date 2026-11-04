@@ -8,11 +8,15 @@ import { configuration } from './records-local-bindings.mjs';
 import { restoreLocalRecords } from './records-local.mjs';
 
 async function privateJson(path) {
- const handle = await privateInput(path);
+ let handle;
  try {
+  handle = await privateInput(path);
   need((await handle.stat()).size <= 65536, 'recovery_material_invalid');
   return JSON.parse(await handle.readFile('utf8'));
- } finally { await handle.close(); }
+ } catch (error) {
+  if (error instanceof RecordsError) throw error;
+  throw new RecordsError(error.code === 'ENOENT' ? 'recovery_material_missing' : 'recovery_material_invalid');
+ } finally { await handle?.close(); }
 }
 
 // Run OPAQUE against the independently retained archive, never the source
@@ -43,7 +47,7 @@ async function checkOwner(account, kit, password) {
 }
 
 export async function checkRecoveryKit(input) {
- need(input && Object.keys(input).every(key => ['input', 'exportKey', 'owners', 'restoreConfiguration', 'approvedOrigin'].includes(key)), 'invalid_recovery_check');
+ need(input && Object.keys(input).every(key => ['input', 'exportKey', 'owners', 'restoreConfiguration', 'approvedOrigin', 'journal'].includes(key)), 'invalid_recovery_check');
  need(Array.isArray(input.owners) && input.owners.length >= 2 && input.owners.length <= 8
   && input.owners.every(owner => typeof owner.name === 'string' && owner.name.trim().length > 0 && owner.name.length <= 120)
   && new Set(input.owners.map(owner => owner.name.trim())).size === input.owners.length, 'two_named_owners_required');
@@ -51,7 +55,7 @@ export async function checkRecoveryKit(input) {
  try { origin = new URL(input.approvedOrigin); } catch { need(false, 'local_recovery_origin_required'); }
  need(origin.origin === input.approvedOrigin && ['localhost', '127.0.0.1', '[::1]'].includes(origin.hostname)
   && ['https:', 'http:'].includes(origin.protocol), 'local_recovery_origin_required');
- return withOpenedRecordsArchive({ input: input.input, exportKey: input.exportKey }, async (path, receipt) => {
+ return withOpenedRecordsArchive({ input: input.input, exportKey: input.exportKey, laterJournal: input.journal }, async (path, receipt) => {
   const handle = await privateInput(path), accounts = [], operators = [], objects = new Set();
   let manifest, versions = 0;
   try {
@@ -68,9 +72,10 @@ export async function checkRecoveryKit(input) {
   } finally { await handle.close(); }
   const policy = await loadPolicy(process.cwd(), undefined, 'scripts/latchkey/archive-policy.mjs');
   const config = await configuration(process.cwd(), policy), retained = await privateJson(input.restoreConfiguration);
+  const requiredConfiguration = [...new Set([...manifest.requiredConfiguration, ...policy.requiredConfiguration])];
   need(retained?.schema === 1 && retained.sourceIdentity === manifest.sourceIdentity
    && manifest.product === policy.product && retained.variables && typeof retained.variables === 'object'
-   && manifest.requiredConfiguration.every(name => typeof retained.variables[name] === 'string' && retained.variables[name].trim().length > 0)
+   && requiredConfiguration.every(name => typeof retained.variables[name] === 'string' && retained.variables[name].trim().length > 0)
    && retained.variables.AUTH_ORIGIN === input.approvedOrigin, 'restore_configuration_invalid');
   need((manifest.migrations ?? []).every(name => config.migrations.some(entry => entry.name === name)), 'records_migration_source_missing');
   const seen = new Set();
@@ -82,7 +87,7 @@ export async function checkRecoveryKit(input) {
   return { checked: true, archiveHash: receipt.archiveHash, contentHash: receipt.contentHash,
    owners: seen.size, members: operators.filter(row => row.status === 'active').length,
    enrolledAccounts: accounts.length, items: objects.size, versions, parts: manifest.partCount,
-   requiredConfiguration: [...manifest.requiredConfiguration], inactive: true,
+   requiredConfiguration, erasure: receipt.erasure, inactive: true,
    boundary: 'Local material check only. Base import checks schema compatibility; fresh recovery and explicit activation are still required. No provider recovery or device continuity is established.' };
  });
 }
@@ -90,7 +95,7 @@ export async function checkRecoveryKit(input) {
 export async function restoreRecoveryKit({ checkpoint, confirmed, partsPerRun, finalize, ...input }) {
  need(confirmed === true, 'records_confirmation_required');
  const checked = await checkRecoveryKit(input);
- return withOpenedRecordsArchive({ input: input.input, exportKey: input.exportKey }, async path => ({
-  ...await restoreLocalRecords({ input: path, checkpoint, confirmed, partsPerRun, finalize }), material: checked,
+ return withOpenedRecordsArchive({ input: input.input, exportKey: input.exportKey, laterJournal: input.journal }, async path => ({
+  ...await restoreLocalRecords({ input: path, checkpoint, confirmed, partsPerRun, finalize, journal: input.journal }), material: checked,
  }));
 }
