@@ -20,7 +20,7 @@ Generated from CONTRACT.md. Acceptance requirements, exact assertions and remain
 | LKY-002 | Complete item types, generator and history | target | partial | [tests/latchkey-items.mjs](../tests/latchkey-items.mjs); [tests/latchkey-generator-policy.mjs](../tests/latchkey-generator-policy.mjs); [tests/runtime.mjs](../tests/runtime.mjs); [tests/browser/vault.mjs](../tests/browser/vault.mjs) | [Exact assertions and remaining scope](../CONTRACT.md#status) |
 | LKY-003 | Everyday apps, autofill and passkeys | target | missing |  | [Exact assertions and remaining scope](../CONTRACT.md#status) |
 | LKY-004 | Unlock and device security | target | missing |  | [Exact assertions and remaining scope](../CONTRACT.md#status) |
-| LKY-017 | Open export and self-hosting parity | target | partial | [tests/latchkey-exit.mjs](../tests/latchkey-exit.mjs) | [Exact assertions and remaining scope](../CONTRACT.md#status) |
+| LKY-017 | Open export and self-hosting parity | target | partial | [tests/latchkey-exit.mjs](../tests/latchkey-exit.mjs); [tests/browser/exit.mjs](../tests/browser/exit.mjs) | [Exact assertions and remaining scope](../CONTRACT.md#status) |
 | LKY-027 | Personal and family accounts remain separate | target | partial | [tests/browser/organization.mjs](../tests/browser/organization.mjs) | [Exact assertions and remaining scope](../CONTRACT.md#status) |
 | LKY-037 | Find, organize, archive and restore work | target | done | [tests/browser/organization.mjs](../tests/browser/organization.mjs) | [Exact assertions and remaining scope](../CONTRACT.md#status) |
 | LKY-038 | Offline continuity, conflicts and revocation policy | target | missing |  | [Exact assertions and remaining scope](../CONTRACT.md#status) |
