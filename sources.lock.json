@@ -4934,7 +4934,7 @@
       "executable": false
     },
     "tests/latchkey-offline.mjs": {
-      "sha256": "19bb26032fe6a414f8df9755851bffd2efda30c9ef9df2a6a1d375e50c7b7222",
+      "sha256": "b9b6a4280ea25b2c45c933fb0433ece6004f074cef8b9d962c8ad45f72b4bb26",
       "executable": false
     },
     "tests/latchkey-records.test.mjs": {
