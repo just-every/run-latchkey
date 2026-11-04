@@ -1,3 +1,4 @@
+import { DiagnosticsPanel } from '../diagnostics/ui';
 import { SelectionPanel } from '../portability/selection-ui';
 import {ReportsPanel} from '../reports/ui';
 import {ProviderPanel} from '../providers/ui';
@@ -14,7 +15,7 @@ import { PeopleErasure } from './people-erasure';
 import { ReceivedShares } from '../sharing/received';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { TypedItems, validateItem } from './runtime.mjs';
-import { download, message, type Item, type ItemRecord } from './types';
+import { download, message, diagnosticErrorCode, type Item, type ItemRecord } from './types';
 import { Unlock } from './unlock';
 import { ItemEditor } from './editor';
 import { ItemDetail } from './detail';
@@ -34,11 +35,12 @@ export function VaultScreen() {
  const [query, setQuery] = useState(''), [error, setError] = useState(''), [pending, setPending] = useState(0), [panel, setPanel] = useState(''), [create, setCreate] = useState(false), [vaultName, setVaultName] = useState(''), [status, setStatus] = useState('');
  const [lifecycle,setLifecycle]=useState<any[]>([]),[itemLimit,setItemLimit]=useState(100),[vaultKind,setVaultKind]=useState('company');
  const [ownerTrust, setOwnerTrust] = useState<{ account: string; fingerprint: string } | null>(null), [links, setLinks] = useState<Map<string, number>>(new Map()), [readAt, setReadAt] = useState(0);
+ const [diagnosticError, setDiagnosticError] = useState<string | null>(null);
  const activeClient = useRef<any>(null), search = useRef<HTMLInputElement>(null), menu = useRef<HTMLDetailsElement>(null), generation = useRef(0);
- const lock = useCallback(() => { generation.current++; activeClient.current?.lock(); activeClient.current = null; setClient(null); setRecords([]); setVaults([]); setVault(''); setSelected(''); setQuery(''); setPanel(''); setCreate(false); setStatus(''); setOwnerTrust(null); setLinks(new Map()); setReadAt(0); }, []);
+ const lock = useCallback(() => { generation.current++; activeClient.current?.lock(); activeClient.current = null; setClient(null); setRecords([]); setVaults([]); setVault(''); setSelected(''); setQuery(''); setPanel(''); setCreate(false); setStatus(''); setOwnerTrust(null); setLinks(new Map()); setReadAt(0); setDiagnosticError(null); requestAnimationFrame(() => menu.current?.querySelector('summary')?.focus()); }, []);
  const run = useCallback(async (work: () => Promise<unknown>) => {
   setPending(n => n + 1); setError('');
-  try { await work(); } catch (cause) { if (['device_revoked', 'account_key_changed', 'authority_expired', 'locked'].includes((cause as any)?.code) || activeClient.current && (cause as any)?.status === 401) lock(); if (['not_found', 'permission_denied'].includes((cause as any)?.code)) { setRecords([]); setSelected(''); setPanel(''); } setError(message(cause)); } finally { setPending(n => n - 1); }
+  try { await work(); } catch (cause) { setDiagnosticError(diagnosticErrorCode(cause)); if (['device_revoked', 'account_key_changed', 'authority_expired', 'locked'].includes((cause as any)?.code) || activeClient.current && (cause as any)?.status === 401) lock(); if (['not_found', 'permission_denied'].includes((cause as any)?.code)) { setRecords([]); setSelected(''); setPanel(''); } setError(message(cause)); } finally { setPending(n => n - 1); }
  }, [lock]);
  useEffect(() => {
   const keyboard = (event: KeyboardEvent) => { if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); search.current?.focus(); } if (event.key === 'Escape' && menu.current?.open) { menu.current.open = false; menu.current.querySelector('summary')?.focus(); } };
@@ -114,7 +116,7 @@ export function VaultScreen() {
   return JSON.stringify(safe).toLocaleLowerCase().includes(query.toLocaleLowerCase());
  });
  const row = items.find(row => row.object === selected), templates = records.filter(row => row.value.schema === 'latchkey/template/v1');
- const current = vaults.find(v => v.id === vault), vaultView = !['selection', 'received', 'people-erasure', 'reviews', 'projects', 'automation', 'evidence', 'provider', 'rules', 'aliases', 'connections', 'health', 'reports'].includes(panel);
+ const current = vaults.find(v => v.id === vault), vaultView = !['diagnostics', 'selection', 'received', 'people-erasure', 'reviews', 'projects', 'automation', 'evidence', 'provider', 'rules', 'aliases', 'connections', 'health', 'reports'].includes(panel);
  // The bar is the same on every destination: the search stays, and typing in it away from the list opens the list.
  const listed = vaultView && ['', 'new', 'edit'].includes(panel);
  const show = (next: string, toggle = false) => { setPanel(toggle && panel === next ? '' : next); setCreate(false); if (menu.current) menu.current.open = false; };
@@ -138,14 +140,15 @@ export function VaultScreen() {
     <button type="button" onClick={() => show('aliases')}>Email aliases</button>
     <button type="button" onClick={() => show('rules')}>Security rules</button>
     <button type="button" onClick={() => show('provider')}>Service provider</button><a href="/app/fleet">Company fleet</a>
+    <button type="button" onClick={() => show('diagnostics')}>Support diagnostics</button>
     <a href="/contract">Documentation</a>
    </div></details>
-   <button type="button" className="lock" onClick={lock}>Lock vault</button></> : <><span className="locked">Vault locked</span><a className="docs" href="/contract">Documentation</a></>}
+   <button type="button" className="lock" onClick={lock}>Lock vault</button></> : <><span className="locked">Vault locked</span><details className="menu" ref={menu}><summary>Settings</summary><div className="menu-list"><button type="button" onClick={() => show('diagnostics')}>Support diagnostics</button></div></details><a className="docs" href="/contract">Documentation</a></>}
  </header>
  <main className="page" id="vault-main">
   {error && <div className="error" role="alert">{error}<button aria-label="Dismiss error" onClick={() => setError('')}>Dismiss</button></div>}
   <p className="sr-only" role="status" aria-live="polite">{pending ? 'Working…' : status}</p>
-  {!client ? <Unlock run={run} busy={pending > 0} onUnlock={onUnlock}/> : <>
+  {panel === 'diagnostics' ? <DiagnosticsPanel errorCode={diagnosticError} onClose={() => { show(''); requestAnimationFrame(() => menu.current?.querySelector('summary')?.focus()); }}/> : !client ? <Unlock run={run} busy={pending > 0} onUnlock={onUnlock}/> : <>
    {vault && vaultView && <header className="page-head"><p className="crumbs"><span>Vaults</span><span aria-hidden="true">/</span><select className="vault-select" aria-label="Vault" value={vault} disabled={pending > 0} onChange={e => void run(async () => load(client, e.target.value))}>{vaults.map(v => <option key={v.id} value={v.id}>{vaultLabel(v)}</option>)}</select></p>
     <div className="head-text"><h1>{vaultLabel(current ?? { id: vault })}</h1><p className="subline">{kindLabel(current?.kind)} · {items.length === 1 ? '1 item' : `${items.length} items`}</p></div>
     <div className="head-side"><div className="head-actions"><button disabled={pending > 0} onClick={() => void run(refresh)}>Refresh</button><button className="primary" disabled={pending > 0 || !!ownerTrust || current?.permissions?.version === 2 && !current.permissions.rights.includes('create')} onClick={() => { setPanel('new'); setCreate(false); }}><Icon name="plus"/>New item</button></div>
@@ -165,9 +168,9 @@ export function VaultScreen() {
    {panel === 'reviews' && <ReviewsPanel client={client} vault={vault} run={run}/>}
    {panel === 'people-erasure' && <PeopleErasure client={client} run={run}/>}
    {panel === 'received' && <ReceivedShares client={client}/>}
-   {!vault && !['selection','received','reviews','projects','automation','evidence','provider','rules','aliases','connections','health','reports'].includes(panel) && !pending && <section className="detail empty"><h1>Your vault starts here</h1><p>Create a vault to keep your logins, documents and other private items together.</p><button className="primary" onClick={() => setCreate(true)}>Create your first vault</button></section>}
+   {!vault && !['diagnostics','selection','received','reviews','projects','automation','evidence','provider','rules','aliases','connections','health','reports'].includes(panel) && !pending && <section className="detail empty"><h1>Your vault starts here</h1><p>Create a vault to keep your logins, documents and other private items together.</p><button className="primary" onClick={() => setCreate(true)}>Create your first vault</button></section>}
    {!!pending && !records.length && vault && <div className="notice loading" role="status">Opening encrypted vault…</div>}
-   {vault && !['selection','received','people-erasure','reviews','organize','projects','automation','evidence','provider','rules','aliases','connections','health','reports'].includes(panel) && <>{ownerTrust ? <OwnerTrust owner={ownerTrust} client={client} run={run} onConfirmed={async () => { setOwnerTrust(null); await load(client, vault); }}/>: panel === 'generator' ? <Generator client={client} run={run}/> : panel === 'sharing' ? <section className="detail section" id="sharing"><h1>Share vault</h1><SharingPanel client={client} vault={vault}/></section> : panel === 'templates' ? <Templates templates={templates} typed={typed} vault={vault} run={run} onSaved={refresh} onClose={() => setPanel('')}/> : <>
+   {vault && !['diagnostics','selection','received','people-erasure','reviews','organize','projects','automation','evidence','provider','rules','aliases','connections','health','reports'].includes(panel) && <>{ownerTrust ? <OwnerTrust owner={ownerTrust} client={client} run={run} onConfirmed={async () => { setOwnerTrust(null); await load(client, vault); }}/>: panel === 'generator' ? <Generator client={client} run={run}/> : panel === 'sharing' ? <section className="detail section" id="sharing"><h1>Share vault</h1><SharingPanel client={client} vault={vault}/></section> : panel === 'templates' ? <Templates templates={templates} typed={typed} vault={vault} run={run} onSaved={refresh} onClose={() => setPanel('')}/> : <>
     {panel === 'new' && editor}
     <ItemsHead/>
     <nav className="items" aria-label="Vault items">{visible.slice(0,itemLimit).map(item => { const open = selected === item.object; return <div className="row" key={item.object}><ItemRow row={item} links={links.get(item.object) ?? 0} open={open} onOpen={() => { setSelected(item.object); setPanel(''); }}/>
