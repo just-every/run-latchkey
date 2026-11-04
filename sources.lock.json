@@ -4818,7 +4818,7 @@
       "executable": false
     },
     "tests/browser/company-custody.mjs": {
-      "sha256": "c912079d8eb14b2400157283c33ea500df84588ed8a39042bdbf62a09d73e5cf",
+      "sha256": "88e33ed418cb3c40647f88e905ba5f850a9f934688c9f8a93e15f04365af42ac",
       "executable": false
     },
     "tests/browser/diagnostics.mjs": {
@@ -4870,7 +4870,7 @@
       "executable": false
     },
     "tests/browser/security.mjs": {
-      "sha256": "18f9687d82ee03cd37d0404a7ae184a93b7edae453abf39321827e67ccab3070",
+      "sha256": "29240e31d4cf3af47e3c04c029fffce5d6ac3528d4751bf3f5797646c78a7663",
       "executable": false
     },
     "tests/browser/sharing.mjs": {

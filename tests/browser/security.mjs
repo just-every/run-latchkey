@@ -153,6 +153,8 @@ for(const width of [1440,390]){
   const ownerPage=f.page;f.page=await memberContext.newPage();
   try{
    await f.page.goto(f.origin+'/app/vault');await f.page.getByLabel('Profile file').setInputFiles({name:'profile.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(member.profile))});await f.page.getByLabel('Master password',{exact:true}).fill('synthetic-latchkey-2641');await f.page.getByRole('button',{name:'Unlock vault',exact:true}).click();
+   // Locked Settings also offers diagnostics; wait for the unlocked menu.
+   await expect(f.page.getByRole('button',{name:'Lock vault',exact:true})).toBeVisible();
    await settings('Password health');await f.page.getByRole('button',{name:'Check locally',exact:true}).click();
    const finding=f.page.getByRole('article').filter({has:f.page.getByRole('heading',{name:'Synthetic member review · weak password',exact:true})});
    await expect(finding).toContainText('Suppressed: Synthetic member investigation');await f.page.getByLabel('Suppression reason').fill('Synthetic member dismissal');await finding.getByRole('button',{name:'Dismiss finding',exact:true}).click();await expect(finding).toContainText('Suppressed: Synthetic member dismissal');await expect(f.page.getByRole('heading',{name:'Your suppression history'})).toBeVisible();await expect(f.page.getByRole('heading',{name:'Earlier vault observations'})).toBeVisible();await expect(f.page.getByText('weak password · Synthetic inherited decision · inactive history',{exact:true})).toBeVisible();assert.equal(await finding.locator('p').filter({hasText:'Suppressed:'}).count(),1);await capture('health-member-history');
