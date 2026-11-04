@@ -118,6 +118,10 @@ export async function typedItemJourney() {
    assert.equal(before.length, 3); exactBytes(privateKey(before[2]).value, changed);
    assert.equal(before[2].value.attachments[0].digest, await digest(laterAttachment));
    assert.notEqual(before[2].value.attachments[0].digest, originalAttachment.digest);
+   await page.getByRole('button', { name: 'Copy Private key', exact: true }).click();
+   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(changed);
+   exactBytes(await page.evaluate(() => navigator.clipboard.readText()), changed);
+   await page.evaluate(() => navigator.clipboard.writeText(''));
    await page.locator('summary').filter({ hasText: /^History · version 3$/ }).click();
    await page.getByRole('button', { name: /Version 1 ·/ }).click();
    await expect(page.locator('.restore-preview')).toContainText('Sensitive value retained in this version');
@@ -134,6 +138,10 @@ export async function typedItemJourney() {
    const after = await typed.history(vault, row.object);
    assert.equal(after.length, 4); assert.deepEqual(after.slice(0, 3), before);
    exactBytes(privateKey(after[3]).value, initial);
+   await page.getByRole('button', { name: 'Copy Private key', exact: true }).click();
+   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(initial);
+   exactBytes(await page.evaluate(() => navigator.clipboard.readText()), initial);
+   await page.evaluate(() => navigator.clipboard.writeText(''));
    assert.equal(after[3].value.change.restoredFrom, 1);
    assert.deepEqual(after[3].value.attachments[0], originalAttachment);
    exactBytes((await typed.attachment(vault, row.object, originalAttachment.id)).data, attachment);
@@ -154,6 +162,8 @@ export async function typedItemJourney() {
    assert.equal(retained.length, 5); assert.deepEqual(retained.slice(0, 4), after);
    exactBytes(privateKey(retained[4]).value, changed);
    await cancel(); await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+   await expect(page.getByRole('navigation', { name: 'Vault items' }).getByRole('button').filter({ hasText: title })).toBeVisible();
+   await expect(page.getByRole('status')).not.toHaveText('Working…');
    console.log(`PROBE LKY-002 ${type}: built UI entry, masked unrelated edit, copy, cancel, confirmed restore and stale save -> exact bytes, five append-only versions and attachment digest preserved`);
   }
   // Older items may omit an unfilled built-in field. Current authority still
