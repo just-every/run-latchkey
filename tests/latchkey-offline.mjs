@@ -38,13 +38,19 @@ export async function offlineTotpJourney(){
  let closed=false,sequence=0;
  const file=name=>join(directory,name+'.json');
  const store=async(path,value)=>writeFile(path,JSON.stringify(value),{mode:0o600});
- async function command(name,input,{offline=false,time=2000000000000,expected=0}={}){
+ async function command(name,input,{offline=false,time=2000000000000,expected=0,beforeLifecycle}={}){
   // A swallowed network failure cannot pass: attempted fetch exits the process.
   const guard=`Date.now=()=>${time};globalThis.fetch=()=>{process.stderr.write('offline_network_attempt');process.exit(90)};`;
-  const args=[...(offline?['--import','data:text/javascript,'+encodeURIComponent(guard)]:[]),'scripts/latchkey.mjs',name];
-  const child=spawn(process.execPath,args,{env:{...process.env,...(!offline&&!closed?{NODE_EXTRA_CA_CERTS:f.caFile}:{})},stdio:['pipe','pipe','pipe']});let out='',err='';
+  // Pause only at the network edge, after the real snapshot read. The owner
+  // changes lifecycle through its public door before refresh may continue.
+  const pause=`const fetch=globalThis.fetch;globalThis.fetch=async(...args)=>{if(new URL(args[0]).pathname.endsWith('/lifecycle/list'))await new Promise(resolve=>{process.once('message',()=>{process.disconnect();resolve()});process.send('lifecycle-ready')});return fetch(...args)};`;
+  const preload=offline?guard:beforeLifecycle?pause:null;
+  const args=[...(preload?['--import','data:text/javascript,'+encodeURIComponent(preload)]:[]),'scripts/latchkey.mjs',name];
+  const child=spawn(process.execPath,args,{env:{...process.env,...(!offline&&!closed?{NODE_EXTRA_CA_CERTS:f.caFile}:{})},stdio:['pipe','pipe','pipe',...(beforeLifecycle?['ipc']:[])]});let out='',err='',mutation,mutationError;
+  if(beforeLifecycle)child.once('message',message=>{mutation=(async()=>{try{assert.equal(message,'lifecycle-ready');await beforeLifecycle();child.send('continue')}catch(error){mutationError=error;child.kill()}})()});
   child.stdout.on('data',v=>out+=v);child.stderr.on('data',v=>err+=v);child.stdin.end(JSON.stringify(input));
   const code=await new Promise((resolve,reject)=>{child.once('error',reject);child.once('close',resolve)});
+  if(beforeLifecycle){assert.ok(mutation,'refresh must reach the lifecycle door');await mutation;if(mutationError)throw mutationError}
   logs.push(out+err);assert.equal(code,expected,err);return {out,err,value:JSON.parse(expected?err:out)};
  }
  async function code(input,options={}){
@@ -61,6 +67,12 @@ export async function offlineTotpJourney(){
   if(error)assert.equal(result.value.error,error);
   await assert.rejects(access(output),{code:'ENOENT'});
  }
+ async function refusedCacheRead(input){
+  const output=file('refused-read-'+sequence++);
+  const response=await command('cache-read',{...input,output},{offline:true,expected:1});
+  assert.equal(response.value.error,'offline_cache_invalidated');
+  await assert.rejects(access(output),{code:'ENOENT'});
+ }
  try{
   const vault=(await f.owner.createVault()).vault,items=new TypedItems(f.owner),lifecycle=new LifecycleClient(f.owner);
   const make=secret=>createItem('login',{title:'Offline continuity login',values:{password:'synthetic-latchkey-9604',totp:{secret:base32(secret),issuer:'synthetic-latchkey-9605',account:'synthetic-latchkey-9606'}}});
@@ -73,6 +85,19 @@ export async function offlineTotpJourney(){
   const durable=await readFile(cache,'utf8'),identity=emptyCache(f.owner.profile,vault),opened=await openCache(JSON.parse(durable),cacheKey,identity);
   assert.equal(opened.eligibility.owner,f.owner.profile.account);
   assert.equal(opened.eligibility.items.find(row=>row.object===archived).state,'archived');
+  const changing=(await items.save(vault,make(firstSecret))).object,changingInput={...input,object:changing,cache:file('changing-lifecycle')};
+  await command('cache-refresh',{...changingInput,password:f.password});
+  const changed=await command('cache-refresh',{...changingInput,password:f.password},{expected:1,beforeLifecycle:()=>lifecycle.change(vault,changing,'archived',{confirmed:true})});
+  assert.equal(changed.value.error,'offline_eligibility_changed');
+  assert.deepEqual(JSON.parse(await readFile(changingInput.cache,'utf8')),{...identity,state:'invalidated'});
+  await refused(changingInput,'offline_cache_invalidated');
+  await refusedCacheRead(changingInput);
+  await command('cache-refresh',{...changingInput,password:f.password});
+  await refused(changingInput,'offline_item_not_active');
+  await lifecycle.change(vault,changing,'active',{confirmed:true});
+  await command('cache-refresh',{...changingInput,password:f.password});
+  assert.equal((await code(changingInput,{offline:true})).code,expectedCode(firstSecret,2000000000000));
+  console.log('PROBE LKY-038 refresh revision: owner archives after snapshot read -> refresh refuses and cache stays invalidated; fresh archived cache refuses; explicit restore and fresh refresh allow correct code');
   // Real second owner device: revocation cannot recall the disconnected copy,
   // but its reconnect door must invalidate before the failed authentication.
   const pendingClient=new VaultClient(f.origin,{fetcher:f.fetcher}),pending=await pendingClient.beginEnrollment(f.owner.profile,f.password);
@@ -97,6 +122,15 @@ export async function offlineTotpJourney(){
   const recipientInput={...input,profile:erasedInput.profile,cache:file('recipient')};
   await command('cache-refresh',{...recipientInput,password:person.password});
   await refused(recipientInput,'offline_owner_eligibility_required');
+  // Current independent rights cannot bypass their connected refusal by
+  // refreshing a cache that was captured under the older bundled read grant.
+  await f.owner.share(vault,person.client.profile.account,await person.client.identity().fingerprint,['read'],{version:2});
+  const restricted=await command('cache-refresh',{...recipientInput,password:person.password},{expected:1});
+  assert.equal(restricted.value.error,'permission_denied');
+  assert.equal(JSON.parse(await readFile(recipientInput.cache,'utf8')).envelope,undefined);
+  await refused(recipientInput,'offline_cache_invalidated');
+  await refusedCacheRead(recipientInput);
+  console.log('PROBE LKY-038 current rights: replace bundled read grant with explicit read-only rights -> refresh denied before cached TOTP or prior plaintext can be used');
   const operator=(await f.db.prepare('SELECT operator_id FROM lky_accounts WHERE id=?').bind(person.client.profile.account).first()).operator_id;
   const preview=await f.owner.call(['subject','erase-preview'].join('/'),{subject:operator});
   await f.owner.call(['subject','erase'].join('/'),{subject:operator,confirmed:true,planHash:preview.planHash});

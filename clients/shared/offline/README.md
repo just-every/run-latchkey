@@ -25,8 +25,12 @@ and an OTP field. It never falls back to an older version when the latest one
 has no OTP field. Archived and trashed items, ambiguous versions, foreign
 bindings, invalidated caches and caches without this eligibility metadata are
 refused. Refresh an older cache while authorized before requesting offline codes.
-Ordinary read recipients can still refresh and read their existing cache; this
-new TOTP door does not grant them owner eligibility.
+Recipients with current full-cache read rights can still refresh and read their
+cache; this TOTP door does not grant them owner eligibility. Legacy bundled read
+grants retain their existing meaning. For current independent grants, a full
+cache refresh requires read, reveal, copy and history rights. Replacing a legacy
+grant with explicit read-only rights refuses refresh and leaves the prior cache
+invalidated through both read and TOTP commands.
 
 The command uses the local clock and the same RFC-tested implementation as
 connected TOTP. A wrong device clock produces wrong codes; this does not provide
@@ -39,6 +43,10 @@ authority, an unavailable service, an interrupted process or refused authenticat
 leaves the old cache inaccessible through this door. An exclusive adjacent lock
 serializes reads and refreshes; after a crash, remove that lock only after verifying
 that its process has stopped. Never restore an older cache to bypass invalidation.
+If the vault changes between the snapshot and lifecycle reads, refresh refuses
+and leaves that cache invalidated. A subsequent authorized refresh must capture
+one consistent revision. An archived item remains ineligible until an explicit
+restore and another successful refresh capture its active state.
 
 Offline reads have no default expiry and explicitly report disconnected,
 unverified authority. Reconnection reconciles item erasure proofs and key epochs

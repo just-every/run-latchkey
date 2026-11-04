@@ -1,3 +1,4 @@
+import { currentDirectRights, directPreview, directRights } from './direct-rights.mjs';
 import {healthAuthenticated} from './health/service.mjs';
 import { recoverySession, recoveryAuthenticated } from './recovery/service.mjs'
 import {reportsAuthenticated} from './reports/service.mjs';
@@ -39,7 +40,7 @@ const identifier = (value: unknown): string => typeof value === 'string' && /^[0
 const string = (value: unknown, max = 4096): string => typeof value === 'string' && value.length > 0 && value.length <= max ? value : refuse('invalid_input')
 const exact = (value: Row, keys: string[]) => { if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).sort().join() !== keys.sort().join()) refuse('invalid_fields') }
 const integer = (value: unknown) => Number.isSafeInteger(value) && Number(value) > 0 ? Number(value) : refuse('invalid_version')
-const rightsList = ['read', 'create', 'edit', 'export', 'share', 'rotate','delete','restore']
+const rightsList = directRights
 const rights = (value: unknown) => {
  if (!Array.isArray(value) || !value.length || value.length > rightsList.length || new Set(value).size !== value.length || value.some(x => !rightsList.includes(x))) refuse('invalid_rights')
  return value as string[]
@@ -369,7 +370,7 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
    const authority=await first('SELECT authority_key FROM lky_accounts WHERE id=?',actor)
    if(!await verifyPolicy(input.policy,{id:vault,tenant,owner:actor,authority_key:authority!.authority_key}))refuse('invalid_retention_policy',403)
    await checkWrap(input.wrapped, actor, binding(tenant, vault, actor, 'vault-key', 1))
-   await db.batch([stmt(`INSERT INTO lky_vaults(id,tenant,owner,epoch,revision,mutation,kind,trash_policy) SELECT ?,?,?,1,1,?,?,? WHERE ${fence}`, vault, tenant, actor, id(),input.kind,envString(input.policy), ...fenceArgs), stmt('INSERT INTO lky_recipients VALUES(?,?,?,?)', vault, actor, envString(rightsList), envString(input.wrapped)), event(actor, device, 'vault_created', vault)])
+   await db.batch([stmt(`INSERT INTO lky_vaults(id,tenant,owner,epoch,revision,mutation,kind,trash_policy) SELECT ?,?,?,1,1,?,?,? WHERE ${fence}`, vault, tenant, actor, id(),input.kind,envString(input.policy), ...fenceArgs), stmt('INSERT INTO lky_recipients VALUES(?,?,?,?)', vault, actor, envString(rightsList.filter(right => !['reveal','copy','history'].includes(right))), envString(input.wrapped)), event(actor, device, 'vault_created', vault)])
    return response({ vault, epoch: 1, revision: 1 }, 201)
   }
   if (route === 'vaults') {
@@ -377,7 +378,20 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
   }
   const vault = await first('SELECT v.*,r.rights,r.wrapped_key FROM lky_vaults v JOIN lky_recipients r ON r.vault_id=v.id WHERE v.id=? AND v.tenant=? AND r.account_id=?', identifier(input.vault), tenant, actor)
   if (!vault) refuse('not_found', 404)
-  const has = (right: string) => { if (!(JSON.parse(vault.rights) as string[]).includes(right)) refuse('permission_denied', 403) }
+  const permissions = await currentDirectRights(db, vault, actor)
+  const has = (right: string) => { if (!permissions.rights.includes(right)) refuse('permission_denied', 403) }
+  const requireRawRights = () => { has('reveal'); has('copy'); has('history') }
+  if (route === 'vault' + '/rights') { exact(input, ['vault']); has('read'); return response({ vault: vault.id, revision: vault.revision, kind: vault.kind, owner: vault.owner, ...permissions }) }
+  if (route === ['vault','rights','preview'].join('/')) {
+   exact(input, ['vault','account','fingerprint','rights']);
+   if (actor !== vault.owner) refuse('permission_denied',403)
+   has('share'); if (!['company','private-work'].includes(vault.kind)) refuse('unsupported_vault_kind',403)
+   const recipient = await first('SELECT a.id,a.recipient_key,a.authority_key FROM lky_accounts a JOIN oa_operators o ON o.id=a.operator_id WHERE a.id=? AND a.tenant=? AND o.status=\'active\'',identifier(input.account),tenant)
+   if (!recipient || recipient.id === vault.owner || input.fingerprint !== await digest(envString([recipient.recipient_key,recipient.authority_key]))) refuse('recipient_mismatch',409)
+   const selected = rights(input.rights);
+   if (selected.some(right => !permissions.rights.includes(right))) refuse('permission_denied',403)
+   return response({vault:vault.id, account:recipient.id, fingerprint:input.fingerprint, revision:vault.revision, selected, ...directPreview(selected,2,'owner-selected direct grant')})
+  }
   const active = 'EXISTS(SELECT 1 FROM lky_vaults WHERE id=? AND mutation=?)'
   const mutation = id(), activeArgs = [vault.id, mutation]
   const change = (revision: unknown) => stmt(`UPDATE lky_vaults SET revision=revision+1,mutation=? WHERE id=? AND revision=? AND ${fence} RETURNING revision`, mutation, vault.id, integer(revision), ...fenceArgs)
@@ -385,22 +399,29 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
    exact(input, ['vault', 'object', 'action']); identifier(input.object)
    const action = string(input.action)
    if(action==='fill')await activeItem({db},vault.id,input.object)
-   if (['history', 'attachment', 'copy', 'reveal', 'fill'].includes(action)) has('read')
+   if (['history', 'attachment', 'copy', 'reveal', 'fill'].includes(action)) { has('read'); if (['history','copy','reveal'].includes(action)) has(action); if(action==='attachment')has('copy'); if(action==='fill' && permissions.version===2)requireRawRights() }
    else if (action === 'restore') { has('restore'); has('create'); if(vault.kind==='family'&&vault.owner!==actor)refuse('family_restore_forbidden',403) }
    else if (action === 'template-author') { has('create'); if (vault.owner !== actor) refuse('permission_denied', 403) }
    else refuse('invalid_action')
    return response({ authorized: action })
   }
   if (route === 'item/read') {
-   exact(input, ['vault', 'object', 'history']); has('read'); const object = identifier(input.object)
+   exact(input, ['vault', 'object', 'history', ...(Object.hasOwn(input,'action')?['action']:[])]); has('read'); const object = identifier(input.object)
    if (typeof input.history !== 'boolean') refuse('invalid_input')
+   if(input.history) { if(input.action && input.action!=='history')refuse('invalid_action'); has('history') }
+   else if(input.action==='view') {}
+   else if(['reveal','copy'].includes(input.action))has(input.action)
+   else if(input.action==='attachment')has('copy')
+   else if(input.action==='fill'){if(permissions.version===2)requireRawRights()}
+   else if(input.action===undefined) {has('reveal');has('copy')}
+   else refuse('invalid_action')
    const versions = await all(input.history ? 'SELECT object_id,version,envelope FROM lky_versions WHERE vault_id=? AND object_id=? ORDER BY version' : 'SELECT object_id,version,envelope FROM lky_versions WHERE vault_id=? AND object_id=? ORDER BY version DESC LIMIT 1', vault.id, object)
    if (!versions.length) refuse('not_found', 404)
    return response({ vault: vault.id, tenant, epoch: vault.epoch, revision: vault.revision, owner: vault.owner, wrapped: JSON.parse(vault.wrapped_key), versions, erased: (await all('SELECT proof FROM lky_erased_items WHERE vault_id=?', vault.id)).map(row => JSON.parse(row.proof)), recipients: [] })
   }
-  if (route === 'vault/read' || route === 'vault/export') {
-   exact(input, ['vault']); has(route === 'vault/read' ? 'read' : 'export')
-   return response({ vault: vault.id, tenant, epoch: vault.epoch, revision: vault.revision, owner: vault.owner, wrapped: JSON.parse(vault.wrapped_key), versions: await all('SELECT object_id,version,envelope FROM lky_versions WHERE vault_id=? ORDER BY object_id,version', vault.id), erased: (await all('SELECT proof FROM lky_erased_items WHERE vault_id=?', vault.id)).map(row => JSON.parse(row.proof)), recipients: (JSON.parse(vault.rights) as string[]).includes('share') ? await all('SELECT r.account_id,r.rights,a.generation,a.recipient_key,a.authority_key FROM lky_recipients r JOIN lky_accounts a ON a.id=r.account_id WHERE r.vault_id=?', vault.id) : [] })
+  if (route === 'vault/read' || route === 'vault/export' || route === 'vault' + '/view') {
+   exact(input, ['vault']); has(route === 'vault/export' ? 'export' : 'read'); if(route!=='vault' + '/view')requireRawRights()
+   return response({ vault: vault.id, tenant, epoch: vault.epoch, revision: vault.revision, owner: vault.owner, wrapped: JSON.parse(vault.wrapped_key), permissions, versions: await all(route==='vault' + '/view' ? 'SELECT object_id,version,envelope FROM lky_versions v WHERE vault_id=? AND version=(SELECT MAX(version) FROM lky_versions latest WHERE latest.vault_id=v.vault_id AND latest.object_id=v.object_id) ORDER BY object_id' : 'SELECT object_id,version,envelope FROM lky_versions WHERE vault_id=? ORDER BY object_id,version', vault.id), erased: (await all('SELECT proof FROM lky_erased_items WHERE vault_id=?', vault.id)).map(row => JSON.parse(row.proof)), recipients: (JSON.parse(vault.rights) as string[]).includes('share') ? await all('SELECT r.account_id,r.rights,a.generation,a.recipient_key,a.authority_key,c.capability FROM lky_recipients r JOIN lky_accounts a ON a.id=r.account_id LEFT JOIN lky_vault_capabilities c ON c.vault_id=r.vault_id AND c.account_id=r.account_id WHERE r.vault_id=?', vault.id) : [] })
   }
   if (route === 'machine/grant') {
    exact(input, ['vault', 'object', 'machine', 'deviceKey', 'recipientKey', 'fingerprint', 'wrapped', 'tokenHash', 'expiresInSeconds']); has('read'); has('share')
@@ -434,12 +455,14 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
   }
   if (route === 'vault/share') {
    exact(input, ['vault', 'revision', 'account', 'fingerprint', 'rights', 'wrapped','capability']); has('share')
+   if(actor!==vault.owner)refuse('permission_denied',403)
    const recipientId = identifier(input.account), recipient = await first('SELECT a.id,a.generation,a.recipient_key,a.authority_key FROM lky_accounts a JOIN oa_operators o ON o.id=a.operator_id WHERE a.id=? AND a.tenant=? AND o.status=\'active\'', recipientId, tenant)
    if (!recipient || input.fingerprint !== await digest(envString([recipient.recipient_key, recipient.authority_key]))) refuse('recipient_mismatch', 409)
    if (recipientId === vault.owner) refuse('owner_rights_fixed', 403)
-   if (rights(input.rights).some(right => !(JSON.parse(vault.rights) as string[]).includes(right))) refuse('permission_denied', 403)
+   if (rights(input.rights).some(right => !permissions.rights.includes(right))) refuse('permission_denied', 403)
    await checkWrap(input.wrapped, vault.owner, binding(tenant, vault.id, recipientId, 'vault-key', vault.epoch))
    const authority=await first('SELECT authority_key FROM lky_accounts WHERE id=?',vault.owner)
+   if(input.capability?.statement?.schema===2 && (!['company','private-work'].includes(vault.kind) || input.capability.statement.revision!==input.revision))refuse('stale_rights_capability',409)
    if(!await verifyCapability(input.capability,{...vault,authority_key:authority!.authority_key},{...recipient,rights:input.rights}))refuse('invalid_rights_signature',403)
    const result = await db.batch([change(input.revision), stmt(`INSERT INTO lky_recipients SELECT ?,?,?,? WHERE ${active} ON CONFLICT(vault_id,account_id) DO UPDATE SET rights=excluded.rights,wrapped_key=excluded.wrapped_key`, vault.id, recipientId, envString(rights(input.rights)), envString(input.wrapped), ...activeArgs), stmt(`INSERT INTO lky_vault_capabilities SELECT ?,?,? WHERE ${active} ON CONFLICT(vault_id,account_id) DO UPDATE SET capability=excluded.capability`,vault.id,recipientId,envString(input.capability),...activeArgs),event(actor, device, 'vault_shared', vault.id, active, activeArgs)])
    if (!result[0].meta.changes) refuse('version_conflict', 409)
@@ -454,7 +477,7 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
    if (!Array.isArray(input.versions) || !Array.isArray(input.recipients) || envString(input.versions.map((x: Row) => [x.object, x.version]).sort()) !== envString(current.map(x => [x.object_id, x.version]).sort()) || envString(input.recipients.map((x: Row) => x.account).sort()) !== envString(recipients.filter(x => x.account_id !== removed).map(x => x.account_id).sort())) refuse('incomplete_rotation', 409)
    const next = vault.epoch + 1
    const updates = input.versions.map((value: Row) => { exact(value, ['object', 'version', 'envelope']); validateEnvelope(value.envelope, binding(tenant, vault.id, identifier(value.object), 'item', next, integer(value.version))); return stmt(`UPDATE lky_versions SET envelope=? WHERE vault_id=? AND object_id=? AND version=? AND ${active}`, envString(value.envelope), vault.id, value.object, value.version, ...activeArgs) })
-   for (const value of input.recipients) { exact(value, ['account', 'wrapped','capability']); const target=await first('SELECT a.id,a.generation,a.authority_key,r.rights FROM lky_accounts a JOIN lky_recipients r ON r.account_id=a.id WHERE r.vault_id=? AND a.id=?',vault.id,value.account);const ownerAuthority=await first('SELECT authority_key FROM lky_accounts WHERE id=?',vault.owner);if(!target||!await verifyCapability(value.capability,{...vault,epoch:next,authority_key:ownerAuthority!.authority_key},{...target,rights:JSON.parse(target.rights)}))refuse('invalid_rights_signature',403);updates.push(stmt(`INSERT INTO lky_vault_capabilities SELECT ?,?,? WHERE ${active} ON CONFLICT(vault_id,account_id) DO UPDATE SET capability=excluded.capability`,vault.id,value.account,envString(value.capability),...activeArgs)); await checkWrap(value.wrapped, vault.owner, binding(tenant, vault.id, identifier(value.account), 'vault-key', next)); updates.push(stmt(`UPDATE lky_recipients SET wrapped_key=? WHERE vault_id=? AND account_id=? AND ${active}`, envString(value.wrapped), vault.id, value.account, ...activeArgs)) }
+   for (const value of input.recipients) { exact(value, ['account', 'wrapped','capability']); const target=await first('SELECT a.id,a.generation,a.authority_key,r.rights,c.capability FROM lky_accounts a JOIN lky_recipients r ON r.account_id=a.id LEFT JOIN lky_vault_capabilities c ON c.vault_id=r.vault_id AND c.account_id=r.account_id WHERE r.vault_id=? AND a.id=?',vault.id,value.account);const ownerAuthority=await first('SELECT authority_key FROM lky_accounts WHERE id=?',vault.owner);if(target && value.capability?.statement?.schema!==(target.capability?JSON.parse(target.capability).statement.schema:1))refuse('capability_version_changed',409);if(value.capability?.statement?.schema===2 && value.capability.statement.revision!==input.revision)refuse('stale_rights_capability',409);if(!target||!await verifyCapability(value.capability,{...vault,epoch:next,authority_key:ownerAuthority!.authority_key},{...target,rights:JSON.parse(target.rights)}))refuse('invalid_rights_signature',403);updates.push(stmt(`INSERT INTO lky_vault_capabilities SELECT ?,?,? WHERE ${active} ON CONFLICT(vault_id,account_id) DO UPDATE SET capability=excluded.capability`,vault.id,value.account,envString(value.capability),...activeArgs)); await checkWrap(value.wrapped, vault.owner, binding(tenant, vault.id, identifier(value.account), 'vault-key', next)); updates.push(stmt(`UPDATE lky_recipients SET wrapped_key=? WHERE vault_id=? AND account_id=? AND ${active}`, envString(value.wrapped), vault.id, value.account, ...activeArgs)) }
    const result = await db.batch([change(input.revision), stmt(`UPDATE lky_vaults SET epoch=? WHERE id=? AND ${active}`, next, vault.id, ...activeArgs), ...updates, ...subjectRotationStatements({ db, tenant }, vault.id, next),stmt(`DELETE FROM lky_vault_capabilities WHERE vault_id=? AND account_id=? AND ${active}`,vault.id,removed??'',...activeArgs), stmt(`DELETE FROM lky_recipients WHERE vault_id=? AND account_id=? AND ${active}`, vault.id, removed ?? '', ...activeArgs), event(actor, device, 'vault_rotated', vault.id, active, activeArgs)])
    if (!result[0].meta.changes) refuse('version_conflict', 409)
    return response({ vault: vault.id, epoch: next, residualExposure: 'Past plaintext and old backups cannot be recalled. Rotate provider credentials separately.' })

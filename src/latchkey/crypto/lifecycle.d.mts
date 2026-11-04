@@ -1,9 +1,9 @@
-export type LifecycleRight = 'read' | 'create' | 'edit' | 'export' | 'share' | 'rotate' | 'delete' | 'restore';
+export type LifecycleRight = 'read' | 'create' | 'edit' | 'export' | 'share' | 'rotate' | 'delete' | 'restore' | 'reveal' | 'copy' | 'history';
 export interface RetentionStatement {
  schema: 1; purpose: 'trash-retention'; tenant: string; vault: string; owner: string; days: 30;
 }
 export interface CapabilityStatement {
- schema: 1; purpose: 'vault-rights'; tenant: string; vault: string; owner: string;
+ schema: 1 | 2; revision?: number; purpose: 'vault-rights'; tenant: string; vault: string; owner: string;
  account: string; authorityKey: string; rights: LifecycleRight[]; epoch: number; generation: number;
 }
 export interface TrashStatement {
