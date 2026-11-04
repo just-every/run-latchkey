@@ -1,3 +1,4 @@
+import { currentDirectRights } from '../direct-rights.mjs';
 import { digest, verify, signingText } from '../crypto/envelope.mjs';
 import { access, activeObject, need, uuid } from './common.mjs';
 
@@ -18,9 +19,19 @@ export async function machineAuthority(input, ctx) {
  const hash = await digest(token), grant = await first('SELECT * FROM lky_runtime_grants WHERE id=? AND token_hash=?', input.grant, hash);
  need(grant, 'machine_authority_expired', 401);
  const now = Math.max(ctx.now, Date.now());
- const sql = `${grantLiveSql} AND ${scopeLiveSql()} AND ${dependencyLiveSql()}`;
+ let sql = `${grantLiveSql} AND ${scopeLiveSql()} AND ${dependencyLiveSql()}`;
  const args = [grant.id, hash, now, grant.account_id, grant.id, grant.tenant, grant.account_id, grant.id, grant.tenant];
  need(await first(`SELECT 1 AS live WHERE ${sql}`, ...args), 'machine_authority_expired', 401);
+ // A delegated raw value cannot outlive its sponsor's independently selected
+ // reveal and copy actions, including a forged or stale direct capability.
+ const sources = await access(ctx).all('SELECT DISTINCT v.* FROM lky_runtime_scopes s JOIN lky_vaults v ON v.id=s.vault_id WHERE s.grant_id=?', grant.id);
+ for (const vault of sources) {
+  const permissions = await currentDirectRights(ctx.db, vault, grant.account_id);
+  need(permissions.actions.reveal && permissions.actions.copy, 'machine_authority_expired', 401);
+  sql += ' AND EXISTS(SELECT 1 FROM lky_vaults WHERE id=? AND revision=? AND epoch=?)';
+  args.push(vault.id, vault.revision, vault.epoch);
+ }
+
  const nonce = uuid(request.headers.get('x-latchkey-nonce')), time = request.headers.get('x-latchkey-time');
  need(typeof time === 'string' && /^\d{1,16}$/.test(time) && Math.abs(now - Number(time)) <= 60000, 'request_expired', 401);
  const signature = request.headers.get('x-latchkey-signature');

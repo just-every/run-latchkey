@@ -1,9 +1,12 @@
+import { currentDirectRights } from '../direct-rights.mjs';
 import { publicKey, validateEnvelope, verifyWrapped } from '../crypto/envelope.mjs';
 import { RuntimeError, access, activeObject, binding, exact, need, positive, uuid, vaultAccess, vaultPredicate } from './common.mjs';
 
 async function sourceGuard(ctx, scope) {
  const required = scope.write ? ['read', 'share', 'edit'] : ['read', 'share'];
  const { first } = access(ctx), vault = await vaultAccess(ctx, scope.vault, required);
+ const permissions = await currentDirectRights(ctx.db, vault, ctx.actor);
+ need(permissions.actions.reveal && permissions.actions.copy, 'permission_denied', 403);
  need(vault.epoch === scope.epoch, 'version_conflict', 409);
  const current = await first(`SELECT MAX(version) AS version FROM lky_versions WHERE vault_id=? AND object_id=? AND ${activeObject()}`, scope.vault, scope.object, scope.vault, scope.object);
  need(current?.version, 'not_found', 404);
@@ -14,7 +17,7 @@ async function sourceGuard(ctx, scope) {
  }
  const allowed = vaultPredicate(ctx, scope.vault, required);
  const projectSql = `EXISTS(SELECT 1 FROM lky_project_resources resource JOIN lky_project_environments environment ON environment.id=resource.environment_id JOIN lky_projects project ON project.id=environment.project_id WHERE resource.vault_id=? AND resource.object_id=? AND project.tenant=? AND ${activeObject('project.vault_id', 'project.metadata_object')}) AND EXISTS(SELECT 1 FROM lky_project_environments environment JOIN lky_projects project ON project.id=environment.project_id WHERE environment.id=? AND project.id=? AND project.tenant=? AND ${activeObject('project.vault_id', 'project.metadata_object')})`;
- return { sql: `${allowed.sql} AND EXISTS(SELECT 1 FROM lky_vaults WHERE id=? AND epoch=?) AND EXISTS(SELECT 1 FROM lky_versions WHERE vault_id=? AND object_id=?) AND ${activeObject()}${scope.kind === 'field' ? ' AND (SELECT MAX(version) FROM lky_versions WHERE vault_id=? AND object_id=?)=?' : ` AND ${projectSql}`}`, args: [...allowed.args, scope.vault, scope.epoch, scope.vault, scope.object, scope.vault, scope.object, ...(scope.kind === 'field' ? [scope.vault, scope.object, scope.sourceVersion] : [scope.vault, scope.object, ctx.tenant, scope.environment, scope.project, ctx.tenant])] };
+ return { sql: `${allowed.sql} AND EXISTS(SELECT 1 FROM lky_vaults WHERE id=? AND epoch=? AND revision=?) AND EXISTS(SELECT 1 FROM lky_versions WHERE vault_id=? AND object_id=?) AND ${activeObject()}${scope.kind === 'field' ? ' AND (SELECT MAX(version) FROM lky_versions WHERE vault_id=? AND object_id=?)=?' : ` AND ${projectSql}`}`, args: [...allowed.args, scope.vault, scope.epoch, vault.revision, scope.vault, scope.object, scope.vault, scope.object, ...(scope.kind === 'field' ? [scope.vault, scope.object, scope.sourceVersion] : [scope.vault, scope.object, ctx.tenant, scope.environment, scope.project, ctx.tenant])] };
 }
 async function grant(input, ctx) {
  exact(input, ['grant', 'machine', 'deviceKey', 'recipientKey', 'tokenHash', 'expiresAt', 'maxUses', 'scopes', 'dependencies']);

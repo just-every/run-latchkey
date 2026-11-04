@@ -106,3 +106,54 @@ exists. Scheduling, DST handling, device delays, email changes and complete
 cryptographic hand-back remain unimplemented.
 
 Generator changes require review before application. Send `group`, `policy` and `reason` to `POST /policies/generator/preview` (or `ApiClient.previewGeneratorPolicy`, CLI command `policies.generator-preview`). Review the affected members, device inventory, effective constraints, sources and conflicts. Apply the reviewed `group`, `policy` and `reason` with `confirmed: true` and `review: <preview hash>` to `PUT /policies/generator` (`ApiClient.setGeneratorPolicy`, CLI command `policies.generator`). Missing confirmation returns `policy_confirmation_required` (400); missing review returns `policy_review_required` (400). A changed review returns `policy_review_changed` (409), requiring a fresh preview and confirmation. Preview does not write policy or imply device convergence.
+
+## Independent direct secret permissions
+
+For company and private-work vaults, an owner can replace a direct recipient grant
+with version two: `read` plus independently selected `reveal`, `copy` and
+`history`. The browser control is under Settings, Share vault, Direct recipient
+permissions. It previews the exact recipient, fingerprint, actions and vault
+revision without writing. Approval replaces the entire direct grant with the
+reviewed rights. A changed vault revision requires a new preview.
+
+`POST /vaults/{vault}/rights/preview` accepts `account`, `fingerprint` and `rights`.
+`GET /vaults/{vault}/rights` shows the caller's current effective direct actions
+and their source. The existing share endpoint accepts the owner-signed version-two
+capability, including the reviewed revision. Its signature also binds the tenant,
+vault, recipient, owner, rights, recipient generation and key epoch. Rotation
+preserves the capability version and selected rights. The service refuses a
+version change during rotation, and only the vault owner may replace direct
+grants; replaying an older owner signature through a recipient never grants
+authority. Invalid or stale stored
+capabilities grant no direct actions. A preview does not enumerate group or
+nested inheritance, which remains unimplemented.
+
+`POST /vaults/{vault}/items/{object}/actions` accepts an `action` of `reveal` or
+`copy` and returns only the current encrypted version after checking that action.
+The versions endpoint separately requires `history`. Raw current item reads
+require both reveal and copy; raw whole-vault reads and exports also require
+history, and exports still require export permission. Attachment downloads require
+copy. Version-two fill through the generic field door requires all three actions;
+independent fill modes remain separate unfinished work. Original and projected
+machine grants and delegated sharing also require the source member's current
+reveal and copy actions before issuing raw values. Removing either action stops
+those online reads and new delegations. A delegated older item version also
+requires current history permission at its source. Revoking an existing share or link remains
+available. Current-view ciphertext
+is available to a reader for local rendering and search; it is not a raw-history
+or export grant. None of these application controls cryptographically conceals
+plaintext from a recipient already holding ciphertext and its local decryption
+key, and none recalls earlier copies.
+
+The shipped CLI provides `rights`, `rights-preview` and `share`; new CLI shares
+select `rightsVersion: 2` by default and accept the reviewed `revision`.
+`item-field` checks its explicit reveal or copy action, and `item-history`, `read`
+and `export` enforce their respective rights before writing a private output file.
+The compatibility SDK call `VaultClient.share` retains version one by default;
+new integrations select `{version: 2, revision}` explicitly. Version-one grants,
+including old unsigned recipient rows, retain the original read bundle and are
+labeled legacy. An owner must explicitly replace them to adopt independent rights;
+there is no inferred migration or automatic downgrade on rotation. Family grants
+retain their existing behavior. An inactive restored recipient has no rights,
+and active signed capabilities are excluded from installation archives. Existing
+person-erasure and item-erasure fences apply to these grants and later reads.

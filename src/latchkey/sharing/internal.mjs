@@ -1,7 +1,7 @@
 import { id, validateEnvelope } from '../crypto/envelope.mjs';
-import { access, binding, disclosure, exact, integer, memberLive, need, sourceLive, uuid } from './common.mjs';
+import { access, binding, disclosure, exact, integer, memberLive, need, sourceCanDisclose, sourceLive, uuid } from './common.mjs';
 
-const live = `NOT EXISTS(SELECT 1 FROM lky_lifecycle lc WHERE lc.vault_id=s.vault_id AND lc.object_id=k.object_id AND lc.state<>'active') AND s.revoked_at IS NULL AND s.approved_at IS NOT NULL AND s.starts_at<=? AND s.expires_at>? AND s.epoch=v.epoch AND a.generation=k.recipient_generation AND ${memberLive()} AND ${sourceLive('s')} AND NOT EXISTS(SELECT 1 FROM json_each(s.rights) granted WHERE NOT EXISTS(SELECT 1 FROM lky_recipients source,json_each(source.rights) current WHERE source.vault_id=s.vault_id AND source.account_id=s.source_account AND current.value=granted.value))`;
+const live = `NOT EXISTS(SELECT 1 FROM lky_lifecycle lc WHERE lc.vault_id=s.vault_id AND lc.object_id=k.object_id AND lc.state<>'active') AND s.revoked_at IS NULL AND s.approved_at IS NOT NULL AND s.starts_at<=? AND s.expires_at>? AND s.epoch=v.epoch AND a.generation=k.recipient_generation AND ${memberLive()} AND ${sourceLive('s', 'k.object_id', 'k.version')} AND NOT EXISTS(SELECT 1 FROM json_each(s.rights) granted WHERE NOT EXISTS(SELECT 1 FROM lky_recipients source,json_each(source.rights) current WHERE source.vault_id=s.vault_id AND source.account_id=s.source_account AND current.value=granted.value))`;
 const join = `FROM lky_shares s JOIN lky_share_keys k ON k.share_id=s.id JOIN lky_accounts a ON a.id=k.account_id JOIN lky_vaults v ON v.id=s.vault_id JOIN lky_versions x ON x.vault_id=s.vault_id AND x.object_id=k.object_id AND x.version=k.version`;
 export async function internal(route, input, ctx) {
  const { first, all, stmt, event } = access(ctx), { now, actor, tenant, db, fence, fenceArgs } = ctx;
@@ -14,7 +14,9 @@ export async function internal(route, input, ctx) {
   need(['read', 'export'].includes(input.action), 'invalid_action');
   const rows = await all(`SELECT s.id,s.tenant,s.vault_id,s.epoch,s.source_account,s.rights,k.object_id,k.version,k.wrapped_key,x.envelope,v.revision ${join} WHERE s.id=? AND s.tenant=? AND k.account_id=? AND k.object_id=? AND ${live} AND EXISTS(SELECT 1 FROM json_each(s.rights) WHERE value=?) AND ${fence}`, uuid(input.share), tenant, actor, uuid(input.object), now, now, input.action, ...fenceArgs);
   need(rows.length, 'share_unavailable', 403);
-  const result = rows[0]; await event('internal_share_read', result.id, fence, fenceArgs).run();
+  const result = rows[0];
+  need(await sourceCanDisclose(ctx, result.vault_id, result.source_account, result.object_id, result.version), 'share_unavailable', 403);
+  await event('internal_share_read', result.id, fence, fenceArgs).run();
   return { ...result, wrapped: JSON.parse(result.wrapped_key), envelope: JSON.parse(result.envelope), wrapped_key: undefined, disclosure };
  }
  if (route === 'sharing/put') {

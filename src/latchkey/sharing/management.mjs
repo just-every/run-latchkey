@@ -41,7 +41,7 @@ export async function management(route, input, ctx) {
  }
  if (route === 'sharing/grant') {
   exact(input, ['share', 'vault', 'scope', 'group', 'rights', 'startsAt', 'expiresAt', 'approvalRequired', 'recipients']);
-  const vault = await sourceVault(ctx, input.vault), share = uuid(input.share), guard = sourceGuard(ctx, vault);
+  const vault = await sourceVault(ctx, input.vault, true), share = uuid(input.share), guard = sourceGuard(ctx, vault);
   need(['items', 'vault'].includes(input.scope) && typeof input.approvalRequired === 'boolean');
   need(Array.isArray(input.rights) && input.rights.length > 0 && new Set(input.rights).size === input.rights.length && input.rights.every(right => ['read', 'edit', 'export'].includes(right) && JSON.parse(vault.rights).includes(right)), 'permission_denied', 403);
   need(input.rights.includes('read'), 'invalid_rights');

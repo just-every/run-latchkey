@@ -1,25 +1,25 @@
 import { digest, id, random } from '../crypto/envelope.mjs';
 import { operatorMail } from '../../mail.server.mjs';
-import { access, disclosure, email, exact, hashString, need, sourceLive, uuid } from './common.mjs';
+import { access, disclosure, email, exact, hashString, need, sourceCanDisclose, sourceLive, uuid } from './common.mjs';
 
 // Every fetch of ciphertext is an actual, counted POST. No durable download
 // capability or object-store URL survives revocation.
-const available = `NOT EXISTS(SELECT 1 FROM lky_lifecycle lc WHERE lc.vault_id=l.vault_id AND lc.object_id=l.object_id AND lc.state<>'active') AND l.revoked_at IS NULL AND l.starts_at<=? AND l.expires_at>? AND l.views<l.max_views AND ${sourceLive('l')} AND EXISTS(SELECT 1 FROM lky_versions x WHERE x.vault_id=l.vault_id AND x.object_id=l.object_id AND x.version=l.source_version) AND EXISTS(SELECT 1 FROM lky_sharing_policy p WHERE p.tenant=l.tenant AND p.external_enabled=1 AND l.expires_at-l.created_at<=p.max_days*86400000 AND EXISTS(SELECT 1 FROM json_each(p.domains) WHERE value=substr(l.recipient_email,instr(l.recipient_email,'@')+1)))`;
+const available = `NOT EXISTS(SELECT 1 FROM lky_lifecycle lc WHERE lc.vault_id=l.vault_id AND lc.object_id=l.object_id AND lc.state<>'active') AND l.revoked_at IS NULL AND l.starts_at<=? AND l.expires_at>? AND l.views<l.max_views AND ${sourceLive('l', 'l.object_id', 'l.source_version')} AND EXISTS(SELECT 1 FROM lky_versions x WHERE x.vault_id=l.vault_id AND x.object_id=l.object_id AND x.version=l.source_version) AND EXISTS(SELECT 1 FROM lky_sharing_policy p WHERE p.tenant=l.tenant AND p.external_enabled=1 AND l.expires_at-l.created_at<=p.max_days*86400000 AND EXISTS(SELECT 1 FROM json_each(p.domains) WHERE value=substr(l.recipient_email,instr(l.recipient_email,'@')+1)))`;
 export async function sharingPublic(route, input, ctx) {
  if (!['sharing/link/preview', 'sharing/link/challenge', 'sharing/link/open'].includes(route)) return null;
  const { first, stmt, event } = access(ctx), { now, db, env } = ctx;
  await ctx.limited('external-sharing:' + route);
  if (route === 'sharing/link/preview') {
   exact(input, ['link']);
-  const row = await first(`SELECT id,password_salt,password_required FROM lky_links l WHERE id=? AND ${available}`, uuid(input.link), now, now);
-  need(row, 'link_unavailable', 403);
+  const row = await first(`SELECT id,password_salt,password_required,vault_id,source_account,object_id,source_version FROM lky_links l WHERE id=? AND ${available}`, uuid(input.link), now, now);
+  need(row && await sourceCanDisclose(ctx, row.vault_id, row.source_account, row.object_id, row.source_version), 'link_unavailable', 403);
   return { link: row.id, passwordSalt: row.password_salt, passwordRequired: row.password_required === 1, verifiedRecipientRequired: true, disclosure };
  }
  exact(input, route.endsWith('/challenge') ? ['link', 'verifier', 'recipient'] : ['link', 'verifier', 'challenge', 'code']);
  const link = uuid(input.link), verifier = await digest(hashString(input.verifier));
  await ctx.limited('external-sharing:' + link);
  const row = await first(`SELECT * FROM lky_links l WHERE id=? AND verifier_hash=? AND ${available}`, link, verifier, now, now);
- need(row, 'link_unavailable', 403);
+ need(row && await sourceCanDisclose(ctx, row.vault_id, row.source_account, row.object_id, row.source_version), 'link_unavailable', 403);
  if (route.endsWith('/challenge')) {
   need(email(input.recipient) === row.recipient_email, 'recipient_verification_failed', 403);
   const sender = operatorMail(env); need(sender && env.MAIL_FROM, 'mail_unavailable', 503);

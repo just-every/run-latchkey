@@ -146,4 +146,71 @@ export async function organizationJourney(f,width){
  for(const client of[member,admin,viewer])client.lock();
  console.log(`Organization journey ${width}: ${count} encrypted items, private filters/collections, exact bulk preview and undo, independent restore, family refusal and signed 30-day erasure passed`);
 }
-if(import.meta.url===new URL(process.argv[1],'file:').href){for(const width of[1440,390])for(const journey of[...(width===1440?[accountSeparationJourney]:[]),ownershipJourney,organizationJourney]){const f=await vaultFixture();try{await journey(f,width)}catch(error){if(output)await f.page.screenshot({path:join(output,`${journey.name}-failure-${width}.png`),fullPage:true});throw error}finally{await f.close()}}}
+export async function directPermissionsJourney(f) {
+ const owner=f.owner,member=await enroll(f,9400,'Direct permissions recipient'),vault=(await owner.createVault()).vault;
+ const secret='synthetic-latchkey-9410',original=createItem('login',{title:'Direct permission service',values:{username:'synthetic-latchkey-9411',password:secret}});
+ const object=(await owner.put(vault,original)).object;
+ await owner.put(vault,{...original,title:'Direct permission service current'},object);
+ await member.pinAccount(owner.profile.account,await owner.identity().fingerprint);
+ await f.page.setViewportSize({width:1440,height:1000});await f.page.goto(f.origin+'/app/vault');
+ if(new URL(f.page.url()).pathname==='/setup'){await f.page.getByLabel('I confirm this owner account is ready to use.').check();await f.page.getByRole('button',{name:'Finish setup',exact:true}).click()}
+ const unlock=async(page,client,password)=>{await page.getByLabel('Profile file').setInputFiles({name:'profile.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(client.profile))});await page.getByLabel('Master password',{exact:true}).fill(password);await page.getByRole('button',{name:'Unlock vault',exact:true}).click()};
+ await unlock(f.page,owner,f.password);await f.page.getByLabel('Vault',{exact:true}).selectOption(vault);await f.page.locator('summary').filter({hasText:/^Settings$/}).click();await f.page.getByRole('button',{name:'Share vault',exact:true}).click();
+ await f.page.getByText('Direct recipient permissions · owner only',{exact:true}).click();
+ await f.page.getByLabel('Direct recipient account',{exact:true}).fill(member.profile.account);await f.page.getByLabel('Direct recipient fingerprint',{exact:true}).fill(await member.identity().fingerprint);
+ const select=async(rights)=>{for(const action of['reveal','copy','history'])await f.page.getByLabel(`Allow ${action}`,{exact:true}).setChecked(rights.includes(action));await f.page.getByRole('button',{name:'Preview direct permissions',exact:true}).click();await expect(f.page.getByRole('heading',{name:'Effective direct permissions',exact:true})).toBeVisible()};
+ const apply=async()=>{await f.page.getByLabel('I verified the recipient fingerprint and approve replacing this exact direct grant').check();await f.page.getByRole('button',{name:'Apply direct permissions',exact:true}).click()};
+ await select([]);await refused(member.call('vault' + '/rights',{vault}),'not_found');
+ const revision=(await owner.call('vault' + '/rights',{vault})).revision;
+ for(const width of[1440,390]){await f.page.setViewportSize({width,height:1000});if(output)await f.page.screenshot({path:join(output,`direct-permissions-preview-${width}.png`),fullPage:true})}await f.page.setViewportSize({width:1440,height:1000});
+ assert.equal((await owner.call('vault' + '/rights',{vault})).revision,revision,'preview does not write');
+ // Bind the visible confirmation to its reviewed revision, even for an edit
+ // between preview and approval through another ordinary client.
+ await owner.put(vault,{...original,title:'Direct permission service current'},object);
+ await apply();await expect(f.page.getByRole('alert').filter({hasText:'Preview current rights again.'})).toBeVisible();await refused(member.call('vault' + '/rights',{vault}),'not_found');
+ await select(['copy']);await apply();await expect(f.page.getByText('Independent direct permissions saved and audited.',{exact:true})).toBeVisible();
+ const context=await f.browser.newContext({ignoreHTTPSErrors:true,permissions:['clipboard-read','clipboard-write']});
+ const [cookieName,...cookieValue]=member.cookie.split('=');await context.addCookies([{name:cookieName,value:cookieValue.join('='),url:f.origin}]);
+ const page=await context.newPage();
+ try{
+  await page.setViewportSize({width:1440,height:1000});await page.goto(f.origin+'/app/vault');await unlock(page,member,'synthetic-latchkey-9401');
+  await expect(page.getByRole('button',{name:'Edit',exact:true})).toBeDisabled();await expect(page.getByRole('button',{name:'New item',exact:true})).toBeDisabled();
+  await expect(page.getByRole('button',{name:'Reveal Password',exact:true})).toBeDisabled();await expect(page.getByRole('button',{name:'Copy Password',exact:true})).toBeEnabled();
+  await page.getByRole('button',{name:'Copy Password',exact:true}).focus();await expect(page.getByRole('tooltip',{name:'Copy field',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Copy Password',exact:true}).click();await expect.poll(()=>page.evaluate(()=>navigator.clipboard.readText())).toBe(secret);await expect(page.getByText('History: denied by the current vault grant.',{exact:true})).toBeVisible();
+  for(const width of[1440,390]){await page.setViewportSize({width,height:1000});if(output)await page.screenshot({path:join(output,`direct-permissions-recipient-${width}.png`),fullPage:true})}await page.setViewportSize({width:1440,height:1000});
+  await owner.share(vault,member.profile.account,await member.identity().fingerprint,['read','edit'],{version:2});await page.getByRole('button',{name:'Refresh',exact:true}).click();await expect(page.getByRole('button',{name:'Edit',exact:true})).toBeDisabled();await expect(page.getByRole('button',{name:'Reveal Password',exact:true})).toBeDisabled();
+  await owner.share(vault,member.profile.account,await member.identity().fingerprint,['read','edit','reveal','copy'],{version:2});await page.getByRole('button',{name:'Refresh',exact:true}).click();await expect(page.getByRole('button',{name:'Edit',exact:true})).toBeEnabled();
+  await select(['history']);await apply();await page.getByRole('button',{name:'Refresh',exact:true}).click();await expect(page.getByRole('button',{name:'Reveal Password',exact:true})).toBeDisabled();await expect(page.getByRole('button',{name:'Copy Password',exact:true})).toBeDisabled();
+  await page.locator('summary').filter({hasText:/^History/}).click();await expect(page.getByRole('button',{name:/Version 1 · Created/})).toBeVisible();await page.getByRole('button',{name:/Version 1 · Created/}).click();await expect(page.getByRole('heading',{name:'Preview version 1',exact:true})).toBeVisible();await expect(page.getByText('Direct permission service',{exact:true})).toBeVisible();
+  // Removing one action clears an already opened history without requiring
+  // a manual refresh or removing the recipient's other direct actions.
+  await select(['copy']);await apply();
+  await expect(page.getByRole('heading',{name:'Preview version 1',exact:true})).toHaveCount(0,{timeout:15000});
+  await expect(page.getByRole('alert').filter({hasText:'Your vault permissions changed.'})).toBeVisible();
+  await page.getByRole('button',{name:'Refresh',exact:true}).click();
+  await expect(page.getByText('History: denied by the current vault grant.',{exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Copy Password',exact:true})).toBeEnabled();
+  await select(['reveal']);await apply();await page.getByRole('button',{name:'Refresh',exact:true}).click();await expect(page.getByRole('button',{name:'Copy Password',exact:true})).toBeDisabled();await page.getByRole('button',{name:'Reveal Password',exact:true}).click();await expect(page.getByLabel('Password',{exact:true})).toHaveValue(secret);
+  // Narrowing a live grant also clears a revealed field while retaining
+  // read access. A fresh open returns to the masked independent view.
+  await select(['copy']);await apply();
+  await expect(page.getByLabel('Password',{exact:true})).toHaveCount(0,{timeout:15000});
+  assert.ok(!(await page.content()).includes(secret));
+  await page.getByRole('button',{name:'Refresh',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Reveal Password',exact:true})).toBeDisabled();
+  await select(['reveal']);await apply();await page.getByRole('button',{name:'Refresh',exact:true}).click();
+  await page.getByRole('button',{name:'Reveal Password',exact:true}).click();
+  await expect(page.getByLabel('Password',{exact:true})).toHaveValue(secret);
+  const rightsPath='/api/latchkey/'+['vault','rights'].join('/');
+  const failedPoll=page.waitForEvent('requestfailed',request=>new URL(request.url()).pathname===rightsPath);
+  await page.route('**'+rightsPath,route=>route.abort('failed'));await failedPoll;
+  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+  await expect(page.getByLabel('Password',{exact:true})).toHaveValue(secret);
+  await page.unroute('**'+rightsPath);
+  await owner.rotate(vault,member.profile.account);await expect(page.getByLabel('Password',{exact:true})).toHaveCount(0,{timeout:15000});assert.ok(!(await page.content()).includes(secret));assert.ok(!(await page.evaluate(()=>JSON.stringify({...localStorage}))).includes(secret));
+  await refused(member.readItem(vault,object,false,'reveal'),'not_found');
+  console.log('Direct permissions browser: exact owner preview, stale confirmation refusal, independent copy, history and reveal, immediate tooltips, outage preservation and connected revocation clearing passed');
+ }finally{member.lock();await context.close()}
+}
+if(import.meta.url===new URL(process.argv[1],'file:').href){for(const width of[1440,390])for(const journey of[...(width===1440?[accountSeparationJourney,directPermissionsJourney]:[]),ownershipJourney,organizationJourney]){const f=await vaultFixture();try{await journey(f,width)}catch(error){if(output)await f.page.screenshot({path:join(output,`${journey.name}-failure-${width}.png`),fullPage:true});throw error}finally{await f.close()}}}
