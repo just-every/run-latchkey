@@ -85,6 +85,9 @@ try {
   }
  } else if(command==='run'){
   const {runConsumer}=await import('./latchkey/run-command.mjs');result=await runConsumer(input,process.argv.slice(3));process.exitCode=result.exitCode;
+ } else if (command === 'records-recovery-check' || command === 'records-recovery-restore') {
+  const { checkRecoveryKit, restoreRecoveryKit } = await import('./latchkey/records-recovery.mjs');
+  result = await (command === 'records-recovery-check' ? checkRecoveryKit : restoreRecoveryKit)(input);
  } else if (command === 'records-restore') {
   const { restoreLocalRecords } = await import('./latchkey/records-local.mjs');
   result = await restoreLocalRecords(input);
