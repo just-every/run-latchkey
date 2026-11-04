@@ -6,6 +6,7 @@ import { displayName } from '../../modules/operator-auth/accounts/admin.mjs';
 import { digest } from '../crypto/envelope.mjs';
 import { canonicalJson, access, exact, need } from '../lifecycle/common.mjs';
 import { requirePeople } from './permissions.mjs';
+import { subjectAdmission } from '../erasure/admission.mjs';
 async function preview(csv,ctx){
  need(typeof csv==='string'&&new TextEncoder().encode(csv).length<=100000,'invalid_people_csv');
  const parsed=Papa.parse(csv,{header:true,skipEmptyLines:'greedy'});
@@ -41,6 +42,7 @@ export async function peopleAuthenticated(route,input,ctx){
    if(row.status!=='ready'){rows.push(row);continue}
    try{
     await requirePeople(ctx,'people.invite');
+    await subjectAdmission(ctx,[['email',row.email]]);
     await ctx.auth.invite(new Request(ctx.request.url,{method:'POST',headers:ctx.request.headers}),{email:row.email,displayName:row.displayName,role:'member',returnTo:'/app/vault'});
     rows.push({...row,status:'accepted'});
    }catch(error){rows.push({...row,status:'refused',reason:typeof error.code==='string'&&/^[a-z_]{1,64}$/.test(error.code)?error.code:'invitation_refused'})}

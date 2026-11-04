@@ -6,6 +6,7 @@ import { withOpenedRecordsArchive } from '../../src/latchkey/portability/archive
 import { privateInput, fileStream, requireRecords as need, RecordsError } from '../../src/latchkey/portability/private-files.mjs';
 import { configuration } from './records-local-bindings.mjs';
 import { restoreLocalRecords } from './records-local.mjs';
+import { key as erasureKey, receipt as erasureReceipt } from '../../src/latchkey/erasure/subject-common.mjs';
 
 async function privateJson(path) {
  let handle;
@@ -56,7 +57,7 @@ export async function checkRecoveryKit(input) {
  need(origin.origin === input.approvedOrigin && ['localhost', '127.0.0.1', '[::1]'].includes(origin.hostname)
   && ['https:', 'http:'].includes(origin.protocol), 'local_recovery_origin_required');
  return withOpenedRecordsArchive({ input: input.input, exportKey: input.exportKey, laterJournal: input.journal }, async (path, receipt) => {
-  const handle = await privateInput(path), accounts = [], operators = [], objects = new Set();
+  const handle = await privateInput(path), accounts = [], operators = [], erasures = [], objects = new Set();
   let manifest, versions = 0;
   try {
    for await (const record of readArchive(fileStream(handle))) {
@@ -66,6 +67,7 @@ export async function checkRecoveryKit(input) {
      if (item.kind !== 'row') continue;
      if (item.table === 'lky_accounts') accounts.push(item.row);
      if (item.table === 'oa_operators') operators.push(item.row);
+     if (item.table === 'lky_subject_erasures') erasures.push(item.row);
      if (item.table === 'lky_versions') { versions++; objects.add(JSON.stringify([item.row.vault_id, item.row.object_id])); }
     }
    }
@@ -78,6 +80,13 @@ export async function checkRecoveryKit(input) {
    && requiredConfiguration.every(name => typeof retained.variables[name] === 'string' && retained.variables[name].trim().length > 0)
    && retained.variables.AUTH_ORIGIN === input.approvedOrigin, 'restore_configuration_invalid');
   need((manifest.migrations ?? []).every(name => config.migrations.some(entry => entry.name === name)), 'records_migration_source_missing');
+  // Presence alone cannot establish that a retained key will recognize the
+  // restored person-erasure fences. Authenticate the archived receipts using
+  // the same verifier as the live service before opening destination storage.
+  try {
+   erasureKey({ env: retained.variables }).fill(0);
+   for (const row of erasures) await erasureReceipt({ env: retained.variables, tenant: row.tenant }, row);
+  } catch { throw new RecordsError('restore_erasure_material_invalid'); }
   const seen = new Set();
   for (const owner of input.owners) {
    const kit = await privateJson(owner.kit), account = accounts.find(row => row.id === kit?.account);
@@ -87,7 +96,8 @@ export async function checkRecoveryKit(input) {
   return { checked: true, archiveHash: receipt.archiveHash, contentHash: receipt.contentHash,
    owners: seen.size, members: operators.filter(row => row.status === 'active').length,
    enrolledAccounts: accounts.length, items: objects.size, versions, parts: manifest.partCount,
-   requiredConfiguration, erasure: receipt.erasure, inactive: true,
+   requiredConfiguration, erasure: receipt.erasure,
+   erasureKey: { formatChecked: true, verifiedReceipts: erasures.length, sourceKeyEstablished: erasures.length > 0 }, inactive: true,
    boundary: 'Local material check only. Base import checks schema compatibility; fresh recovery and explicit activation are still required. No provider recovery or device continuity is established.' };
  });
 }

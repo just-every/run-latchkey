@@ -156,6 +156,16 @@ export async function serviceRecoveryRehearsal({ directory, checkout, command, w
   const continuity = roster.find(person => person.email === ['synthetic-latchkey-rehearsal-1', 'example.test'].join('@'));
   assert.equal((await nativePost('/auth/operator/role', { operatorId: continuity.id, role: 'owner' })).status, 200);
   await second.unlock(secondEnrollment.profile, owners[1].password);
+  // Retain a real erasure fence as well as live members. A different, correctly
+  // encoded erasure key must not make this identity admissible after recovery.
+  const erasedEmail = ['synthetic-latchkey-erased-rehearsal', 'example.test'].join('@');
+  await owner.call(route('api', 'users', 'invite'), { email: erasedEmail, displayName: 'Synthetic removed rehearsal person', role: 'member', returnTo: '/app/vault' });
+  const erasedPerson = (await owner.call(route('api', 'users', 'list'), {})).find(person => person.email === erasedEmail);
+  assert.ok(erasedPerson);
+  const erasurePreview = await owner.call(route('subject', 'erase-preview'), { subject: erasedPerson.id });
+  const erased = await owner.call(route('subject', 'erase'), { subject: erasedPerson.id, confirmed: true, planHash: erasurePreview.planHash });
+  assert.equal(erased.controlPlaneErased, true);
+  await assert.rejects(owner.call(route('api', 'users', 'invite'), { email: erasedEmail, displayName: 'Synthetic source replay attempt', role: 'member', returnTo: '/app/vault' }), error => error.code === 'erased_identity');
   const automation = new AutomationClient(owner);
   const subscription = await automation.subscribe({ endpoint: 'https://receiver.example.test/hook', events: ['vault_created'], secret: encode(random()), confirmed: true });
   const vault = (await owner.createVault()).vault;
@@ -253,8 +263,16 @@ export async function serviceRecoveryRehearsal({ directory, checkout, command, w
   await writeFile(wrongConfiguration, JSON.stringify({ schema: 1, sourceIdentity: 'synthetic-latchkey-foreign-installation', variables }), { mode: 0o600 });
   assert.equal((await command(root, { ...restoreInput, restoreConfiguration: wrongConfiguration }, 1, 'records-recovery-restore')).error, 'restore_configuration_invalid');
   await assert.rejects(stat(join(root, '.wrangler')), { code: 'ENOENT' });
+  for (const secret of ['synthetic-latchkey-invalid-erasure-key', encode(random())]) {
+   const wrongErasure = join(directory, `wrong-erasure-${secret.length}.json`);
+   await writeFile(wrongErasure, JSON.stringify({ schema: 1, sourceIdentity: manifest.sourceIdentity, variables: { ...variables, LATCHKEY_ERASURE_SECRET: secret } }), { mode: 0o600 });
+   assert.equal((await command(root, { ...restoreInput, restoreConfiguration: wrongErasure }, 1, 'records-recovery-restore')).error, 'restore_erasure_material_invalid');
+   await assert.rejects(stat(join(root, '.wrangler')), { code: 'ENOENT' });
+   await assert.rejects(stat(checkpoint), { code: 'ENOENT' });
+  }
   const checked = await command(root, input, 0, 'records-recovery-check');
   assert.deepEqual([checked.members, checked.enrolledAccounts, checked.owners, checked.items, checked.versions], [1000, 1000, 2, 1000, 1100]);
+  assert.deepEqual(checked.erasureKey, { formatChecked: true, verifiedReceipts: 1, sourceKeyEstablished: true });
   for (const secret of [exportKey, ...owners.map(owner => owner.password)]) assert.ok(!JSON.stringify(checked).includes(secret));
   for (const owner of owners) assert.ok(!JSON.stringify(checked).includes(JSON.parse(await readFile(owner.kit, 'utf8')).recoverySecret));
   await assert.rejects(stat(join(root, '.wrangler')), { code: 'ENOENT' });
@@ -262,7 +280,9 @@ export async function serviceRecoveryRehearsal({ directory, checkout, command, w
   assert.equal(restored.phase, 'complete'); assert.equal(restored.inactive, true);
   const repeat = await command(root, restoreInput, 0, 'records-recovery-restore'); assert.equal(repeat.job, restored.job);
   await withBindings(root, async db => {
-   for (const [table, count] of [['oa_operators', 1000], ['lky_accounts', 1000], ['lky_versions', 1100]]) assert.equal((await db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).first()).n, count);
+   for (const [table, count] of [['oa_operators', 1001], ['lky_accounts', 1000], ['lky_versions', 1100]]) assert.equal((await db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).first()).n, count);
+   assert.equal((await db.prepare("SELECT COUNT(*) AS n FROM oa_operators WHERE status='active'").first()).n, 1000);
+   assert.equal(await db.prepare('SELECT id FROM oa_operators WHERE id=?').bind(erasedPerson.id).first(), null);
    for (const table of ['lky_devices', 'lky_grants']) assert.equal((await db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).first()).n, 0);
    assert.ok((await db.prepare('SELECT rights FROM lky_recipients').all()).results.every(row => row.rights === '[]'));
    assert.equal((await db.prepare('SELECT active FROM lky_rules WHERE id=?').bind(rule).first()).active, 0);
@@ -273,14 +293,56 @@ export async function serviceRecoveryRehearsal({ directory, checkout, command, w
   assert.equal((await destination.fetcher(approvedOrigin + '/api/latchkey/vaults', { method: 'POST', headers: { origin: approvedOrigin,
    'content-type': 'application/json', 'x-latchkey-grant': oldToken }, body: '{}' })).status, 401);
   const recovered = [];
-  for (const material of owners) {
-   const client = new VaultClient(approvedOrigin, { fetcher: destination.fetcher }), kit = { ...JSON.parse(await readFile(material.kit, 'utf8')), origin: approvedOrigin };
-   await assert.rejects(client.recover({ ...kit, recoverySecret: encode(random()) }, material.password));
-   const enrollment = await client.recover(kit, material.password);
-   assert.equal(enrollment.profile.generation, kit.generation + 1);
-   await client.unlock(enrollment.profile, material.password);
+  for (const [index, material] of owners.entries()) {
+   const profile = join(directory, `fresh-profile-${index}.json`), newKit = join(directory, `fresh-kit-${index}.json`);
+   const kit = JSON.parse(await readFile(material.kit, 'utf8'));
+   const recovery = { origin: approvedOrigin, approvedOrigin, kit: material.kit, password: material.password, confirmed: true, profile, newKit };
+   const cli = (input, code = 1) => command(root, input, code, 'records-recover', { certificate: destination.caFile });
+   const before = await destination.db.prepare('SELECT generation FROM lky_accounts WHERE id=?').bind(kit.account).first();
+   assert.equal((await cli({ ...recovery, confirmed: false })).error, 'recovery_confirmation_required');
+   assert.equal((await cli({ ...recovery, approvedOrigin: sourceOrigin })).error, 'destination_origin_confirmation_required');
+   await cli({ ...recovery, password: 'synthetic-latchkey-wrong-password' });
+   if (index === 1) await cli({ ...recovery, kit: wrongKit });
+   assert.equal((await destination.db.prepare('SELECT generation FROM lky_accounts WHERE id=?').bind(kit.account).first()).generation, before.generation);
+   await assert.rejects(stat(profile), { code: 'ENOENT' });
+   await assert.rejects(stat(newKit), { code: 'ENOENT' });
+   const result = await cli(recovery, 0);
+   assert.equal(result.generation, kit.generation + 1); assert.equal(result.kitWritten, true);
+   const enrollment = JSON.parse(await readFile(profile, 'utf8')), replacement = JSON.parse(await readFile(newKit, 'utf8'));
+   assert.equal((await stat(profile)).mode & 0o777, 0o600); assert.equal((await stat(newKit)).mode & 0o777, 0o600);
+   assert.equal(replacement.origin, approvedOrigin); assert.notEqual(replacement.recoverySecret, kit.recoverySecret);
+   const client = new VaultClient(approvedOrigin, { fetcher: destination.fetcher });
+   await client.unlock(enrollment, material.password);
+   const replay = { ...recovery, profile: join(directory, `replayed-profile-${index}.json`), newKit: join(directory, `replayed-kit-${index}.json`) };
+   await cli(replay);
+   await assert.rejects(stat(replay.profile), { code: 'ENOENT' }); await assert.rejects(stat(replay.newKit), { code: 'ENOENT' });
+   assert.equal((await destination.db.prepare('SELECT generation FROM lky_accounts WHERE id=?').bind(kit.account).first()).generation, result.generation);
    await refused(client.readVault(vault)); recovered.push(client);
   }
+  await assert.rejects(recovered[0].call(route('api', 'users', 'invite'), { email: erasedEmail, displayName: 'Synthetic replay attempt', role: 'member', returnTo: '/app/vault' }), error => error.code === 'erased_identity');
+  assert.equal(await destination.db.prepare('SELECT id FROM oa_operators WHERE email=?').bind(erasedEmail).first(), null);
+  assert.equal((await recovered[0].call(route('subject', 'erasure-status'), { operation: erased.operation })).operation, erased.operation);
+  const csv = `email,displayName\n${erasedEmail},Synthetic restored replay`;
+  const peoplePreview = await recovered[0].call(route('people', 'preview'), { csv });
+  const invitation = await recovered[0].call(route('people', 'invite'), { csv, previewHash: peoplePreview.previewHash, confirmed: true });
+  assert.equal(invitation.rows[0].status, 'refused'); assert.equal(invitation.rows[0].reason, 'erased_identity');
+  assert.equal(await destination.db.prepare('SELECT id FROM oa_operators WHERE email=?').bind(erasedEmail).first(), null);
+  // Fresh installation ownership does not revive the archived operational
+  // decisions. Exercise these doors before any destination vault activation.
+  const assertInactiveOperations = async () => {
+   await refused(new SharingClient(recovered[1]).read(share.share ?? share.id, expected[0].object));
+   await assert.rejects(new PublicLinkClient(link.url.replace(sourceOrigin, approvedOrigin), { fetcher: destination.fetcher }).preview());
+   await assert.rejects(new AutomationClient(recovered[0]).dispatch(subscription.id, subscription.revision, delivery.id, true), error => error.code === 'webhook_authorization_revoked');
+   await assert.rejects(recovered[0].call(route('rules', 'complete'), { rule, version: 1, obligation: obligation.id, resultVersion: 3, confirmed: true }), error => error.code === 'rule_changed');
+   const runsBefore = (await destination.db.prepare('SELECT COUNT(*) AS n FROM lky_rule_runs').first()).n;
+   const attemptsBefore = (await destination.db.prepare('SELECT COUNT(*) AS n FROM lky_webhook_attempts').first()).n;
+   await destination.schedule(scheduledAt + 86400000);
+   assert.equal((await destination.db.prepare('SELECT COUNT(*) AS n FROM lky_rule_runs').first()).n, runsBefore);
+   assert.equal((await destination.db.prepare('SELECT COUNT(*) AS n FROM lky_webhook_attempts').first()).n, attemptsBefore);
+   assert.equal((await destination.db.prepare('SELECT phase FROM lky_rule_obligations WHERE id=?').bind(obligation.id).first()).phase, 'inactive');
+   assert.equal(destination.webhooks.length, 0); assert.equal(destination.mail.length, 0);
+  };
+  await assertInactiveOperations();
   const opened = join(directory, 'opened.rer'); await openRecordsArchive({ input: encrypted, output: opened, exportKey });
   const from = identity(recovered[0]), to = identity(recovered[1]), sourceFingerprint = await fingerprint(from), destinationFingerprint = await fingerprint(to);
   const { plan, planHash } = await planDestinationRewrap({ input: opened, source: from, destination: to, sourceFingerprint, destinationFingerprint });
@@ -312,6 +374,7 @@ export async function serviceRecoveryRehearsal({ directory, checkout, command, w
   await destination.schedule(scheduledAt + 86400000);
   assert.equal((await destination.db.prepare('SELECT COUNT(*) AS n FROM lky_rule_runs').first()).n, runsBefore);
   assert.equal(destination.webhooks.length, 0); assert.equal(destination.mail.length, 0);
+  await assertInactiveOperations();
   const current = await recipient.readVault(vault); assert.deepEqual(current.versions.toSorted(order), expected.toSorted(order));
   for (const client of recovered) client.lock();
   await destination.close(); destination = null;
@@ -321,9 +384,10 @@ export async function serviceRecoveryRehearsal({ directory, checkout, command, w
    assert.equal((await db.prepare('SELECT owner FROM lky_vaults WHERE id=?').bind(vault).first()).owner, to.account);
   });
   console.log('PROBE LKY-056 independent materials: stopped source and unavailable original profiles -> two retained owner kits checked without source requests; missing and wrong material refused before destination writes');
-  console.log('PROBE LKY-056 clean-machine restore: real Base export and local CLI import -> two fresh recovered owners, exact explicit rewrap and activation');
+  console.log('PROBE LKY-056 clean-machine restore: real Base export and local CLI import -> two fresh owners recovered through records-recover; unconfirmed, wrong-origin, wrong-factor and old-kit replay attempts refused without output files or generation changes; exact explicit rewrap and activation');
   console.log('PROBE LKY-056 scale reconciliation: 1000 real enrolled people, 1000 items, 1100 versions -> every value and 1100 attachment digests matched');
   console.log('PROBE LKY-056 inactive operations: old token, direct grant, link, send, schedule and approved rotation -> refused or no effects after restore and after fresh vault activation');
+  console.log('PROBE LKY-056 erasure continuity: malformed and wrong retained erasure keys -> refused before destination writes; correct key verifies archived receipt and refuses erased-person reinvitation after recovery');
  } finally {
   second?.lock(); if (!sourceClosed) await source.close(); await destination?.close();
  }

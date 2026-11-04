@@ -43,13 +43,16 @@ async function fixture(parent) {
  const input = join(parent, 'synthetic-latchkey-64.rer'); await writeFile(input, raw, { mode: 0o600 });
  return { input, raw };
 }
-async function command(root, input, expectedCode = 0, name = 'records-restore') {
- const child = spawn(process.execPath, [join(repo, 'scripts/latchkey.mjs'), name], { cwd: root, stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, WRANGLER_SEND_METRICS: 'false' } });
+async function command(root, input, expectedCode = 0, name = 'records-restore', { certificate } = {}) {
+ const child = spawn(process.execPath, [join(repo, 'scripts/latchkey.mjs'), name], { cwd: root, stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, WRANGLER_SEND_METRICS: 'false', ...(certificate ? { NODE_EXTRA_CA_CERTS: certificate } : {}) } });
  let stdout = '', stderr = '';
  child.stdout.on('data', value => { stdout += value; }); child.stderr.on('data', value => { stderr += value; });
  child.stdin.end(JSON.stringify(input));
  const code = await new Promise((resolve, reject) => { child.once('error', reject); child.once('exit', resolve); });
  assert.equal(code, expectedCode, stderr);
+ for (const secret of [input.password, input.exportKey, ...(input.owners ?? []).map(owner => owner.password)].filter(Boolean)) {
+  assert.ok(!stdout.includes(secret) && !stderr.includes(secret), 'Recovery command output excludes supplied secrets');
+ }
  if (!expectedCode) return JSON.parse(stdout);
  const result = stderr.trim().split('\n').map(line => { try { return JSON.parse(line); } catch { return null; } }).find(value => value?.error);
  assert.ok(result, 'The CLI reports a fixed symbolic error'); return result;
