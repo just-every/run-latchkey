@@ -43,8 +43,8 @@ async function fixture(parent) {
  const input = join(parent, 'synthetic-latchkey-64.rer'); await writeFile(input, raw, { mode: 0o600 });
  return { input, raw };
 }
-async function command(root, input, expectedCode = 0) {
- const child = spawn(process.execPath, [join(repo, 'scripts/latchkey.mjs'), 'records-restore'], { cwd: root, stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, WRANGLER_SEND_METRICS: 'false' } });
+async function command(root, input, expectedCode = 0, name = 'records-restore') {
+ const child = spawn(process.execPath, [join(repo, 'scripts/latchkey.mjs'), name], { cwd: root, stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, WRANGLER_SEND_METRICS: 'false' } });
  let stdout = '', stderr = '';
  child.stdout.on('data', value => { stdout += value; }); child.stderr.on('data', value => { stderr += value; });
  child.stdin.end(JSON.stringify(input));
@@ -74,6 +74,14 @@ test('documented Records CLI resumes the same real Base job across processes and
    assert.equal((await db.prepare('SELECT COUNT(*) AS count FROM lky_events').first()).count, 2101);
    assert.equal((await db.prepare('SELECT COUNT(*) AS count FROM lky_devices').first()).count, 0);
   });
+ } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+test('independent recovery material restores a stopped 1,000-member installation on a clean machine with exact reconciliation and inactive authority', { timeout: 1200000 }, async () => {
+ const { serviceRecoveryRehearsal } = await import('./latchkey-restore.mjs');
+ const directory = await mkdtemp(join(tmpdir(), 'synthetic-latchkey-rehearsal-'));
+ try {
+  await serviceRecoveryRehearsal({ directory, checkout, command, withBindings });
  } finally { await rm(directory, { recursive: true, force: true }); }
 });
 
