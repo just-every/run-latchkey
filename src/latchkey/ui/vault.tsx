@@ -37,7 +37,7 @@ export function VaultScreen() {
  const [ownerTrust, setOwnerTrust] = useState<{ account: string; fingerprint: string } | null>(null), [links, setLinks] = useState<Map<string, number>>(new Map()), [readAt, setReadAt] = useState(0);
  const [diagnosticError, setDiagnosticError] = useState<string | null>(null);
  const activeClient = useRef<any>(null), search = useRef<HTMLInputElement>(null), menu = useRef<HTMLDetailsElement>(null), generation = useRef(0);
- const lock = useCallback(() => { generation.current++; activeClient.current?.lock(); activeClient.current = null; setClient(null); setRecords([]); setVaults([]); setVault(''); setSelected(''); setQuery(''); setPanel(''); setCreate(false); setStatus(''); setOwnerTrust(null); setLinks(new Map()); setReadAt(0); setDiagnosticError(null); requestAnimationFrame(() => menu.current?.querySelector('summary')?.focus()); }, []);
+ const lock = useCallback(() => { generation.current++; activeClient.current?.lock(); activeClient.current = null; if (menu.current) menu.current.open = false; setClient(null); setRecords([]); setVaults([]); setVault(''); setSelected(''); setQuery(''); setPanel(''); setCreate(false); setStatus(''); setOwnerTrust(null); setLinks(new Map()); setReadAt(0); setDiagnosticError(null); requestAnimationFrame(() => menu.current?.querySelector('summary')?.focus()); }, []);
  const run = useCallback(async (work: () => Promise<unknown>) => {
   setPending(n => n + 1); setError('');
   try { await work(); } catch (cause) { setDiagnosticError(diagnosticErrorCode(cause)); if (['device_revoked', 'account_key_changed', 'authority_expired', 'locked'].includes((cause as any)?.code) || activeClient.current && (cause as any)?.status === 401) lock(); if (['not_found', 'permission_denied'].includes((cause as any)?.code)) { setRecords([]); setSelected(''); setPanel(''); } setError(message(cause)); } finally { setPending(n => n - 1); }
@@ -124,8 +124,9 @@ export function VaultScreen() {
  return <div className="lk"><style>{vaultCss}</style><a className="skip" href="#vault-main">Skip to vault</a>
  <header className="topbar"><a className="lockup" href="/app/vault"><img className="lockup-mark" src={marks.white} alt="" width={248} height={100}/><span className="lockup-word" data-rer-name>Latchkey</span></a>
   {client ? <><label className="search"><Icon name="search"/><input ref={search} type="search" aria-label="Search vault" placeholder="Search vault…" value={query} maxLength={500} disabled={!vault} onChange={e => { setQuery(e.target.value); if (!listed) show(''); }}/><kbd>⌘ K</kbd></label>
-   <Tabs tabs={tabs} current={tabs.find(([name]) => name ? panel === name : vaultView)?.[1]} onPick={show}/>
+   <Tabs tabs={tabs} current={tabs.find(([name]) => name ? panel === name : vaultView)?.[1]} onPick={show}/></> : <span className="locked">Vault locked</span>}
    <details className="menu" ref={menu}><summary>Settings</summary><div className="menu-list">
+    {client && <>
     <button type="button" disabled={pending > 0} onClick={() => { setCreate(!create); if (menu.current) menu.current.open = false; }}>New vault</button>
     <button type="button" disabled={!vault} onClick={() => show('generator', true)}>Password generator</button>
     <button type="button" disabled={!vault} onClick={() => show('templates', true)}>Custom templates</button>
@@ -140,10 +141,11 @@ export function VaultScreen() {
     <button type="button" onClick={() => show('aliases')}>Email aliases</button>
     <button type="button" onClick={() => show('rules')}>Security rules</button>
     <button type="button" onClick={() => show('provider')}>Service provider</button><a href="/app/fleet">Company fleet</a>
+    </>}
     <button type="button" onClick={() => show('diagnostics')}>Support diagnostics</button>
-    <a href="/contract">Documentation</a>
+    {client && <a href="/contract">Documentation</a>}
    </div></details>
-   <button type="button" className="lock" onClick={lock}>Lock vault</button></> : <><span className="locked">Vault locked</span><details className="menu" ref={menu}><summary>Settings</summary><div className="menu-list"><button type="button" onClick={() => show('diagnostics')}>Support diagnostics</button></div></details><a className="docs" href="/contract">Documentation</a></>}
+   {client ? <button type="button" className="lock" onClick={lock}>Lock vault</button> : <a className="docs" href="/contract">Documentation</a>}
  </header>
  <main className="page" id="vault-main">
   {error && <div className="error" role="alert">{error}<button aria-label="Dismiss error" onClick={() => setError('')}>Dismiss</button></div>}
