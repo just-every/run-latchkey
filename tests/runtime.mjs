@@ -383,7 +383,115 @@ try {
   if (expected) { assert.equal(output, ''); return JSON.parse(errors) }
   return JSON.parse(output)
  }
+ const directVaults=[];
  try {
+ // Independent direct rights use the same signed browser transport, REST
+ // aliases and shipped CLI. Legacy fixtures above retain their read bundle.
+ const {TypedItems,createItem}=await import('../src/latchkey/items/index.mjs');
+ const directSecrets=['synthetic-latchkey-9430','synthetic-latchkey-9431'];
+ const memberItems=new TypedItems(member);
+ for(const [index,kind] of ['company','private-work'].entries()){
+  const directVault=(await owner.createVault({kind})).vault;directVaults.push(directVault);
+  const item=createItem('login',{title:`Direct rights ${kind}`,values:{password:directSecrets[index]}}),object=(await owner.put(directVault,item)).object;
+  await owner.put(directVault,{...item,title:`Direct rights current ${kind}`},object);
+  const base=`/api/latchkey/v1/vaults/${directVault}`,path=`${base}/items/${object}`;
+  const before=(await owner.call('vault' + '/rights',{vault:directVault})).revision;
+  const preview=await requestApi(owner,'POST',`${base}/rights/preview`,{account:member.profile.account,fingerprint,rights:['read','copy']});
+  assert.deepEqual(preview.actions,{reveal:false,copy:true,history:false});assert.equal(preview.version,2);
+  assert.equal((await owner.call('vault' + '/rights',{vault:directVault})).revision,before);
+  await rejected(member.call(['vault','rights','preview'].join('/'),{vault:directVault,account:member.profile.account,fingerprint,rights:['read']}),'not_found');
+  // A recipient with the older share right cannot replay an owner-signed
+  // legacy read bundle to widen its new independent read-only permission.
+  let legacyShare;const originalShareCall=owner.call;
+  owner.call=function(route,input){if(route==='vault/share')legacyShare=structuredClone(input);return originalShareCall.call(this,route,input)};
+  try{await owner.share(directVault,member.profile.account,fingerprint,['read','share'],{version:1})}finally{owner.call=originalShareCall}
+  await owner.share(directVault,member.profile.account,fingerprint,['read','share'],{version:2});
+  const currentDirectRevision=(await owner.call('vault' + '/rights',{vault:directVault})).revision;
+  await rejected(member.previewRights(directVault,member.profile.account,fingerprint,['read']),'permission_denied');
+  await rejected(member.call('vault/share',{...legacyShare,revision:currentDirectRevision}),'permission_denied');
+  assert.deepEqual((await member.call('vault' + '/rights',{vault:directVault})).actions,{reveal:false,copy:false,history:false});
+  for(let mask=0;mask<8;mask++){
+   const actions=['reveal','copy','history'],selected=actions.filter((_,bit)=>mask&(1<<bit));
+   await owner.share(directVault,member.profile.account,fingerprint,['read','export',...selected],{version:2});
+   const effective=await requestApi(member,'GET',`${base}/rights`);assert.equal(effective.version,2);assert.equal(effective.legacy,false);
+   for(const action of actions)assert.equal(effective.actions[action],selected.includes(action));
+   for(const action of ['reveal','copy']){
+    const attempt=memberItems.field(directVault,object,'password',action);
+    if(selected.includes(action))assert.equal(await attempt,directSecrets[index]);else await rejected(attempt,'permission_denied');
+    const wire=requestApi(member,'POST',`${path}/actions`,{action});
+    if(selected.includes(action))assert.equal((await wire).versions[0].version,2);else await rejected(wire,'permission_denied');
+   }
+   const history=memberItems.history(directVault,object),wireHistory=()=>requestApi(member,'GET',`${path}/versions`);
+   if(selected.includes('history')){assert.deepEqual((await history).map(row=>row.version),[1,2]);assert.equal((await wireHistory()).data.length,2)}else{await rejected(history,'permission_denied');await rejected(wireHistory(),'permission_denied')}
+   // Raw all-version and export doors must not recover a withheld action.
+   for(const attempt of [()=>member.readVault(directVault),()=>member.exportVault(directVault,archiveKey),()=>requestApi(member,'GET',base)]){
+    if(mask===7)await attempt();else await rejected(attempt(),'permission_denied');
+   }
+   const rawItem=member.readItem(directVault,object);
+   if((mask&3)===3)assert.equal((await rawItem).versions[0].version,2);else await rejected(rawItem,'permission_denied');
+   assert.equal((await member.viewVault(directVault)).versions.length,1,'view supplies only current ciphertext');
+  }
+  // Capture a real signed input, then exercise forged, replayed and foreign
+  // grants at the public door. Refusals leave the live rights unchanged.
+  let captured;const call=owner.call;
+  owner.call=function(route,input){if(route==='vault/share')captured=structuredClone(input);return call.call(this,route,input)};
+  try{await owner.share(directVault,member.profile.account,fingerprint,['read','reveal'],{version:2})}finally{owner.call=call}
+  const revision=(await owner.call('vault' + '/rights',{vault:directVault})).revision;
+  await rejected(owner.call('vault/share',{...captured,revision}),'stale_rights_capability');
+  const forged=structuredClone(captured);forged.revision=revision;forged.capability.statement.revision=revision;forged.rights=['read','copy'];forged.capability.statement.rights=forged.rights;
+  await rejected(owner.call('vault/share',forged),'invalid_rights_signature');
+  await rejected(member.call('vault/share',forged),'permission_denied');
+  await rejected(owner.previewRights(directVault,id(),fingerprint,['read']),'recipient_mismatch');
+  assert.equal((await owner.call('vault' + '/rights',{vault:directVault})).revision,revision);
+  await owner.rotate(directVault);assert.deepEqual((await member.call('vault' + '/rights',{vault:directVault})).actions,{reveal:true,copy:false,history:false});
+  await rejected(memberItems.field(directVault,object,'password','copy'),'permission_denied');
+  const stored=(await productDb.prepare('SELECT capability FROM lky_vault_capabilities WHERE vault_id=? AND account_id=?').bind(directVault,member.profile.account).first()).capability;
+  for(const bad of [captured.capability,{...JSON.parse(stored),signature:encode(random(64))}]){
+   await productDb.prepare('UPDATE lky_vault_capabilities SET capability=? WHERE vault_id=? AND account_id=?').bind(JSON.stringify(bad),directVault,member.profile.account).run();
+   await rejected(memberItems.field(directVault,object,'password','reveal'),'permission_denied');
+   await rejected(requestApi(member,'GET',`${base}/rights`),'permission_denied');
+  }
+  await productDb.prepare('UPDATE lky_vault_capabilities SET capability=? WHERE vault_id=? AND account_id=?').bind(stored,directVault,member.profile.account).run();
+  await owner.rotate(directVault,member.profile.account);await rejected(memberItems.field(directVault,object,'password','reveal'),'not_found');
+  // Keep an explicitly versioned grant and data for the real Base restore below.
+  await owner.share(directVault,member.profile.account,fingerprint,['read','history'],{version:2});
+ }
+ // The compatibility SDK door is explicitly versioned and visibly legacy.
+ const legacy=(await owner.createVault()).vault;await owner.share(legacy,member.profile.account,fingerprint,['read'],{version:1});
+ assert.equal((await member.call('vault' + '/rights',{vault:legacy})).legacy,true);
+ assert.deepEqual((await member.call('vault' + '/rights',{vault:legacy})).actions,{reveal:true,copy:true,history:true});
+ const erasureVault=(await owner.createVault()).vault,eraseObject=(await owner.put(erasureVault,createItem('login',{title:'Direct erasure',values:{password:directSecrets[0]}}))).object;
+ await owner.share(erasureVault,member.profile.account,fingerprint,['read','reveal','copy','history'],{version:2});assert.equal(await memberItems.field(erasureVault,eraseObject,'password'),directSecrets[0]);
+ await owner.eraseItem(erasureVault,eraseObject,{confirmed:true});await rejected(memberItems.field(erasureVault,eraseObject,'password'),'not_found');await rejected(memberItems.history(erasureVault,eraseObject),'not_found');
+ await rejected(owner.call('item/put',{vault:erasureVault,object:eraseObject,version:2,revision:(await owner.call('vault' + '/rights',{vault:erasureVault})).revision,envelope:{}}),'item_erased');
+ const rightsMemberFile=join(cliDirectory,'direct-member.json');await writeFile(rightsMemberFile,JSON.stringify(member.profile),{mode:0o600});
+ const cliVault=directVaults[0],cliObject=(await owner.viewVault(cliVault)).versions[0].object;
+ // These CLI owner decisions form a separate authentication journey from
+ // the many password and enrollment probes above. Expire only that actor's
+ // two login windows; retain their counts and every other rate-limit bucket.
+ await productDb.prepare('UPDATE lky_limits SET window=-1 WHERE key IN (?,?)').bind(
+  await digest(new URL(productOrigin).hostname+':start:'+owner.profile.account),
+  await digest(new URL(productOrigin).hostname+':finish:'+owner.profile.account),
+ ).run();
+ const rightsOwnerFile=join(cliDirectory,'direct-owner.json');await writeFile(rightsOwnerFile,JSON.stringify(owner.profile),{mode:0o600});
+ const ownerCliInput={profile:rightsOwnerFile,password:'synthetic-latchkey-21',vault:cliVault,account:member.profile.account,fingerprint,rights:['read','copy']};
+ const ownerCliRevision=(await owner.call('vault' + '/rights',{vault:cliVault})).revision;
+ const cliPreview=await runCli('rights-preview',ownerCliInput);assert.deepEqual(cliPreview.actions,{reveal:false,copy:true,history:false});assert.equal((await owner.call('vault' + '/rights',{vault:cliVault})).revision,ownerCliRevision);
+ await runCli('share',{...ownerCliInput,revision:cliPreview.revision});assert.equal((await member.call('vault' + '/rights',{vault:cliVault})).version,2);
+ const familyCompatibility=(await owner.createVault({kind:'family'})).vault;
+ await runCli('share',{...ownerCliInput,vault:familyCompatibility,rights:['read']});assert.equal((await member.call('vault' + '/rights',{vault:familyCompatibility})).version,1);
+ await member.readVault(familyCompatibility);
+ const cliInput={profile:rightsMemberFile,password:'synthetic-latchkey-10',vault:cliVault,object:cliObject};
+ const copiedFile=join(cliDirectory,'direct-copy.json');await runCli('item-field',{...cliInput,field:'password',action:'copy',output:copiedFile});assert.equal(JSON.parse(await readFile(copiedFile,'utf8')).value,directSecrets[0]);
+ for(const [command,extra] of [['item-field',{field:'password',action:'reveal'}],['item-history',{}],['read',{}],['export',{exportKey:archiveKey}]]){
+  const deniedFile=join(cliDirectory,`direct-denied-${command}.json`);assert.equal((await runCli(command,{...cliInput,...extra,output:deniedFile},1)).error,'permission_denied');await assert.rejects(stat(deniedFile),{code:'ENOENT'});
+ }
+ await owner.share(cliVault,member.profile.account,fingerprint,['read','history'],{version:2});
+ const historyOutput=join(cliDirectory,'direct-history.json');await runCli('item-history',{...cliInput,output:historyOutput});assert.equal(JSON.parse(await readFile(historyOutput,'utf8')).length,2);
+ cliPrivateValues.push(...directSecrets);
+ const auditFacts=JSON.stringify(await auditApi('POST','/activity/query',{filters:{},after:0,limit:200}));for(const secret of directSecrets)assert.ok(!auditFacts.includes(secret));
+ console.log('Independent direct rights: company and private-work matrices, current-only view, raw read and export bypass refusal, REST and CLI, signed stale and forged capability refusal, revocation, rotation version preservation, erasure replay fences and secret-free audit passed');
+
   const invite = await post('/auth/invite', { email: 'synthetic-latchkey-26@example.test', displayName: 'Synthetic CLI member', role: 'member' }, owner.cookie)
   assert.equal(invite.status, 202)
   const email = mail.at(-1).content.find(content => content.type === 'text/plain').value
@@ -507,11 +615,16 @@ try {
   assert.equal(restored.phase, 'complete')
   assert.equal((await restoreDb.prepare('SELECT COUNT(*) AS total FROM lky_versions').first()).total, (await productDb.prepare('SELECT COUNT(*) AS total FROM lky_versions').first()).total)
   assert.ok((await restoreDb.prepare('SELECT rights FROM lky_recipients').all()).results.every(row => row.rights === '[]'))
+  assert.equal((await restoreDb.prepare('SELECT COUNT(*) AS n FROM lky_vault_capabilities').first()).n,0)
   for (const table of ['lky_devices', 'lky_grants', 'lky_machines']) assert.equal((await restoreDb.prepare(`SELECT COUNT(*) AS total FROM ${table}`).first()).total, 0)
   const recipient = new VaultClient(restoreOrigin, { fetcher: fetchProduct })
   const destinationKit = { ...memberEnrollment.kit, origin: restoreOrigin }
   const destinationEnrollment = await recipient.recover(destinationKit, 'synthetic-latchkey-10')
   await recipient.unlock(destinationEnrollment.profile, 'synthetic-latchkey-10')
+  for(const vault of directVaults) {
+   await rejected(recipient.call('vault' + '/rights',{vault}),'permission_denied');
+   await rejected(recipient.call('item/read',{vault,object:(await owner.viewVault(vault)).versions[0].object,history:true}),'permission_denied');
+  }
   const expectedVersions = {}
   for (const row of await owner.call('vaults', {})) if (row.owner === owner.profile.account) {
    try { expectedVersions[row.id] = (await owner.readVault(row.id)).versions; }

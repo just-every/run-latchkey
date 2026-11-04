@@ -111,8 +111,8 @@ export class VaultClient {
   const present = new Set(result.versions.map(row => `${row.object_id}:${row.version}`));
   requireValue(result.versions.every(row => !seen?.erased?.[row.object_id]), 'server_replayed_erasure');
   const observed = Object.keys(seen?.versions ?? {}).filter(version => !selection || version.startsWith(selection.object + ':'));
-  if (!selection || selection.history) requireValue(observed.every(version => present.has(version)), 'server_rollback');
-  else requireValue(Math.max(0, ...result.versions.map(row => row.version)) >= Math.max(0, ...observed.map(version => Number(version.split(':')[1]))), 'server_rollback');
+  if ((!selection && mode !== 'view') || selection?.history) requireValue(observed.every(version => present.has(version)), 'server_rollback');
+  else for (const name of observed) { const [object, version] = name.split(':'); requireValue(result.versions.some(row => row.object_id === object && row.version >= Number(version)), 'server_rollback'); }
   const key = await unwrapSigned(result.wrapped, this.bundle.root.recipient.privateKey, owner.authorityKey, result.owner, binding(profile.tenant, vault, profile.account, 'vault-key', result.epoch));
   requireValue(key.length === 32, 'invalid_key');
   const keyFingerprint = await digest(key);
@@ -139,6 +139,11 @@ export class VaultClient {
   const snapshot = await this.snapshot(vault);
   try { return { vault, epoch: snapshot.result.epoch, revision: snapshot.result.revision, versions: await this.decodeVersions(snapshot) }; } finally { snapshot.key.fill(0); }
  }
+ async viewVault(vault) {
+  const snapshot = await this.snapshot(vault, 'view');
+  try { return { vault, epoch: snapshot.result.epoch, revision: snapshot.result.revision, permissions: snapshot.result.permissions, versions: await this.decodeVersions(snapshot) }; } finally { snapshot.key.fill(0); }
+ }
+ async previewRights(vault, account, fingerprint, rights) { return this.call(['vault','rights','preview'].join('/'), { vault, account, fingerprint, rights }); }
  async eraseItem(vault, object, { confirmed = false, revision } = {}) {
   requireValue(confirmed, 'erasure_confirmation_required');
   const snapshot = await this.readVault(vault);
@@ -167,13 +172,13 @@ export class VaultClient {
   return erase(object);
  }
 
- async readItem(vault, object, history = false) {
-  const snapshot = await this.snapshot(vault, 'read', { object, history });
+ async readItem(vault, object, history = false, action) {
+  const snapshot = await this.snapshot(vault, 'read', { object, history, ...(action ? { action } : {}) });
   try { return { vault, epoch: snapshot.result.epoch, revision: snapshot.result.revision, versions: await this.decodeVersions(snapshot) }; } finally { snapshot.key.fill(0); }
  }
  async put(vault, value, object = id(), expectedVersion, expectedRevision) {
   requireValue(!this.profile?.seen[vault]?.erased?.[object], 'item_erased');
-  const snapshot = await this.snapshot(vault);
+  const snapshot = await this.snapshot(vault, 'view');
   const { key, result } = snapshot;
   if(expectedRevision != null && result.revision !== expectedRevision){key.fill(0);throw new ClientError('version_conflict',409)}
   const version = Math.max(0, ...result.versions.filter(row => row.object_id === object).map(row => row.version)) + 1;
@@ -187,13 +192,17 @@ export class VaultClient {
    return written;
   } finally { key.fill(0); derived.fill(0); }
  }
- async share(vault, account, fingerprint, rights) {
+ // Version one is the compatibility door for existing SDK callers. Browser and
+ // CLI grants explicitly select version two; upgrading is an owner decision.
+ async share(vault, account, fingerprint, rights, { version = 1, revision } = {}) {
   const recipient = await this.pinAccount(account, fingerprint);
   const snapshot = await this.snapshot(vault);
   try {
    requireValue(snapshot.result.owner === this.profile.account, 'owner_signature_required');
    const wrapped = await this.wrap(snapshot.key, recipient.publicKey, binding(this.profile.tenant, vault, account, 'vault-key', snapshot.result.epoch));
-   const statement={schema:1,purpose:'vault-rights',tenant:this.profile.tenant,vault,owner:this.profile.account,account,authorityKey:recipient.authorityKey,rights,epoch:snapshot.result.epoch,generation:recipient.generation};
+   requireValue(version === 1 || version === 2, 'invalid_rights_version');
+   requireValue(revision == null || revision === snapshot.result.revision, 'version_conflict');
+   const statement={schema:version,...(version===2?{revision:snapshot.result.revision}:{}),purpose:'vault-rights',tenant:this.profile.tenant,vault,owner:this.profile.account,account,authorityKey:recipient.authorityKey,rights,epoch:snapshot.result.epoch,generation:recipient.generation};
    const capability={statement,signature:await sign(this.bundle.root.authority.privateKey,capabilityText(statement))};
    const result = await this.call('vault/share', { vault, account, fingerprint, rights, wrapped, capability, revision: snapshot.result.revision });
    return result;
@@ -213,7 +222,9 @@ export class VaultClient {
    for (const recipient of result.recipients.filter(row => row.account_id !== remove)) {
     const pinned = this.profile.trusted[recipient.account_id]?.recipientKey ?? confirmedKeys[recipient.account_id];
     requireValue(pinned && pinned === recipient.recipient_key, 'recipient_confirmation_required');
-    const statement={schema:1,purpose:'vault-rights',tenant:result.tenant,vault,owner:this.profile.account,account:recipient.account_id,authorityKey:recipient.authority_key,rights:JSON.parse(recipient.rights),epoch,generation:recipient.generation};
+    const prior = result.recipients.find(row => row.account_id === recipient.account_id);
+    const version = prior?.capability ? JSON.parse(prior.capability).statement.schema : 1;
+    const statement={schema:version,...(version===2?{revision:result.revision}:{}),purpose:'vault-rights',tenant:result.tenant,vault,owner:this.profile.account,account:recipient.account_id,authorityKey:recipient.authority_key,rights:JSON.parse(recipient.rights),epoch,generation:recipient.generation};
     const capability={statement,signature:await sign(this.bundle.root.authority.privateKey,capabilityText(statement))};
     recipients.push({ account: recipient.account_id,capability, wrapped: await this.wrap(nextKey, pinned, binding(result.tenant, vault, recipient.account_id, 'vault-key', epoch)) });
    }

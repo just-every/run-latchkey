@@ -30,7 +30,8 @@ export async function runSubjectErasureJourneys({owner,db,records,mail,post,fetc
  const otherVault=(await owner.createVault()).vault,kept=await owner.put(otherVault,{secret:'synthetic-latchkey-990'});
  const identity=await digest(JSON.stringify([person.profile.recipientKey,person.profile.authorityKey]));
  await person.pinAccount(owner.profile.account,await digest(JSON.stringify([owner.profile.recipientKey,owner.profile.authorityKey])));
- await owner.share(otherVault,person.profile.account,identity,['read']);
+ await owner.share(otherVault,person.profile.account,identity,['read','reveal','copy','history'],{version:2});
+ assert.equal((await person.call('vault' + '/rights',{vault:otherVault})).version,2);
  assert.equal((await person.readItem(otherVault,kept.object)).versions[0].value.secret,'synthetic-latchkey-990');
  const personalSharing=new SharingClient(person),group=await personalSharing.createGroup();
  const policyInput={group:group.group,policy:{historyDays:1},reason:email};
@@ -70,6 +71,7 @@ export async function runSubjectErasureJourneys({owner,db,records,mail,post,fetc
  await rejects(owner.call('subject/erase',{subject:operator,confirmed:true,planHash:'synthetic-latchkey-991'}),'subject_erasure_plan_changed');
  assert.ok(await db.prepare('SELECT id FROM oa_operators WHERE id=?').bind(operator).first());
  const erased=await owner.call('subject/erase',{subject:operator,confirmed:true,planHash:preview.planHash});
+ assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM lky_vault_capabilities WHERE account_id=?').bind(person.profile.account).first()).n,0);
  assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM lky_report_observations').first()).n,0);assert.equal(await db.prepare('SELECT vault_id FROM lky_report_keys WHERE vault_id=?').bind(reportVault).first(),null);
  // The surviving vault's revision need not change when only roster data was erased.
  // Replay the exact accepted public-door request, then read the actual history.
