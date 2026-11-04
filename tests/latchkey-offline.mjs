@@ -126,6 +126,11 @@ export async function offlineTotpJourney(){
    Object.assign(item.fields.find(field=>field.id==='totp').value,parameters);
    configured.push({object:(await items.save(vault,item)).object,parameters});
   }
+  const customObject=(await items.save(vault,createItem('custom',{
+   title:'Selected offline authenticator',
+   definitions:[{id:'authenticator',label:'Authenticator',type:'otp',secret:true},{id:'description',label:'Description',type:'text',secret:false}],
+   values:{authenticator:make(latestSecret).fields.find(field=>field.id==='totp').value,description:'synthetic-latchkey-9608'},
+  }))).object;
   await f.owner.rotate(vault);
   const configuredInput={...input,cache:file('configured')};
   await command('cache-refresh',{...configuredInput,password:f.password});
@@ -136,6 +141,11 @@ export async function offlineTotpJourney(){
   // Stop the source service completely; disconnected reads have a fatal network
   // tripwire and use only the actual private files produced by cache-refresh.
   await f.close();closed=true;
+  await refused({...configuredInput,object:customObject},'offline_totp_field_required');
+  await refused({...configuredInput,object:customObject,field:'description'},'offline_totp_field_required');
+  const selected=await code({...configuredInput,object:customObject,field:'authenticator'},{offline:true});
+  assert.equal(selected.code,expectedCode(latestSecret,2000000000000));
+  console.log('PROBE LKY-038 selected field: custom item with explicitly selected OTP -> correct code; absent default and non-OTP selections refuse');
   for(const {object,parameters} of configured)for(const time of [2000036039999,2000036040000,2000259200000]){
    const result=await code({...configuredInput,object},{offline:true,time});
    assert.equal(result.code,expectedCode(latestSecret,time,{...parameters,algorithm:parameters.algorithm.toLowerCase()}));
@@ -195,7 +205,7 @@ export async function offlineTotpJourney(){
   assert.equal(response.value.error,'offline_cache_invalidated');await assert.rejects(access(refusedRead),{code:'ENOENT'});
   console.log('PROBE LKY-038 unavailable reconnect: stopped Worker then cache-refresh -> durable invalidation; both cache-read and cache-totp refuse without an output');
   for(const value of[durable,...logs,...await Promise.all(outputs.map(path=>readFile(path,'utf8')))]){
-   for(const secret of[firstSecret,latestSecret,base32(firstSecret),base32(latestSecret),cacheKey,f.password,...privateKeys])assert.ok(!value.includes(secret));
+   for(const secret of[firstSecret,latestSecret,base32(firstSecret),base32(latestSecret),cacheKey,f.password,...privateKeys,'synthetic-latchkey-9604','synthetic-latchkey-9605','synthetic-latchkey-9606','synthetic-latchkey-9607','synthetic-latchkey-9608'])assert.ok(!value.includes(secret));
   }
   console.log('PROBE LKY-038 secret custody: encrypted cache, stdout, stderr and private code files inspected -> no seeds, cache key or master password; code files mode 0600');
  }finally{if(!closed)await f.close();await rm(directory,{recursive:true,force:true})}
