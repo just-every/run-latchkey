@@ -17,10 +17,10 @@ const base32=value=>{
  if(bits)result+='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'[buffer<<5-bits&31];return result;
 };
 // Independent Node HMAC oracle; the product uses WebCrypto and base32 decoding.
-function expectedCode(secret,time){
- const counter=Buffer.alloc(8);counter.writeBigUInt64BE(BigInt(Math.floor(time/30000)));
- const hmac=createHmac('sha1',secret).update(counter).digest(),offset=hmac.at(-1)&15;
- return String((hmac.readUInt32BE(offset)&0x7fffffff)%1000000).padStart(6,'0');
+function expectedCode(secret,time,{algorithm='sha1',digits=6,period=30}={}){
+ const counter=Buffer.alloc(8);counter.writeBigUInt64BE(BigInt(Math.floor(time/(period*1000))));
+ const hmac=createHmac(algorithm,secret).update(counter).digest(),offset=hmac.at(-1)&15;
+ return String((hmac.readUInt32BE(offset)&0x7fffffff)%10**digits).padStart(digits,'0');
 }
 async function invite(f){
  const password='synthetic-latchkey-9600',email=['synthetic-latchkey-9601','example.test'].join('@');
@@ -42,7 +42,7 @@ export async function offlineTotpJourney(){
   // A swallowed network failure cannot pass: attempted fetch exits the process.
   const guard=`Date.now=()=>${time};globalThis.fetch=()=>{process.stderr.write('offline_network_attempt');process.exit(90)};`;
   const args=[...(offline?['--import','data:text/javascript,'+encodeURIComponent(guard)]:[]),'scripts/latchkey.mjs',name];
-  const child=spawn(process.execPath,args,{env:{...process.env,...(offline?{}:{NODE_EXTRA_CA_CERTS:f.caFile})},stdio:['pipe','pipe','pipe']});let out='',err='';
+  const child=spawn(process.execPath,args,{env:{...process.env,...(!offline&&!closed?{NODE_EXTRA_CA_CERTS:f.caFile}:{})},stdio:['pipe','pipe','pipe']});let out='',err='';
   child.stdout.on('data',v=>out+=v);child.stderr.on('data',v=>err+=v);child.stdin.end(JSON.stringify(input));
   const code=await new Promise((resolve,reject)=>{child.once('error',reject);child.once('close',resolve)});
   logs.push(out+err);assert.equal(code,expected,err);return {out,err,value:JSON.parse(expected?err:out)};
@@ -111,9 +111,38 @@ export async function offlineTotpJourney(){
   await refused(itemInput,'offline_eligibility_unverifiable');
   console.log('PROBE LKY-038 item erasure: eraseItem then authorized cache-refresh -> no erased seed or code restored');
 
-  // Stop the source service completely; remaining commands have a fatal network
+  // Change actual stored items, rather than editing a decrypted cache fixture:
+  // removing an OTP must not resurrect the previous version's still-valid seed.
+  const removed=(await items.save(vault,make(firstSecret))).object;
+  await items.save(vault,createItem('login',{title:'OTP removed',values:{password:'synthetic-latchkey-9607'}}),removed);
+  const removedInput={...input,object:removed,cache:file('removed-otp')};
+  await command('cache-refresh',{...removedInput,password:f.password});
+  await refused(removedInput,'offline_totp_field_required');
+  // Configured algorithm, width and period survive the real refresh and an
+  // epoch rotation, and are exercised on both sides of a code boundary.
+  const configured=[];
+  for(const algorithm of ['SHA256','SHA512']){
+   const item=make(latestSecret),parameters={algorithm,digits:8,period:60};
+   Object.assign(item.fields.find(field=>field.id==='totp').value,parameters);
+   configured.push({object:(await items.save(vault,item)).object,parameters});
+  }
+  await f.owner.rotate(vault);
+  const configuredInput={...input,cache:file('configured')};
+  await command('cache-refresh',{...configuredInput,password:f.password});
+  const reconnectInput={...configuredInput,cache:file('unavailable')};
+  await command('cache-refresh',{...reconnectInput,password:f.password});
+  console.log('PROBE LKY-038 latest item: actual owner edit removes OTP, authorized refresh -> no fallback to the older seed');
+
+  // Stop the source service completely; disconnected reads have a fatal network
   // tripwire and use only the actual private files produced by cache-refresh.
   await f.close();closed=true;
+  for(const {object,parameters} of configured)for(const time of [2000036039999,2000036040000,2000259200000]){
+   const result=await code({...configuredInput,object},{offline:true,time});
+   assert.equal(result.code,expectedCode(latestSecret,time,{...parameters,algorithm:parameters.algorithm.toLowerCase()}));
+   assert.equal(result.validFrom,Math.floor(time/60000)*60000);
+   assert.equal(result.validUntil,result.validFrom+60000);
+  }
+  console.log('PROBE LKY-038 configured codes: rotated vault then stopped Worker, SHA256 and SHA512 with eight digits and sixty-second periods -> independent HMAC results across rollover and multi-day clocks');
   for(const time of[2000000000000,2000036000000,2000259200000,2001468800000]){
    const result=await code(input,{offline:true,time});
    assert.equal(result.code,expectedCode(latestSecret,time));assert.notEqual(result.code,expectedCode(firstSecret,time));
@@ -155,6 +184,16 @@ export async function offlineTotpJourney(){
   await writeFile(cache+'.lock','',{mode:0o600});await refused(input,'offline_cache_busy');await rm(cache+'.lock');
   const invalidated=file('invalidated');await store(invalidated,{...identity,state:'invalidated'});await refused({...input,cache:invalidated},'offline_cache_invalidated');
   console.log('PROBE LKY-038 refusal and custody: legacy, ambiguous, unverifiable and invalidated caches, busy cache and missing, existing or conflicting output -> refused without overwrites');
+  // A real reconnect attempt during an outage must leave no old decrypted
+  // read or code path, even though authentication cannot complete.
+  await command('cache-refresh',{...reconnectInput,password:f.password},{expected:1});
+  assert.equal(JSON.parse(await readFile(reconnectInput.cache,'utf8')).state,'invalidated');
+  assert.equal(JSON.parse(await readFile(reconnectInput.cache,'utf8')).envelope,undefined);
+  await refused(reconnectInput,'offline_cache_invalidated');
+  const refusedRead=file('unavailable-read');
+  const response=await command('cache-read',{...reconnectInput,output:refusedRead},{offline:true,expected:1});
+  assert.equal(response.value.error,'offline_cache_invalidated');await assert.rejects(access(refusedRead),{code:'ENOENT'});
+  console.log('PROBE LKY-038 unavailable reconnect: stopped Worker then cache-refresh -> durable invalidation; both cache-read and cache-totp refuse without an output');
   for(const value of[durable,...logs,...await Promise.all(outputs.map(path=>readFile(path,'utf8')))]){
    for(const secret of[firstSecret,latestSecret,base32(firstSecret),base32(latestSecret),cacheKey,f.password,...privateKeys])assert.ok(!value.includes(secret));
   }
