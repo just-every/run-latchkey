@@ -13,8 +13,7 @@ import { recordsCommand } from './latchkey/records-commands.mjs';
 import { itemCommands, runItemCommand } from './latchkey/items-commands.mjs';
 import { privateOutput } from '../src/latchkey/portability/private-files.mjs';
 import { constants } from 'node:fs';
-import { resolve } from 'node:path';
-import { cacheIdentity,emptyCache,sealCache,openCache } from '../clients/shared/offline/cache.mjs';
+import { offlineCommands, offlineCommand } from './latchkey/offline-commands.mjs';
 import { open, rename, unlink } from 'node:fs/promises';
 import { MachineClient } from '../src/latchkey/machine.mjs';
 import { VaultClient, ClientError } from '../src/latchkey/client.mjs';
@@ -33,7 +32,7 @@ async function writePrivate(path, value, replace = false) {
  try { await handle.writeFile(JSON.stringify(value) + '\n'); await handle.sync(); } finally { await handle.close(); }
  if (replace) { try { await rename(target, path); } catch (error) { await unlink(target); throw error; } }
 }
-let linkedAccounts = null, releaseRegistry = async () => {}, releaseCache = async () => {};
+let linkedAccounts = null, releaseRegistry = async () => {};
 async function accountRegistry(input) {
  if (!input.accountRegistry || typeof input.accountRegistry !== 'string') throw new ClientError('account_registry_required');
  const path = input.accountRegistry + '.lock'; let handle;
@@ -66,23 +65,8 @@ try {
   const {migrationCommand}=await import('./latchkey/migration-commands.mjs');result=await migrationCommand(command,input);
  } else if(['passbolt-preview','passbolt-review'].includes(command)){
   const {passboltCommand}=await import('./latchkey/passbolt-commands.mjs');result=await passboltCommand(command,input);
- } else if(['cache-refresh','cache-read'].includes(command)){
-  if(!input.cache||!input.profile||resolve(input.cache)===resolve(input.profile)||input.output&&[input.cache,input.profile].some(path=>resolve(path)===resolve(input.output)))throw new ClientError('offline_cache_path_conflict');
-  const lockPath=input.cache+'.lock';let cacheLock;try{cacheLock=await open(lockPath,constants.O_WRONLY|constants.O_CREAT|constants.O_EXCL|constants.O_NOFOLLOW,0o600)}catch(error){if(error.code==='EEXIST')throw new ClientError('offline_cache_busy');throw error}
-  releaseCache=async()=>{await cacheLock.close();await unlink(lockPath)};
-  profile=await readPrivate(input.profile);const identity=emptyCache(profile,input.vault);
-  let saved;try{saved=await readPrivate(input.cache)}catch(error){if(error.code!=='ENOENT')throw error}
-  if(saved&&JSON.stringify(cacheIdentity(saved))!==JSON.stringify(identity))throw new ClientError('offline_cache_mismatch');
-  if(command==='cache-read'){
-   const value=await openCache(saved,input.cacheKey,identity);await writePrivate(input.output,value);result={written:true,connection:value.connection,expiresAt:value.expiresAt};
-  }else{
-   // Persist invalidation BEFORE authentication or any network request. A refusal
-   // or interruption must never leave the old cache readable through this door.
-   await writePrivate(input.cache,{...identity,state:'invalidated'},!!saved);
-   client=new VaultClient(profile.origin);await client.unlock(profile,input.password);
-   const value=await client.readVault(input.vault);await writePrivate(input.cache,await sealCache(identity,value,input.cacheKey),true);
-   await writePrivate(input.profile,profile,true);result={refreshed:true,versions:value.versions.length,expiresAt:null};
-  }
+ } else if(offlineCommands.includes(command)){
+  result=await offlineCommand(command,input,{readPrivate,writePrivate});
  } else if(command==='run'){
   const {runConsumer}=await import('./latchkey/run-command.mjs');result=await runConsumer(input,process.argv.slice(3));process.exitCode=result.exitCode;
  } else if (command === 'records-restore') {
@@ -242,5 +226,4 @@ try {
 } finally {
  linkedAccounts?.lock();
  await releaseRegistry();
- await releaseCache();
 }
