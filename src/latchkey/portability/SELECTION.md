@@ -100,7 +100,19 @@ The existing one-megabyte envelope limit still applies. The browser reports only
 `browser_download_initiated` or `browser_download_failed` as client-reported
 outcomes after successful release. A refused browser initiation requires a new
 review before retrying and records a distinct failure outcome. Neither event verifies saving or delivery.
-Interrupted outcome reporting and independently verified delivery remain unproved.
+A release response lost before or after the server commit never starts a download.
+The browser clears the review and buyer key and reports that release may have
+been recorded, while saving and delivery are unverified. It never resends the
+release automatically. Leaving the panel during an in-flight release also
+prevents a late download; a returned successful release is reported as cancelled.
+**Cancel and clear** remains available during release, including from the keyboard.
+It clears review and key immediately and prevents file output when the pending
+response arrives. A release already accepted by the service is not undone.
+These client-reported interruption outcomes require the same retained successful
+release as other outcomes. A failed request before release cannot manufacture
+a successful receipt. If the report itself cannot reach the service or authority
+has been revoked, no report confirmation is inferred. Process and device loss,
+durable report recovery and independently verified delivery remain unproved.
 
 At a fresh destination, enroll its owner and unlock `/app/vault`. Open the same
 Settings action even when there are no vaults. Choose **Import selection**, load
@@ -117,3 +129,34 @@ Key and file contents stay in unlocked browser memory; no key, filename, purpose
 intended target or secret value is sent to audit. Cancel and leaving this panel
 clear its retained form state. Browser plaintext ceremonies, full installation
 recovery, external-copy cleanup and recall are not supplied by this screen.
+
+The already loaded browser can open and verify the encrypted file with the
+buyer key while disconnected from the service. Import still requires live
+destination owner authority; offline review grants no import approval.
+
+## Interrupted selected imports
+
+After submitting the single atomic import, the client reconciles its exact
+prepared destination identifiers, current ownership and kinds, every included
+version and attachment digest, and inactive lifecycle observations through live
+reads. If the commit response is lost, those same reads can establish success
+without resubmitting the import. An unavailable read or a mismatching destination
+reports an unverified outcome; vaults may already exist. In the browser, lock
+and unlock the installation to load its current vaults before another import. A refused current credential never becomes a successful
+reconciliation. If an included item is erased before reconciliation completes,
+the changed content refuses success; reconciliation never writes that item back. The browser clears the review after an unverified result and
+requires a fresh review for another attempt.
+
+This bounded response-loss handling retains no pending files, keys or plans in
+browser storage. Closing the page loses its prepared identifiers; recovery after
+process or device loss, full installation restore and independent delivery remain
+separate obligations. A new import still requires an empty destination and cannot
+silently merge into vaults left by an earlier attempt.
+
+The selection client checks cancellation again after the release response, before
+returning either encrypted or approved plaintext file contents to its caller.
+Release response loss returns an explicit unverified error for both formats and
+attempts only an uncertainty report, never another release. The temporary
+serialization buffer and decoded export key are cleared when export finishes,
+including failure. JavaScript object collection is not certified memory erasure,
+and previously downloaded files remain outside that cleanup.

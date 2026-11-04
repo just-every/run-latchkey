@@ -14,7 +14,7 @@ export function SelectionPanel({ client, vaults, onImported }: { client: any; va
  const [purpose, setPurpose] = useState('Migration'), [target, setTarget] = useState('Buyer-held private file');
  const [key, setKey] = useState(''), [retained, setRetained] = useState(false), [approved, setApproved] = useState(false);
  const [preview, setPreview] = useState<any>(null), [archive, setArchive] = useState<any>(null), [result, setResult] = useState<any>(null);
- const [busy, setBusy] = useState(false), [error, setError] = useState(''), [status, setStatus] = useState('');
+ const [busy, setBusy] = useState(false), [releasing, setReleasing] = useState(false), [error, setError] = useState(''), [status, setStatus] = useState('');
  const active = useRef(true), releaseSignal = useRef(new AbortController());
  useEffect(() => { active.current = true; releaseSignal.current = new AbortController(); return () => { active.current = false; releaseSignal.current.abort(); }; }, []);
  const invalidate = () => { setPreview(null); setApproved(false); setResult(null); setError(''); setStatus(''); };
@@ -25,11 +25,11 @@ export function SelectionPanel({ client, vaults, onImported }: { client: any; va
    if (!active.current) return;
    setPreview(null); setApproved(false); setResult(null);
    const code = (cause as any)?.code;
-   if (['device_revoked', 'authority_expired', 'account_key_changed', 'permission_denied', 'not_found', 'review_owner_required'].includes(code) || (cause as any)?.status === 401) clear();
+   if (['device_revoked', 'authority_expired', 'account_key_changed', 'permission_denied', 'not_found', 'review_owner_required', 'selected_export_unverified', 'export_cancelled'].includes(code) || (cause as any)?.status === 401) clear();
    setError(explain(cause));
   } finally { if (active.current) setBusy(false); }
  };
- const cancel = () => { clear(); setStatus('Selection cleared. Clearing a review does not release an export or start an import.'); };
+ const cancel = () => { releaseSignal.current.abort(); releaseSignal.current = new AbortController(); clear(); setStatus(releasing ? 'Selection cleared. No download will start from this review. A release check may already have been recorded; saving and delivery are unverified.' : 'Selection cleared. Clearing a review does not release an export or start an import.'); };
  const pickVault = async (vault: string, chosen: boolean) => {
   invalidate();
   if (!chosen) { setScope(rows => rows.filter(row => row.vault !== vault)); return; }
@@ -55,8 +55,12 @@ export function SelectionPanel({ client, vaults, onImported }: { client: any; va
   if (active.current) setArchive(value);
  }); };
  const release = async () => {
-  const value = await api.export(preview, key, { confirmed: approved, approvedPlanHash: preview.planHash, signal: releaseSignal.current.signal });
-  if (!active.current) return;
+  setReleasing(true);
+  const signal = releaseSignal.current.signal;
+  try {
+  const value = await api.export(preview, key, { confirmed: approved, approvedPlanHash: preview.planHash, signal });
+  if (!active.current || signal.aborted) return;
+  setReleasing(false);
   let outcome = 'browser_download_failed';
   try { download('latchkey-selection.json', JSON.stringify(value)); outcome = 'browser_download_initiated'; }
   catch { throw { code: 'browser_download_failed' }; }
@@ -65,6 +69,7 @@ export function SelectionPanel({ client, vaults, onImported }: { client: any; va
    catch { if (active.current) setError('The browser outcome could not be recorded. Delivery is unverified.'); }
   }
   if (active.current) { setPreview(null); setApproved(false); setKey(''); setRetained(false); setStatus('Browser download initiated. Saving, delivery and external-copy custody are unverified. Keep the separately retained key.'); }
+  } finally { if (active.current) setReleasing(false); }
  };
  return <section className="detail section selection-panel" aria-label="Export and import">
   <style>{`.lk .selection-panel{max-width:900px}.lk .selection-panel fieldset{border:1px solid var(--rule);border-radius:var(--corner);padding:16px;margin:18px 0;min-width:0}.lk .selection-panel legend{font-weight:600;padding:0 6px}.lk .selection-panel code{overflow-wrap:anywhere;white-space:normal;font-size:13px}.lk .selection-panel li{overflow-wrap:anywhere}.lk .selection-panel .selection-review{margin:24px 0;padding:20px;border:1px solid var(--rule);border-radius:var(--corner);background:var(--tint)}.lk .selection-panel h2{margin-top:20px}.lk .selection-panel .selection-review h2{margin-top:0}`}</style>
@@ -99,10 +104,10 @@ export function SelectionPanel({ client, vaults, onImported }: { client: any; va
    <SelectionReview preview={preview}/>
    {mode === 'import' && <p>Import creates new owner-only vaults, preserves included history and lifecycle observations, and keeps retention inactive and plaintext denied. Source grants and policies confer no access.</p>}
    <label className="check"><input type="checkbox" disabled={busy} checked={approved} onChange={e => setApproved(e.target.checked)}/>{mode === 'export' ? 'I approve this exact encrypted selection, purpose, target and copy custody' : 'I approve this exact selection into fresh owner-only vaults'}</label>
-   <div className="actions">{mode === 'export' ? <button className="primary" disabled={busy || !approved || !key || !retained} onClick={() => void run(release)}>Download encrypted selection</button> : <button className="primary" disabled={busy || !approved || !key} onClick={() => void run(async () => { const value = await api.reimport(archive, key, { confirmed: approved, approvedPlanHash: preview.planHash }); if (active.current) { clear(); setResult(value); setStatus('Import reconciled. Fresh owner-only vaults created; retention inactive and plaintext denied.'); } })}>Import reviewed selection</button>}</div>
+   <div className="actions">{mode === 'export' ? <button className="primary" disabled={busy || !approved || !key || !retained} onClick={() => void run(release)}>Download encrypted selection</button> : <button className="primary" disabled={busy || !approved || !key} onClick={() => void run(async () => { const value = await api.reimport(archive, key, { confirmed: approved, approvedPlanHash: preview.planHash }); if (active.current) { clear(); setResult(value); setStatus(value.interrupted ? 'Import reconciled. The response was interrupted; current destination reads verified all included content. No import retry was sent.' : 'Import reconciled. Fresh owner-only vaults created; retention inactive and plaintext denied.'); } })}>Import reviewed selection</button>}</div>
   </div>}
   {result && <div aria-label="Import reconciliation"><h2>Reconciled destination</h2>{result.restored.map((row: any) => <article key={row.destination}><p><code>{row.source}</code> → <code>{row.destination}</code></p><Counts counts={row.counts}/><p>{row.access}</p><p>{row.lifecycle.length} lifecycle observations · {row.historyGaps.length} disclosed history gaps · retention inactive</p></article>)}<p>{result.laterErasure}</p><button disabled={busy} onClick={() => void run(onImported)}>Open imported vaults</button></div>}
-  <button disabled={busy} onClick={cancel}>Cancel and clear</button>
+  <button disabled={busy && !releasing} onClick={cancel}>Cancel and clear</button>
  </section>;
 }
 function Counts({ counts }: { counts: any }) { return <p>{counts.items} items · {counts.versions} versions · {counts.attachments} attachments · {counts.attachmentBytes} attachment bytes</p>; }
@@ -119,6 +124,8 @@ function explain(cause: unknown) {
  const code = (cause as any)?.code ?? (cause instanceof Error ? cause.message : undefined);
  const messages: Record<string, string> = {
   export_plan_changed: 'Source data or policy changed. Review the selection again.', export_approval_changed: 'Current authority, source or policy changed. Review the selection again.',
+  selected_export_unverified: 'The release response was interrupted. No selection download was started. Release may have been recorded; saving and delivery are unverified. The review and buyer key were cleared. Start a fresh review before another export.',
+  export_cancelled: 'Export cancelled. No selection download was started. A release check may already have been recorded.',
   browser_download_failed: 'The browser download could not be initiated. Review again before retrying. Saving and delivery are unverified.',
   selected_export_size_limit: 'This selection exceeds the supported file size. Choose fewer items or use Records for a full installation archive.',
   encrypted_selection_required: 'Choose an encrypted selected export. Plaintext browser ceremonies are not supported.',
@@ -127,6 +134,7 @@ function explain(cause: unknown) {
   fresh_installation_required: 'Import requires a different, fresh installation.', empty_export_destination_required: 'Import requires a fresh destination with no visible vaults.',
   destination_owner_required: 'Only the current destination installation owner may import this selection.',
   export_reconciliation_failed: 'The destination could not be reconciled. Inspect its vaults before attempting further imports.',
+  selected_import_unverified: 'The import outcome could not be verified. Vaults may already exist. Lock and unlock this installation to inspect its current vaults before another import; no retry was sent.',
  };
  return messages[code] ?? message(cause);
 }

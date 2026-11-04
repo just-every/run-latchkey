@@ -76,6 +76,43 @@ export async function ownerRunExitJourney() {
    const rights=await destination.owner.call('vaults',{});assert.equal(rights.length,1);assert.equal(rights[0].owner,destination.owner.profile.account);assert.equal(rights[0].kind,'company');
    await assert.rejects(new SelectionExportClient(destination.owner).reimport(fullArchive,exportKey,{confirmed:true,approvedPlanHash:fullPreview.planHash}),error=>error.code==='empty_export_destination_required');
   }finally{await destination.close()}
+  // A lost response cannot turn later erasure or revoked authority into a
+  // success claim, and reconciliation never recreates or overwrites content.
+  for(const boundary of ['erasure','revocation']){
+   const interruptedDestination=await vaultFixture({browserEnabled:false});let keeper;
+   try{
+    const target=interruptedDestination.owner,call=target.call.bind(target);let prepared,attempts=0;
+    if(boundary==='revocation'){
+     keeper=new VaultClient(interruptedDestination.origin,{cookie:target.cookie,fetcher:interruptedDestination.fetcher});
+     const enrollment=await keeper.beginEnrollment(target.profile,interruptedDestination.password);
+     await target.approveEnrollment(enrollment.device,enrollment.fingerprint);
+     const profile=await keeper.completeEnrollment(enrollment.profile,interruptedDestination.password);await keeper.unlock(profile,interruptedDestination.password);
+    }
+    target.call=async(name,input)=>{
+     const result=await call(name,input);
+     if(name===selectionRoutes.import){
+      attempts++;prepared=structuredClone(input);
+      if(boundary==='erasure')await target.eraseItem(input.vaults[0].vault,login,{confirmed:true});
+      else await keeper.call(route('device','revoke'),{device:target.profile.device});
+      throw new TypeError('Synthetic lost commit response');
+     }
+     return result;
+    };
+    try{await assert.rejects(new SelectionExportClient(target).reimport(fullArchive,exportKey,{confirmed:true,approvedPlanHash:fullPreview.planHash}),error=>boundary==='erasure'?error.code==='selected_import_unverified':['device_revoked','authority_expired'].includes(error.code))}finally{target.call=call}
+    assert.equal(attempts,1);
+    if(boundary==='erasure'){
+     const destination=prepared.vaults[0].vault;
+     assert.deepEqual((await target.readVault(destination)).versions,expected.filter(row=>row.object!==login));
+     assert.equal((await target.call(route('item','erasure-status'),{vault:destination,object:login})).erased,true);
+     await assert.rejects(new SelectionExportClient(target).reimport(fullArchive,exportKey,{confirmed:true,approvedPlanHash:fullPreview.planHash}),error=>error.code==='empty_export_destination_required');
+     assert.deepEqual((await target.readVault(destination)).versions,expected.filter(row=>row.object!==login));
+    }else{
+     assert.deepEqual((await keeper.readVault(prepared.vaults[0].vault)).versions,expected);
+     await assert.rejects(target.readVault(prepared.vaults[0].vault),error=>['device_revoked','authority_expired'].includes(error.code));
+    }
+   }finally{keeper?.lock();await interruptedDestination.close()}
+  }
+  console.log('PROBE LKY-017 interrupted authority and erasure: real commit followed by erasure or device revocation and lost response -> no success, retry or recreated content');
   await assert.rejects(selected.setPlaintextPolicy(vault,true,{confirmed:false}),error=>error.code==='exact_export_approval_required');
   await selected.setPlaintextPolicy(vault,true,{confirmed:true});
   // A real full archive is produced while the source plaintext policy is enabled.
@@ -164,6 +201,33 @@ export async function ownerRunExitJourney() {
    owner.call=async(name,input)=>{if(name===selectionRoutes.release)releaseCalls++;const result=await call(name,input);if(name===selectionRoutes.authorize)controller.abort();return result};
    try{await assert.rejects(selected.export(browserPreview,exportKey,{confirmed:true,approvedPlanHash:browserPreview.planHash,signal:controller.signal}),error=>error.code==='export_cancelled');assert.equal(releaseCalls,0);}finally{owner.call=call}
 
+   // Release response loss never returns either encrypted or plaintext bytes.
+   // Only a real retained release can accept the uncertainty report.
+   for(const format of ['encrypted','plaintext']){
+    const reviewed=await selected.preview([{vault,objects:[login]}],{format});
+    for(const boundary of ['before','after','cancelled']){
+     const abort=new AbortController();let releases=0;
+     owner.call=async(name,input)=>{
+      if(name!==selectionRoutes.release)return call(name,input);
+      releases++;
+      if(boundary==='before')throw new TypeError('Synthetic request interruption');
+      const result=await call(name,input);
+      if(boundary==='after')throw new TypeError('Synthetic response interruption');
+      abort.abort();return result;
+     };
+     try{await assert.rejects(selected.export(reviewed,exportKey,{format,confirmed:true,approvedPlanHash:reviewed.planHash,signal:abort.signal}),error=>error.code===(boundary==='cancelled'?'export_cancelled':'selected_export_unverified'));assert.equal(releases,1);}
+     finally{owner.call=call}
+     await assert.rejects(selected.reportOutcome('private_file_written'),error=>error.code==='export_release_receipt_required');
+    }
+   }
+   const interruptions=await owner.call(route('audit','list'),{filters:{action:'selection_outcome'},after:0,limit:200});
+   const interruptedOutcomes=interruptions.entries.filter(row=>['release_response_unverified','release_cancelled'].includes(row.clientOutcome));
+   assert.equal(interruptedOutcomes.filter(row=>row.result==='succeeded'&&row.clientOutcome==='release_response_unverified').length,2);
+   assert.equal(interruptedOutcomes.filter(row=>row.result==='succeeded'&&row.clientOutcome==='release_cancelled').length,2);
+   assert.equal(interruptedOutcomes.filter(row=>row.result==='refused'&&row.reason==='export_release_receipt_required').length,2);
+   for(const row of interruptedOutcomes){assert.match(row.exportOutcome,/not verified/);assert.ok(!JSON.stringify(row).includes(exportKey));}
+   console.log('PROBE LKY-017 interrupted release: encrypted and approved plaintext requests lost before or after commit, or cancelled during release -> no returned file, no release retry; uncertainty accepted only for retained releases');
+
    await selected.setPlaintextPolicy(vault,false,{confirmed:true});
    assert.deepEqual((await readdir(cliDirectory)).filter(name=>name.endsWith('.partial')),[]);assert.deepEqual(JSON.parse(await readFile(output,'utf8')).vaults[0].versions,expected.filter(row=>row.object===login));
   }finally{await rm(cliDirectory,{recursive:true,force:true})}
@@ -195,7 +259,14 @@ export async function ownerRunExitJourney() {
    const token=new URL(historyDestination.mail.at(-1).content.find(part=>part.type===['text','plain'].join('/')).value.match(/https:\/\/[^\s<>]+/)[0]).searchParams.get('token');
    const destinationMember=new VaultClient(historyDestination.origin,{fetcher:historyDestination.fetcher});await destinationMember.confirmIdentity(token);const memberEnrollment=await destinationMember.register('synthetic-latchkey-8045');await destinationMember.unlock(memberEnrollment.profile,'synthetic-latchkey-8045');
    await assert.rejects(new SelectionExportClient(destinationMember).reimport(sparse,null,{confirmed:true,approvedPlanHash:sparse.planHash}),error=>error.code==='destination_owner_required');assert.deepEqual(await historyDestination.owner.call('vaults',{}),[]);
-   const restored=await importer.reimport(sparse,null,{confirmed:true,approvedPlanHash:sparse.planHash});assert.equal(restored.restored.length,4);
+   let importAttempts=0;
+   historyDestination.owner.call=async(name,input)=>{if(name===selectionRoutes.import){importAttempts++;throw new TypeError('Synthetic transport interruption')}return call(name,input)};
+   try{await assert.rejects(importer.reimport(sparse,null,{confirmed:true,approvedPlanHash:sparse.planHash}),error=>error.code==='selected_import_unverified');assert.equal(importAttempts,1);assert.deepEqual(await call('vaults',{}),[])}finally{historyDestination.owner.call=call}
+   historyDestination.owner.call=async(name,input)=>{const result=await call(name,input);if(name===selectionRoutes.import){importAttempts++;throw new TypeError('Synthetic response interruption')}return result};
+   let restored;
+   try{restored=await importer.reimport(sparse,null,{confirmed:true,approvedPlanHash:sparse.planHash})}finally{historyDestination.owner.call=call}
+   assert.equal(restored.interrupted,true);assert.equal(restored.restored.length,4);assert.equal(importAttempts,2);
+   console.log('PROBE LKY-017 interrupted import: failed transport before commit -> unknown outcome and no writes; lost response after atomic commit -> four exact destinations reconciled without retry');
    for(const source of sparse.vaults){const target=restored.restored.find(row=>row.source===source.vault);assert.deepEqual((await historyDestination.owner.readVault(target.destination)).versions,source.versions);assert.deepEqual((await historyDestination.owner.call(route('lifecycle','list'),{vault:target.destination})).items,source.lifecycle.map(row=>({...row,retentionActive:false})));assert.deepEqual(await historyDestination.owner.call(selectionRoutes.policy,{vault:target.destination}),{revision:0,allowPlaintext:false});}
    const history=restored.restored.find(row=>row.source===lifecycleVault);
    await historyDestination.schedule(Math.max(...source.lifecycle.map(row=>row.expiresAt??0))+86400000);

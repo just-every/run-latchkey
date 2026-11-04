@@ -1,6 +1,7 @@
 import { decode, publicKey, verify } from './envelope.mjs';
 
 const rights = ['read', 'create', 'edit', 'export', 'share', 'rotate', 'delete', 'restore'];
+const atomicRights = ['reveal', 'copy', 'history'];
 const policyKeys = ['schema', 'purpose', 'tenant', 'vault', 'owner', 'days'];
 const capabilityKeys = ['schema', 'purpose', 'tenant', 'vault', 'owner', 'account', 'authorityKey', 'rights', 'epoch', 'generation'];
 const trashKeys = ['schema', 'purpose', 'tenant', 'vault', 'object', 'owner', 'actor', 'epoch', 'version', 'revision', 'nonce', 'trashedAt', 'expiresAt'];
@@ -30,13 +31,18 @@ export function policyText(statement) {
 }
 
 export function capabilityText(statement) {
- base(statement, capabilityKeys, 'vault-rights');
+ const version = statement?.schema;
+ need(version === 1 || version === 2);
+ const keys = version === 2 ? [...capabilityKeys, 'revision'] : capabilityKeys;
+ base({ ...statement, schema: 1 }, keys, 'vault-rights');
+ if (version === 2) positive(statement.revision);
  identifier(statement.account);
  const key = decode(statement.authorityKey, 65);
  need(key.length === 65 && key[0] === 4);
  positive(statement.epoch); positive(statement.generation);
- need(Array.isArray(statement.rights) && statement.rights.length <= rights.length && new Set(statement.rights).size === statement.rights.length && statement.rights.every(right => rights.includes(right)));
- return JSON.stringify(['latchkey/vault-rights/v1', ...capabilityKeys.map(key => statement[key])]);
+ const allowed = version === 2 ? [...rights, ...atomicRights] : rights;
+ need(Array.isArray(statement.rights) && statement.rights.length <= allowed.length && new Set(statement.rights).size === statement.rights.length && statement.rights.every(right => allowed.includes(right)));
+ return JSON.stringify([`latchkey/vault-rights/v${version}`, ...keys.map(key => statement[key])]);
 }
 
 export function trashText(statement) {

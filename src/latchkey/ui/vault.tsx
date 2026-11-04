@@ -47,6 +47,27 @@ export function VaultScreen() {
   const leave = () => activeClient.current?.lock(), returnToPage = (event: PageTransitionEvent) => { if (event.persisted) lock(); }; window.addEventListener('keydown', keyboard); window.addEventListener('click', outside); window.addEventListener('pagehide', leave); window.addEventListener('pageshow', returnToPage);
   return () => { window.removeEventListener('keydown', keyboard); window.removeEventListener('click', outside); window.removeEventListener('pagehide', leave); window.removeEventListener('pageshow', returnToPage); activeClient.current?.lock(); };
  }, []);
+ useEffect(() => {
+  if (!client || !vault) return;
+  let live = true, pending = false;
+  const expected = vaults.find(v => v.id === vault)?.permissions;
+  const check = async () => {
+   if (pending || !live) return; pending = true;
+   try {
+    const current = await client.call('vault' + '/rights', {vault});
+    if (live && expected && JSON.stringify(current.actions) !== JSON.stringify(expected.actions)) {
+     generation.current++; setRecords([]); setSelected(''); setPanel(''); setError('Your vault permissions changed. Refresh to review current access.');
+    }
+   } catch (cause) {
+    // An unavailable service cannot revoke already opened local state. Only
+    // a confirmed authority refusal clears it; every new action still checks
+    // current authority through its ordinary public door.
+    if (live && [401,403,404].includes((cause as any)?.status)) { generation.current++; setRecords([]); setSelected(''); setPanel(''); setError(message(cause)); }
+   } finally { pending = false; }
+  };
+  const timer = setInterval(check, 5000); window.addEventListener('focus', check);
+  return () => { live = false; clearInterval(timer); window.removeEventListener('focus', check); };
+ }, [client, vault, vaults]);
  const typed = client ? new TypedItems(client) : null;
  const load = async (connected: any, id: string, preferred = '', descriptor?: any) => {
   const ticket = ++generation.current;
@@ -57,7 +78,8 @@ export function VaultScreen() {
    if (activeClient.current === connected && generation.current === ticket) setOwnerTrust({ account: owner, fingerprint: entry.fingerprint });
    return;
   }
-  const result = await connected.readVault(id);
+  const result = await connected.viewVault(id);
+  if (result.permissions) setVaults(previous => previous.map(v => v.id === id ? { ...v, permissions: result.permissions, accessRevision: result.revision } : v));
   // Share links are listed to accounts that may share from this vault.
   const [states, shared] = await Promise.all([connected.call('lifecycle/list',{vault:id}), sharer(info) ? connected.call('sharing/history', { vault: id, object: null }) : null]);
   if (activeClient.current !== connected || generation.current !== ticket) return;
@@ -126,7 +148,7 @@ export function VaultScreen() {
   {!client ? <Unlock run={run} busy={pending > 0} onUnlock={onUnlock}/> : <>
    {vault && vaultView && <header className="page-head"><p className="crumbs"><span>Vaults</span><span aria-hidden="true">/</span><select className="vault-select" aria-label="Vault" value={vault} disabled={pending > 0} onChange={e => void run(async () => load(client, e.target.value))}>{vaults.map(v => <option key={v.id} value={v.id}>{vaultLabel(v)}</option>)}</select></p>
     <div className="head-text"><h1>{vaultLabel(current ?? { id: vault })}</h1><p className="subline">{kindLabel(current?.kind)} · {items.length === 1 ? '1 item' : `${items.length} items`}</p></div>
-    <div className="head-side"><div className="head-actions"><button disabled={pending > 0} onClick={() => void run(refresh)}>Refresh</button><button className="primary" disabled={pending > 0 || !!ownerTrust} onClick={() => { setPanel('new'); setCreate(false); }}><Icon name="plus"/>New item</button></div>
+    <div className="head-side"><div className="head-actions"><button disabled={pending > 0} onClick={() => void run(refresh)}>Refresh</button><button className="primary" disabled={pending > 0 || !!ownerTrust || current?.permissions?.version === 2 && !current.permissions.rights.includes('create')} onClick={() => { setPanel('new'); setCreate(false); }}><Icon name="plus"/>New item</button></div>
     {!!readAt && <p className="stamp"><span className="sr-only">Opened </span><time dateTime={new Date(readAt).toISOString()}>{stamp(readAt)}</time></p>}</div></header>}
    {create && <form className="new-vault notice" onSubmit={e => { e.preventDefault(); void run(async () => { const name = vaultName.trim(); if (!name) throw { code: 'vault_name_required' }; const created = await client.createVault({kind:vaultKind}); await client.put(created.vault, { schema: 'latchkey/vault-meta/v1', title: name }); const list = await client.call('vaults', {}); setVaults(list); await load(client, created.vault); setCreate(false); setVaultName(''); }); }}><h2>New vault</h2><div className="form-grid"><label>Vault name<input required maxLength={500} value={vaultName} onChange={e => setVaultName(e.target.value)}/></label><label>Vault kind<select value={vaultKind} onChange={e=>setVaultKind(e.target.value)}><option value="company">Company</option><option value="private-work">Private work</option><option value="family">Family</option></select></label></div><p className="muted">Archive keeps history indefinitely. Moving an item to trash requires confirmation and permanently erases it after 30 days.</p><button className="primary" disabled={pending > 0}>Create vault</button></form>}
    {panel==='selection'&&<SelectionPanel client={client} vaults={vaults} onImported={refresh}/>}
@@ -138,7 +160,7 @@ export function VaultScreen() {
    {panel==='provider'&&<MspOwnerPanel client={client} run={run}/>}
    {panel==='automation'&&<AutomationPanel client={client} vault={vault} run={run}/>}
    {panel==='projects'&&<ProjectsPanel client={client} run={run}/>}
-   {panel==='organize'&&<OrganizationPanel client={client} vault={vault} run={run} names={Object.fromEntries(vaults.filter(v => v.title).map(v => [v.id, v.title]))} onNamed={(id: string, title: string) => setVaults(previous => previous.map(v => v.id === id ? { ...v, title } : v))} onChanged={async()=>{const fresh=await client.readVault(vault);const latest=new Map<string,ItemRecord>();for(const row of fresh.versions)if(!latest.has(row.object)||latest.get(row.object)!.version<row.version)latest.set(row.object,row);setRecords([...latest.values()]);setLifecycle((await client.call('lifecycle/list',{vault})).items)}}/>}
+   {panel==='organize'&&<OrganizationPanel client={client} vault={vault} run={run} names={Object.fromEntries(vaults.filter(v => v.title).map(v => [v.id, v.title]))} onNamed={(id: string, title: string) => setVaults(previous => previous.map(v => v.id === id ? { ...v, title } : v))} onChanged={async()=>{const fresh=await client.viewVault(vault);const latest=new Map<string,ItemRecord>();for(const row of fresh.versions)if(!latest.has(row.object)||latest.get(row.object)!.version<row.version)latest.set(row.object,row);setRecords([...latest.values()]);setLifecycle((await client.call('lifecycle/list',{vault})).items)}}/>}
    {panel==='evidence'&&<EvidenceWorkspace client={client} vault={vault}/>}
    {panel === 'reviews' && <ReviewsPanel client={client} vault={vault} run={run}/>}
    {panel === 'people-erasure' && <PeopleErasure client={client} run={run}/>}
@@ -149,7 +171,7 @@ export function VaultScreen() {
     {panel === 'new' && editor}
     <ItemsHead/>
     <nav className="items" aria-label="Vault items">{visible.slice(0,itemLimit).map(item => { const open = selected === item.object; return <div className="row" key={item.object}><ItemRow row={item} links={links.get(item.object) ?? 0} open={open} onOpen={() => { setSelected(item.object); setPanel(''); }}/>
-     {open && (panel === 'edit' ? editor : panel === '' && <ItemDetail key={`${vault}:${item.object}:${item.version}`} row={item} canErase={current?.owner === client.profile.account} vaultKind={current?.kind ?? 'company'} typed={typed} client={client} vault={vault} run={run} onEdit={() => setPanel('edit')} onRefresh={refresh}/>)}</div>; })}
+     {open && (panel === 'edit' ? editor : panel === '' && <ItemDetail key={`${vault}:${item.object}:${item.version}:${current?.accessRevision}`} row={item} permissions={current?.permissions} canErase={current?.owner === client.profile.account} vaultKind={current?.kind ?? 'company'} typed={typed} client={client} vault={vault} run={run} onEdit={() => setPanel('edit')} onRefresh={refresh}/>)}</div>; })}
      {!visible.length && !pending && <div className="empty"><h2>{query ? 'No matching items' : 'No items yet'}</h2><p>{query ? 'Try another title, label or tag.' : 'Add your first item to this vault.'}</p></div>}{visible.length>itemLimit&&<button className="more" onClick={()=>setItemLimit(n=>n+100)}>Show more vault items</button>}</nav>
    </>}</>}
   </>}

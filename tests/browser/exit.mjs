@@ -105,6 +105,67 @@ export async function selectedExitJourney(output = process.env.LATCHKEY_SCREENSH
   await page.getByLabel(new RegExp(`Select .*${other.slice(0, 8)}`)).check(); await review.click();
   await expect(exact).toContainText('Complete company: no'); await expect(exact).toContainText('unknown; not inspected'); await expect(exact).toContainText('2 lifecycle observations');
   await capture(page, 'vault-review', output);
+  // Leave the actual panel while the real release response is in flight.
+  // A later response must not start a download from the abandoned review.
+  let finishRelease, markReleased;
+  const heldResponse = new Promise(resolve => { finishRelease = resolve; }), releasedResponse = new Promise(resolve => { markReleased = resolve; });
+  await page.route('**/api/latchkey/selection/release', async route => {
+   const response = await route.fetch(); assert.equal(response.status(), 200); markReleased();
+   await heldResponse; await route.fulfill({ response });
+  }, { times: 1 });
+  await approval.check(); await exportButton.click(); await releasedResponse;
+  await page.locator('summary').filter({ hasText: /^Settings$/ }).click(); await page.getByRole('button', { name: 'Password generator', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Export and import', exact: true })).toHaveCount(0); finishRelease();
+  await expect.poll(async () => {
+   const audit = await f.owner.call(['audit', 'list'].join('/'), { filters: { action: 'selection_outcome' }, after: 0, limit: 200 });
+   return audit.entries.filter(row => row.clientOutcome === 'release_cancelled' && row.result === 'succeeded').length;
+  }).toBe(1);
+  assert.equal(downloads.length, 1);
+  await page.locator('summary').filter({ hasText: /^Settings$/ }).click(); await page.getByRole('button', { name: 'Export and import', exact: true }).click();
+  await expect(exact).toHaveCount(0); await expect(page.getByRole('status').filter({ hasText: 'No buyer key loaded.' })).toBeVisible();
+  console.log('PROBE LKY-017 release cancellation: leave source Settings review during a real release -> no late download, cleared review and client-reported cancellation');
+  const restoreExportReview = async () => {
+   await choose.check(); await page.getByLabel(new RegExp(`Select .*${other.slice(0, 8)}`)).check();
+   await page.getByLabel('Buyer export key file', { exact: true }).setInputFiles(file('buyer.key', exportKey));
+   await page.getByLabel('I retained the buyer key separately from the export', { exact: true }).check(); await review.click();
+  };
+  await restoreExportReview();
+  let finishCancelledRelease, markCancelledRelease;
+  const cancelledResponse = new Promise(resolve => { finishCancelledRelease = resolve; }), cancellingResponse = new Promise(resolve => { markCancelledRelease = resolve; });
+  await page.route('**/api/latchkey/selection/release', async route => {
+   const response = await route.fetch(); assert.equal(response.status(), 200); markCancelledRelease();
+   await cancelledResponse; await route.fulfill({ response });
+  }, { times: 1 });
+  await approval.check(); await exportButton.click(); await cancellingResponse;
+  const cancelPending = page.getByRole('button', { name: 'Cancel and clear', exact: true });
+  await expect(cancelPending).toBeEnabled(); await cancelPending.focus(); await page.keyboard.press('Enter');
+  await expect(exact).toHaveCount(0); await expect(page.getByRole('status').filter({ hasText: 'No buyer key loaded.' })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'No download will start from this review.' })).toBeVisible(); finishCancelledRelease();
+  await expect(page.getByRole('alert')).toContainText('Export cancelled');
+  assert.equal(downloads.length, 1);
+  const cancelledOutcomes = await f.owner.call(['audit', 'list'].join('/'), { filters: { action: 'selection_outcome' }, after: 0, limit: 200 });
+  assert.equal(cancelledOutcomes.entries.filter(row => row.clientOutcome === 'release_cancelled' && row.result === 'succeeded').length, 2);
+  await capture(page, 'release-cancelled', output);
+  console.log('PROBE LKY-017 pending Cancel: keyboard Cancel while the real release response is pending -> immediate review and key clearing, no download when response arrives, client-reported cancellation');
+  for (const boundary of ['before', 'after']) {
+   await restoreExportReview();
+   const attempts = requests.filter(row => row.path.endsWith('/' + selectionRoutes.release)).length;
+   await page.route('**/api/latchkey/selection/release', async route => {
+    if (boundary === 'after') { const response = await route.fetch(); assert.equal(response.status(), 200); }
+    await route.abort('failed');
+   }, { times: 1 });
+   await approval.check(); await exportButton.click();
+   await expect(page.getByRole('alert')).toContainText('The release response was interrupted');
+   await expect(page.getByRole('alert')).toContainText('No selection download was started');
+   await expect(exact).toHaveCount(0); await expect(page.getByRole('status').filter({ hasText: 'No buyer key loaded.' })).toBeVisible();
+   assert.equal(downloads.length, 1); assert.equal(requests.filter(row => row.path.endsWith('/' + selectionRoutes.release)).length, attempts + 1);
+  }
+  const interruptedOutcomes = await f.owner.call(['audit', 'list'].join('/'), { filters: { action: 'selection_outcome' }, after: 0, limit: 200 });
+  assert.equal(interruptedOutcomes.entries.filter(row => row.clientOutcome === 'release_response_unverified' && row.result === 'succeeded').length, 1);
+  assert.equal(interruptedOutcomes.entries.filter(row => row.clientOutcome === 'release_response_unverified' && row.result === 'refused' && row.reason === 'export_release_receipt_required').length, 1);
+  await capture(page, 'release-unverified', output);
+  console.log('PROBE LKY-017 lost release: browser request lost before commit or response lost after commit -> no file or automatic retry, review and key cleared, distinct unverified outcome');
+  await restoreExportReview();
   // Fail the browser's actual download initiation after a real release. The
   // retained outcome must distinguish that failure from a delivery receipt.
   await page.evaluate(() => {
@@ -148,8 +209,12 @@ export async function selectedExitJourney(output = process.env.LATCHKEY_SCREENSH
   const tampered = structuredClone(archive); tampered.ciphertext = (tampered.ciphertext[0] === 'A' ? 'B' : 'A') + tampered.ciphertext.slice(1);
   await upload(tampered); await keyFile(exportKey); await openFile.click(); await expect(to.getByRole('alert')).toContainText('could not be verified'); assert.deepEqual(await destination.owner.call('vaults', {}), []);
   await upload(opened); await expect(to.getByRole('alert')).toContainText('Plaintext browser ceremonies are not supported');
-  await upload(archive); await keyFile(exportKey); await openFile.click();
+  await upload(archive); await keyFile(exportKey);
+  const beforeOfflineOpen = importRequests.length;
+  await destination.context.setOffline(true); await openFile.click();
   const importReview = to.getByRole('region', { name: 'Exact selection review' }); await expect(importReview).toContainText(opened.planHash);
+  assert.equal(importRequests.length, beforeOfflineOpen); await destination.context.setOffline(false);
+  console.log('PROBE LKY-017 offline opening: loaded destination browser disconnected from service, buyer file and key -> verified local exact-plan review, no request');
   await capture(to, 'import-review', output);
   await to.getByRole('button', { name: 'Cancel and clear', exact: true }).click(); await expect(importReview).toHaveCount(0); assert.deepEqual(await destination.owner.call('vaults', {}), []);
   assert.equal(importRequests.filter(row => row.path.endsWith('/' + selectionRoutes.import)).length, 0);
@@ -181,10 +246,25 @@ export async function selectedExitJourney(output = process.env.LATCHKEY_SCREENSH
   console.log('PROBE LKY-017 destination authority: reviewed browser import after real owner-device revocation -> refusal, cleared key and no destination vaults');
 
   await upload(archive); await keyFile(exportKey); await openFile.click();
+  await to.route('**/api/latchkey/selection/import', route => route.abort('failed'), { times: 1 });
+  await to.getByLabel('I approve this exact selection into fresh owner-only vaults', { exact: true }).check();
+  await to.getByRole('button', { name: 'Import reviewed selection', exact: true }).click();
+  await expect(to.getByRole('alert')).toContainText('The import outcome could not be verified');
+  await expect(importReview).toHaveCount(0); assert.deepEqual(await destination.owner.call('vaults', {}), []);
+  assert.equal(importRequests.filter(row => row.path.endsWith('/' + selectionRoutes.import)).length, 1);
+  await capture(to, 'import-unverified', output);
+  console.log('PROBE LKY-017 unavailable import: browser transport refusal -> unverified outcome, cleared review, no automatic retry or destination writes');
+  await upload(archive); await keyFile(exportKey); await openFile.click();
   const importButton = to.getByRole('button', { name: 'Import reviewed selection', exact: true }); await expect(importButton).toBeDisabled();
+  // Commit through the real Worker, then drop its response. The browser must
+  // reconcile the exact prepared destinations without sending another import.
+  await to.route('**/api/latchkey/selection/import', async route => { const response = await route.fetch(); assert.equal(response.status(), 200); await route.abort('failed'); }, { times: 1 });
   await to.getByLabel('I approve this exact selection into fresh owner-only vaults', { exact: true }).focus(); await to.keyboard.press('Space'); await importButton.focus(); await to.keyboard.press('Enter');
   await expect(to.getByRole('heading', { name: 'Reconciled destination', exact: true })).toBeVisible();
   await expect(to.getByRole('status').filter({ hasText: 'Import reconciled.' })).toBeVisible();
+  await expect(to.getByRole('status').filter({ hasText: 'No import retry was sent.' })).toBeVisible();
+  assert.equal(importRequests.filter(row => row.path.endsWith('/' + selectionRoutes.import)).length, 2);
+  console.log('PROBE LKY-017 interrupted import: atomic browser import with lost response -> current reads reconcile exact content and lifecycle, one import request');
   const restored = await destination.owner.call('vaults', {}); assert.equal(restored.length, 2);
   for (const source of opened.vaults) {
    const target = restored.find(row => row.kind === source.kind); assert.equal(target.owner, destination.owner.profile.account);
@@ -213,7 +293,7 @@ export async function selectedExitJourney(output = process.env.LATCHKEY_SCREENSH
   const audit = await keeper.call(['audit', 'list'].join('/'), { filters: {}, after: 0, limit: 200 });
   const leakText = JSON.stringify({ requests, importRequests, audit, runtime: [...f.runtimeLogs, ...destination.runtimeLogs] });
   for (const secret of ['synthetic-latchkey-8171', 'synthetic-latchkey-8172', 'synthetic-latchkey-8173', 'synthetic-latchkey-8174', 'synthetic-latchkey-8175', 'synthetic-latchkey-8176', 'synthetic-latchkey-8177', 'synthetic-latchkey-8178', exportKey, attachment.name]) assert.ok(!leakText.includes(secret), 'export material leaked to service requests or audit');
-  console.log('PROBE LKY-017 authority and leakage: real non-owner export/import and final device revocation -> refusal without download; file, key, review and secret values absent from requests and audit');
+  console.log('PROBE LKY-017 authority and leakage: real non-owner export and import and final device revocation -> refusal without download; file, key, review and secret values absent from requests and audit');
   console.log('PASS selectedExitJourney: source and destination browser flow at 1440; changed screens and overflow smoke at 390');
  } finally { keeper?.lock(); importDevice?.lock(); reader?.client.lock(); destinationReader?.client.lock(); await importContext?.close(); await reader?.context.close(); await destinationReader?.context.close(); await destination.close(); await f.close(); }
 }

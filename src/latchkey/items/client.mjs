@@ -9,10 +9,10 @@ import { bytes } from '../crypto/envelope.mjs';
 export class TypedItems {
  constructor(client, { now = () => Date.now() } = {}) { this.client = client; this.now = now; }
  authorize(vault, object, action) { return this.client.call('item/authorize', { vault, object, action }); }
- async records(vault) { return (await this.client.readVault(vault)).versions; }
+ async records(vault) { return (await this.client.viewVault(vault)).versions; }
  async itemRecords(vault, object, history = false) { return (await this.client.readItem(vault, object, history)).versions; }
- async current(vault, object) {
-  const versions = await this.itemRecords(vault, object);
+ async current(vault, object, action) {
+  const versions = (await this.client.readItem(vault, object, false, action)).versions;
   check(versions.length, 'item_not_found');
   return versions.reduce((latest, row) => row.version > latest.version ? row : latest);
  }
@@ -49,7 +49,7 @@ export class TypedItems {
  }
  async attachment(vault, object, attachmentId, version) {
   await this.authorize(vault, object, 'attachment');
-  const row = version == null ? await this.current(vault, object) : (await this.history(vault, object)).find(row => row.version === version);
+  const row = version == null ? await this.current(vault, object, 'attachment') : (await this.history(vault, object)).find(row => row.version === version);
   const file = row?.value.attachments?.find(file => file.id === attachmentId);
   check(file, 'attachment_not_found');
   return { name: file.name, mediaType: file.mediaType, data: await attachmentBytes(file) };
@@ -57,7 +57,7 @@ export class TypedItems {
  async field(vault, object, fieldId, action = 'reveal') {
   check(['reveal', 'copy', 'fill'].includes(action), 'invalid_item_action');
   await this.authorize(vault, object, action);
-  const field = (await this.current(vault, object)).value.fields?.find(field => field.id === fieldId);
+  const field = (await this.current(vault, object, action)).value.fields?.find(field => field.id === fieldId);
   check(field, 'field_not_found'); return structuredClone(field.value);
  }
  async search(vault, query = '') {
