@@ -4806,7 +4806,7 @@
       "executable": false
     },
     "tests/browser/exit.mjs": {
-      "sha256": "59e8537e206f4cb15f67cd98112a0390787f332f31a429e3b701398d24d1a471",
+      "sha256": "ad05ac0fa51256597a4d5d14f4c5284bd81d524963ffc43e0a9d4917d164b483",
       "executable": false
     },
     "tests/browser/fixture.mjs": {
