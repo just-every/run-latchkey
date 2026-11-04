@@ -558,7 +558,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "19716020965bcf559cded17d376aa1291a30d4b0f0da48376234a0bb639aff26",
+      "sha256": "20f4bed0b07512490f065bf188d7f1b1398c640329ae64b2764dd7e294a2dcb5",
       "executable": false
     },
     "deploy-demo.json": {
@@ -1798,7 +1798,7 @@
       "executable": false
     },
     "scripts/latchkey.mjs": {
-      "sha256": "254809f0bf30078000873780a6d9bfca042937ea14e1da7bbe5705a26333f624",
+      "sha256": "4c21e2ca85b537b4359f06e2fc90c96e92f53c722f0467865814bcf3690d9286",
       "executable": false
     },
     "scripts/latchkey/archive-policy.mjs": {
@@ -2270,7 +2270,7 @@
       "executable": false
     },
     "src/latchkey/api/catalogue.mjs": {
-      "sha256": "c98d6d8ca8f981e8aa7a940f5daa633c0076350151352f0aa1debb97b6b1b632",
+      "sha256": "f6ca2e625bdd8ba96db3c64307dd1b4157804e754f2bd3320db8f5a4f606c727",
       "executable": false
     },
     "src/latchkey/api/client.d.mts": {
@@ -2294,7 +2294,7 @@
       "executable": false
     },
     "src/latchkey/api/openapi.json": {
-      "sha256": "4e10fdbda310509d4e202f186298bb483c1ce291f812b96a3484f77afeb20d00",
+      "sha256": "52c9f7cc219d019299e8ea4d75866fa42f5b9fdc65eda5b4f3e2fda8e48cd8ff",
       "executable": false
     },
     "src/latchkey/api/pagination.mjs": {
@@ -2302,7 +2302,7 @@
       "executable": false
     },
     "src/latchkey/api/README.md": {
-      "sha256": "cd74fc318c61b55f976ffaa7a3bc325a66123a809663de1ccb997ef652490dc0",
+      "sha256": "288adb678710e9a216e7501d760689a8ebaf00d1628be7dcebfbbf931e1b1ae9",
       "executable": false
     },
     "src/latchkey/api/users.mjs": {
@@ -2374,7 +2374,7 @@
       "executable": false
     },
     "src/latchkey/client.mjs": {
-      "sha256": "60d24042166ec1f4b8aac16671a1cb481f866991ed00e986c9b599b2b39d119b",
+      "sha256": "32f513b80cc6a42d1c5cf66f5172fef74583b356a8edf1e83ef0aecb5dbf9cb9",
       "executable": false
     },
     "src/latchkey/collections/batch-client.mjs": {
@@ -2431,6 +2431,14 @@
     },
     "src/latchkey/crypto/lifecycle.mjs": {
       "sha256": "7c5a7d856a40ef787a2899c5a9540611796e3f0c3f7990a78a616630774def38",
+      "executable": false
+    },
+    "src/latchkey/direct-rights.d.mts": {
+      "sha256": "0b099be27e2e852998eff3c83818ef0e151200cbe07accbdbc34ea84a8543881",
+      "executable": false
+    },
+    "src/latchkey/direct-rights.mjs": {
+      "sha256": "be8995e987d88d986fb05b00d0985ad2799408ccb00fe578bf6809e373e49e39",
       "executable": false
     },
     "src/latchkey/erasure/admission.d.mts": {
@@ -3094,7 +3102,7 @@
       "executable": false
     },
     "src/latchkey/service.ts": {
-      "sha256": "e60567a1b74b788750af9bdca17186c9cc9df7956f9ccf82c4c501822936fb3a",
+      "sha256": "33cac0ac12ddda5326193d4e42836610a498e1e665a3f6545c0685f2b13d64c6",
       "executable": false
     },
     "src/latchkey/sharing/client.d.mts": {
@@ -3142,7 +3150,7 @@
       "executable": false
     },
     "src/latchkey/sharing/ui.tsx": {
-      "sha256": "5c8f3e62b716fc186a9d1f014dc6484e3a2516479bdd62d3501f3b478b949b23",
+      "sha256": "4401c6dd8a5223737262dccb866f7e3ddec8abfc6f2915d7b9112bcb8d240d18",
       "executable": false
     },
     "src/latchkey/sharing/value.tsx": {
@@ -3162,7 +3170,7 @@
       "executable": false
     },
     "src/latchkey/ui/detail.tsx": {
-      "sha256": "6ffa4447a5d962c67d3d5f39d253f55e1253a1510fcb419a539de105f81b5aee",
+      "sha256": "a5987bda7d9be74c0625831829ab587e800c87d09f2035aef6973e22885fea0c",
       "executable": false
     },
     "src/latchkey/ui/editor.tsx": {
@@ -3250,7 +3258,7 @@
       "executable": false
     },
     "src/latchkey/ui/vault.tsx": {
-      "sha256": "81a04eba3d22aa9b902ba7a9d406ba488ea77c6b6e2f74c92ca4b88410adee8a",
+      "sha256": "b82e26d918c8f72de2c72543687a222e29b29aa57f9e254a1dfd7a99007fdb2d",
       "executable": false
     },
     "src/mail.server.d.mts": {
@@ -4802,7 +4810,7 @@
       "executable": false
     },
     "tests/browser/organization.mjs": {
-      "sha256": "67c3147bd1c35f05f5932bafbdb29b4bd442b2864915c8e566951e1fbe7eb04f",
+      "sha256": "1e3eb1a794f9765c358bafb93b31efb2b24057936abb9827efbe49622112610c",
       "executable": false
     },
     "tests/browser/passbolt.mjs": {
@@ -4938,11 +4946,11 @@
       "executable": false
     },
     "tests/latchkey-subject-erasure.mjs": {
-      "sha256": "1c1ca82fbe1f9a1756cac143e33c5abcf4fe4f736ae758ad8d2889095e9dfbcf",
+      "sha256": "c5df3c8c8e1b8957816f92c42062a93b09e045afb809c1ed3cf9f70444df951a",
       "executable": false
     },
     "tests/runtime.mjs": {
-      "sha256": "e90403c6248ffa993c80a6ad88ddb77d4400ad51483a10615badc1fc551965ba",
+      "sha256": "72698c11cb6b2fd227e02c7988accf83dde927ef02dc4d34ee70c09d4e1cd8ce",
       "executable": false
     },
     "tests/site/site.test.mjs": {

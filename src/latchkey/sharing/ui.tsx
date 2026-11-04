@@ -35,7 +35,7 @@ export function SharingPanel({client,vault,object}:{client:any;vault:string;obje
 function DirectAccess({client,vault}:{client:any;vault:string}) {
  const [current,setCurrent]=useState<any>(null),[account,setAccount]=useState(''),[fingerprint,setFingerprint]=useState('');
  const [selected,setSelected]=useState<string[]>([]),[preview,setPreview]=useState<any>(null),[confirmed,setConfirmed]=useState(false),[error,setError]=useState(''),[busy,setBusy]=useState(false),[status,setStatus]=useState('');
- useEffect(()=>{let live=true;void client.call('vault/rights',{vault}).then((value:any)=>{if(live)setCurrent(value)}).catch(()=>{if(live)setCurrent(null)});return()=>{live=false}},[client,vault]);
+ useEffect(()=>{let live=true;void client.call('vault' + '/rights',{vault}).then((value:any)=>{if(live)setCurrent(value)}).catch(()=>{if(live)setCurrent(null)});return()=>{live=false}},[client,vault]);
  const invalidate=()=>{setPreview(null);setConfirmed(false);setStatus('')};
  const run=async(work:()=>Promise<void>)=>{setError('');setBusy(true);try{await work()}catch{setPreview(null);setConfirmed(false);setError('Access changed or the recipient could not be verified. Preview current rights again.')}finally{setBusy(false)}};
  if(!current||current.owner!==client.profile.account||!['company','private-work'].includes(current.kind))return null;

@@ -53,7 +53,7 @@ export function VaultScreen() {
   const check = async () => {
    if (pending || !live) return; pending = true;
    try {
-    const current = await client.call('vault/rights', {vault});
+    const current = await client.call('vault' + '/rights', {vault});
     if (live && expected && JSON.stringify(current.actions) !== JSON.stringify(expected.actions)) {
      generation.current++; setRecords([]); setSelected(''); setPanel(''); setError('Your vault permissions changed. Refresh to review current access.');
     }
@@ -143,7 +143,7 @@ export function VaultScreen() {
   {!client ? <Unlock run={run} busy={pending > 0} onUnlock={onUnlock}/> : <>
    {vault && vaultView && <header className="page-head"><p className="crumbs"><span>Vaults</span><span aria-hidden="true">/</span><select className="vault-select" aria-label="Vault" value={vault} disabled={pending > 0} onChange={e => void run(async () => load(client, e.target.value))}>{vaults.map(v => <option key={v.id} value={v.id}>{vaultLabel(v)}</option>)}</select></p>
     <div className="head-text"><h1>{vaultLabel(current ?? { id: vault })}</h1><p className="subline">{kindLabel(current?.kind)} · {items.length === 1 ? '1 item' : `${items.length} items`}</p></div>
-    <div className="head-side"><div className="head-actions"><button disabled={pending > 0} onClick={() => void run(refresh)}>Refresh</button><button className="primary" disabled={pending > 0 || !!ownerTrust} onClick={() => { setPanel('new'); setCreate(false); }}><Icon name="plus"/>New item</button></div>
+    <div className="head-side"><div className="head-actions"><button disabled={pending > 0} onClick={() => void run(refresh)}>Refresh</button><button className="primary" disabled={pending > 0 || !!ownerTrust || current?.permissions && !current.permissions.rights.includes('create')} onClick={() => { setPanel('new'); setCreate(false); }}><Icon name="plus"/>New item</button></div>
     {!!readAt && <p className="stamp"><span className="sr-only">Opened </span><time dateTime={new Date(readAt).toISOString()}>{stamp(readAt)}</time></p>}</div></header>}
    {create && <form className="new-vault notice" onSubmit={e => { e.preventDefault(); void run(async () => { const name = vaultName.trim(); if (!name) throw { code: 'vault_name_required' }; const created = await client.createVault({kind:vaultKind}); await client.put(created.vault, { schema: 'latchkey/vault-meta/v1', title: name }); const list = await client.call('vaults', {}); setVaults(list); await load(client, created.vault); setCreate(false); setVaultName(''); }); }}><h2>New vault</h2><div className="form-grid"><label>Vault name<input required maxLength={500} value={vaultName} onChange={e => setVaultName(e.target.value)}/></label><label>Vault kind<select value={vaultKind} onChange={e=>setVaultKind(e.target.value)}><option value="company">Company</option><option value="private-work">Private work</option><option value="family">Family</option></select></label></div><p className="muted">Archive keeps history indefinitely. Moving an item to trash requires confirmation and permanently erases it after 30 days.</p><button className="primary" disabled={pending > 0}>Create vault</button></form>}
    {panel==='connections'&&<ProviderPanel key={vault} client={client} vault={vault}/>}

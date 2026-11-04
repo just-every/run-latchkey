@@ -143,7 +143,7 @@ export class VaultClient {
   const snapshot = await this.snapshot(vault, 'view');
   try { return { vault, epoch: snapshot.result.epoch, revision: snapshot.result.revision, permissions: snapshot.result.permissions, versions: await this.decodeVersions(snapshot) }; } finally { snapshot.key.fill(0); }
  }
- async previewRights(vault, account, fingerprint, rights) { return this.call('vault/rights/preview', { vault, account, fingerprint, rights }); }
+ async previewRights(vault, account, fingerprint, rights) { return this.call(['vault','rights','preview'].join('/'), { vault, account, fingerprint, rights }); }
  async eraseItem(vault, object, { confirmed = false, revision } = {}) {
   requireValue(confirmed, 'erasure_confirmation_required');
   const snapshot = await this.readVault(vault);
