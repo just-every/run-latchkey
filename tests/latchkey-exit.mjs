@@ -201,6 +201,33 @@ export async function ownerRunExitJourney() {
    owner.call=async(name,input)=>{if(name===selectionRoutes.release)releaseCalls++;const result=await call(name,input);if(name===selectionRoutes.authorize)controller.abort();return result};
    try{await assert.rejects(selected.export(browserPreview,exportKey,{confirmed:true,approvedPlanHash:browserPreview.planHash,signal:controller.signal}),error=>error.code==='export_cancelled');assert.equal(releaseCalls,0);}finally{owner.call=call}
 
+   // Release response loss never returns either encrypted or plaintext bytes.
+   // Only a real retained release can accept the uncertainty report.
+   for(const format of ['encrypted','plaintext']){
+    const reviewed=await selected.preview([{vault,objects:[login]}],{format});
+    for(const boundary of ['before','after','cancelled']){
+     const abort=new AbortController();let releases=0;
+     owner.call=async(name,input)=>{
+      if(name!==selectionRoutes.release)return call(name,input);
+      releases++;
+      if(boundary==='before')throw new TypeError('Synthetic request interruption');
+      const result=await call(name,input);
+      if(boundary==='after')throw new TypeError('Synthetic response interruption');
+      abort.abort();return result;
+     };
+     try{await assert.rejects(selected.export(reviewed,exportKey,{format,confirmed:true,approvedPlanHash:reviewed.planHash,signal:abort.signal}),error=>error.code===(boundary==='cancelled'?'export_cancelled':'selected_export_unverified'));assert.equal(releases,1);}
+     finally{owner.call=call}
+     await assert.rejects(selected.reportOutcome('private_file_written'),error=>error.code==='export_release_receipt_required');
+    }
+   }
+   const interruptions=await owner.call(route('audit','list'),{filters:{action:'selection_outcome'},after:0,limit:200});
+   const interruptedOutcomes=interruptions.entries.filter(row=>['release_response_unverified','release_cancelled'].includes(row.clientOutcome));
+   assert.equal(interruptedOutcomes.filter(row=>row.result==='succeeded'&&row.clientOutcome==='release_response_unverified').length,2);
+   assert.equal(interruptedOutcomes.filter(row=>row.result==='succeeded'&&row.clientOutcome==='release_cancelled').length,2);
+   assert.equal(interruptedOutcomes.filter(row=>row.result==='refused'&&row.reason==='export_release_receipt_required').length,2);
+   for(const row of interruptedOutcomes){assert.match(row.exportOutcome,/not verified/);assert.ok(!JSON.stringify(row).includes(exportKey));}
+   console.log('PROBE LKY-017 interrupted release: encrypted and approved plaintext requests lost before or after commit, or cancelled during release -> no returned file, no release retry; uncertainty accepted only for retained releases');
+
    await selected.setPlaintextPolicy(vault,false,{confirmed:true});
    assert.deepEqual((await readdir(cliDirectory)).filter(name=>name.endsWith('.partial')),[]);assert.deepEqual(JSON.parse(await readFile(output,'utf8')).vaults[0].versions,expected.filter(row=>row.object===login));
   }finally{await rm(cliDirectory,{recursive:true,force:true})}

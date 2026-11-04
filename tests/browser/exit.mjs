@@ -105,6 +105,49 @@ export async function selectedExitJourney(output = process.env.LATCHKEY_SCREENSH
   await page.getByLabel(new RegExp(`Select .*${other.slice(0, 8)}`)).check(); await review.click();
   await expect(exact).toContainText('Complete company: no'); await expect(exact).toContainText('unknown; not inspected'); await expect(exact).toContainText('2 lifecycle observations');
   await capture(page, 'vault-review', output);
+  // Leave the actual panel while the real release response is in flight.
+  // A later response must not start a download from the abandoned review.
+  let finishRelease, markReleased;
+  const heldResponse = new Promise(resolve => { finishRelease = resolve; }), releasedResponse = new Promise(resolve => { markReleased = resolve; });
+  await page.route('**/api/latchkey/selection/release', async route => {
+   const response = await route.fetch(); assert.equal(response.status(), 200); markReleased();
+   await heldResponse; await route.fulfill({ response });
+  }, { times: 1 });
+  await approval.check(); await exportButton.click(); await releasedResponse;
+  await page.locator('summary').filter({ hasText: /^Settings$/ }).click(); await page.getByRole('button', { name: 'Password generator', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Export and import', exact: true })).toHaveCount(0); finishRelease();
+  await expect.poll(async () => {
+   const audit = await f.owner.call(['audit', 'list'].join('/'), { filters: { action: 'selection_outcome' }, after: 0, limit: 200 });
+   return audit.entries.filter(row => row.clientOutcome === 'release_cancelled' && row.result === 'succeeded').length;
+  }).toBe(1);
+  assert.equal(downloads.length, 1);
+  await page.locator('summary').filter({ hasText: /^Settings$/ }).click(); await page.getByRole('button', { name: 'Export and import', exact: true }).click();
+  await expect(exact).toHaveCount(0); await expect(page.getByRole('status').filter({ hasText: 'No buyer key loaded.' })).toBeVisible();
+  console.log('PROBE LKY-017 release cancellation: leave source Settings review during a real release -> no late download, cleared review and client-reported cancellation');
+  const restoreExportReview = async () => {
+   await choose.check(); await page.getByLabel(new RegExp(`Select .*${other.slice(0, 8)}`)).check();
+   await page.getByLabel('Buyer export key file', { exact: true }).setInputFiles(file('buyer.key', exportKey));
+   await page.getByLabel('I retained the buyer key separately from the export', { exact: true }).check(); await review.click();
+  };
+  for (const boundary of ['before', 'after']) {
+   await restoreExportReview();
+   const attempts = requests.filter(row => row.path.endsWith('/' + selectionRoutes.release)).length;
+   await page.route('**/api/latchkey/selection/release', async route => {
+    if (boundary === 'after') { const response = await route.fetch(); assert.equal(response.status(), 200); }
+    await route.abort('failed');
+   }, { times: 1 });
+   await approval.check(); await exportButton.click();
+   await expect(page.getByRole('alert')).toContainText('The release response was interrupted');
+   await expect(page.getByRole('alert')).toContainText('No selection download was started');
+   await expect(exact).toHaveCount(0); await expect(page.getByRole('status').filter({ hasText: 'No buyer key loaded.' })).toBeVisible();
+   assert.equal(downloads.length, 1); assert.equal(requests.filter(row => row.path.endsWith('/' + selectionRoutes.release)).length, attempts + 1);
+  }
+  const interruptedOutcomes = await f.owner.call(['audit', 'list'].join('/'), { filters: { action: 'selection_outcome' }, after: 0, limit: 200 });
+  assert.equal(interruptedOutcomes.entries.filter(row => row.clientOutcome === 'release_response_unverified' && row.result === 'succeeded').length, 1);
+  assert.equal(interruptedOutcomes.entries.filter(row => row.clientOutcome === 'release_response_unverified' && row.result === 'refused' && row.reason === 'export_release_receipt_required').length, 1);
+  await capture(page, 'release-unverified', output);
+  console.log('PROBE LKY-017 lost release: browser request lost before commit or response lost after commit -> no file or automatic retry, review and key cleared, distinct unverified outcome');
+  await restoreExportReview();
   // Fail the browser's actual download initiation after a real release. The
   // retained outcome must distinguish that failure from a delivery receipt.
   await page.evaluate(() => {

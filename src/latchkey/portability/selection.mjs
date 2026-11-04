@@ -67,16 +67,30 @@ export class SelectionExportClient {
    await this.client.call(selectionRoutes.authorize,approval);approvals.push(approval);
   }
   const key=format==='encrypted'?decode(exportKey,32):null;need(!key||key.length===32,'invalid_key');
+  let serialized;
   try{
    const value={schema,plan:fresh.plan,planHash:fresh.planHash,vaults:fresh.vaults,signature:await sign(this.client.bundle.root.authority.privateKey,approvalText(fresh.plan))};
-   const serialized=bytes(value);need(serialized.length<=1048560,'selected_export_size_limit');
+   serialized=bytes(value);need(serialized.length<=1048560,'selected_export_size_limit');
    const archive=format==='plaintext'?value:await seal(key,serialized,{tenant:'portable',vault:'selection',object:id(),purpose:'selected-export',epoch:1,version:1});
    // Recheck every selected vault together after encryption, at the release boundary.
    need(!signal?.aborted,'export_cancelled');
-   await this.client.call(selectionRoutes.release,{approvals});
    this.pendingRelease={approvals};
+   try{await this.client.call(selectionRoutes.release,{approvals})}
+   catch(cause){
+    if(cause instanceof ClientError&&cause.status>=400&&cause.status<500){this.pendingRelease=null;throw cause;}
+    // A lost response cannot authorize file output. Report uncertainty only
+    // against a retained successful release; never retry the release request.
+    try{await this.reportOutcome('release_response_unverified')}catch{}
+    this.pendingRelease=null;
+    throw new ClientError('selected_export_unverified');
+   }
+   if(signal?.aborted){
+    try{await this.reportOutcome('release_cancelled')}catch{}
+    this.pendingRelease=null;
+    throw new ClientError('export_cancelled');
+   }
    return archive;
-  }finally{key?.fill(0)}
+  }finally{serialized?.fill(0);key?.fill(0)}
  }
  async reportOutcome(outcome){
   need(this.pendingRelease,'export_release_receipt_required');
