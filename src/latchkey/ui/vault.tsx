@@ -102,8 +102,10 @@ export function VaultScreen() {
  return <div className="lk"><style>{vaultCss}</style><a className="skip" href="#vault-main">Skip to vault</a>
  <header className="topbar"><a className="lockup" href="/app/vault"><img className="lockup-mark" src={marks.white} alt="" width={248} height={100}/><span className="lockup-word" data-rer-name>Latchkey</span></a>
   {client ? <><label className="search"><Icon name="search"/><input ref={search} type="search" aria-label="Search vault" placeholder="Search vault…" value={query} maxLength={500} disabled={!vault} onChange={e => { setQuery(e.target.value); if (!listed) show(''); }}/><kbd>⌘ K</kbd></label>
-   <Tabs tabs={tabs} current={tabs.find(([name]) => name ? panel === name : vaultView)?.[1]} onPick={show}/>
-   <details className="menu" ref={menu}><summary>Settings</summary><div className="menu-list">
+   <Tabs tabs={tabs} current={tabs.find(([name]) => name ? panel === name : vaultView)?.[1]} onPick={show}/></> : <span className="locked">Vault locked</span>}
+  {/* One menu for locked and unlocked: Settings opened while unlocking stays open when the vault does. */}
+  <details className="menu" ref={menu}><summary>Settings</summary><div className="menu-list">
+   {client && <>
     <button type="button" disabled={pending > 0} onClick={() => { setCreate(!create); if (menu.current) menu.current.open = false; }}>New vault</button>
     <button type="button" disabled={!vault} onClick={() => show('generator', true)}>Password generator</button>
     <button type="button" disabled={!vault} onClick={() => show('templates', true)}>Custom templates</button>
@@ -117,11 +119,11 @@ export function VaultScreen() {
     <button type="button" onClick={() => show('health')}>Password health</button>
     <button type="button" onClick={() => show('aliases')}>Email aliases</button>
     <button type="button" onClick={() => show('rules')}>Security rules</button>
-    <button type="button" onClick={() => show('provider')}>Service provider</button><a href="/app/fleet">Company fleet</a>
-    <button type="button" onClick={() => show('diagnostics')}>Support diagnostics</button>
-    <a href="/contract">Documentation</a>
-   </div></details>
-   <button type="button" className="lock" onClick={lock}>Lock vault</button></> : <><span className="locked">Vault locked</span><details className="menu" ref={menu}><summary>Settings</summary><div className="menu-list"><button type="button" onClick={() => show('diagnostics')}>Support diagnostics</button></div></details><a className="docs" href="/contract">Documentation</a></>}
+    <button type="button" onClick={() => show('provider')}>Service provider</button><a href="/app/fleet">Company fleet</a></>}
+   <button type="button" onClick={() => show('diagnostics')}>Support diagnostics</button>
+   {client && <a href="/contract">Documentation</a>}
+  </div></details>
+  {client ? <button type="button" className="lock" onClick={lock}>Lock vault</button> : <a className="docs" href="/contract">Documentation</a>}
  </header>
  <main className="page" id="vault-main">
   {error && <div className="error" role="alert">{error}<button aria-label="Dismiss error" onClick={() => setError('')}>Dismiss</button></div>}
