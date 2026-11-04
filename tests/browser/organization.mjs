@@ -182,9 +182,15 @@ export async function directPermissionsJourney(f) {
   await select(['history']);await apply();await page.getByRole('button',{name:'Refresh',exact:true}).click();await expect(page.getByRole('button',{name:'Reveal Password',exact:true})).toBeDisabled();await expect(page.getByRole('button',{name:'Copy Password',exact:true})).toBeDisabled();
   await page.locator('summary').filter({hasText:/^History/}).click();await expect(page.getByRole('button',{name:/Version 1 · Created/})).toBeVisible();await page.getByRole('button',{name:/Version 1 · Created/}).click();await expect(page.getByRole('heading',{name:'Preview version 1',exact:true})).toBeVisible();await expect(page.getByText('Direct permission service',{exact:true})).toBeVisible();
   await select(['reveal']);await apply();await page.getByRole('button',{name:'Refresh',exact:true}).click();await expect(page.getByRole('button',{name:'Copy Password',exact:true})).toBeDisabled();await page.getByRole('button',{name:'Reveal Password',exact:true}).click();await expect(page.getByLabel('Password',{exact:true})).toHaveValue(secret);
+  const rightsPath='/api/latchkey/'+['vault','rights'].join('/');
+  const failedPoll=page.waitForEvent('requestfailed',request=>new URL(request.url()).pathname===rightsPath);
+  await page.route('**'+rightsPath,route=>route.abort('failed'));await failedPoll;
+  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+  await expect(page.getByLabel('Password',{exact:true})).toHaveValue(secret);
+  await page.unroute('**'+rightsPath);
   await owner.rotate(vault,member.profile.account);await expect(page.getByLabel('Password',{exact:true})).toHaveCount(0,{timeout:15000});assert.ok(!(await page.content()).includes(secret));assert.ok(!(await page.evaluate(()=>JSON.stringify({...localStorage}))).includes(secret));
   await refused(member.readItem(vault,object,false,'reveal'),'not_found');
-  console.log('Direct permissions browser: exact owner preview, stale confirmation refusal, independent copy, history and reveal, immediate tooltips and connected revocation clearing passed');
+  console.log('Direct permissions browser: exact owner preview, stale confirmation refusal, independent copy, history and reveal, immediate tooltips, outage preservation and connected revocation clearing passed');
  }finally{member.lock();await context.close()}
 }
 if(import.meta.url===new URL(process.argv[1],'file:').href){for(const width of[1440,390])for(const journey of[...(width===1440?[accountSeparationJourney,directPermissionsJourney]:[]),ownershipJourney,organizationJourney]){const f=await vaultFixture();try{await journey(f,width)}catch(error){if(output)await f.page.screenshot({path:join(output,`${journey.name}-failure-${width}.png`),fullPage:true});throw error}finally{await f.close()}}}

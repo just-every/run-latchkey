@@ -58,7 +58,10 @@ export function VaultScreen() {
      generation.current++; setRecords([]); setSelected(''); setPanel(''); setError('Your vault permissions changed. Refresh to review current access.');
     }
    } catch (cause) {
-    if (live) { generation.current++; setRecords([]); setSelected(''); setPanel(''); setError(message(cause)); }
+    // An unavailable service cannot revoke already opened local state. Only
+    // a confirmed authority refusal clears it; every new action still checks
+    // current authority through its ordinary public door.
+    if (live && [401,403,404].includes((cause as any)?.status)) { generation.current++; setRecords([]); setSelected(''); setPanel(''); setError(message(cause)); }
    } finally { pending = false; }
   };
   const timer = setInterval(check, 5000); window.addEventListener('focus', check);
