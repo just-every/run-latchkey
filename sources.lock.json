@@ -657,6 +657,10 @@
       "sha256": "7b7723e8dd2adc67b4b51118527c33e794ee877997386baeac7f0c2844e5fe25",
       "executable": false
     },
+    "docs/support/diagnostics.md": {
+      "sha256": "b72f96ae01853c9dd25b03401e3dcba97e76547ac9f24e3f303a0bfce98df81c",
+      "executable": false
+    },
     "docs/vault-cli.md": {
       "sha256": "11e20fb58a3e36694a65840fa22f98c2615c24ec80441b40db8599278a07897c",
       "executable": false
@@ -2431,6 +2435,18 @@
     },
     "src/latchkey/crypto/lifecycle.mjs": {
       "sha256": "a7c44d465e0621da1259f1b7b80ff67ce86af29825a2e8d42194ab15aa130f67",
+      "executable": false
+    },
+    "src/latchkey/diagnostics/client.d.mts": {
+      "sha256": "cdf97bb2bf51d21fe4b4a6802325af6e6aa7b91ad5fa17eee4658b19ed97cc98",
+      "executable": false
+    },
+    "src/latchkey/diagnostics/client.mjs": {
+      "sha256": "b408359a6b73987e734d2ce083da4e3a837b86c8d41b09c5231c4bc2df42f117",
+      "executable": false
+    },
+    "src/latchkey/diagnostics/ui.tsx": {
+      "sha256": "4a09633a2b2cb42eccb0071aa5770722140076957d6eca13104c74e1fc0036f0",
       "executable": false
     },
     "src/latchkey/erasure/admission.d.mts": {
@@ -4795,6 +4811,10 @@
     },
     "tests/browser/company-custody.mjs": {
       "sha256": "c912079d8eb14b2400157283c33ea500df84588ed8a39042bdbf62a09d73e5cf",
+      "executable": false
+    },
+    "tests/browser/diagnostics.mjs": {
+      "sha256": "6a253d6f63f825837a69af92d5718f54297ce96a85117138045823db838555f9",
       "executable": false
     },
     "tests/browser/exit.mjs": {
