@@ -4797,6 +4797,10 @@
       "sha256": "c912079d8eb14b2400157283c33ea500df84588ed8a39042bdbf62a09d73e5cf",
       "executable": false
     },
+    "tests/browser/exit.mjs": {
+      "sha256": "7c72343b7f2c56707a9f570bac777a5ec88b28edbb311d9c7a1eb5e7b51cf646",
+      "executable": false
+    },
     "tests/browser/fixture.mjs": {
       "sha256": "84b3343f7e3615332e8263e6e56bc22a62c6d8013f0d28409361258ebf110230",
       "executable": false
