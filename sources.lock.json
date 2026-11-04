@@ -546,7 +546,7 @@
       "executable": false
     },
     "clients/shared/offline/README.md": {
-      "sha256": "c133362f5a8a548743612c02d120d3da69f7ebb645838991d698a593346bc655",
+      "sha256": "03a659df1b7ee3bcb634b678b3c1bbb85cb45cfc34a4949414122a033c7ec014",
       "executable": false
     },
     "clients/shared/passkeys/platform.mjs": {
@@ -558,7 +558,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "10ab98712eafcce9cb876425f45f6e4a957e0094706eb18abd3015f412d5db01",
+      "sha256": "e43b2d51efa3be7797afef14a3c59508fa6b52bd4124b42eaa9c591a5601d0fc",
       "executable": false
     },
     "deploy-demo.json": {
@@ -4934,7 +4934,7 @@
       "executable": false
     },
     "tests/latchkey-offline.mjs": {
-      "sha256": "7d8bea358ed044d3cdd7df94906b05621f713900ef2462cfcc94615ef8b99d34",
+      "sha256": "6faded50dd7d4ca5d44d217b4f5b7441d72bdb5b8ffe74848a521757c5e29846",
       "executable": false
     },
     "tests/latchkey-records.test.mjs": {

@@ -15,6 +15,8 @@ file is created with mode 0600 and never replaces an existing file. It contains
 only the code, its validity interval, last sync and disconnected-authority status.
 Terminal output reports that the file was written and never prints the code,
 seed, account label or issuer. Keep the file private and delete it after use.
+For a custom item, select its exact OTP field identifier. A missing field or a
+field of another type is refused; the command never chooses a different field.
 
 A successful refresh captures the verified vault owner and lifecycle state at
 the same revision as the decrypted snapshot. Offline TOTP is currently available
