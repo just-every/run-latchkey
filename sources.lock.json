@@ -4930,7 +4930,7 @@
       "executable": false
     },
     "tests/latchkey-records.test.mjs": {
-      "sha256": "ae305dadd75f47f6f401851be81acc56da78391fc05097cc663581316aa09608",
+      "sha256": "2eb1b9bfc7724699b40bf678dafc1ac7bc74d97281335c31821843fb0a84f8ce",
       "executable": false
     },
     "tests/latchkey-recovery.mjs": {

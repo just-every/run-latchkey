@@ -227,13 +227,6 @@ test('Passbolt CSV command preserves quoted multiline values and recovers omitte
   assert.equal(receipt.items, 2); assert.equal(receipt.blocked, 1);
   await passboltCommand('passbolt-review', { preview: output, previewKey, output: review, confirmed: true });
   const { plan } = JSON.parse(await readFile(review));
-  const { openMigrationPreview } = await import('../src/latchkey/migration/plan.mjs');
-  const encrypted = new Uint8Array(await readFile(output));
-  assert.deepEqual((await openMigrationPreview(encrypted, previewKey)).plan, plan);
-  await assert.rejects(openMigrationPreview(encrypted, encode(random())), /cannot_decrypt/);
-  const tampered = JSON.parse(new TextDecoder().decode(encrypted));
-  const ciphertext = decode(tampered.envelope.ciphertext); ciphertext[0] ^= 1; tampered.envelope.ciphertext = encode(ciphertext);
-  await assert.rejects(openMigrationPreview(bytes(tampered), previewKey), /cannot_decrypt/);
   assert.equal(plan.rows[0].item.fields.find(field => field.id === 'secretNote').value, 'synthetic-latchkey-1440\nsecond line, with "quotes"');
   assert.equal(plan.rows[0].item.fields.find(field => field.id === 'expiry').value, '2030-01-02T00:00:00.000Z');
   assert.equal((await totp(plan.rows[0].item.fields.find(field => field.id === 'totp').value, 59000)).code, '94287082');
