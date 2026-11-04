@@ -76,7 +76,42 @@ zero exported attachments never proves the source had none. Assigned extraction,
 rights-review and re-enrollment tasks remain unresolved, and every receipt says
 `cutoverComplete: false`.
 
-Remaining work includes the graphical wizard and migration API, remaining source
+## Review encrypted previews in the browser
+
+Unlock the destination installation and open **Settings → Import encrypted
+preview** in the vault screen. Choose the encrypted JSON preview produced by
+`migration-preview` and supply its separately retained preview key. The file is
+opened locally; neither it nor its key is uploaded. Raw source files and portable
+export passwords are handled only by the CLI. Browser review clears the key
+field after opening, keeps the decrypted plan in memory and discards that review
+when cancelled, replaced, locked or left. This is not verified memory erasure.
+
+Review the source identity, exact approval hash, item fields, ownership, URLs,
+source folders, duplicate and rejected counts, each exported data-class count,
+unknown source totals and assigned unresolved extraction and rights tasks.
+Secret values start masked and can be explicitly revealed in the review. Exported counts never establish complete
+source inventory; an exported zero does not establish source absence. Source
+shared rows remain blocked and cannot be approved by checking a box.
+
+Select a destination vault, enter the exact preview hash and the personal source
+owner identity, then explicitly assert ownership and approval for that destination.
+A different file clears confirmation. Cancel makes no vault writes. Applying uses
+the same owner-only family restriction and deterministic batch and delta logic as
+the CLI. A named empty family vault is permitted; its encrypted name record is
+not imported content. Company vaults, shared destinations, unrelated content and
+unresolved rows refuse. Destination authority and vault revisions are checked
+again during application. Previously erased destination identities cannot be
+recreated by replaying an old preview.
+
+An interrupted batch reports failure; already completed writes remain. After
+resolving the failure, repeat the same review and confirmation to resume without
+duplicating those identities. An unchanged source preserves a destination
+correction; a conflicting changed source refuses before new writes. A successful
+receipt reports imported, unchanged and duplicate records and still declares
+cutover incomplete. Other data classes and source tasks remain unresolved. This
+door provides no source mutation, source credential retirement or automatic fill.
+
+Remaining work includes the complete multi-source wizard and migration API, remaining source
 formats, complete atomic rights mapping and enforcement, source-authorized omitted
 class extraction, Secrets Manager inventory and fresh CI identity, and actual
 source and native-client cutover. The 40-folder synthetic CSV preview is parser

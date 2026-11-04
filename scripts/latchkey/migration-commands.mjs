@@ -1,8 +1,8 @@
 import { privateInput, privateOutput, writeAll } from '../../src/latchkey/portability/private-files.mjs';
-import { bytes, decode, digest, json, open, seal } from '../../src/latchkey/crypto/envelope.mjs';
+import { bytes, decode, digest, seal } from '../../src/latchkey/crypto/envelope.mjs';
 import { check } from '../../src/latchkey/items/fields.mjs';
-import { previewMigration, importMigration } from '../../src/latchkey/migration/core.mjs';
-const binding = { tenant: 'local', vault: 'migration', object: 'preview', purpose: 'migration', epoch: 1, version: 1 };
+import { previewMigration } from '../../src/latchkey/migration/core.mjs';
+import { importMigration, migrationBinding as binding, openMigrationPreview } from '../../src/latchkey/migration/plan.mjs';
 async function read(path) {
  const handle = await privateInput(path);
  try { check((await handle.stat()).size <= 8388608, 'migration_input_too_large'); return new Uint8Array(await handle.readFile()); }
@@ -22,9 +22,7 @@ export async function migrationCommand(command, input, client) {
    return { written: true, hash, counts: plan.counts, folders: plan.folders.length, unresolvedClasses: plan.tasks.length, cutoverComplete: false };
   }
   data = await read(input.preview);
-  const stored = json(data); check(stored.schema === 'latchkey-migration-envelope-v1', 'invalid_migration_preview');
-  const plain = await open(key, stored.envelope, binding);
-  let plan; try { plan = json(plain); } finally { plain.fill(0); }
+  const { plan } = await openMigrationPreview(data, input.previewKey);
   if (command === 'migration-review') {
    check(input.confirmed === true, 'plaintext_review_confirmation_required');
    await write(input.output, { plan, hash: await digest(bytes(plan)) });
