@@ -148,8 +148,12 @@ export async function selectedExitJourney(output = process.env.LATCHKEY_SCREENSH
   const tampered = structuredClone(archive); tampered.ciphertext = (tampered.ciphertext[0] === 'A' ? 'B' : 'A') + tampered.ciphertext.slice(1);
   await upload(tampered); await keyFile(exportKey); await openFile.click(); await expect(to.getByRole('alert')).toContainText('could not be verified'); assert.deepEqual(await destination.owner.call('vaults', {}), []);
   await upload(opened); await expect(to.getByRole('alert')).toContainText('Plaintext browser ceremonies are not supported');
-  await upload(archive); await keyFile(exportKey); await openFile.click();
+  await upload(archive); await keyFile(exportKey);
+  const beforeOfflineOpen = importRequests.length;
+  await destination.context.setOffline(true); await openFile.click();
   const importReview = to.getByRole('region', { name: 'Exact selection review' }); await expect(importReview).toContainText(opened.planHash);
+  assert.equal(importRequests.length, beforeOfflineOpen); await destination.context.setOffline(false);
+  console.log('PROBE LKY-017 offline opening: loaded destination browser disconnected from service, buyer file and key -> verified local exact-plan review, no request');
   await capture(to, 'import-review', output);
   await to.getByRole('button', { name: 'Cancel and clear', exact: true }).click(); await expect(importReview).toHaveCount(0); assert.deepEqual(await destination.owner.call('vaults', {}), []);
   assert.equal(importRequests.filter(row => row.path.endsWith('/' + selectionRoutes.import)).length, 0);

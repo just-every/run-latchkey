@@ -76,6 +76,43 @@ export async function ownerRunExitJourney() {
    const rights=await destination.owner.call('vaults',{});assert.equal(rights.length,1);assert.equal(rights[0].owner,destination.owner.profile.account);assert.equal(rights[0].kind,'company');
    await assert.rejects(new SelectionExportClient(destination.owner).reimport(fullArchive,exportKey,{confirmed:true,approvedPlanHash:fullPreview.planHash}),error=>error.code==='empty_export_destination_required');
   }finally{await destination.close()}
+  // A lost response cannot turn later erasure or revoked authority into a
+  // success claim, and reconciliation never recreates or overwrites content.
+  for(const boundary of ['erasure','revocation']){
+   const interruptedDestination=await vaultFixture({browserEnabled:false});let keeper;
+   try{
+    const target=interruptedDestination.owner,call=target.call.bind(target);let prepared,attempts=0;
+    if(boundary==='revocation'){
+     keeper=new VaultClient(interruptedDestination.origin,{cookie:target.cookie,fetcher:interruptedDestination.fetcher});
+     const enrollment=await keeper.beginEnrollment(target.profile,interruptedDestination.password);
+     await target.approveEnrollment(enrollment.device,enrollment.fingerprint);
+     const profile=await keeper.completeEnrollment(enrollment.profile,interruptedDestination.password);await keeper.unlock(profile,interruptedDestination.password);
+    }
+    target.call=async(name,input)=>{
+     const result=await call(name,input);
+     if(name===selectionRoutes.import){
+      attempts++;prepared=structuredClone(input);
+      if(boundary==='erasure')await target.eraseItem(input.vaults[0].vault,login,{confirmed:true});
+      else await keeper.call(route('device','revoke'),{device:target.profile.device});
+      throw new TypeError('Synthetic lost commit response');
+     }
+     return result;
+    };
+    try{await assert.rejects(new SelectionExportClient(target).reimport(fullArchive,exportKey,{confirmed:true,approvedPlanHash:fullPreview.planHash}),error=>boundary==='erasure'?error.code==='selected_import_unverified':['device_revoked','authority_expired'].includes(error.code))}finally{target.call=call}
+    assert.equal(attempts,1);
+    if(boundary==='erasure'){
+     const destination=prepared.vaults[0].vault;
+     assert.deepEqual((await target.readVault(destination)).versions,expected.filter(row=>row.object!==login));
+     assert.equal((await target.call(route('item','erasure-status'),{vault:destination,object:login})).erased,true);
+     await assert.rejects(new SelectionExportClient(target).reimport(fullArchive,exportKey,{confirmed:true,approvedPlanHash:fullPreview.planHash}),error=>error.code==='empty_export_destination_required');
+     assert.deepEqual((await target.readVault(destination)).versions,expected.filter(row=>row.object!==login));
+    }else{
+     assert.deepEqual((await keeper.readVault(prepared.vaults[0].vault)).versions,expected);
+     await assert.rejects(target.readVault(prepared.vaults[0].vault),error=>['device_revoked','authority_expired'].includes(error.code));
+    }
+   }finally{keeper?.lock();await interruptedDestination.close()}
+  }
+  console.log('PROBE LKY-017 interrupted authority and erasure: real commit followed by erasure or device revocation and lost response -> no success, retry or recreated content');
   await assert.rejects(selected.setPlaintextPolicy(vault,true,{confirmed:false}),error=>error.code==='exact_export_approval_required');
   await selected.setPlaintextPolicy(vault,true,{confirmed:true});
   // A real full archive is produced while the source plaintext policy is enabled.

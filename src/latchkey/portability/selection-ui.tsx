@@ -127,7 +127,7 @@ function explain(cause: unknown) {
   fresh_installation_required: 'Import requires a different, fresh installation.', empty_export_destination_required: 'Import requires a fresh destination with no visible vaults.',
   destination_owner_required: 'Only the current destination installation owner may import this selection.',
   export_reconciliation_failed: 'The destination could not be reconciled. Inspect its vaults before attempting further imports.',
-  selected_import_unverified: 'The import outcome could not be verified. Vaults may already exist. Inspect the destination before another import; no retry was sent.',
+  selected_import_unverified: 'The import outcome could not be verified. Vaults may already exist. Lock and unlock this installation to inspect its current vaults before another import; no retry was sent.',
  };
  return messages[code] ?? message(cause);
 }
