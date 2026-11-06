@@ -4858,7 +4858,7 @@
       "executable": false
     },
     "tests/browser/recovery-scoped.mjs": {
-      "sha256": "e25f8ddae8b8a5694e780106d5d43f8e098b37f89e567497fe055113542c2a4f",
+      "sha256": "b4db824bc686bfd249275f581534320558fe148dc7f3800478ea7c0ba66c9f15",
       "executable": false
     },
     "tests/browser/reports.mjs": {
@@ -4974,7 +4974,7 @@
       "executable": false
     },
     "tests/latchkey-recovery.mjs": {
-      "sha256": "318ee06835114551843c2f76fe400274563f3560643f0a9c8e3656d1035a96d5",
+      "sha256": "0917d26f8fbdcebfd563a9ee1da2c982a056184607c7e258a3e933408c7f65cc",
       "executable": false
     },
     "tests/latchkey-restore.mjs": {

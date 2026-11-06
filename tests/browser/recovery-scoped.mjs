@@ -25,8 +25,8 @@ export async function scopedRecoveryBrowserJourney(width,output){
   await f.page.setViewportSize({width,height:1000});
   const custodian=await member(f,9700),person=await member(f,9710),personIdentity=await person.client.identity(),custodianIdentity=await custodian.client.identity();
   const vault=(await person.client.createVault()).vault;await new TypedItems(person.client).save(vault,createItem('secure-note',{title:'Recovered company document',values:{note:'synthetic-latchkey-9712'}}));
-  const plaintext=[person.password,custodian.password,person.client.bundle.root.recipient.privateKey,'synthetic-latchkey-9712'];
-  const requests=[];f.page.on('request',request=>{if(request.url().includes('/api/latchkey/'))requests.push(request.postData()??'')});
+  const plaintext=[person.password,custodian.password,person.client.bundle.root.recipient.privateKey,custodian.client.bundle.root.recipient.privateKey,'synthetic-latchkey-9712','synthetic-latchkey-9713','synthetic-latchkey-9715'];
+  const requests=[],recordRequest=request=>{if(request.url().includes('/api/latchkey/'))requests.push(request.postData()??'')};f.page.on('request',recordRequest);
   await unlock(f,f.owner,f.password);
   const panel=f.page.getByRole('region',{name:'Scoped recovery',exact:true});
   await panel.getByLabel('Grant custodian account',{exact:true}).fill(custodianIdentity.account);await panel.getByLabel('Grant member account',{exact:true}).fill(personIdentity.account);
@@ -63,6 +63,7 @@ export async function scopedRecoveryBrowserJourney(width,output){
   await capture('scoped-recovery-pending');
   // Keep the member's case tab while the distinct custodian reviews in a new tab.
   const memberPage=f.page,memberContext=f.context,custodianContext=await f.browser.newContext({ignoreHTTPSErrors:true,viewport:{width,height:1000}}),custodianPage=await custodianContext.newPage();
+  custodianPage.on('request',recordRequest);
   try{
    const cf={...f,page:custodianPage,context:custodianContext};await unlock(cf,custodian.client,custodian.password);
    const reviewPanel=custodianPage.getByRole('region',{name:'Scoped recovery',exact:true});
@@ -103,6 +104,7 @@ export async function scopedRecoveryBrowserJourney(width,output){
    assert.equal((await f.db.prepare('SELECT generation FROM lky_accounts WHERE id=?').bind(profile.account).first()).generation,profile.generation);
   }
   await capture('scoped-recovery-revoked');
+  if(assertions)for(const secret of plaintext)assert.ok(!requests.join('').includes(secret));
   console.log(`Scoped recovery browser ${width}: owner grant, member encryption, distinct custodian approval, retained new credentials and recovered company account passed`);
  }catch(error){if(output)await f.page.screenshot({path:join(output,`scoped-recovery-failure-${width}.png`),fullPage:true});throw error}finally{await f.close()}
 }

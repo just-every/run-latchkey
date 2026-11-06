@@ -325,6 +325,13 @@ export async function scopedRecoveryJourney(f) {
  const restCredential=await throughRest(restPerson.client,()=>new RecoveryClient(restPerson.client).enrollScoped(otherIdentity.account,otherIdentity.fingerprint,restGrant.scopes[0].id,{confirmed:true}));
  const restLost=new RecoveryClient(await verifiedClient(f,restPerson.email)),restPassword='synthetic-latchkey-9633',restPending=await restLost.begin({...restCredential,password:restPassword});
  await throughRest(other.client,()=>new RecoveryClient(other.client).approve(restPending.preview.operation,{confirmed:true,identityChecked:true}));
+ const separateCase=await restLost.begin({...restCredential,password:restPassword});
+ const acceptedWrap=JSON.parse((await f.db.prepare('SELECT approved_wrap FROM lky_recovery_cases WHERE id=?').bind(restPending.preview.operation).first()).approved_wrap);
+ await assert.rejects(requestApi(other.client,'POST','/recovery/approve',{operation:separateCase.preview.operation,wrapped:acceptedWrap,confirmed:true,identityChecked:true}),{code:'invalid_key_signature'});
+ const alteredWrap=structuredClone(acceptedWrap);alteredWrap.envelope.ciphertext=(alteredWrap.envelope.ciphertext[0]==='A'?'B':'A')+alteredWrap.envelope.ciphertext.slice(1);
+ await assert.rejects(requestApi(other.client,'POST','/recovery/approve',{operation:separateCase.preview.operation,wrapped:alteredWrap,confirmed:true,identityChecked:true}),{code:'invalid_key_signature'});
+ assert.equal((await f.db.prepare('SELECT approved_wrap FROM lky_recovery_cases WHERE id=?').bind(separateCase.preview.operation).first()).approved_wrap,null);
+ await assert.rejects(restLost.complete(separateCase,restPassword,{confirmed:true}),{code:'recovery_approval_required'});
  const outcomes=await Promise.allSettled([restLost.complete(structuredClone(restPending),restPassword,{confirmed:true}),restLost.complete(structuredClone(restPending),restPassword,{confirmed:true})]);
  assert.equal(outcomes.filter(row=>row.status==='fulfilled').length,1,'one exact recovery case can finish only once');
  assert.equal(outcomes.filter(row=>row.status==='rejected').length,1);
