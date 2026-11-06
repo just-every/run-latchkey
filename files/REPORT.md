@@ -48,7 +48,7 @@ R8 — Current web and CLI doors and screenshot widths: PASS LOCAL. Both real br
 
 1. PARTIAL: hardware acceptance outcome remains unmet; bounded custody outcomes are reached by R2–R8.
 2. PASS LOCAL: seeded encrypted company content is actually recovered; missing shares, invalid authority and unsafe requests refuse without granting access.
-3. PENDING CI: both journey entry points are included in push Verify, but no exact-head run was advertised by the initial discovery query. No green result from another SHA is claimed.
+3. PENDING CI: both journey entry points are included in push Verify 42289172009, event push, in_progress on this exact head at the final observation. No candidate success or green result from another SHA is claimed.
 4. PASS LOCAL: recovery and browser commands completed on committed head e483bdb4ed2ad7445bc31e60dc718cb1f94a49c6. No product or test bytes changed afterward. The production Worker build preceded the final commit and its relevant source bytes were unchanged.
 5. INSPECTED: existing clause explicitly names quorum, independent approval and lack of ordinary vault viewing. No new Base-duty inheritance or complete MFA result is claimed.
 6. MECHANICAL: touched-clause generator write and check pass together. Generated views were restored from origin/main as required. Their subsequent freshness check fails on ACCEPTANCE.md, the expected generated-view condition. No generated view or contract judgment is committed.
@@ -68,7 +68,7 @@ The restored-view check has exit 1: ACCEPTANCE.md differs from CONTRACT.md. This
 
 Publication scan: commit=e483bdb4ed2ad7445bc31e60dc718cb1f94a49c6; complete=NOT RUN IN CLOUD; historyScanned=NOT RUN; findings=UNESTABLISHED. The clone has full history. The Mac lander must scan this exact tree and require COMPLETE with zero new findings. Product commit authors and committers are the fleet identity, with no co-author trailers. Contract and generated-view diffs are empty.
 
-Source-main Verify 42281675229 and Run site 42281675227 are successful on d8cfef5db50cab38b36354746ae3af607bfdaed0 only. They are not candidate receipts. Candidate CI is recorded in candidate-ci.json: the initial exact-head run discovery returned no advertised runs. No Verify dispatch or rerun was requested, because an immediate empty listing is not proof that the push event will not create its ordinary run. The branch has the existing push entry point; the guarded lander owns exact-head CI observation.
+Source-main Verify 42281675229 and Run site 42281675227 are successful on d8cfef5db50cab38b36354746ae3af607bfdaed0 only. They are not candidate receipts. Candidate CI is recorded in candidate-ci.json: Verify 42289172009, event push, is in_progress on e483bdb4ed2ad7445bc31e60dc718cb1f94a49c6. The first discovery was empty; one follow-up after the required five-minute interval found the ordinary run. No Verify dispatch or rerun was requested. The guarded lander must require completed success on this exact head.
 
 PROBE LKY-051 quorum: public enrollment and recovery routes, real split shares, no share or either one share -> decryption and finish refused; both -> intended encrypted company content recovered.
 PROBE LKY-051 authority: requester and admitted scoped agent approval attempts -> refused; two independent current owners -> exact proposed policy activated; removal, deactivation, changed authority and policy replacement -> old case refused.

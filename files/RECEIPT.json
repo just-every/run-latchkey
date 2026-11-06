@@ -83,7 +83,15 @@
     "partial": 26,
     "total": 80
   },
-  "exact_head_verify": "not advertised by initial discovery",
+  "exact_head_verify": {
+    "conclusion": null,
+    "event": "push",
+    "head_sha": "e483bdb4ed2ad7445bc31e60dc718cb1f94a49c6",
+    "html_url": "https://github.com/just-every/run-latchkey/actions/runs/42289172009",
+    "id": 42289172009,
+    "name": "Verify",
+    "status": "in_progress"
+  },
   "generated_views_committed": false,
   "head": "e483bdb4ed2ad7445bc31e60dc718cb1f94a49c6",
   "node": "22.20.0",

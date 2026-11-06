@@ -1,4 +1,15 @@
 {
-  "advertised_runs": [],
+  "advertised_runs": [
+    {
+      "conclusion": null,
+      "event": "push",
+      "head_sha": "e483bdb4ed2ad7445bc31e60dc718cb1f94a49c6",
+      "html_url": "https://github.com/just-every/run-latchkey/actions/runs/42289172009",
+      "id": 42289172009,
+      "name": "Verify",
+      "status": "in_progress"
+    }
+  ],
+  "observed_at": "2026-11-06T20:38:24.164523+00:00",
   "query_exit": 0
 }
