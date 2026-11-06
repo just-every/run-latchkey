@@ -24,10 +24,12 @@ export async function recoverySession(route,input,ctx) {
  const account=await first('SELECT * FROM lky_accounts WHERE operator_id=?',ctx.session.operator.id);need(account,'recovery_unavailable',403);
  Object.assign(ctx,{actor:account.id,tenant:account.tenant,generation:account.generation,device:'verified-session',fence:"EXISTS(SELECT 1 FROM oa_sessions s JOIN oa_operators o ON o.id=s.operator_id JOIN lky_accounts a ON a.operator_id=o.id WHERE s.id=? AND s.revoked_at IS NULL AND s.expires_at>? AND s.operator_version=o.version AND o.status='active' AND a.id=? AND a.generation=?)",fenceArgs:[ctx.session.id,ctx.now,account.id,account.generation]});
  if(action==='start') {
-  exact(input,['enrollment','request','transferKey']);const enrolled=await enrollmentFor(ctx,input.enrollment);
+  const scopedRequest=['policy','scope','custodian'].some(key=>Object.hasOwn(input,key));
+  exact(input,['enrollment','request','transferKey',...(scopedRequest?['policy','scope','custodian']:[])]);const enrolled=await enrollmentFor(ctx,input.enrollment);
   need(await first("SELECT 1 FROM oa_sessions s JOIN oa_tokens t ON t.id=s.source_token_id WHERE s.id=? AND s.kind='native' AND t.consumed_at IS NOT NULL AND s.created_at>?",ctx.session.id,ctx.now-300000),'fresh_verified_identity_required',403);
   await publicKey(input.transferKey,'wrap');need(typeof input.request==='string'&&input.request.length<4096);
   const authority=await recoveryAuthority(ctx,enrolled);
+  need(authority.scope?scopedRequest&&input.policy===scopedPolicy&&input.scope===authority.scope&&input.custodian===enrolled.custodian:!scopedRequest,'recovery_policy_incompatible',403);
   await opaque.ready;const setup=opaque.server.createSetup(),result=opaque.server.createRegistrationResponse({serverSetup:setup,userIdentifier:account.id,registrationRequest:input.request}),operation=id();
   await notice(ctx,account.operator_id,'vault recovery request');
   await guarded(ctx,[],[stmt('INSERT INTO lky_recovery_cases VALUES(?,?,?,?,?,?,?,?,NULL,NULL)',operation,enrolled.id,account.id,account.generation,ctx.session.id,setup,input.transferKey,ctx.now+240000),event('recovery_requested',operation)],[...authority.guards,guard('EXISTS(SELECT 1 FROM lky_recovery_custody WHERE id=? AND account=? AND generation=? AND revoked_at IS NULL)',[enrolled.id,ctx.actor,ctx.generation])]);

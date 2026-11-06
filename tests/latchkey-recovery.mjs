@@ -221,7 +221,18 @@ export async function scopedRecoveryJourney(f) {
  await assert.rejects(new RecoveryClient(new VaultClient('https://foreign.example.test')).begin({...credential,password:'synthetic-latchkey-9628'}),{code:'recovery_origin_mismatch'});
  await assert.rejects(person.client.createVault({kind:'family'}),{code:'independent_family_account_required'});
  const lost=new RecoveryClient(await verifiedClient(f,person.email)),password='synthetic-latchkey-9624';
- let pending=await lost.begin({...credential,password});
+ await assert.rejects(lost.begin({...credential,password,policy:'quorum-unknown'}),{code:'recovery_policy_incompatible'});
+ const startRequest=lost.client.request.bind(lost.client);let startInput,pending;
+ lost.client.request=(path,input)=>{if(path==='recovery' + '/session/start')startInput=structuredClone(input);return startRequest(path,input)};
+ try{pending=await lost.begin({...credential,password})}finally{lost.client.request=startRequest}
+ const casesBefore=(await f.db.prepare('SELECT COUNT(*) AS n FROM lky_recovery_cases WHERE account=?').bind(personIdentity.account).first()).n;
+ const {policy:ignoredPolicy,scope:ignoredScope,custodian:ignoredCustodian,...legacyStart}=startInput;
+ for(const input of[
+  {...startInput,policy:'quorum-unknown'},legacyStart,
+  {...startInput,scope:other.client.profile.account},
+  {...startInput,custodian:other.client.profile.account},
+ ])await assert.rejects(startRequest('recovery' + '/session/start',input),{code:'recovery_policy_incompatible'});
+ assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM lky_recovery_cases WHERE account=?').bind(personIdentity.account).first()).n,casesBefore);
  await assert.rejects(lost.complete(pending,password,{confirmed:true}),{code:'recovery_approval_required'});
  await assert.rejects(new RecoveryClient(other.client).approve(pending.preview.operation,{confirmed:true,identityChecked:true}),{code:'named_recovery_administrator_required'});
  // Recovery-only means every ordinary door retains its own authority check.
@@ -234,6 +245,17 @@ export async function scopedRecoveryJourney(f) {
  const operator=(await f.db.prepare('SELECT operator_id FROM lky_accounts WHERE id=?').bind(other.client.profile.account).first()).operator_id;
  await assert.rejects(requestApi(custodian.client,'PUT',`/users/${operator}/role`,{role:'owner'}));
  for(const path of ['/api/rer/business-settings','/api/latchkey/v1/billing','/auth/operators']){const response=await f.fetcher(f.origin+path,{headers:{cookie:custodian.client.cookie}});assert.ok(response.status>=400)}
+ const settingsBefore=(await f.db.prepare('SELECT * FROM oa_auth_settings').all()).results;
+ const businessBefore=(await f.db.prepare('SELECT * FROM bs_settings').all()).results;
+ for(const [path,input]of[
+  ['/auth/settings/identity',{idpSignIn:false}],
+  ['/auth/settings/business',{}],
+ ]){
+  const response=await f.fetcher(f.origin+path,{method:'POST',headers:{origin:f.origin,cookie:custodian.client.cookie,'content-type':['application','json'].join('/')},body:JSON.stringify(input)});
+  assert.equal(response.status,403);assert.equal((await response.json()).error,'owner_required');
+ }
+ assert.deepEqual((await f.db.prepare('SELECT * FROM oa_auth_settings').all()).results,settingsBefore);
+ assert.deepEqual((await f.db.prepare('SELECT * FROM bs_settings').all()).results,businessBefore);
  // Narrowing a grant invalidates even an already-approved pending case.
  await admin.approve(pending.preview.operation,{confirmed:true,identityChecked:true});
  await set([{account:other.client.profile.account,generation:other.client.profile.generation,domain:'company-account'}]);

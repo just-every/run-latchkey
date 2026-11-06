@@ -92,3 +92,6 @@ unknown or quorum-protected enrollment. LKY-051 remains independent.
 The member-signed envelope's purpose must match its stored policy at every
 recovery stage. A missing scope binding or altered envelope refuses; neither
 can reinterpret scoped custody as legacy named-owner recovery.
+Starting a scoped case also requires the credential's exact policy, scope and
+custodian. Missing or incompatible descriptors refuse before creating a case;
+legacy credentials remain accepted only for their original enrollment policy.

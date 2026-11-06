@@ -32,9 +32,13 @@ export class RecoveryClient {
   return {schema:1,origin:c.origin,account:c.profile.account,tenant:c.profile.tenant,generation:c.profile.generation,enrollment,policy:scopedPolicy,scope,trustedAdministrator:{account:custodian,authorityKey:admin.authorityKey}};
  }
  async begin(credential) {
-  const c=this.client;need(credential.origin===c.origin,'recovery_origin_mismatch');await opaque.ready;
+  const c=this.client;need(credential.origin===c.origin,'recovery_origin_mismatch');
+  need(credential.policy===undefined||credential.policy===scopedPolicy,'recovery_policy_incompatible');
+  const scoped=credential.policy===scopedPolicy;
+  need(!scoped||(typeof credential.scope==='string'&&typeof credential.trustedAdministrator?.account==='string'),'recovery_policy_incompatible');
+  await opaque.ready;
   const started=opaque.client.startRegistration({password:credential.password}),transfer=await keypair('wrap');
-  const preview=await c.request(session('start'),{enrollment:credential.enrollment,request:started.registrationRequest,transferKey:transfer.publicKey});
+  const preview=await c.request(session('start'),{enrollment:credential.enrollment,request:started.registrationRequest,transferKey:transfer.publicKey,...(scoped?{policy:credential.policy,scope:credential.scope,custodian:credential.trustedAdministrator.account}:{})});
   need(preview.account===credential.account&&preview.tenant===credential.tenant&&preview.generation===credential.generation,'recovery_context_changed');
   return {credential:{...credential,password:undefined},started,transfer,preview};
  }
