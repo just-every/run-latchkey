@@ -1,0 +1,11 @@
+fleet Git: removed 0 credential-bearing GitHub URL rewrite sections
+PUSH attempt=1/5 command=git push --porcelain origin HEAD:refs/heads/cloud/sx-latchkey-c-f279
+fleet Git: removed 0 credential-bearing GitHub URL rewrite sections
+To https://github.com/just-every/run-latchkey.git
+ 	HEAD:refs/heads/cloud/sx-latchkey-c-f279	a74f2a5..4e58b63
+Done
+remote: 
+remote: GitHub found 30 vulnerabilities on just-every/run-latchkey's default branch (14 high, 14 moderate, 2 low). To find out more, visit:        
+remote:      https://github.com/just-every/run-latchkey/security/dependabot        
+remote: 
+PUSH_OK branch=cloud/sx-latchkey-c-f279

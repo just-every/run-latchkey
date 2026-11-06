@@ -1,0 +1,25 @@
+▲ [WARNING] Proxy environment variables detected. We'll use your proxy for fetch requests.
+
+
+Failed mail acceptance refuses enrollment without retaining recovery custody
+Independent one-use self recovery and named administrator lost-password recovery passed
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: changed credential identity must not create a recovery case
+
+2 !== 1
+
+    at scopedRecoveryJourney (file:///workspace/run-latchkey/tests/latchkey-recovery.mjs:233:10)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async file:///workspace/run-latchkey/tests/latchkey-recovery.mjs:447:83 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 2,
+  expected: 1,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.19.0

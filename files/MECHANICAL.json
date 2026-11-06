@@ -1,0 +1,97 @@
+{
+  "head": "4e58b63a8513e5588f49b2851fd0913e7bcf03e7",
+  "checks": [
+    {
+      "name": "typecheck",
+      "command": [
+        "pnpm",
+        "run",
+        "typecheck"
+      ],
+      "head": "4e58b63a8513e5588f49b2851fd0913e7bcf03e7",
+      "started": "2026-11-06T23:08:57.041793+00:00",
+      "exit": 0,
+      "output_sha256": "af2455dff055be82ded7583aa09c6db17af54a711fe5a9a8948e270db0fe4cab"
+    },
+    {
+      "name": "views-write",
+      "command": [
+        "node",
+        "scripts/contract-docs.mjs",
+        "write",
+        "LKY-032"
+      ],
+      "head": "4e58b63a8513e5588f49b2851fd0913e7bcf03e7",
+      "started": "2026-11-06T23:08:57.466060+00:00",
+      "exit": 0,
+      "output_sha256": "adae760631186198d4ded63be65a78022166c56e588e137f31e34ad48e1de404"
+    },
+    {
+      "name": "views-check",
+      "command": [
+        "node",
+        "scripts/contract-docs.mjs",
+        "check",
+        "LKY-032"
+      ],
+      "head": "4e58b63a8513e5588f49b2851fd0913e7bcf03e7",
+      "started": "2026-11-06T23:08:57.538456+00:00",
+      "exit": 0,
+      "output_sha256": "81e695626e05d5037209b2ffbe2262d6cc40a17bc2930cca9dc5793849df656b"
+    },
+    {
+      "name": "restore-generated",
+      "command": [
+        "git",
+        "checkout",
+        "origin/main",
+        "--",
+        "ACCEPTANCE.md",
+        "docs/CLAIMS.md"
+      ],
+      "head": "4e58b63a8513e5588f49b2851fd0913e7bcf03e7",
+      "started": "2026-11-06T23:08:57.614817+00:00",
+      "exit": 0,
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "lock-write",
+      "command": [
+        "node",
+        "scripts/edition-authoring/cli.mjs",
+        "lock"
+      ],
+      "head": "4e58b63a8513e5588f49b2851fd0913e7bcf03e7",
+      "started": "2026-11-06T23:08:57.619674+00:00",
+      "exit": 0,
+      "output_sha256": "f3a5a5e3fd07f7a6d491b2ad90e0463470f271eabf8cfefac2e2311b746bba6c"
+    },
+    {
+      "name": "lock-check",
+      "command": [
+        "node",
+        "scripts/edition-authoring/cli.mjs",
+        "check"
+      ],
+      "head": "4e58b63a8513e5588f49b2851fd0913e7bcf03e7",
+      "started": "2026-11-06T23:08:57.829891+00:00",
+      "exit": 0,
+      "output_sha256": "a6caba79ad53fff4a264a0c6476a08e1d3c5da11e5844bb3de80f3379921a2f7"
+    },
+    {
+      "name": "first-party",
+      "command": [
+        "npx",
+        "-y",
+        "@runeditrun/rer",
+        "check",
+        "--profile",
+        "first-party"
+      ],
+      "head": "4e58b63a8513e5588f49b2851fd0913e7bcf03e7",
+      "started": "2026-11-06T23:08:58.059456+00:00",
+      "exit": 0,
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

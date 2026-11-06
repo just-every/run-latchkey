@@ -1,0 +1,226 @@
+{
+  "schema": 1,
+  "tag": "sx-latchkey-c-f279",
+  "repository": "just-every/run-latchkey",
+  "branch": "cloud/sx-latchkey-c-f279",
+  "head": "4e58b63a8513e5588f49b2851fd0913e7bcf03e7",
+  "generated": "2026-11-06T23:12:22.936969+00:00",
+  "checks": [
+    {
+      "name": "build",
+      "command": "cloud_run npx -y @runeditrun/rer build",
+      "exit": 0,
+      "head": "4e58b63a8513e5588f49b2851fd0913e7bcf03e7"
+    },
+    {
+      "name": "recovery",
+      "command": "cloud_run timeout 1200 node tests/latchkey-recovery.mjs",
+      "exit": 0,
+      "output": "recovery.log",
+      "tree_equivalent_to_head": "4e58b63a8513e5588f49b2851fd0913e7bcf03e7",
+      "identical_paths": [
+        "src/latchkey/recovery/client.mjs",
+        "src/latchkey/recovery/service.mjs",
+        "tests/latchkey-recovery.mjs"
+      ]
+    },
+    {
+      "name": "browser",
+      "command": "cloud_run perl -e 'alarm 1200; exec @ARGV' -- node tests/browser/vault.mjs --scoped-recovery",
+      "exit": 0,
+      "head": "4e58b63a8513e5588f49b2851fd0913e7bcf03e7",
+      "output": "browser.log",
+      "widths": [
+        1440,
+        390
+      ],
+      "behaviour_assertion_width": 1440,
+      "system_chromium": true
+    },
+    {
+      "name": "runtime",
+      "command": "cloud_run perl -e 'alarm 1200; exec @ARGV' -- node tests/runtime.mjs",
+      "exit": 0,
+      "head": "4e58b63a8513e5588f49b2851fd0913e7bcf03e7",
+      "output": "runtime.log",
+      "includes": [
+        "People HTTP journey",
+        "Scoped recovery HTTP journey",
+        "runSubjectErasureJourneys",
+        "exerciseRecordsRestore",
+        "whole storage and wire leakage inspection"
+      ]
+    },
+    {
+      "name": "regression-before",
+      "command": "cloud_run timeout 1200 node tests/latchkey-recovery.mjs",
+      "exit": 1,
+      "worker_source_head": "beac74566518d15852d7bd5c569b9d5fe2ddc6c1",
+      "output": "regression-before.log",
+      "failure": "changed credential identity must not create a recovery case; actual 2; expected 1"
+    }
+  ],
+  "mechanical_receipt": "MECHANICAL.json",
+  "screenshots": 14,
+  "checks_registered_by": "verification.json: runtime and vault-browser push shards",
+  "counts_before": {
+    "done": 8,
+    "partial": 26,
+    "missing": 46
+  },
+  "counts_after": {
+    "done": 8,
+    "partial": 26,
+    "missing": 46
+  },
+  "status_rows_changed": 0,
+  "new_registrations": 0,
+  "removed_assertions": 0,
+  "added_email_shaped_strings": 0,
+  "publication_scan": {
+    "commit": "4e58b63a8513e5588f49b2851fd0913e7bcf03e7",
+    "complete": null,
+    "historyScanned": null,
+    "findings": null,
+    "reason": "cloud-only candidate; exact-tree full-history scan belongs to guarded Mac lander"
+  },
+  "product_push": "PUSH.txt",
+  "ci": "CI.json",
+  "artifacts": [
+    {
+      "path": "CI.json",
+      "bytes": 246,
+      "sha256": "2282e988c9d9175992e950e903b8876df0cb2013516c8f101c934c6460d93a8b"
+    },
+    {
+      "path": "MECHANICAL.json",
+      "bytes": 2711,
+      "sha256": "aedc62b3550ec5d38e91d0f44f46495c2a6714653eb2bfb5d9a095505fe15629"
+    },
+    {
+      "path": "PLAN.md",
+      "bytes": 2027,
+      "sha256": "35337ec141a4e88d90667a50fcfb8c012e258a737334365b81695bf9c1eba675"
+    },
+    {
+      "path": "PUSH.txt",
+      "bytes": 635,
+      "sha256": "0945f203196d8f06e1d5b1f5fc4b1e5d87ec6f5a72c7fa5f3a32b63f6a65ea3c"
+    },
+    {
+      "path": "REPORT.md",
+      "bytes": 17771,
+      "sha256": "ec26e9791ff7e37349ca79df0c8ac9badc1e967143079daabe9ddeb056afefb9"
+    },
+    {
+      "path": "browser.log",
+      "bytes": 400,
+      "sha256": "8a0b60f43a7d92f00d603a5813671c056625603679b1d6ff9565ab4b261bbe38"
+    },
+    {
+      "path": "first-party.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "recovery.log",
+      "bytes": 803,
+      "sha256": "cc7776c7068343044e9b73a791751c48b0dd903e9360e5a4319a082d21793971"
+    },
+    {
+      "path": "regression-before.log",
+      "bytes": 839,
+      "sha256": "389e6cc8c65d72996e3c372e4d4a2ad8190d08a9ff84d89bb302cb56fd755c59"
+    },
+    {
+      "path": "runtime.log",
+      "bytes": 5497,
+      "sha256": "009a927ec523a4477846e885b30865f97a4fec15d436426586a1f1072ae308c3"
+    },
+    {
+      "path": "screens/scoped-recovery-complete-1440.png",
+      "bytes": 61447,
+      "sha256": "feaea2b8ad6e58b50ffa5e75128ec117beecad8e64a84768a3a231be82fd60e8"
+    },
+    {
+      "path": "screens/scoped-recovery-complete-390.png",
+      "bytes": 52209,
+      "sha256": "af1a3bf4125e4a99b487c9b5e1ffa3c2b23ae65089fb25a4ef0115912dfbae57"
+    },
+    {
+      "path": "screens/scoped-recovery-custodian-1440.png",
+      "bytes": 159536,
+      "sha256": "765718df0486a97be266a71a47c5c1133b671f358076258192bf8f110ada8e67"
+    },
+    {
+      "path": "screens/scoped-recovery-custodian-390.png",
+      "bytes": 142561,
+      "sha256": "d6a3a7d78403479758c0377025c95648bd825712bbc40d083208cba830095777"
+    },
+    {
+      "path": "screens/scoped-recovery-member-1440.png",
+      "bytes": 162894,
+      "sha256": "b2078524a831f8593457c9564b2f618fa669cee13d4194fb86f6de131a8df4f4"
+    },
+    {
+      "path": "screens/scoped-recovery-member-390.png",
+      "bytes": 142842,
+      "sha256": "f75e67b0584b65408a8271c6c3ca24a80d3fec3c938b558b2cf1f27db5fc07ac"
+    },
+    {
+      "path": "screens/scoped-recovery-owner-1440.png",
+      "bytes": 139233,
+      "sha256": "37d77bb81f440dfffc1dc12ddd9fdf50ef7edf4e49916de9bd43dc86b4bdd61e"
+    },
+    {
+      "path": "screens/scoped-recovery-owner-390.png",
+      "bytes": 124909,
+      "sha256": "b34ad6b9c4c72d3d7bf90b0db4764c2d9d6943a7f854d9c6a5e31f6e24cc215f"
+    },
+    {
+      "path": "screens/scoped-recovery-pending-1440.png",
+      "bytes": 69659,
+      "sha256": "f5e72bcc636514953cd0502f0ecea611ab0a4ec2e01ce2604e582bf807e1e667"
+    },
+    {
+      "path": "screens/scoped-recovery-pending-390.png",
+      "bytes": 60657,
+      "sha256": "7160cd0c32aa3e0272c5dd115fd805f83533877f0f6333b4af2298c7ccf61946"
+    },
+    {
+      "path": "screens/scoped-recovery-revoked-1440.png",
+      "bytes": 72138,
+      "sha256": "cdd4482594ac3caaa5837ea0f05c03afd32bb57fee54d2853620c74dee6d353d"
+    },
+    {
+      "path": "screens/scoped-recovery-revoked-390.png",
+      "bytes": 63505,
+      "sha256": "17f8104945d0f23b8afe4a314749157a86650cf6a64709ebd114b1b785518f24"
+    },
+    {
+      "path": "screens/scoped-recovery-unlocked-1440.png",
+      "bytes": 59857,
+      "sha256": "4911e46d4e89b9bd6c9de108ce1706d693b7f0271eb2d403b09b106796bc82da"
+    },
+    {
+      "path": "screens/scoped-recovery-unlocked-390.png",
+      "bytes": 45933,
+      "sha256": "215508f19d7e6320e9f0ad13ae3f896a3d294f397a1f911a7a73e1a31090aca2"
+    },
+    {
+      "path": "typecheck.log",
+      "bytes": 199,
+      "sha256": "af2455dff055be82ded7583aa09c6db17af54a711fe5a9a8948e270db0fe4cab"
+    },
+    {
+      "path": "views-check.log",
+      "bytes": 67,
+      "sha256": "81e695626e05d5037209b2ffbe2262d6cc40a17bc2930cca9dc5793849df656b"
+    },
+    {
+      "path": "views-write.log",
+      "bytes": 67,
+      "sha256": "adae760631186198d4ded63be65a78022166c56e588e137f31e34ad48e1de404"
+    }
+  ]
+}
