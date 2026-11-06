@@ -1,3 +1,4 @@
+import { RecoveryClient } from '../src/latchkey/recovery/client.mjs';
 import assert from 'node:assert/strict';
 import {ReportsClient} from '../src/latchkey/reports/client.mjs';
 import {canonicalJson} from '@runeditrun/rer/modules/portability';
@@ -54,13 +55,16 @@ export async function runSubjectErasureJourneys({owner,db,records,mail,post,fetc
  try{await reportApi.capture(retainedVault,{confirmed:true});}finally{reportOwner.call=originalCall;}
  assert.equal((await reportApi.history(retainedVault)).observations.length,1);
 
+ const recoveryGrant=await new RecoveryClient(owner).setScopes(reportOwner.profile.account,[{account:person.profile.account,generation:person.profile.generation,domain:'company-account'}],{confirmed:true});
+ const recoveryEnrollment=await new RecoveryClient(person).enrollScoped(reportOwner.profile.account,await reportOwner.identity().fingerprint,recoveryGrant.scopes[0].id,{confirmed:true});
+ assert.ok(await db.prepare('SELECT enrollment FROM lky_scoped_recovery_enrollments WHERE enrollment=?').bind(recoveryEnrollment.enrollment).first());
  const healthItem=await owner.put(otherVault,createItem('login',{title:'Synthetic shared health',values:{password:'aaaa'}}));
  const personHealth=new HealthClient(person),ownerHealth=new HealthClient(owner),finding=(await personHealth.inspect(otherVault)).findings.find(row=>row.object===healthItem.object&&row.code==='weak-password');assert.ok(finding);
  await personHealth.suppress(otherVault,finding,{reason:'Synthetic erased member reason'});
  await ownerHealth.suppress(otherVault,finding,{reason:'Synthetic retained owner reason'});
  const legacyHistory=await owner.put(otherVault,{schema:'latchkey/health-suppression/v1',actor:person.profile.account,object:healthItem.object,version:1,code:'weak-password',reason:'Synthetic unsigned erased member reason',until:null});
  let personalHistory=(await person.call(['health','history'].join('/'),{vault:otherVault})).rows;assert.equal(personalHistory.length,1);
- const before=await backup(records);let preview=await owner.call('subject/erase-preview',{subject:operator});
+ const before=await backup(records);for(const table of ['lky_recovery_scopes','lky_scoped_recovery_enrollments']){assert.ok(before.lines[0].excludedTables.includes(table));assert.ok(!before.lines[0].tables.some(row=>row.name===table))}let preview=await owner.call('subject/erase-preview',{subject:operator});
  await personHealth.suppress(otherVault,finding,{reason:'Synthetic decision after review'});
  await rejects(owner.call('subject/erase',{subject:operator,confirmed:true,planHash:preview.planHash}),'subject_erasure_plan_changed');
  assert.deepEqual((await personHealth.history(otherVault)).map(row=>row.reason),['Synthetic erased member reason','Synthetic decision after review']);
@@ -80,6 +84,9 @@ export async function runSubjectErasureJourneys({owner,db,records,mail,post,fetc
  assert.equal(replayError?.code,'report_observation_erased');
  await reportApi.capture(retainedVault,{confirmed:true});
  assert.equal((await reportApi.history(retainedVault)).observations.length,1);
+ assert.equal(await db.prepare('SELECT id FROM lky_recovery_scopes WHERE id=?').bind(recoveryGrant.scopes[0].id).first(),null);
+ assert.equal(await db.prepare('SELECT enrollment FROM lky_scoped_recovery_enrollments WHERE enrollment=?').bind(recoveryEnrollment.enrollment).first(),null);
+ await rejects(new RecoveryClient(owner).setScopes(reportOwner.profile.account,[{account:person.profile.account,generation:person.profile.generation,domain:'company-account'}],{confirmed:true}),'recovery_member_unavailable');
  assert.equal(erased.controlPlaneErased,true);assert.equal(erased.complete,false);
  assert.equal(erased.controlPlaneErased,true);
  assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM lky_health_suppressions WHERE actor=?').bind(person.profile.account).first()).n,0);

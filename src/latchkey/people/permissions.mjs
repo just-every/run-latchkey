@@ -1,3 +1,4 @@
+import { scopedRecoveryAdministration, recoverPermission } from '../recovery/authorization.mjs';
 import { defaultRolePolicy } from '../../modules/operator-auth/index.mjs';
 import { ApiError } from '../api/catalogue.mjs';
 import { access, exact, guarded, need, uuid } from '../lifecycle/common.mjs';
@@ -23,8 +24,9 @@ export async function requirePeople(ctx,permission){
 }
 export async function adminAuthenticated(route,input,ctx){
  if(!route.startsWith('admin/'))return null;
+ const scoped=await scopedRecoveryAdministration(route,input,ctx);if(scoped)return scoped;
  const {all,first,stmt,event}=access(ctx);
- if(route==='admin' + '/permissions'){exact(input,[]);return {rights:adminRights,grants:ctx.session.operator.role==='owner'?await all('SELECT * FROM lky_admin_permissions WHERE tenant=? ORDER BY account,permission',ctx.tenant):await all('SELECT * FROM lky_admin_permissions WHERE tenant=? AND account=? ORDER BY permission',ctx.tenant,ctx.actor)}}
+ if(route==='admin' + '/permissions'){exact(input,[]);return {rights:adminRights,scopedRights:[recoverPermission],grants:ctx.session.operator.role==='owner'?await all('SELECT * FROM lky_admin_permissions WHERE tenant=? ORDER BY account,permission',ctx.tenant):await all('SELECT * FROM lky_admin_permissions WHERE tenant=? AND account=? ORDER BY permission',ctx.tenant,ctx.actor)}}
  if(route==='admin' + '/permissions/set'){
   exact(input,['account','permissions','confirmed']);need(ctx.session.operator.role==='owner','owner_required',403);need(input.confirmed===true,'admin_consent_required',403);
   const account=uuid(input.account);need(Array.isArray(input.permissions)&&input.permissions.length<=adminRights.length&&new Set(input.permissions).size===input.permissions.length&&input.permissions.every(right=>adminRights.includes(right)),'invalid_admin_rights');

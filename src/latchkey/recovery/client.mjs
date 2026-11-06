@@ -1,3 +1,4 @@
+import { scopedPolicy, scopedPurpose, recoveryDomain } from './authorization-client.mjs';
 import * as opaque from '@serenity-kit/opaque';
 import { ClientError } from '../client.mjs';
 import { bytes,decode,encode,id,itemKey,json,keypair,open,random,seal,sign,unlockKey,unwrapSigned } from '../crypto/envelope.mjs';
@@ -20,6 +21,16 @@ export class RecoveryClient {
   await c.call(route('enroll'),{enrollment,kind:'administrator',custodian,wrapped,confirmed});
   return {schema:1,origin:c.origin,account:c.profile.account,tenant:c.profile.tenant,generation:c.profile.generation,enrollment};
  }
+ scopes(){return this.client.call('admin' + '/recovery-scopes',{})}
+ setScopes(custodian,members,{confirmed=false}={}){return this.client.call('admin' + '/recovery-scopes/set',{custodian,members,confirmed})}
+ async enrollScoped(custodian,fingerprint,scope,{confirmed=false}={}) {
+  need(confirmed,'recovery_confirmation_required');const c=this.client,admin=await c.pinAccount(custodian,fingerprint),enrollment=id();
+  const grant=(await this.scopes()).scopes.find(row=>row.id===scope&&row.member===c.profile.account&&row.member_generation===c.profile.generation&&row.custodian===custodian&&row.domain===recoveryDomain);
+  need(grant,'scoped_recovery_authority_required');
+  const wrapped=await c.wrap(bytes({root:c.bundle.root,trusted:c.profile.trusted,seen:c.profile.seen}),admin.publicKey,binding(c.profile.tenant,enrollment,scopedPurpose(scope),c.profile.generation));
+  await c.call(route('scoped-enroll'),{enrollment,scope,policy:scopedPolicy,custodian,wrapped,confirmed});
+  return {schema:1,origin:c.origin,account:c.profile.account,tenant:c.profile.tenant,generation:c.profile.generation,enrollment,policy:scopedPolicy,scope,trustedAdministrator:{account:custodian,authorityKey:admin.authorityKey}};
+ }
  async begin(credential) {
   const c=this.client;need(credential.origin===c.origin,'recovery_origin_mismatch');await opaque.ready;
   const started=opaque.client.startRegistration({password:credential.password}),transfer=await keypair('wrap');
@@ -30,7 +41,7 @@ export class RecoveryClient {
  async approve(operation,{confirmed=false,identityChecked=false}={}) {
   need(confirmed&&identityChecked,'identity_review_required');const c=this.client,review=await c.call(route('administrator-review'),{operation});
   const trusted=c.profile.trusted[review.account];need(trusted?.authorityKey===review.authorityKey,'recipient_confirmation_required');
-  const payload=await unwrapSigned(review.wrapped,c.bundle.root.recipient.privateKey,trusted.authorityKey,review.account,binding(review.tenant,review.enrollment,'administrator-recovery',review.generation));
+  const payload=await unwrapSigned(review.wrapped,c.bundle.root.recipient.privateKey,trusted.authorityKey,review.account,binding(review.tenant,review.enrollment,review.purpose??'administrator-recovery',review.generation));
   const wrapped=await c.wrap(payload,review.transferKey,binding(review.tenant,review.operation,'recovery-approval',review.generation));
   return c.call(route('administrator-approve'),{operation,wrapped,confirmed,identityChecked});
  }

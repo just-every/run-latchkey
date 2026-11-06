@@ -226,6 +226,16 @@ try {
  const offboardToken=new URL(mail.at(-1).content.find(content=>content.type==='text/plain').value.match(/https:\/\/[^\s<>]+/)[0]).searchParams.get('token');
  const leaver=new VaultClient(productOrigin,{fetcher:fetchProduct});await leaver.confirmIdentity(offboardToken);
  const leaverEnrollment=await leaver.register('synthetic-latchkey-2301');await leaver.unlock(leaverEnrollment.profile,'synthetic-latchkey-2301');
+ const scopedRecoveryInput={custodian:member.profile.account,members:[{account:leaver.profile.account,generation:leaver.profile.generation,domain:'company-account'}],confirmed:true};
+ const {requestApi:scopedRest}=await import('../src/latchkey/api/client.mjs');
+ await rejected(scopedRest(member,'PUT','/admin/recovery-scopes',scopedRecoveryInput),'owner_required');
+ const liveScope=await scopedRest(owner,'PUT','/admin/recovery-scopes',scopedRecoveryInput);
+ assert.equal(liveScope.permission,'accounts.recover');
+ assert.equal((await scopedRest(member,'GET','/admin/recovery-scopes')).scopes[0].member,leaver.profile.account);
+ await rejected(member.call('admin' + '/permissions/set',{account:leaver.profile.account,permissions:['people.suspend'],confirmed:true}),'owner_required');
+ await owner.call('admin' + '/recovery-scopes/set',{custodian:member.profile.account,members:[],confirmed:true});
+ assert.equal((await scopedRest(member,'GET','/admin/recovery-scopes')).scopes.length,0);
+
  const workVault=(await leaver.createVault({kind:'private-work'})).vault;
  const companyObject=(await leaver.put(workVault,{value:'synthetic-latchkey-2302'})).object;
  const familyVault=(await leaver.createVault({kind:'family'})).vault;
