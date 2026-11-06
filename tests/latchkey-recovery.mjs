@@ -262,7 +262,7 @@ export async function scopedRecoveryJourney(f) {
  await assert.rejects(admin.approve(pending.preview.operation,{confirmed:true,identityChecked:true}),{code:'named_recovery_administrator_required'});
  await assert.rejects(lost.complete(pending,password,{confirmed:true}),{code:'recovery_case_expired'});
  // Changed custody needs a new member wrap; a different grant cannot open this envelope.
- const otherIdentity=await other.client.identity();await other.client.pinAccount(personIdentity.account,await personIdentity.fingerprint);
+ const otherIdentity=await other.client.identity();otherIdentity.fingerprint=await otherIdentity.fingerprint;await other.client.pinAccount(personIdentity.account,await personIdentity.fingerprint);
  let replacement;
  await assert.rejects(new RecoveryClient(other.client).approve(pending.preview.operation,{confirmed:true,identityChecked:true}),{code:'named_recovery_administrator_required'});
  const directory=await mkdtemp(join(tmpdir(),'latchkey-scoped-cli-'));let completed,newCredential,newPending;
@@ -291,8 +291,20 @@ export async function scopedRecoveryJourney(f) {
  await person.client.unlock(completed.profile,password);assert.equal((await person.client.readVault(vault)).versions[0].value.fields.find(field=>field.id==='note').value,'synthetic-latchkey-9622');assert.deepEqual([...(await new TypedItems(person.client).attachment(vault,item.object,attachment.id)).data],[...new TextEncoder().encode('synthetic-latchkey-9623')]);
  await assert.rejects(other.client.readVault(vault));
  await assert.rejects(new RecoveryClient(await verifiedClient(f,person.email)).begin({...newCredential,password}),{code:'recovery_enrollment_unavailable'});
+ // Exercise the REST administration doors positively, using client-held crypto.
+ const restPerson=await member(f,9630),restVault=(await restPerson.client.createVault()).vault;
+ await restPerson.client.put(restVault,{value:'synthetic-latchkey-9632'});
+ const restIdentity=await restPerson.client.identity();await other.client.pinAccount(restIdentity.account,await restIdentity.fingerprint);
+ const restGrant=await requestApi(f.owner,'PUT','/admin/recovery-scopes',{custodian:otherIdentity.account,members:[{account:restIdentity.account,generation:restPerson.client.profile.generation,domain:'company-account'}],confirmed:true});
+ const restRoutes=new Map([['recovery' + '/scoped-enroll',['POST','/recovery/scoped-enroll']],['recovery' + '/administrator-review',['POST','/recovery/review']],['recovery' + '/administrator-approve',['POST','/recovery/approve']]]);
+ const throughRest=async(client,work)=>{const original=client.call.bind(client);client.call=(route,input)=>{const mapped=restRoutes.get(route);return mapped?requestApi(client,...mapped,input):original(route,input)};try{return await work()}finally{client.call=original}};
+ const restCredential=await throughRest(restPerson.client,()=>new RecoveryClient(restPerson.client).enrollScoped(otherIdentity.account,otherIdentity.fingerprint,restGrant.scopes[0].id,{confirmed:true}));
+ const restLost=new RecoveryClient(await verifiedClient(f,restPerson.email)),restPassword='synthetic-latchkey-9633',restPending=await restLost.begin({...restCredential,password:restPassword});
+ await throughRest(other.client,()=>new RecoveryClient(other.client).approve(restPending.preview.operation,{confirmed:true,identityChecked:true}));
+ const restResult=await restLost.complete(restPending,restPassword,{confirmed:true});await restPerson.client.unlock(restResult.profile,restPassword);
+ assert.equal((await restPerson.client.readVault(restVault)).versions[0].value.value,'synthetic-latchkey-9632');await assert.rejects(other.client.readVault(restVault));
  const stored=JSON.stringify((await f.db.prepare('SELECT * FROM lky_recovery_custody').all()).results)+JSON.stringify((await f.db.prepare('SELECT * FROM lky_recovery_cases').all()).results)+JSON.stringify(await f.owner.call('audit',{}))+JSON.stringify(f.mail);
- for(const secret of[person.client.bundle.root.recipient.privateKey,other.client.bundle.root.recipient.privateKey,password,'synthetic-latchkey-9622'])assert.ok(!stored.includes(secret));
+ for(const secret of[person.client.bundle.root.recipient.privateKey,other.client.bundle.root.recipient.privateKey,password,'synthetic-latchkey-9622',restPassword,restPerson.client.bundle.root.recipient.privateKey,'synthetic-latchkey-9632'])assert.ok(!stored.includes(secret));
  console.log('Scoped recovery: owner-confirmed exact domains, non-owner client custody, live authority at every stage, changed custodian, CLI and REST approval, forbidden everyday doors and replay refusal passed');
 }
 if (process.argv[1] === import.meta.filename) {
