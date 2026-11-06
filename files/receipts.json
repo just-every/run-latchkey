@@ -1,0 +1,164 @@
+{
+  "schema": 1,
+  "tag": "sx-latchkey-c-f277",
+  "repository": "just-every/run-latchkey",
+  "branch": "cloud/sx-latchkey-c-f277",
+  "head": "d45887877be379c6326ac1fce7c69d4e89656018",
+  "mainAtIntegration": "b516f222b935d566d6b0499809aa7b2c7f803900",
+  "createdAt": "2026-11-06T22:10:15.103068+00:00",
+  "localChecks": [
+    {
+      "command": "cloud_run npx -y @runeditrun/rer build",
+      "exit": 0,
+      "proof": "emitted Worker and browser build"
+    },
+    {
+      "command": "cloud_run node tests/latchkey-recovery.mjs",
+      "node": "22.20.0",
+      "exit": 0,
+      "log": "RECOVERY.txt"
+    },
+    {
+      "command": "cloud_run node tests/runtime.mjs",
+      "node": "22.20.0",
+      "exit": 0,
+      "log": "RUNTIME.txt",
+      "includes": [
+        "runSubjectErasureJourneys",
+        "exerciseRecordsRestore"
+      ]
+    },
+    {
+      "command": "cloud_run perl -e 'alarm 1200; exec @ARGV' -- node tests/browser/vault.mjs --scoped-recovery",
+      "node": "22.20.0",
+      "exit": 0,
+      "browser": "/usr/bin/chromium --no-sandbox",
+      "log": "BROWSER.txt",
+      "widths": [
+        1440,
+        390
+      ],
+      "assertionWidth": 1440
+    },
+    {
+      "command": "cloud_run pnpm run typecheck",
+      "exit": 0
+    },
+    {
+      "command": "cloud_run npx -y @runeditrun/rer check --profile first-party",
+      "exit": 0
+    },
+    {
+      "command": "node scripts/contract-docs.mjs write LKY-032",
+      "exit": 0
+    },
+    {
+      "command": "node scripts/contract-docs.mjs check LKY-032",
+      "exit": 0,
+      "phase": "immediately after generator write"
+    },
+    {
+      "command": "git checkout origin/main -- ACCEPTANCE.md docs/CLAIMS.md",
+      "exit": 0,
+      "phase": "restore generated views; neither view committed"
+    },
+    {
+      "command": "node scripts/contract-docs.mjs check LKY-032",
+      "exit": 1,
+      "phase": "after restoring main views",
+      "failure": "ACCEPTANCE.md differs from CONTRACT.md; permitted generated-view freshness failure"
+    },
+    {
+      "command": "node scripts/edition-authoring/cli.mjs lock",
+      "exit": 0
+    },
+    {
+      "command": "node scripts/edition-authoring/cli.mjs check",
+      "exit": 0
+    },
+    {
+      "command": "node /tmp/f277-ledger.mjs",
+      "exit": 0,
+      "log": "MECHANICAL.txt",
+      "appliedMigrations": 49,
+      "unmatched": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit": 0
+    },
+    {
+      "command": "git diff --exit-code origin/main -- CONTRACT.md ACCEPTANCE.md docs/CLAIMS.md",
+      "exit": 0
+    }
+  ],
+  "testedBytes": {
+    "src/latchkey/recovery/authorization.mjs": "7a7f7e5a18f5531d871a6119b8b280992efc5d3969e5cec5f849bdd6cae2c291",
+    "src/latchkey/recovery/authorization-client.mjs": "b6f4426b717f260d2b22d6f71d68d58299477c2cb2c6e60e608114a4c98f41fa",
+    "src/latchkey/recovery/service.mjs": "9bbef7b18a5e59b93b3ef08feed5cefc08e8e52d1adb993022482f2bf2f181be",
+    "src/latchkey/recovery/client.mjs": "caf8ad3b478c6f29af23df8491a215224a60996f814704db39e37fd7f2496305",
+    "src/latchkey/recovery/scoped-ui.tsx": "3933261a11b8dcd11ed7b183ad6b0dafc33589e5c8d058e55f83dd66563bf83e",
+    "src/latchkey/ui/vault.tsx": "55c23f8f068c23cbf492ec3caebfbaad1fc04393f385a47bf0b9cbcbb8fec0e0",
+    "tests/latchkey-recovery.mjs": "0917d26f8fbdcebfd563a9ee1da2c982a056184607c7e258a3e933408c7f65cc",
+    "tests/runtime.mjs": "fce6ee2b52cceb6e3be3a4b9469964fa0bb7085c28dfd3a13d27a7c4a6a58e9a",
+    "tests/browser/recovery-scoped.mjs": "b4db824bc686bfd249275f581534320558fe148dc7f3800478ea7c0ba66c9f15",
+    "tests/browser/vault.mjs": "10396874081f25cec7edcfd16b9c92c57620f340d96d1a68e6973e7b9646cf97",
+    "tests/latchkey-subject-erasure.mjs": "e3fb239eb56ce4767eb5dd3e9c8cfed7291a99c7079ea4c138da77d1da7633c3",
+    "tests/latchkey-restore.mjs": "823a2bf9709298c6cd0c2d989dcf2c19c130b763eb11b244a29c961ab1f2bb5e"
+  },
+  "provenance": "All relevant source and journey bytes match the pushed candidate. Local journeys ran on these bytes before the final commit; the final commit and lock regeneration did not alter them. CI is the recorded exact-SHA full-suite gate.",
+  "countsBefore": {
+    "done": 8,
+    "partial": 26,
+    "missing": 46
+  },
+  "countsAfter": {
+    "done": 8,
+    "partial": 26,
+    "missing": 46
+  },
+  "publicationScan": {
+    "commit": "d45887877be379c6326ac1fce7c69d4e89656018",
+    "complete": false,
+    "historyScanned": false,
+    "findings": null,
+    "reason": "Cloud branch push; maintained Mac lander owns full-history publication scan. No COMPLETE or zero-findings claim."
+  },
+  "landing": {
+    "mainEqualsCandidate": false,
+    "RunSiteOnCandidate": null
+  },
+  "screens": [
+    "screens/scoped-recovery-complete-1440.png",
+    "screens/scoped-recovery-complete-390.png",
+    "screens/scoped-recovery-custodian-1440.png",
+    "screens/scoped-recovery-custodian-390.png",
+    "screens/scoped-recovery-member-1440.png",
+    "screens/scoped-recovery-member-390.png",
+    "screens/scoped-recovery-owner-1440.png",
+    "screens/scoped-recovery-owner-390.png",
+    "screens/scoped-recovery-pending-1440.png",
+    "screens/scoped-recovery-pending-390.png",
+    "screens/scoped-recovery-revoked-1440.png",
+    "screens/scoped-recovery-revoked-390.png",
+    "screens/scoped-recovery-unlocked-1440.png",
+    "screens/scoped-recovery-unlocked-390.png"
+  ],
+  "defaultsAdopted": [],
+  "testRegistrationsAddedThisContinuation": 0,
+  "existingAssertionsRemovedOrNarrowed": false,
+  "productPushes": [
+    {
+      "head": "5e724c5",
+      "kind": "save",
+      "skipCi": true,
+      "result": "success"
+    },
+    {
+      "head": "d45887877be379c6326ac1fce7c69d4e89656018",
+      "kind": "candidate",
+      "skipCi": false,
+      "result": "success"
+    }
+  ]
+}

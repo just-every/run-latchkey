@@ -1,0 +1,8 @@
+MECHANICAL lock=node scripts/edition-authoring/cli.mjs lock then check exit=0; views=node scripts/contract-docs.mjs write LKY-032 then check LKY-032 exit=0; ledger=node /tmp/f277-ledger.mjs exit=0
+(node:4049) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"check":"installed migration ledger against checkout inventory","exit":0,"migrations":49,"scopedRecoveryMigration":true,"unmatched":0}
+
+Main views were restored whole. Their separate freshness check exits 1 with ACCEPTANCE.md differs from CONTRACT.md. This is the expected generated-view exception, not a product failure.
+CONTRACT.md, ACCEPTANCE.md and docs/CLAIMS.md match origin/main byte for byte. No Status, Gap or Evidence cells were changed.
+Source lock check on final committed head: exit=0.

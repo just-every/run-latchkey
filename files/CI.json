@@ -1,0 +1,17 @@
+{
+  "observedAt": "2026-11-06T22:10:15.102947+00:00",
+  "runs": [
+    {
+      "conclusion": null,
+      "event": "push",
+      "head_sha": "d45887877be379c6326ac1fce7c69d4e89656018",
+      "html_url": "https://github.com/just-every/run-latchkey/actions/runs/42302266849",
+      "id": 42302266849,
+      "name": "Verify",
+      "status": "in_progress"
+    }
+  ],
+  "callsUsed": 3,
+  "pollsAfterDiscovery": 0,
+  "note": "No workflow dispatch or rerun. Branch Verify was in progress at discovery. Main Verify 42294936082 and Run site 42294936116 completed successfully at b516f222b935d566d6b0499809aa7b2c7f803900"
+}
