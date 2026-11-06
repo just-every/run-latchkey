@@ -1,0 +1,8 @@
+file:///workspace/run-latchkey/scripts/contract-docs.mjs:41
+ else if(actual!==expected)throw Error(path+' differs from CONTRACT.md; run the matching write command');
+                                 ^
+
+Error: ACCEPTANCE.md differs from CONTRACT.md; run the matching write command
+    at file:///workspace/run-latchkey/scripts/contract-docs.mjs:41:34
+
+Node.js v24.19.0

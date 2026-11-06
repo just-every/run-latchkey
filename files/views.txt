@@ -1,0 +1,2 @@
+Contract documents write: LKY-051; 8 done, 26 partial, 46 missing.
+Contract documents check: LKY-051; 8 done, 26 partial, 46 missing.

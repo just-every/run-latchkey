@@ -1,0 +1,50 @@
+{
+  "advertised_runs": [
+    {
+      "conclusion": "skipped",
+      "event": "push",
+      "head_sha": "d8cfef5db50cab38b36354746ae3af607bfdaed0",
+      "html_url": "https://github.com/just-every/run-latchkey/actions/runs/42281675366",
+      "id": 42281675366,
+      "name": "Run demo",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "event": "push",
+      "head_sha": "d8cfef5db50cab38b36354746ae3af607bfdaed0",
+      "html_url": "https://github.com/just-every/run-latchkey/actions/runs/42281675227",
+      "id": 42281675227,
+      "name": "Run site",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "event": "dynamic",
+      "head_sha": "d8cfef5db50cab38b36354746ae3af607bfdaed0",
+      "html_url": "https://github.com/just-every/run-latchkey/actions/runs/42281674883",
+      "id": 42281674883,
+      "name": "Push on main",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "event": "push",
+      "head_sha": "d8cfef5db50cab38b36354746ae3af607bfdaed0",
+      "html_url": "https://github.com/just-every/run-latchkey/actions/runs/42281675229",
+      "id": 42281675229,
+      "name": "Verify",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "event": "push",
+      "head_sha": "d8cfef5db50cab38b36354746ae3af607bfdaed0",
+      "html_url": "https://github.com/just-every/run-latchkey/actions/runs/42278797162",
+      "id": 42278797162,
+      "name": "Verify",
+      "status": "completed"
+    }
+  ],
+  "query_exit": 0
+}

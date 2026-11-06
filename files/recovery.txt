@@ -1,0 +1,11 @@
+▲ [WARNING] Proxy environment variables detected. We'll use your proxy for fetch requests.
+
+
+Two-person recovery: fresh policy, withheld shares, authority and replay refusals, encrypted company recovery passed
+Shipped quorum CLI: independent policy reviews, private enrollment, exact transcript approval, withheld-share refusal and company recovery passed
+Failed mail acceptance refuses enrollment without retaining recovery custody
+Independent one-use self recovery and named administrator lost-password recovery passed
+Personal emergency scope, waiting, notices, cancellation and expiry passed
+Recovery authority stays absent after actual archive restore and person erasure removes custody
+Shipped CLI recovery start and finish keep private files private and require confirmation
+Recovery preview, kit factors, old-authority refusal and retained decryption passed

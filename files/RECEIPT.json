@@ -1,0 +1,155 @@
+{
+  "branch": "cloud/sx-latchkey-c-f275",
+  "checks": [
+    {
+      "command": "pnpm run typecheck",
+      "exit": 0
+    },
+    {
+      "command": "npx -y @runeditrun/rer build",
+      "exit": 0,
+      "note": "Relevant build sources unchanged before final commit"
+    },
+    {
+      "command": "perl -e 'alarm 1200; exec @ARGV' -- node tests/latchkey-recovery.mjs",
+      "exit": 0,
+      "head": "e483bdb4ed2ad7445bc31e60dc718cb1f94a49c6"
+    },
+    {
+      "chromium": "/usr/bin/chromium",
+      "command": "perl -e 'alarm 1200; exec @ARGV' -- node tests/browser/recovery-quorum.mjs",
+      "exit": 0,
+      "head": "e483bdb4ed2ad7445bc31e60dc718cb1f94a49c6",
+      "widths": [
+        1440,
+        390
+      ]
+    },
+    {
+      "command": "npx -y @runeditrun/rer check --profile first-party",
+      "exit": 0
+    },
+    {
+      "command": "node scripts/contract-docs.mjs write LKY-051",
+      "exit": 0
+    },
+    {
+      "command": "node scripts/contract-docs.mjs check LKY-051",
+      "exit": 0,
+      "phase": "after write"
+    },
+    {
+      "command": "node scripts/contract-docs.mjs check LKY-051",
+      "exit": 1,
+      "expected": true,
+      "failure": "ACCEPTANCE.md differs from CONTRACT.md",
+      "phase": "after restoring origin/main views"
+    },
+    {
+      "command": "node scripts/edition-authoring/cli.mjs lock",
+      "exit": 0
+    },
+    {
+      "command": "node scripts/edition-authoring/cli.mjs check",
+      "exit": 0
+    },
+    {
+      "applied": 50,
+      "command": "/home/agent/rer-consolidation/work/sx-latchkey-c-f275/ledger-check.mjs",
+      "exit": 0,
+      "pending": 0,
+      "unchanged_prior": 48
+    }
+  ],
+  "claim": {
+    "acceptance_evidence_sentences": [
+      2,
+      3,
+      4
+    ],
+    "clause": "LKY-051",
+    "status": "PARTIAL"
+  },
+  "contract_changed": false,
+  "counts_after": {
+    "done": 8,
+    "missing": 46,
+    "partial": 26,
+    "total": 80
+  },
+  "counts_before": {
+    "done": 8,
+    "missing": 46,
+    "partial": 26,
+    "total": 80
+  },
+  "exact_head_verify": "not advertised by initial discovery",
+  "generated_views_committed": false,
+  "head": "e483bdb4ed2ad7445bc31e60dc718cb1f94a49c6",
+  "node": "22.20.0",
+  "pr": null,
+  "publication_scan": {
+    "complete": null,
+    "findings": null,
+    "historyScanned": null,
+    "status": "deferred to Mac guarded lander"
+  },
+  "pushed": true,
+  "remote_head_verified": true,
+  "repository": "just-every/run-latchkey",
+  "schema": 1,
+  "screens": [
+    {
+      "path": "screens/quorum-policy-review-1440.png",
+      "sha256": "4aeb044655421b2a5206c0da39235715ab75be7909198f53ffcca18d5d95e592",
+      "width": 1440
+    },
+    {
+      "path": "screens/quorum-enrolled-1440.png",
+      "sha256": "f3a300a2962953d7496cec41045dfe80abd25933a226b97195975ca46f920060",
+      "width": 1440
+    },
+    {
+      "path": "screens/quorum-waiting-1440.png",
+      "sha256": "ac6a6ca35814d2e3544ea318a856e0aa3a57110cf9b937eb35e044e710126a48",
+      "width": 1440
+    },
+    {
+      "path": "screens/quorum-case-review-1440.png",
+      "sha256": "2e1fc3fe5fdb16ae3c14a2af96b3230a9ba2c9a608857327d3e3e9a8033150ca",
+      "width": 1440
+    },
+    {
+      "path": "screens/quorum-retain-files-1440.png",
+      "sha256": "e7f33fc29b68e499d5e9544a1d2fa3d7874287d30ddacd7517831fe62dbed868",
+      "width": 1440
+    },
+    {
+      "path": "screens/quorum-policy-review-390.png",
+      "sha256": "482677b447f4a1f2a5886e25dda4b26e2743deb60846ffec055c3570e20aa0ad",
+      "width": 390
+    },
+    {
+      "path": "screens/quorum-enrolled-390.png",
+      "sha256": "582057ffa93356d1ef440350752e69e6e67bbc93bf851cba59b75509d822f4f8",
+      "width": 390
+    },
+    {
+      "path": "screens/quorum-waiting-390.png",
+      "sha256": "f79dba053be7148e9a9e9b31e1000c3ce613d54483e3d32c6d7efab22b45fbf7",
+      "width": 390
+    },
+    {
+      "path": "screens/quorum-case-review-390.png",
+      "sha256": "c1ed3865529e290d185c2257975821b6127a0cdce357fb7262872e308e98094d",
+      "width": 390
+    },
+    {
+      "path": "screens/quorum-retain-files-390.png",
+      "sha256": "e3985731038ba8929a76487b35087fb8d1a8ffd0089097d8a21418373eadf2c2",
+      "width": 390
+    }
+  ],
+  "source_main": "d8cfef5db50cab38b36354746ae3af607bfdaed0",
+  "tag": "sx-latchkey-c-f275"
+}

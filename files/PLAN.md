@@ -1,0 +1,9 @@
+LKY-051 implementation plan
+
+1. Preserve the legacy single-administrator and self-recovery doors. Add an explicitly separate two-of-two enrollment with a random payload key split by XOR into two independent 256-bit shares. Wrap one share per pinned named owner on the member client; retain only encrypted payload and encrypted shares on the service.
+2. Add exact proposed-policy review by two distinct active owners, excluding the requester. Bind approvals to the current member generation, base policy revision, proposed named custodians and current owner generation and operator version. Policy activation invalidates prior enrollments; additions require fresh member enrollment.
+3. Bind recovery approvals to exact case, member generation, policy revision, enrollment, transfer key, expiry and authority snapshots. Check the same authority within atomic mutation guards. Reconstruct only in the requesting client after two signed encrypted releases. Refuse duplicates, stale authority, missing shares and concurrent replay.
+4. Provide existing-style Settings forms and CLI verbs. Exercise member enrollment and each custodian's explicit review in an actual browser at 1440 and 390, with assertions at 1440. Extend the existing recovery integration journey for adversarial requests, encrypted content reconciliation, archives and subject erasure.
+5. Run touched recovery and browser checks, typecheck, contract generation and source lock checks. Preserve contract Status cells and generated views. Push branch saves and final candidate, publish actual reports and receipts on the separate evidence branch.
+
+Full-clause DONE is unavailable: hardware, native-device and separate MFA recovery requirements remain held or unproved as specified in the assignment. No independent cryptographic assessment or root-rotation qualification is claimed.
