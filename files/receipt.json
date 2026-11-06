@@ -1,0 +1,140 @@
+{
+  "schema": 1,
+  "tag": "sx-latchkey-c-f276",
+  "repository": "just-every/run-latchkey",
+  "branch": "cloud/sx-latchkey-c-f276",
+  "head": "1c9e95b0183968009f9b4fe0a3656eb18cab0de8",
+  "origin_main": "b516f222b935d566d6b0499809aa7b2c7f803900",
+  "main_equals_candidate": false,
+  "full_history": true,
+  "clean": true,
+  "product_push": {
+    "command": "python3 $HOME/rer-consolidation/.tools/cloud-push.py origin cloud/sx-latchkey-c-f276",
+    "exit": 0
+  },
+  "tests": [
+    {
+      "command": "node tests/latchkey-recovery.mjs",
+      "exit": 0,
+      "output": "recovery-output.txt",
+      "proof": "Working tree identical to the final candidate recovery journey and implementation."
+    },
+    {
+      "command": "node tests/runtime.mjs",
+      "exit": 0,
+      "output": "runtime-output.txt",
+      "proof": "Runtime test and implementation bytes unchanged on final candidate."
+    },
+    {
+      "command": "node tests/browser/vault.mjs --scoped-recovery",
+      "exit": 0,
+      "widths": [
+        1440,
+        390
+      ],
+      "output": "browser-output.txt",
+      "proof": "Browser journey and implementation bytes unchanged on final candidate; default Verify registration in tests/browser/vault.mjs invokes both widths."
+    }
+  ],
+  "bindings": {
+    "src/latchkey/recovery/client.mjs": {
+      "sha256": "caf8ad3b478c6f29af23df8491a215224a60996f814704db39e37fd7f2496305",
+      "blob": "b1b3ff8b630c9067d76a2f5acd6a813e5ed5f84b"
+    },
+    "src/latchkey/recovery/service.mjs": {
+      "sha256": "9bbef7b18a5e59b93b3ef08feed5cefc08e8e52d1adb993022482f2bf2f181be",
+      "blob": "2e67dcbb8c9bc80a11cd39a2ef900092ed0f8060"
+    },
+    "src/latchkey/recovery/authorization.mjs": {
+      "sha256": "7a7f7e5a18f5531d871a6119b8b280992efc5d3969e5cec5f849bdd6cae2c291",
+      "blob": "bc56237f2bf448b9c4f96b91d065e4afdf62ccf9"
+    },
+    "src/latchkey/recovery/scoped-ui.tsx": {
+      "sha256": "207c254947ad22cb872b13b10e0a2d1126851361f79a37bb36f44c26dc0e420c",
+      "blob": "8fc2d0c7305df4baeb8ec3f8d5c67ff29b7cda74"
+    },
+    "tests/latchkey-recovery.mjs": {
+      "sha256": "092e1dc0dca41ec40817e94abcc59c929a420389fe5be9a26d46f34f0057ac6d",
+      "blob": "23a57bdfe4cc7a5f998d1acad5234f90fccf1498"
+    },
+    "tests/browser/recovery-scoped.mjs": {
+      "sha256": "e5bb09f4ffd0772a8f7ec51479b60dc35a916bb96059f7ce628d622a336c99d5",
+      "blob": "fb564fed55f8809fa19ac666a21072f23e909549"
+    },
+    "tests/browser/vault.mjs": {
+      "sha256": "10396874081f25cec7edcfd16b9c92c57620f340d96d1a68e6973e7b9646cf97",
+      "blob": "1df31e9a9b78f9f8cc4c683455e105b883d1a148"
+    },
+    "tests/runtime.mjs": {
+      "sha256": "70d77f59ed2574b6223c8be99c3f8d18df84d585ec8b41f1baaec931a28d5744",
+      "blob": "d148fa76a92c7d35242798e56ac547990fcfdd5d"
+    },
+    "tests/latchkey-restore.mjs": {
+      "sha256": "823a2bf9709298c6cd0c2d989dcf2c19c130b763eb11b244a29c961ab1f2bb5e",
+      "blob": "4632f5e4f545bab72d9013363cd82b083e062f1a"
+    },
+    "tests/latchkey-subject-erasure.mjs": {
+      "sha256": "2908894b01c8776dc1844b80d46ca4373c1ea58f91aed4d9a850642ca7e59b94",
+      "blob": "08e9f0350323fc3816c609cb306c3eb6b3351def"
+    }
+  },
+  "publication_scan": {
+    "commit": "1c9e95b0183968009f9b4fe0a3656eb18cab0de8",
+    "complete": false,
+    "historyScanned": false,
+    "findings": null,
+    "status": "Delegated to the maintained Mac lander; not run in cloud."
+  },
+  "counts": {
+    "before": {
+      "done": 8,
+      "partial": 26,
+      "missing": 46,
+      "total": 80
+    },
+    "after": {
+      "done": 8,
+      "partial": 26,
+      "missing": 46,
+      "total": 80
+    }
+  },
+  "clauses": {
+    "LKY_032": {
+      "before": "partial",
+      "after": "partial",
+      "builder_status_edits": false
+    }
+  },
+  "prior_candidates": [
+    {
+      "head": "05230f363186abd97a2bd50946b2cf019bbee8d2",
+      "purpose": "Published save with skip ci"
+    },
+    {
+      "head": "efecaa46dacfef3c4bd4822893d418bbe1732a7e",
+      "verify": 42294648525,
+      "conclusion": "cancelled"
+    },
+    {
+      "head": "407ce975e6785c56f0de9eb90861ec90180d82a7",
+      "verify": 42295278788,
+      "conclusion": "superseded; not polled"
+    }
+  ],
+  "ci": {
+    "run_id": 42295751721,
+    "event": "push",
+    "status": "in_progress",
+    "conclusion": null,
+    "head_sha": "1c9e95b0183968009f9b4fe0a3656eb18cab0de8",
+    "html_url": "https://github.com/just-every/run-latchkey/actions/runs/42295751721"
+  },
+  "proof_continuity": {
+    "base": "efecaa46dacfef3c4bd4822893d418bbe1732a7e",
+    "relevant_implementation_browser_and_runtime_unchanged": true,
+    "recovery_journey_rerun_after_final_assertions": true
+  },
+  "contract_source_matches_origin_main": true,
+  "candidate_commits": 4
+}

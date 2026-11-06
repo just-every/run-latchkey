@@ -1,0 +1,7 @@
+Target LKY-032 remains PARTIAL: native and provider authentication, source rights migration and the whole atomic authority matrix remain outside this bounded rider.
+1. Inspect existing member-confirmed owner recovery, permission enforcement, archive exclusions and subject erasure.
+2. Add owner-confirmed accounts.recover scopes for named company members and current full-account key domain; bind each fresh enrollment to exact grant and custodian generation.
+3. Revalidate current grant and enrollment at every recovery door and transaction; refuse regrant revival, stale authority and incompatible policy. Preserve legacy owner recovery and independent-family fences.
+4. Expose signed and REST administration, shipped CLI and Settings browser ceremonies. Register browser recovery journey; extend existing runtime, recovery and archive/erasure journeys.
+5. Run touched emitted-Worker journeys, browser proof at 1440 and 390, typecheck, first-party check, generator write/check, migration checks and source lock regeneration. Restore generated views unchanged.
+6. Push fleet-authored save and final candidate to named cloud branch; publish full report and actual receipts to separate evidence branch. Report exact SHA and exact-SHA CI state honestly, with held remainder.

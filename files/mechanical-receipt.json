@@ -1,0 +1,91 @@
+{
+  "head": "1c9e95b0183968009f9b4fe0a3656eb18cab0de8",
+  "branch": "cloud/sx-latchkey-c-f276",
+  "clean": true,
+  "checks": [
+    {
+      "command": [
+        "node",
+        "scripts/contract-docs.mjs",
+        "write",
+        "LKY-032"
+      ],
+      "exit": 0,
+      "seconds": 0.14,
+      "stdout_sha256": "adae760631186198d4ded63be65a78022166c56e588e137f31e34ad48e1de404",
+      "output": "Contract documents write: LKY-032; 8 done, 26 partial, 46 missing.\n"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/contract-docs.mjs",
+        "check",
+        "LKY-032"
+      ],
+      "exit": 0,
+      "seconds": 0.11,
+      "stdout_sha256": "81e695626e05d5037209b2ffbe2262d6cc40a17bc2930cca9dc5793849df656b",
+      "output": "Contract documents check: LKY-032; 8 done, 26 partial, 46 missing.\n"
+    },
+    {
+      "command": [
+        "git",
+        "checkout",
+        "origin/main",
+        "--",
+        "ACCEPTANCE.md",
+        "docs/CLAIMS.md"
+      ],
+      "exit": 0,
+      "seconds": 0.0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "output": ""
+    },
+    {
+      "command": [
+        "node",
+        "scripts/edition-authoring/cli.mjs",
+        "check"
+      ],
+      "exit": 0,
+      "seconds": 0.32,
+      "stdout_sha256": "0129892c49465c1d75b266d089e873d94b5d470d39dbd614e2c6e41f15c77a0c",
+      "output": "Public source inventory verified; full stdout omitted from packet."
+    },
+    {
+      "command": [
+        "pnpm",
+        "run",
+        "typecheck"
+      ],
+      "exit": 0,
+      "seconds": 0.38,
+      "stdout_sha256": "96f5a7fdaf38b224eccd15d3beb1d111deb070eea1563d55f1ff055716718c77",
+      "output": "\u2009WARN\u2009 Unsupported engine: wanted: {\"node\":\"22.20.0\"} (current: {\"node\":\"v24.19.0\",\"pnpm\":\"10.12.4\"})\n\n> @just-every/latchkey@0.1.0 typecheck /workspace/latchkey-f276\n> tsc --build --incremental\n\n"
+    },
+    {
+      "command": [
+        "npx",
+        "-y",
+        "@runeditrun/rer",
+        "check",
+        "--profile",
+        "first-party"
+      ],
+      "exit": 0,
+      "seconds": 0.79,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "output": ""
+    },
+    {
+      "command": [
+        "node",
+        "/home/agent/rer-consolidation/work/sx-latchkey-c-f276/packet/migration-ledger.mjs"
+      ],
+      "exit": 0,
+      "seconds": 0.09,
+      "stdout_sha256": "36ab4426ce61b03b1a173d7e8e5897f47be7645066a3af52d8fe8832e5bddde0",
+      "output": "{\"check\":\"nativeMigrationPreflight\",\"nativeApply\":false,\"applied\":49,\"scopedRecovery\":true}\n"
+    }
+  ]
+}
