@@ -20,6 +20,7 @@ const schema = {
  bs_team:'email operator_id invite state business_id business_role',
  lky_report_keys:'vault_id owner wrapped',lky_report_observations:'id vault_id day as_of source_revision envelope',
  lky_health_suppressions:'id tenant actor vault_id object_id item_version generation epoch until_at wrapped created_at source_revision sequence active',
+ lky_recovery_root_history:'account legacy_seen quorum_seen',
  lky_quorum_policies:'account tenant generation revision change_id custodians',
  lky_quorum_changes:'id account tenant generation base_revision custodians expires_at consumed_at',
  lky_quorum_votes:'change_id approver authority',

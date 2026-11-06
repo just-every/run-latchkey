@@ -42,7 +42,7 @@ export async function recoverySession(route,input,ctx) {
   if(action==='status'&&quorum){exact(input,['operation']);return {approved:quorum.approvals.length===2,statement:quorum.statement,payload:JSON.parse(enrolled.payload),approvals:quorum.approvals.map(a=>({...a,wrapped:JSON.parse(a.wrapped)}))}}
   if(action==='status'){exact(input,['operation']);return {approved:!!operation.approved_wrap,wrapped:operation.approved_wrap?JSON.parse(operation.approved_wrap):null,custodian:enrolled.custodian}}
   exact(input,['operation','record','device','deviceKey','bundle','recoveryKey','recoveryWrap','signature']);
-  need(enrolled.kind==='self'||operation.approved_wrap||quorum?.approvals.length===2,'recovery_approval_required',403);
+  need(quorum?quorum.approvals.length===2:enrolled.kind==='self'||operation.approved_wrap,'recovery_approval_required',403);
   const {signature,...signed}=input;need(await verify(account.recovery_key,signature,recoveryText(signed)),'recovery_possession_required',403);
   need(typeof input.record==='string'&&input.record.length<4096);await publicKey(input.deviceKey,'sign');await publicKey(input.recoveryKey,'sign');const target=uuid(input.device),next=account.generation+1;
   validateEnvelope(input.bundle,binding(ctx.tenant,target,'device',next));validateEnvelope(input.recoveryWrap,binding(ctx.tenant,account.id,'recovery',next));
@@ -71,12 +71,13 @@ export async function recoveryAuthenticated(route,input,ctx) {
   exact(input,['enrollment','kind','custodian','wrapped','confirmed']);need(input.confirmed===true,'recovery_confirmation_required',403);const enrollment=uuid(input.enrollment);
   need(['self','administrator'].includes(input.kind));let admin=null;
   if(input.kind==='administrator') {
+   need(!await first('SELECT 1 FROM lky_recovery_root_history WHERE account=? AND quorum_seen=1',ctx.actor),'quorum_custody_requires_separate_account',403);
    admin=await activeAccount(ctx,uuid(input.custodian));need(admin?.role==='owner'&&admin.id!==ctx.actor,'named_recovery_administrator_required',403);
    need(!await first("SELECT 1 FROM lky_vaults v JOIN lky_recipients r ON r.vault_id=v.id WHERE r.account_id=? AND v.kind='family'",ctx.actor),'independent_family_account_required',403);
    need(await verifyWrapped(input.wrapped,account.authority_key,ctx.actor,binding(ctx.tenant,enrollment,'administrator-recovery',account.generation)),'invalid_key_signature',403);
   }else{need(input.custodian===null);validateEnvelope(input.wrapped,binding(ctx.tenant,enrollment,'self-recovery',account.generation))}
   await notice(ctx,account.operator_id,'recovery enrollment');
-  await guarded(ctx,[],[stmt('INSERT INTO lky_recovery_custody VALUES(?,?,?,?,?,?,?,NULL)',enrollment,ctx.actor,account.generation,input.kind,admin?.id??null,admin?.generation??null,JSON.stringify(input.wrapped)),event('recovery_enrolled',enrollment)],admin?[guard("NOT EXISTS(SELECT 1 FROM lky_vaults v JOIN lky_recipients r ON r.vault_id=v.id WHERE r.account_id=? AND v.kind='family')",[ctx.actor]),guard("EXISTS(SELECT 1 FROM lky_accounts a JOIN oa_operators o ON o.id=a.operator_id WHERE a.id=? AND a.generation=? AND o.role='owner' AND o.status='active')",[admin.id,admin.generation])]:[]);
+  await guarded(ctx,[],[...(admin?[stmt('INSERT INTO lky_recovery_root_history VALUES(?,1,0) ON CONFLICT(account) DO UPDATE SET legacy_seen=1',ctx.actor)]:[]),stmt('INSERT INTO lky_recovery_custody VALUES(?,?,?,?,?,?,?,NULL)',enrollment,ctx.actor,account.generation,input.kind,admin?.id??null,admin?.generation??null,JSON.stringify(input.wrapped)),event('recovery_enrolled',enrollment)],admin?[guard('NOT EXISTS(SELECT 1 FROM lky_recovery_root_history WHERE account=? AND quorum_seen=1)',[ctx.actor]),guard("NOT EXISTS(SELECT 1 FROM lky_vaults v JOIN lky_recipients r ON r.vault_id=v.id WHERE r.account_id=? AND v.kind='family')",[ctx.actor]),guard("EXISTS(SELECT 1 FROM lky_accounts a JOIN oa_operators o ON o.id=a.operator_id WHERE a.id=? AND a.generation=? AND o.role='owner' AND o.status='active')",[admin.id,admin.generation])]:[]);
   return {enrollment,kind:input.kind,custodian:admin?.id??null};
  }
  if(action==='revoke') {exact(input,['enrollment']);await guarded(ctx,[],[stmt('UPDATE lky_recovery_custody SET revoked_at=? WHERE id=? AND account=?',ctx.now,uuid(input.enrollment),ctx.actor),stmt('UPDATE lky_quorum_enrollments SET revoked_at=? WHERE id=? AND account=?',ctx.now,input.enrollment,ctx.actor),event('recovery_revoked',input.enrollment)]);return {revoked:true}}

@@ -4,3 +4,5 @@ export const quorumRoute=action=>['recovery','quorum-'+action].join('/');
 export const quorumBinding=async(statement,purpose,custodian=null)=>({tenant:statement.tenant,vault:'account',object:await digest(JSON.stringify([statement,custodian])),purpose,epoch:statement.generation,version:1});
 export const enrollmentStatement=(enrollment,policy)=>({schema:1,enrollment,account:policy.account,tenant:policy.tenant,generation:policy.generation,revision:policy.revision,policy:policy.change_id,custodians:JSON.parse(policy.custodians)});
 export const caseStatement=(enrolled,operation,transferKey,expiresAt)=>({...enrolled,operation,transferKey,expiresAt});
+
+export const quorumCaseReference=async statement=>statement.operation+'.'+await digest(JSON.stringify(statement));

@@ -78,7 +78,11 @@ contains the public enrollment transcript and supplies no share.
 The existing `recovery-start` and `recovery-finish` commands accept this explicitly
 marked quorum credential. Each owner uses `recovery-quorum-review`, pins the
 member identity, checks the exact case and invokes `recovery-quorum-approve`
-with `exactCase`, `identityChecked: true` and `confirmed: true`. The client
+with `exactCase`, `identityChecked: true` and `confirmed: true`. The member
+shares the exact approval reference printed by their own client. It contains
+the case identifier and a case-sensitive SHA-256 transcript digest, including
+the member-held transfer key. Custodians compare and type that reference; a
+service that substitutes a transfer key produces a different reference. The client
 unwraps only that owner's share and re-encrypts it to the case transfer key.
 Shares and releases bind tenant, member generation, enrollment, policy revision,
 named owner keys and generations, operator authority version, transfer key,
@@ -103,6 +107,14 @@ assigned to the erased person. Already delivered copies cannot be recalled.
 
 Legacy `recovery-administrator-enroll` remains single-custodian custody. Existing
 single-custodian envelopes are never counted or relabeled as quorum shares.
+An account with recorded legacy administrator custody cannot enroll quorum
+custody, even after revocation: a previously copied full root cannot be
+recalled. An account with quorum enrollment history cannot add legacy
+administrator custody. Use a separate freshly enrolled account; no automatic
+migration or root replacement is implemented. A non-authorizing root-history
+restriction retains only the member account and two custody-history booleans.
+It survives custodian erasure and archives so removal cannot silently permit
+relabelling an exposed root. Erasing the member removes this restriction too.
 Other existing recovery kits also remain independent authorities. Quorum
 custody does not claim complete root rotation, recall of copied roots, hardware
 factor qualification, separate MFA bypass or an independent cryptographic audit.

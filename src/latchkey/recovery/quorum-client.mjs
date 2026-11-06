@@ -1,6 +1,6 @@
 import { ClientError } from '../client.mjs';
 import { bytes, id, json, open, random, seal, unwrapSigned } from '../crypto/envelope.mjs';
-import { quorumRoute, quorumBinding, enrollmentStatement, caseStatement } from './quorum-context.mjs';
+import { quorumRoute, quorumBinding, enrollmentStatement, caseStatement, quorumCaseReference } from './quorum-context.mjs';
 const need=(value,code)=>{if(!value)throw new ClientError(code)};
 export class QuorumClient {
  constructor(client){this.client=client}
@@ -19,9 +19,9 @@ export class QuorumClient {
    return {schema:1,kind:'quorum',origin:c.origin,account:c.profile.account,tenant:c.profile.tenant,generation:c.profile.generation,enrollment,statement};
   }finally{key.fill(0);left.fill(0);right.fill(0)}
  }
- review(operation){return this.client.call(quorumRoute('review'),{operation})}
+ async review(operation){const result=await this.client.call(quorumRoute('review'),{operation});return {...result,exactCase:await quorumCaseReference(result.statement)}}
  async approve(operation,{exactCase='',confirmed=false,identityChecked=false}={}){
-  need(confirmed&&identityChecked&&exactCase===operation,'exact_human_approval_required');const c=this.client,review=await this.review(operation),s=review.statement;
+  need(confirmed&&identityChecked&&typeof exactCase==='string','exact_human_approval_required');const c=this.client,review=await this.review(operation),s=review.statement;need(exactCase===review.exactCase,'exact_human_approval_required');
   const trusted=c.profile.trusted[s.account];need(trusted?.authorityKey===review.authorityKey,'recipient_confirmation_required');
   const {operation:ignored,transferKey,expiresAt,...enrolled}=s;
   const share=await unwrapSigned(review.share,c.bundle.root.recipient.privateKey,trusted.authorityKey,s.account,await quorumBinding(enrolled,'quorum-share',review.custodian));

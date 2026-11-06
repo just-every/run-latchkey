@@ -106,7 +106,7 @@ try {
   const pending=await new RecoveryClient(client).begin({...credential,password:input.password});
   await writePrivate(input.pending,{...pending,cookie:client.cookie});
   const {account,verifiedEmail,vaults,devices,expiresAt,identityCheck,mfa,offlineExposure}=pending.preview;
-  result={account,verifiedEmail,vaults,devices,expiresAt,identityCheck,mfa,offlineExposure,pendingWritten:true};
+  result={account,verifiedEmail,vaults,devices,expiresAt,identityCheck,mfa,offlineExposure,pendingWritten:true,...(pending.preview.exactCase?{operation:pending.preview.operation,exactCase:pending.preview.exactCase}:{})};
  } else if (command === 'recovery-finish') {
   const {RecoveryClient}=await import('../src/latchkey/recovery/client.mjs');const pending=await readPrivate(input.pending);
   client=new VaultClient(pending.credential.origin,{cookie:pending.cookie});

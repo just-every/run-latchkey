@@ -21,6 +21,7 @@ export async function subjectPlan(ctx, subject) {
   const entry={table,where,args,keys,columns:columns.map(c=>c.name),rows,action,set};snapshots.push(entry);if(action!=='observe')changes.push(entry);return rows;
  };
  const own='SELECT id FROM lky_vaults WHERE tenant=? AND owner=?',ownArgs=[ctx.tenant,accountId];
+ await select('lky_recovery_root_history','account=?',[accountId]);
  const quorumEnrollment="SELECT id FROM lky_quorum_enrollments WHERE account=? OR policy_id IN(SELECT change_id FROM lky_quorum_policies WHERE instr(custodians,?)>0)";
  const quorumCase="SELECT id FROM lky_recovery_cases WHERE account=? OR enrollment IN ("+quorumEnrollment+")";
  const quorumArgs=[accountId,accountId,accountId];

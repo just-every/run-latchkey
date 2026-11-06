@@ -1,3 +1,4 @@
+import { caseStatement, quorumCaseReference } from './quorum-context.mjs';
 import { QuorumClient } from './quorum-client.mjs';
 import * as opaque from '@serenity-kit/opaque';
 import { ClientError } from '../client.mjs';
@@ -26,6 +27,7 @@ export class RecoveryClient {
   const started=opaque.client.startRegistration({password:credential.password}),transfer=await keypair('wrap');
   const preview=await c.request(session('start'),{enrollment:credential.enrollment,request:started.registrationRequest,transferKey:transfer.publicKey});
   need(preview.account===credential.account&&preview.tenant===credential.tenant&&preview.generation===credential.generation,'recovery_context_changed');
+  if(credential.kind==='quorum')preview.exactCase=await quorumCaseReference(caseStatement(credential.statement,preview.operation,transfer.publicKey,preview.expiresAt));
   return {credential:{...credential,password:undefined},started,transfer,preview};
  }
  async approve(operation,{confirmed=false,identityChecked=false}={}) {
