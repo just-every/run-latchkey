@@ -1,0 +1,7 @@
+{"head": "e4ed7728e0a319f6c4bb8953dbca5dec7b6ef2c3", "name": "typecheck", "command": ["pnpm", "run", "typecheck"], "exit": 0, "seconds": 0}
+{"head": "e4ed7728e0a319f6c4bb8953dbca5dec7b6ef2c3", "name": "recovery", "command": ["timeout", "1200", "node", "tests/latchkey-recovery.mjs"], "exit": 1, "seconds": 11}
+{"head": "beac74566518d15852d7bd5c569b9d5fe2ddc6c1", "name": "typecheck", "command": ["pnpm", "run", "typecheck"], "exit": 0, "seconds": 0}
+{"head": "beac74566518d15852d7bd5c569b9d5fe2ddc6c1", "name": "recovery", "command": ["timeout", "1200", "node", "tests/latchkey-recovery.mjs"], "exit": 0, "seconds": 42}
+{"head": "beac74566518d15852d7bd5c569b9d5fe2ddc6c1", "name": "runtime", "command": ["timeout", "1200", "node", "tests/runtime.mjs"], "exit": 0, "seconds": 131}
+{"head": "beac74566518d15852d7bd5c569b9d5fe2ddc6c1", "name": "browser", "command": ["perl", "-e", "alarm 1200; exec @ARGV", "--", "env", "PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium", "LATCHKEY_SCREENSHOTS=/home/agent/rer-consolidation/work/sx-latchkey-c-f278/packet/screens", "node", "tests/browser/vault.mjs", "--scoped-recovery"], "exit": 0, "seconds": 19}
+{"head": "beac74566518d15852d7bd5c569b9d5fe2ddc6c1", "name": "first-party", "command": ["npx", "-y", "@runeditrun/rer", "check", "--profile", "first-party"], "exit": 0, "seconds": 1}

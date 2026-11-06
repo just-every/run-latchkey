@@ -1,0 +1,35 @@
+verify:runtime
+Heavy job admitted: Latchkey verify:runtime:suite [721d1c32f2fc]
+HTTP-001 passed against emitted local Worker: health, the installed homepage, HTTP and document 404s
+▲ [WARNING] Proxy environment variables detected. We'll use your proxy for fetch requests.
+
+
+Vault envelopes: signup, all payload classes, encrypted metadata/attachments, ten versions and portable encrypted export passed
+Audit HTTP journey: authenticated facts, every query field, bounded pagination, scoped CSV, owner refusal, altered, deleted and reordered history and checkpoint-anchored truncation passed
+People HTTP journey: 25-row CSV preview, duplicate and invalid rows, independent rights, live revocation at native and signed doors, explicit invite confirmation, replay refusal, resend and cancelled-link denial passed
+Scoped recovery HTTP journey: exact non-owner custody, signed approval, REST review, rejected domain widening and live revocation without changing the member passed
+Manual offboarding HTTP journey: independent permission, authoritative-directory refusal, connected suspension, custodian-owned exposure, explicit missing-custody blocker, family preservation, replay and deletion and reactivation fences passed
+Company custody HTTP journey: explicit encrypted enrollment, owner-only reviewed key rotation, exact histories and family exclusion, stale and expired refusal, no-custodian refusal, replay and fresh membership-only reactivation passed
+Recipient lifecycle: fingerprint confirmation, exact read-only rights, removal, atomic rekey and retained history passed
+Tamper and authority: ciphertext/context rejection, stale writes, request replay/signature/origin checks and password/session-only refusal passed
+Device/account lifecycle: verified second-device enrollment, revocation, expiry, sign-out, two-factor recovery and old-kit rejection passed
+Machine-runtime custody: explicit item-key wrap, private runtime profile, exact object context, expiry, revoke and rotation fences passed
+Password lifecycle: fresh PAKE record and local factors, old-device/old-password exclusion and preserved encrypted values passed
+Typed item client: every named record type, custom values, copy/reveal/fill, encrypted attachment edits and append-only restore with unauthorized history/attachment denial passed
+Item history: ten further edits remain immutable, explicit restore appends and provider rotation verification remains current
+Templates: authored and documented Keeper $id/$ref definitions, required typed validation, organization-vault sharing and versioned edits preserve original item values
+TOTP: all eighteen RFC 6238 SHA-1/SHA-256/SHA-512 vectors and strict issuer/account QR URI matching passed
+Generator: exact policy compliance, strong EFF phrase, client-root encryption, individual clear, exact 30-day expiry, shorter company retention and independent saved-item history passed
+Sharing: exact-item guest expiry, current groups, independent rights, approval, protected secret/file delivery, GET/POST previews, atomic races, recipient/password/domain checks, revoke/expiry, strict policy and redacted authorized history passed
+Generator policy: read-only reviewed impact, exact confirmation, stale policy, membership and device refusal; live company and group intersections, membership changes, owner-only audited changes, contradiction refusal, stricter-only CLI and encrypted history purge passed
+Independent direct rights: company and private-work matrices, current-only view, raw read and export bypass refusal, REST and CLI, signed stale and forged capability refusal, revocation, rotation version preservation, erasure replay fences and secret-free audit passed
+Shipped CLI: native-token registration, private custody files, encrypted write/read/export, local archive open and scoped runtime use/revoke passed
+Item erasure: explicit owner confirmation, stale-revision refusal, all histories/attachments/link copies/wraps/runtime deletion, value-free attributed receipt, idempotency, same-object replay fence and in-flight Base transfer invalidation passed
+Person erasure: native third-person enrollment, reviewed owner confirmation, owned ciphertext/template/attachment deletion, shared-authority removal without unrelated value loss, anonymized audit/tamper checks, connected revocation and mandatory vault rekey, keyed replay and later exports passed; encrypted other-owner scans/external copies remain explicitly pending
+Records CLI: real encrypted backup round trip, wrong key refusal and no partial destination passed
+Records item erasure replay: the actual Base fence refuses a downloaded pre-erasure archive with the trusted later journal; it does not silently prune erased records
+Records person redaction replay: the actual Base fence refuses a downloaded pre-erasure archive with the trusted later journal; it does not silently prune erased records
+Destination restore: actual Base import, separate receiving owner recovery, independently approved key rewrap, inactive history, atomic activation and complete domain re-export passed
+Records backup: encrypted values/history preserved, live device/grant/runtime authority omitted and restored recipient rights inactive
+Tenant isolation: independent installations, foreign-vault denial and rewritten-context ciphertext transplant rejection passed
+Leakage inspection: complete D1 table dump, encrypted archive, wire payloads and captured runtime logs contain no tested values, sensitive metadata or client private keys
