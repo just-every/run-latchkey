@@ -1,3 +1,5 @@
+import { TypedItems } from '../../src/latchkey/items/client.mjs';
+import { createItem } from '../../src/latchkey/items/types.mjs';
 import assert from 'node:assert/strict';
 import { expect } from '@playwright/test';
 import { join } from 'node:path';
@@ -22,14 +24,14 @@ export async function scopedRecoveryBrowserJourney(width,output){
  try{
   await f.page.setViewportSize({width,height:1000});
   const custodian=await member(f,9700),person=await member(f,9710),personIdentity=await person.client.identity(),custodianIdentity=await custodian.client.identity();
-  const vault=(await person.client.createVault()).vault;await person.client.put(vault,{value:'synthetic-latchkey-9712'});
+  const vault=(await person.client.createVault()).vault;await new TypedItems(person.client).save(vault,createItem('secure-note',{title:'Recovered company document',values:{note:'synthetic-latchkey-9712'}}));
   const plaintext=[person.password,custodian.password,person.client.bundle.root.recipient.privateKey,'synthetic-latchkey-9712'];
   const requests=[];f.page.on('request',request=>{if(request.url().includes('/api/latchkey/'))requests.push(request.postData()??'')});
   await unlock(f,f.owner,f.password);
   const panel=f.page.getByRole('region',{name:'Scoped recovery',exact:true});
   await panel.getByLabel('Grant custodian account',{exact:true}).fill(custodianIdentity.account);await panel.getByLabel('Grant member account',{exact:true}).fill(personIdentity.account);
   if(assertions)await expect(panel.getByRole('button',{name:'Grant named recovery scope'})).toBeDisabled();
-  await panel.getByLabel('I confirm this exact scope change or revocation').check();await panel.getByRole('button',{name:'Grant named recovery scope'}).click();await panel.getByRole('status').filter({hasText:'Recovery scope granted'}).waitFor();
+  await panel.getByLabel('I confirm this exact scope change or revocation').check();await panel.getByRole('button',{name:'Grant named recovery scope'}).focus();await panel.getByRole('button',{name:'Grant named recovery scope'}).press('Enter');await panel.getByRole('status').filter({hasText:'Recovery scope granted'}).waitFor();
   const scope=(await new RecoveryClient(f.owner).scopes()).scopes.find(row=>row.member===personIdentity.account);
   await capture('scoped-recovery-owner');
   await unlock(f,person.client,person.password);
@@ -59,12 +61,12 @@ export async function scopedRecoveryBrowserJourney(width,output){
   }finally{await custodianContext.close()}
   await memberPage.getByRole('button',{name:'Finish approved recovery'}).click();await recovery.getByRole('heading',{name:'Save new credentials before finishing'}).waitFor();
   const profile=await downloaded(memberPage,()=>recovery.getByRole('button',{name:'Save new profile',exact:true}).click());await downloaded(memberPage,()=>recovery.getByRole('button',{name:'Save new Emergency Kit',exact:true}).click());await recovery.getByRole('button',{name:'I retained both files; complete recovery'}).click();
-  await recovery.getByRole('alert').filter({hasText:'Recovery completed'}).waitFor();await capture('scoped-recovery-complete');
+  await recovery.getByRole('status').filter({hasText:'Recovery completed'}).waitFor();await capture('scoped-recovery-complete');
   const fresh=await verifiedClient(f,person.email);await fresh.unlock(profile,newPassword);
-  if(assertions){assert.equal((await fresh.readVault(vault)).versions[0].value.value,'synthetic-latchkey-9712');await assert.rejects(custodian.client.readVault(vault));for(const secret of plaintext)assert.ok(!requests.join('').includes(secret));await assert.rejects(person.client.readVault(vault))}
+  if(assertions){assert.equal((await fresh.readVault(vault)).versions[0].value.fields.find(field=>field.id==='note').value,'synthetic-latchkey-9712');await assert.rejects(custodian.client.readVault(vault));for(const secret of plaintext)assert.ok(!requests.join('').includes(secret));await assert.rejects(person.client.readVault(vault))}
   // Decrypt the intended content with the fresh profile in the actual browser.
   await signIn(f,fresh);await memberPage.getByLabel('Profile file').setInputFiles(upload(profile));await memberPage.getByLabel('Master password',{exact:true}).fill(newPassword);await memberPage.getByRole('button',{name:'Unlock vault',exact:true}).click();
-  await memberPage.getByRole('button',{name:'New item',exact:true}).waitFor();await capture('scoped-recovery-unlocked');
+  await memberPage.getByRole('button',{name:'New item',exact:true}).waitFor();await memberPage.getByRole('navigation',{name:'Vault items'}).getByRole('button').filter({hasText:'Recovered company document'}).click();if(assertions){await memberPage.getByRole('button',{name:'Reveal Note',exact:true}).focus();await expect(memberPage.getByRole('tooltip')).toContainText('Reveal field')}await memberPage.getByRole('button',{name:'Reveal Note',exact:true}).click();if(assertions)await expect(memberPage.getByLabel('Note',{exact:true})).toHaveValue('synthetic-latchkey-9712');await memberPage.getByRole('button',{name:'Hide Note',exact:true}).click();await capture('scoped-recovery-unlocked');
   console.log(`Scoped recovery browser ${width}: owner grant, member encryption, distinct custodian approval, retained new credentials and recovered company account passed`);
  }catch(error){if(output)await f.page.screenshot({path:join(output,`scoped-recovery-failure-${width}.png`),fullPage:true});throw error}finally{await f.close()}
 }
