@@ -869,6 +869,10 @@
       "sha256": "5292a2303133ff45b92665b414b48bad3356491c8cf53f7aac29a6432e902333",
       "executable": false
     },
+    "migrations/core/0049_latchkey_scoped_recovery.sql": {
+      "sha256": "f97ea27b542e092b74fef1235d638ea6f089fc21530c96406c4125604b5d4774",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "a2e48542c3e51e31c8d35148905c3654fd7600d22a8b1c1380e2397bd805408a",
       "executable": false
@@ -2933,12 +2937,28 @@
       "sha256": "b70e77c1152efb3ea78fafb9631850c25cbce2eb60b3d1afe905337c0e0573ad",
       "executable": false
     },
+    "src/latchkey/recovery/authorization-client.mjs": {
+      "sha256": "b6f4426b717f260d2b22d6f71d68d58299477c2cb2c6e60e608114a4c98f41fa",
+      "executable": false
+    },
+    "src/latchkey/recovery/authorization.mjs": {
+      "sha256": "7a7f7e5a18f5531d871a6119b8b280992efc5d3969e5cec5f849bdd6cae2c291",
+      "executable": false
+    },
+    "src/latchkey/recovery/client.d.mts": {
+      "sha256": "e340cba8ed5026655741a88ecff96c6d3fe08dcb3026e2142197315222dc8d86",
+      "executable": false
+    },
     "src/latchkey/recovery/client.mjs": {
       "sha256": "caf8ad3b478c6f29af23df8491a215224a60996f814704db39e37fd7f2496305",
       "executable": false
     },
     "src/latchkey/recovery/README.md": {
       "sha256": "8d9b9f70e4f2fc2f1ccb0a85238d835dbc8b4a35120e194c93eb3a051401202b",
+      "executable": false
+    },
+    "src/latchkey/recovery/scoped-ui.tsx": {
+      "sha256": "207c254947ad22cb872b13b10e0a2d1126851361f79a37bb36f44c26dc0e420c",
       "executable": false
     },
     "src/latchkey/recovery/service.d.mts": {
@@ -4837,6 +4857,10 @@
       "sha256": "6f7c9b6f1f7eab30406847565cd7b2461e7b1accefe33397112226de4750368e",
       "executable": false
     },
+    "tests/browser/recovery-scoped.mjs": {
+      "sha256": "e5bb09f4ffd0772a8f7ec51479b60dc35a916bb96059f7ce628d622a336c99d5",
+      "executable": false
+    },
     "tests/browser/reports.mjs": {
       "sha256": "558bc3500e31c34cf9f7e1b3d721032be798f644bf3b7aa5ab881f5b57b0188c",
       "executable": false
@@ -4950,7 +4974,7 @@
       "executable": false
     },
     "tests/latchkey-recovery.mjs": {
-      "sha256": "387346073ab5506ecb1dca092bb56dde0d18f152a8ad09af1f61cfa7ba936e4e",
+      "sha256": "d943e7a8daec0e543e7221d70514169f7302f20753e8aa854076b4e6d09c44ac",
       "executable": false
     },
     "tests/latchkey-restore.mjs": {
