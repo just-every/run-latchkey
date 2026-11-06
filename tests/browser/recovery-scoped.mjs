@@ -56,6 +56,16 @@ export async function scopedRecoveryBrowserJourney(width,output){
   const verified=await verifiedClient(f,person.email);await signIn(f,verified);
   await f.page.locator('summary').filter({hasText:/^Recover company account$/}).click();
   const recovery=f.page.getByRole('region',{name:'Recover company account',exact:true}),newPassword='synthetic-latchkey-9713';
+  if(assertions){
+   const cases=(await f.db.prepare('SELECT COUNT(*) AS n FROM lky_recovery_cases WHERE account=?').bind(personIdentity.account).first()).n,notices=f.mail.length;
+   await recovery.getByLabel('Recovery credential file').setInputFiles(upload({...credential,account:custodianIdentity.account},'changed-recovery.json'));
+   await recovery.getByLabel('New recovery password').fill(newPassword);
+   await recovery.getByRole('button',{name:'Start recovery case'}).click();
+   await expect(recovery.getByRole('alert')).toContainText('does not match the signed-in company account');
+   await expect(recovery.locator('[data-recovery-case]')).toHaveCount(0);
+   assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM lky_recovery_cases WHERE account=?').bind(personIdentity.account).first()).n,cases);
+   assert.equal(f.mail.length,notices);
+  }
   await recovery.getByLabel('Recovery credential file').setInputFiles(upload(credential,'recovery.json'));await recovery.getByLabel('New recovery password').fill(newPassword);await recovery.getByRole('button',{name:'Start recovery case'}).click();
   const operation=await recovery.locator('[data-recovery-case]').innerText();
   await recovery.getByLabel('I confirm recovery of this exact company account').check();await recovery.getByRole('button',{name:'Finish approved recovery'}).click();

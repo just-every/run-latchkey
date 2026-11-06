@@ -2958,7 +2958,7 @@
       "executable": false
     },
     "src/latchkey/recovery/scoped-ui.tsx": {
-      "sha256": "3933261a11b8dcd11ed7b183ad6b0dafc33589e5c8d058e55f83dd66563bf83e",
+      "sha256": "997830a54e376f0fccb52759951a93de618214e4c2ecbd9fa22fd2f38eb60fa3",
       "executable": false
     },
     "src/latchkey/recovery/service.d.mts": {
@@ -4858,7 +4858,7 @@
       "executable": false
     },
     "tests/browser/recovery-scoped.mjs": {
-      "sha256": "b4db824bc686bfd249275f581534320558fe148dc7f3800478ea7c0ba66c9f15",
+      "sha256": "6a15d18d99d4c5fa4b37d2131468f3677d6d97627c4690d20cc01503c6df0ccc",
       "executable": false
     },
     "tests/browser/reports.mjs": {
