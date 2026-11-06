@@ -236,7 +236,7 @@ export async function scopedRecoveryJourney(f) {
  for(const path of ['/api/rer/business-settings','/api/latchkey/v1/billing','/auth/operators']){const response=await f.fetcher(f.origin+path,{headers:{cookie:custodian.client.cookie}});assert.ok(response.status>=400)}
  // Narrowing a grant invalidates even an already-approved pending case.
  await admin.approve(pending.preview.operation,{confirmed:true,identityChecked:true});
- await set([{account:other.client.profile.account,generation:other.client.profile.generation,domain:'company-account'}]);
+ await assert.rejects(lost.complete(pending,password,{confirmed:true,beforeCommit:()=>set([{account:other.client.profile.account,generation:other.client.profile.generation,domain:'company-account'}])}),{code:'scoped_recovery_authority_required'});
  await assert.rejects(admin.approve(pending.preview.operation,{confirmed:true,identityChecked:true}),{code:'scoped_recovery_authority_required'});
  await assert.rejects(lost.complete(pending,password,{confirmed:true}),{code:'scoped_recovery_authority_required'});
  assert.equal((await f.db.prepare('SELECT generation FROM lky_accounts WHERE id=?').bind(personIdentity.account).first()).generation,entry.generation);

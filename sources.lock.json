@@ -514,7 +514,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "1805de27d0ba4eca4c347756ef503a3198ea96d1cc86249fafc8733a0a51b113",
+      "sha256": "a3d1c6def32b8f096ef62708ac0ccd611aa50973c557d0ddb2b04eb417305a5f",
       "executable": false
     },
     "agent-surface.json": {
@@ -558,7 +558,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "cbadc02d4f2641c7c14cd1a462e87f3050c2ff52a5c0488f73f61a476f2a22c6",
+      "sha256": "fa3e773c826740269251e5d8ca3c4e76d2ce6d97c822d82651b9419c1b14c470",
       "executable": false
     },
     "deploy-demo.json": {
@@ -4974,7 +4974,7 @@
       "executable": false
     },
     "tests/latchkey-recovery.mjs": {
-      "sha256": "256a5ca38e9b62c167952148ef00d93990f62802a96348c879027ff2d37e60b5",
+      "sha256": "092e1dc0dca41ec40817e94abcc59c929a420389fe5be9a26d46f34f0057ac6d",
       "executable": false
     },
     "tests/latchkey-restore.mjs": {
