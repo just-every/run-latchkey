@@ -1,5 +1,5 @@
 import { access, exact, guarded, need, uuid } from '../lifecycle/common.mjs';
-import { id } from '../crypto/envelope.mjs';
+import { id, validateEnvelope, verifyWrapped } from '../crypto/envelope.mjs';
 export const recoverPermission='accounts.recover';
 import { recoveryDomain, scopedPolicy, scopedPurpose } from './authorization-client.mjs';
 export { recoveryDomain, scopedPolicy, scopedPurpose };
@@ -27,10 +27,20 @@ export async function recoveryAuthority(ctx,enrolled){
  need(['self','administrator'].includes(enrolled.kind),'recovery_policy_incompatible',403);
  const enrollmentGuard=guard('EXISTS(SELECT 1 FROM lky_recovery_custody WHERE id=? AND account=? AND generation=? AND kind=? AND custodian IS ? AND custodian_generation IS ? AND wrapped=? AND revoked_at IS NULL)',[enrolled.id,enrolled.account,enrolled.generation,enrolled.kind,enrolled.custodian,enrolled.custodian_generation,enrolled.wrapped]);
  const scoped=await first('SELECT * FROM lky_scoped_recovery_enrollments WHERE enrollment=?',enrolled.id);
+ // The member-signed envelope also declares its policy. Losing a policy row
+ // must not reinterpret scoped custody as legacy named-owner custody.
+ need(!scoped||(enrolled.kind==='administrator'&&scoped.policy===scopedPolicy),'recovery_policy_incompatible',403);
+ const purpose=scoped?scopedPurpose(scoped.scope):enrolled.kind==='self'?'self-recovery':'administrator-recovery';
+ const member=await first('SELECT * FROM lky_accounts WHERE id=? AND tenant=? AND generation=?',enrolled.account,ctx.tenant,enrolled.generation);
+ need(member,'recovery_policy_incompatible',403);
+ const binding={tenant:ctx.tenant,vault:'account',object:enrolled.id,purpose,epoch:enrolled.generation,version:1};
+ let wrapped;try{wrapped=JSON.parse(enrolled.wrapped)}catch{need(false,'recovery_policy_incompatible',403)}
+ if(enrolled.kind==='self'){
+  try{validateEnvelope(wrapped,binding)}catch{need(false,'recovery_policy_incompatible',403)}
+ }else need(await verifyWrapped(wrapped,member.authority_key,member.id,binding),'recovery_policy_incompatible',403);
  if(scoped){
-  need(enrolled.kind==='administrator'&&scoped.policy===scopedPolicy,'recovery_policy_incompatible',403);
   const current=await requireScope(ctx,scoped.scope,enrolled.account,enrolled.custodian);
-  return {purpose:scopedPurpose(scoped.scope),guards:[enrollmentGuard,current,guard('EXISTS(SELECT 1 FROM lky_scoped_recovery_enrollments WHERE enrollment=? AND scope=? AND policy=?)',[enrolled.id,scoped.scope,scopedPolicy])],scope:scoped.scope};
+  return {purpose,guards:[enrollmentGuard,current,guard('EXISTS(SELECT 1 FROM lky_scoped_recovery_enrollments WHERE enrollment=? AND scope=? AND policy=?)',[enrolled.id,scoped.scope,scopedPolicy])],scope:scoped.scope};
  }
  if(enrolled.kind==='self')return {purpose:'self-recovery',guards:[enrollmentGuard]};
  need(await first("SELECT 1 FROM lky_accounts a JOIN oa_operators o ON o.id=a.operator_id WHERE a.id=? AND a.tenant=? AND a.generation=? AND o.role='owner' AND o.status='active'",enrolled.custodian,ctx.tenant,enrolled.custodian_generation),'recovery_administrator_unavailable',403);

@@ -89,3 +89,6 @@ owner-only actions. Archives exclude the scopes and enrollment bindings; person
 erasure removes both. Legacy named-owner custody remains separate. This policy
 is single-custodian only, never a two-person quorum, and never converts an
 unknown or quorum-protected enrollment. LKY-051 remains independent.
+The member-signed envelope's purpose must match its stored policy at every
+recovery stage. A missing scope binding or altered envelope refuses; neither
+can reinterpret scoped custody as legacy named-owner recovery.

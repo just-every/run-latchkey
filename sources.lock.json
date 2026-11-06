@@ -2942,7 +2942,7 @@
       "executable": false
     },
     "src/latchkey/recovery/authorization.mjs": {
-      "sha256": "7a7f7e5a18f5531d871a6119b8b280992efc5d3969e5cec5f849bdd6cae2c291",
+      "sha256": "8d3e65f31fdcfabb9d210c37c079f9ec45ee9015bff0606a87c20a872a1f1467",
       "executable": false
     },
     "src/latchkey/recovery/client.d.mts": {
@@ -2954,7 +2954,7 @@
       "executable": false
     },
     "src/latchkey/recovery/README.md": {
-      "sha256": "9b1478b2ce15494fc8330951a859ae4c6584fa116f4dcaf0c11048faf05456aa",
+      "sha256": "cbd56b1c8d06751dbec482be669414599022e768bd86aec6dfa9e0bbd36a0595",
       "executable": false
     },
     "src/latchkey/recovery/scoped-ui.tsx": {
@@ -4974,7 +4974,7 @@
       "executable": false
     },
     "tests/latchkey-recovery.mjs": {
-      "sha256": "0917d26f8fbdcebfd563a9ee1da2c982a056184607c7e258a3e933408c7f65cc",
+      "sha256": "db63b13a7c6a99e3fcbacff636288189689d431458c34f0e9870d3b1641ec22b",
       "executable": false
     },
     "tests/latchkey-restore.mjs": {

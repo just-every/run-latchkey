@@ -244,7 +244,7 @@ export async function scopedRecoveryJourney(f) {
  await assert.rejects(lost.begin({...credential,password}),{code:'scoped_recovery_authority_required'});
  credential=await enroll();pending=await lost.begin({...credential,password});
  await set([]);
- const refusedStages=async(custodianInactive=false)=>{
+ const refusedStages=async(custodianInactive=false,memberInactive=false)=>{
   const before=await f.db.prepare('SELECT generation,opaque_record FROM lky_accounts WHERE id=?').bind(personIdentity.account).first();
   for(const attempt of[
    ()=>person.client.call('recovery' + '/scoped-enroll',{enrollment:personIdentity.account,scope:credential.scope,policy:'scoped-single-v1',custodian:identity.account,wrapped:{},confirmed:true}),
@@ -254,7 +254,7 @@ export async function scopedRecoveryJourney(f) {
    ()=>admin.approve(pending.preview.operation,{confirmed:true,identityChecked:true}),
    ()=>lost.client.request('recovery' + '/session/status',{operation:pending.preview.operation}),
    ()=>lost.complete(pending,password,{confirmed:true}),
-  ])await assert.rejects(attempt,error=>error.code==='scoped_recovery_authority_required'||custodianInactive&&error.code==='authentication_required'&&error.status===401);
+  ])await assert.rejects(attempt,error=>error.code==='scoped_recovery_authority_required'||(custodianInactive||memberInactive)&&error.code==='authentication_required'&&error.status===401||memberInactive&&error.code==='named_recovery_administrator_required'&&error.status===403);
   assert.deepEqual(await f.db.prepare('SELECT generation,opaque_record FROM lky_accounts WHERE id=?').bind(personIdentity.account).first(),before);
   assert.equal((await f.db.prepare('SELECT consumed_at FROM lky_recovery_cases WHERE id=?').bind(pending.preview.operation).first()).consumed_at,null);
  };
@@ -267,7 +267,18 @@ export async function scopedRecoveryJourney(f) {
  await custodian.client.unlock(custodian.enrolled.profile,custodian.password);
  await assert.rejects(lost.begin({...credential,password}),{code:'scoped_recovery_authority_required'});
  grant=await set([entry]);credential=await enroll();pending=await lost.begin({...credential,password});
+ const memberOperator=(await f.db.prepare('SELECT operator_id FROM lky_accounts WHERE id=?').bind(personIdentity.account).first()).operator_id;
+ await requestApi(f.owner,'PUT',`/users/${memberOperator}/status`,{status:'inactive'});
+ await refusedStages(false,true);
+ await requestApi(f.owner,'PUT',`/users/${memberOperator}/status`,{status:'active'});
+ await person.client.unlock(person.enrolled.profile,person.password);
+ lost.client.cookie=(await verifiedClient(f,person.email)).cookie;
+ await assert.rejects(lost.begin({...credential,password}),{code:'scoped_recovery_authority_required'});
+ grant=await set([entry]);credential=await enroll();pending=await lost.begin({...credential,password});
  // Stored-scope corruption and an incompatible policy must never widen custody.
+ await f.db.prepare('UPDATE lky_recovery_scopes SET member=? WHERE id=?').bind(other.client.profile.account,credential.scope).run();
+ await refusedStages();
+ await f.db.prepare('UPDATE lky_recovery_scopes SET member=? WHERE id=?').bind(personIdentity.account,credential.scope).run();
  await f.db.prepare('UPDATE lky_recovery_scopes SET member_generation=? WHERE id=?').bind(entry.generation+1,credential.scope).run();
  await refusedStages();
  await f.db.prepare('UPDATE lky_recovery_scopes SET member_generation=? WHERE id=?').bind(entry.generation,credential.scope).run();
@@ -282,6 +293,39 @@ export async function scopedRecoveryJourney(f) {
  await assert.rejects(lost.complete(pending,password,{confirmed:true}),{code:'recovery_policy_incompatible'});
  assert.equal((await f.db.prepare('SELECT approved_wrap FROM lky_recovery_cases WHERE id=?').bind(pending.preview.operation).first()).approved_wrap,null);
  await f.db.prepare('UPDATE lky_scoped_recovery_enrollments SET policy=? WHERE enrollment=?').bind('scoped-single-v1',credential.enrollment).run();
+ const incompatiblePolicy=async()=>{
+  for(const attempt of[
+   ()=>lost.begin({...credential,password}),
+   ()=>custodian.client.call('recovery' + '/administrator-review',{operation:pending.preview.operation}),
+   ()=>admin.approve(pending.preview.operation,{confirmed:true,identityChecked:true}),
+   ()=>lost.client.request('recovery' + '/session/status',{operation:pending.preview.operation}),
+   ()=>lost.complete(pending,password,{confirmed:true}),
+  ])await assert.rejects(attempt,{code:'recovery_policy_incompatible'});
+  assert.equal((await f.db.prepare('SELECT approved_wrap FROM lky_recovery_cases WHERE id=?').bind(pending.preview.operation).first()).approved_wrap,null);
+  assert.equal((await f.db.prepare('SELECT generation FROM lky_accounts WHERE id=?').bind(personIdentity.account).first()).generation,entry.generation);
+ };
+ // Removing the policy binding cannot silently downgrade the member's signed
+ // scoped envelope to legacy custody, even before any custodian role check.
+ await f.db.prepare('DELETE FROM lky_scoped_recovery_enrollments WHERE enrollment=?').bind(credential.enrollment).run();
+ await incompatiblePolicy();
+ await f.db.prepare('INSERT INTO lky_scoped_recovery_enrollments VALUES(?,?,?)').bind(credential.enrollment,credential.scope,'scoped-single-v1').run();
+ const originalWrapped=(await f.db.prepare('SELECT wrapped FROM lky_recovery_custody WHERE id=?').bind(credential.enrollment).first()).wrapped;
+ const changedPurpose=JSON.parse(originalWrapped);changedPurpose.envelope.context.purpose='administrator-recovery';
+ await f.db.prepare('UPDATE lky_recovery_custody SET wrapped=? WHERE id=?').bind(JSON.stringify(changedPurpose),credential.enrollment).run();
+ await incompatiblePolicy();
+ await f.db.prepare('UPDATE lky_recovery_custody SET wrapped=? WHERE id=?').bind(originalWrapped,credential.enrollment).run();
+ // A real custodian recovery changes its generation. New connected custody
+ // still cannot approve envelopes granted to the previous generation.
+ const renewedCustodian=await custodian.client.recover(custodian.enrolled.kit,custodian.password);
+ await custodian.client.unlock(renewedCustodian.profile,custodian.password);
+ for(const attempt of[
+  ()=>lost.begin({...credential,password}),
+  ()=>lost.client.request('recovery' + '/session/status',{operation:pending.preview.operation}),
+  ()=>lost.complete(pending,password,{confirmed:true}),
+ ])await assert.rejects(attempt,{code:'scoped_recovery_authority_required'});
+ await assert.rejects(custodian.client.call('recovery' + '/administrator-review',{operation:pending.preview.operation}),{code:'named_recovery_administrator_required'});
+ await assert.rejects(admin.approve(pending.preview.operation,{confirmed:true,identityChecked:true}),{code:'named_recovery_administrator_required'});
+ assert.equal((await f.db.prepare('SELECT generation FROM lky_accounts WHERE id=?').bind(personIdentity.account).first()).generation,entry.generation);
  await f.db.prepare('UPDATE lky_recovery_cases SET expires_at=0 WHERE id=?').bind(pending.preview.operation).run();
  await assert.rejects(admin.approve(pending.preview.operation,{confirmed:true,identityChecked:true}),{code:'named_recovery_administrator_required'});
  await assert.rejects(lost.complete(pending,password,{confirmed:true}),{code:'recovery_case_expired'});
