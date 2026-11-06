@@ -21,7 +21,16 @@ export async function subjectPlan(ctx, subject) {
   const entry={table,where,args,keys,columns:columns.map(c=>c.name),rows,action,set};snapshots.push(entry);if(action!=='observe')changes.push(entry);return rows;
  };
  const own='SELECT id FROM lky_vaults WHERE tenant=? AND owner=?',ownArgs=[ctx.tenant,accountId];
- await select('lky_recovery_cases','account=? OR enrollment IN (SELECT id FROM lky_recovery_custody WHERE custodian=?)',[accountId,accountId]);
+ const quorumEnrollment="SELECT id FROM lky_quorum_enrollments WHERE account=? OR policy_id IN(SELECT change_id FROM lky_quorum_policies WHERE instr(custodians,?)>0)";
+ const quorumCase="SELECT id FROM lky_recovery_cases WHERE account=? OR enrollment IN ("+quorumEnrollment+")";
+ const quorumArgs=[accountId,accountId,accountId];
+ await select('lky_quorum_approvals',`custodian=? OR case_id IN (${quorumCase})`,[accountId,...quorumArgs]);
+ await select('lky_quorum_cases',`id IN (${quorumCase}) OR instr(statement,?)>0`,[...quorumArgs,accountId]);
+ await select('lky_quorum_enrollments','account=? OR policy_id IN(SELECT change_id FROM lky_quorum_policies WHERE instr(custodians,?)>0)',[accountId,accountId]);
+ await select('lky_quorum_votes','approver=? OR change_id IN(SELECT id FROM lky_quorum_changes WHERE account=? OR instr(custodians,?)>0)',[accountId,accountId,accountId]);
+ await select('lky_quorum_changes','account=? OR instr(custodians,?)>0',[accountId,accountId]);
+ await select('lky_quorum_policies','account=? OR instr(custodians,?)>0',[accountId,accountId]);
+ await select('lky_recovery_cases',`account=? OR enrollment IN (SELECT id FROM lky_recovery_custody WHERE custodian=?) OR id IN (${quorumCase})`,[accountId,accountId,...quorumArgs]);
  await select('lky_recovery_custody','account=? OR custodian=?',[accountId,accountId]);
  await select('lky_emergency_access','owner=? OR contact=?',[accountId,accountId]);
  await select('lky_company_custody','owner=? OR custodian=?',[accountId,accountId]);

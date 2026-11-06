@@ -1,3 +1,4 @@
+import { recoveryQuorumJourney } from './recovery-quorum.mjs';
 import { runGeneratorApiJourney } from '../latchkey-generator-policy.mjs';
 import { companyCustodyJourney } from './company-custody.mjs';
 import { staleSaveJourney } from './stale-save.mjs';
@@ -18,6 +19,7 @@ if(output)await mkdir(output,{recursive:true});
 const generatorOnly = process.argv.includes('--generator-policy');
 if (!generatorOnly) { await companyCustodyJourney(output); await staleSaveJourney(1440, output); }
 for(const width of [1440,390]) {
+if (!generatorOnly) await recoveryQuorumJourney(width, output);
 await generatorPolicyReviewJourney(width, output);
 if (generatorOnly) continue;
 await passboltJourney(width, output);

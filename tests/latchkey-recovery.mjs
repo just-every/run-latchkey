@@ -1,3 +1,8 @@
+import { AutomationClient, McpClient } from '../src/latchkey/automation/client.mjs';
+import { keypair, digest, id, sign, signingText } from '../src/latchkey/crypto/envelope.mjs';
+import { QuorumClient } from '../src/latchkey/recovery/quorum-client.mjs';
+import { quorumBinding, quorumRoute } from '../src/latchkey/recovery/quorum-context.mjs';
+import { decode, open, unwrapSigned } from '../src/latchkey/crypto/envelope.mjs';
 import assert from 'node:assert/strict';
 import { createPortability } from '@runeditrun/rer/modules/portability';
 import archivePolicy from '../scripts/latchkey/archive-policy.mjs';
@@ -48,13 +53,14 @@ export async function recoveryPreviewJourney(f) {
  }
 }
 // Recovery custody uses the real identity, PAKE, mail and encrypted Worker doors.
-async function member(f,n,role='member') {
+export async function member(f,n,role='member') {
+ if(role==='owner')await recoveryOwnerStepUp(f);
  const email=`synthetic-latchkey-${n}@example.test`,password=`synthetic-latchkey-${n+1}`;
  const response=await f.fetcher(f.origin+'/auth/invite',{method:'POST',headers:{origin:f.origin,cookie:f.owner.cookie,'content-type':['application','json'].join('/')},body:JSON.stringify({email,displayName:`synthetic-latchkey-${n}`,role})});assert.equal(response.status,202,await response.text());
  const token=new URL(f.mail.at(-1).content.find(c=>c.type===['text','plain'].join('/')).value.match(/https:\/\/[^\s<>]+/)[0]).searchParams.get('token');
  const client=new VaultClient(f.origin,{fetcher:f.fetcher});await client.confirmIdentity(token);const enrolled=await client.register(password);await client.unlock(enrolled.profile,password);return {client,enrolled,password,email};
 }
-async function verifiedClient(f,email) {
+export async function verifiedClient(f,email) {
  const client=new VaultClient(f.origin,{fetcher:f.fetcher});await client.requestIdentity(email);
  const token=new URL(f.mail.at(-1).content.find(c=>c.type===['text','plain'].join('/')).value.match(/https:\/\/[^\s<>]+/)[0]).searchParams.get('token');await client.confirmIdentity(token);return client;
 }
@@ -146,17 +152,22 @@ export async function recoveryCliJourney(f) {
  console.log('Shipped CLI recovery start and finish keep private files private and require confirmation');
 }
 export async function recoveryArchiveErasureJourney(f) {
+ const state=await quorumMembers(f,9810);await approvePolicy(state);const quorumCredential=await state.q.enroll(state.identities.map(i=>i.fingerprint),{confirmed:true});
+ const quorumLost=new RecoveryClient(await verifiedClient(f,state.person.email)),quorumPending=await quorumLost.begin({...quorumCredential,password:'synthetic-latchkey-9898'});await new QuorumClient(state.custodians[0]).approve(quorumPending.preview.operation,{exactCase:quorumPending.preview.operation,confirmed:true,identityChecked:true});
  const person=await member(f,9300),vault=(await person.client.createVault({kind:'family'})).vault;await person.client.put(vault,{value:'synthetic-latchkey-9302'});
  const recovery=new RecoveryClient(person.client),code=await recovery.enrollSelf({confirmed:true});
  const pending=await new RecoveryClient(await verifiedClient(f,person.email)).begin({...code,password:'synthetic-latchkey-9303'});
  const emergency=await recovery.enrollEmergency(vault,f.owner.profile.account,await f.owner.identity().fingerprint,{waitMs:3600000,expiresAt:Date.now()+7200000,confirmed:true});
  const records=await createPortability({db:f.db,policy:archivePolicy}),job=await records.exports.create();for(;;){if((await records.exports.advance(job,{maxParts:100})).phase==='complete')break}
  const lines=(await new Response(await records.exports.download(job)).text()).trim().split('\n').map(row=>JSON.parse(row));
- for(const table of['lky_recovery_custody','lky_recovery_cases','lky_emergency_access']){assert.ok(!lines[0].tables.some(row=>row.name===table));assert.ok(lines[0].excludedTables.includes(table))}
- const destination=await (await import('./browser/fixture.mjs')).vaultFixture({browserEnabled:false,enrollOwner:false});try{const imported=await createPortability({db:destination.db,policy:archivePolicy}),operation=await imported.imports.create(lines[0]);for(const part of lines.slice(1,-1))await imported.imports.uploadPart(operation,part.index,part);assert.equal((await imported.imports.finalize(operation,{contentHash:lines.at(-1).contentHash,archiveHash:lines.at(-1).archiveHash})).phase,'complete');for(const table of['lky_recovery_custody','lky_recovery_cases','lky_emergency_access'])assert.equal((await destination.db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).first()).n,0)}finally{await destination.close()}
+ for(const table of['lky_recovery_custody','lky_recovery_cases','lky_emergency_access','lky_quorum_policies','lky_quorum_changes','lky_quorum_votes','lky_quorum_enrollments','lky_quorum_cases','lky_quorum_approvals']){assert.ok(!lines[0].tables.some(row=>row.name===table));assert.ok(lines[0].excludedTables.includes(table))}
+ const destination=await (await import('./browser/fixture.mjs')).vaultFixture({browserEnabled:false,enrollOwner:false});try{const imported=await createPortability({db:destination.db,policy:archivePolicy}),operation=await imported.imports.create(lines[0]);for(const part of lines.slice(1,-1))await imported.imports.uploadPart(operation,part.index,part);assert.equal((await imported.imports.finalize(operation,{contentHash:lines.at(-1).contentHash,archiveHash:lines.at(-1).archiveHash})).phase,'complete');for(const table of['lky_recovery_custody','lky_recovery_cases','lky_emergency_access','lky_quorum_policies','lky_quorum_changes','lky_quorum_votes','lky_quorum_enrollments','lky_quorum_cases','lky_quorum_approvals'])assert.equal((await destination.db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).first()).n,0)}finally{await destination.close()}
  const operator=(await f.db.prepare('SELECT operator_id FROM lky_accounts WHERE id=?').bind(person.client.profile.account).first()).operator_id;
  const preview=await f.owner.call(['subject','erase-preview'].join('/'),{subject:operator});await f.owner.call(['subject','erase'].join('/'),{subject:operator,confirmed:true,planHash:preview.planHash});
  assert.equal(await f.db.prepare('SELECT id FROM lky_recovery_custody WHERE id=?').bind(code.enrollment).first(),null);assert.equal(await f.db.prepare('SELECT id FROM lky_recovery_cases WHERE id=?').bind(pending.preview.operation).first(),null);assert.equal(await f.db.prepare('SELECT id FROM lky_emergency_access WHERE id=?').bind(emergency.enrollment).first(),null);
+ const custodianOperator=(await f.db.prepare('SELECT operator_id FROM lky_accounts WHERE id=?').bind(state.second.client.profile.account).first()).operator_id;const custodianPlan=await f.owner.call(['subject','erase-preview'].join('/'),{subject:custodianOperator});await f.owner.call(['subject','erase'].join('/'),{subject:custodianOperator,confirmed:true,planHash:custodianPlan.planHash});
+ for(const [table,column,value]of[['lky_quorum_enrollments','id',quorumCredential.enrollment],['lky_quorum_cases','id',quorumPending.preview.operation],['lky_quorum_approvals','case_id',quorumPending.preview.operation],['lky_recovery_cases','id',quorumPending.preview.operation],['lky_quorum_policies','account',state.person.client.profile.account]])assert.equal((await f.db.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE ${column}=?`).bind(value).first()).n,0);
+ await assert.rejects(quorumLost.complete(quorumPending,'synthetic-latchkey-9898',{confirmed:true}),{code:'recovery_case_expired'});
  console.log('Recovery authority stays absent after actual archive restore and person erasure removes custody');
 }
 export async function recoveryNoticeFailureJourney() {
@@ -169,6 +180,95 @@ export async function recoveryNoticeFailureJourney() {
 if (process.argv[1] === import.meta.filename) {
  const { vaultFixture } = await import('./browser/fixture.mjs');
  const f = await vaultFixture({ browserEnabled: false });
- try { await recoveryNoticeFailureJourney(); await independentRecoveryJourney(f); await emergencyRecoveryJourney(f); await recoveryArchiveErasureJourney(f); await recoveryCliJourney(f); await recoveryPreviewJourney(f); console.log('Recovery preview, kit factors, old-authority refusal and retained decryption passed'); }
+ try { await quorumRecoveryJourney(f); await recoveryNoticeFailureJourney(); await independentRecoveryJourney(f); await emergencyRecoveryJourney(f); await recoveryArchiveErasureJourney(f); await recoveryCliJourney(f); await recoveryPreviewJourney(f); console.log('Recovery preview, kit factors, old-authority refusal and retained decryption passed'); }
  finally { await f.close(); }
+}
+
+export async function quorumMembers(f,n=9510){
+ const person=await member(f,n),second=await member(f,n+10,'owner'),third=await member(f,n+20,'owner');
+ const custodians=[f.owner,second.client],identities=await Promise.all(custodians.map(c=>c.identity())),identity=await person.client.identity();
+ for(const value of [...identities,identity])value.fingerprint=await value.fingerprint;
+ for(const c of custodians)await c.pinAccount(identity.account,identity.fingerprint);
+ const q=new QuorumClient(person.client),change=(await q.propose(identities.map(i=>i.account),{confirmed:true})).change;
+ return {person,second,third,custodians,identities,identity,q,change};
+}
+async function approvePolicy(state){for(const c of state.custodians)await new QuorumClient(c).approveChange(state.change,{exactChange:state.change,confirmed:true})}
+export async function quorumRecoveryJourney(f){
+ const s=await quorumMembers(f),{person,custodians,identities,identity,q,change}=s;
+ const vault=(await person.client.createVault()).vault,secret='synthetic-latchkey-9599';await person.client.put(vault,{value:secret});
+ await assert.rejects(q.propose([identity.account,identities[0].account],{confirmed:true}),{code:'quorum_owner_required'});
+ await assert.rejects(q.propose([identities[0].account,identities[0].account],{confirmed:true}),{code:'two_distinct_custodians_required'});
+ const ownerRequest=(await new QuorumClient(custodians[0]).propose([identities[1].account,s.third.client.profile.account],{confirmed:true})).change;await assert.rejects(new QuorumClient(custodians[0]).approveChange(ownerRequest,{exactChange:ownerRequest,confirmed:true}),{code:'quorum_self_approval_forbidden'});
+ await assert.rejects(q.approveChange(change,{exactChange:change,confirmed:true}),{code:'quorum_self_approval_forbidden'});
+ await assert.rejects(new QuorumClient(custodians[0]).approveChange(change,{exactChange:change.toUpperCase(),confirmed:true}),{code:'exact_human_approval_required'});
+ await new QuorumClient(custodians[0]).approveChange(change,{exactChange:change,confirmed:true});
+ await assert.rejects(new QuorumClient(custodians[0]).approveChange(change,{exactChange:change,confirmed:true}),{code:'duplicate_quorum_approval'});
+ await assert.rejects(q.enroll(identities.map(i=>i.fingerprint),{confirmed:true}),{code:'quorum_policy_unavailable'});
+ await new QuorumClient(custodians[1]).approveChange(change,{exactChange:change,confirmed:true});
+ const credential=await q.enroll(identities.map(i=>i.fingerprint),{confirmed:true});
+ await assert.rejects(person.client.createVault({kind:'family'}),{code:'independent_family_account_required'});
+ const directory=await mkdtemp(join(tmpdir(),'latchkey-quorum-'));
+ try{const profile=join(directory,'profile.json');await writeFile(profile,JSON.stringify(person.client.profile),{mode:0o600});const refusal=await command(f,'recovery-quorum-propose',{profile,password:person.password,custodians:identities.map(i=>i.account)},1);assert.equal(refusal.value.error,'recovery_confirmation_required')}finally{await rm(directory,{recursive:true,force:true})}
+ for(const c of custodians){assert.deepEqual(await c.call('vaults',{}).then(rows=>rows.filter(v=>v.id===vault)),[]);await assert.rejects(c.readVault(vault),error=>[403,404].includes(error.status))}
+ const lost=new RecoveryClient(await verifiedClient(f,person.email)),password='synthetic-latchkey-9598',pending=await lost.begin({...credential,password}),operation=pending.preview.operation;
+ await assert.rejects(lost.complete(pending,password,{confirmed:true}),{code:'recovery_approval_required'});
+ await quorumAgentRefusals(f,custodians[0],operation,change);
+ const foreign=await (await import('./browser/fixture.mjs')).vaultFixture({browserEnabled:false});try{await assert.rejects(new QuorumClient(foreign.owner).review(operation),{code:'quorum_case_unavailable'});await assert.rejects(new RecoveryClient(foreign.owner).begin({...credential,password}),{code:'recovery_origin_mismatch'})}finally{await foreign.close()}
+ const originalCase=await f.db.prepare('SELECT transfer_key FROM lky_recovery_cases WHERE id=?').bind(operation).first();await f.db.prepare('UPDATE lky_recovery_cases SET transfer_key=? WHERE id=?').bind((await keypair('wrap')).publicKey,operation).run();await assert.rejects(new QuorumClient(custodians[0]).review(operation),{code:'quorum_case_changed'});await f.db.prepare('UPDATE lky_recovery_cases SET transfer_key=? WHERE id=?').bind(originalCase.transfer_key,operation).run();
+ await assert.rejects(new QuorumClient(person.client).review(operation),{code:'quorum_self_approval_forbidden'});
+ await assert.rejects(new QuorumClient(s.third.client).approve(operation,{exactCase:operation,confirmed:true,identityChecked:true}),{code:'named_quorum_custodian_required'});
+ await assert.rejects(new QuorumClient(custodians[0]).approve(operation,{exactCase:operation.toUpperCase(),confirmed:true,identityChecked:true}),{code:'exact_human_approval_required'});
+ const rawShares=[];
+ for(const c of custodians){const review=await new QuorumClient(c).review(operation),{operation:unused,transferKey,expiresAt,...enrolled}=review.statement;const raw=await unwrapSigned(review.share,c.bundle.root.recipient.privateKey,identity.authorityKey,identity.account,await quorumBinding(enrolled,'quorum-share',review.custodian));rawShares.push(encode(raw));const stored=await f.db.prepare('SELECT payload FROM lky_quorum_enrollments WHERE id=?').bind(credential.enrollment).first();await assert.rejects(open(raw,JSON.parse(stored.payload),await quorumBinding(enrolled,'quorum-payload')),/cannot_decrypt/);raw.fill(0)}
+ const captured=[],authentic=custodians[0].fetcher;custodians[0].fetcher=async(url,init)=>{if(url.endsWith(quorumRoute('approve')))captured.push(JSON.parse(init.body));return authentic(url,init)};
+ await new QuorumClient(custodians[0]).approve(operation,{exactCase:operation,confirmed:true,identityChecked:true});custodians[0].fetcher=authentic;
+ await assert.rejects(lost.complete(pending,password,{confirmed:true}),{code:'recovery_approval_required'});
+ await assert.rejects(new QuorumClient(custodians[0]).approve(operation,{exactCase:operation,confirmed:true,identityChecked:true}),{code:'duplicate_quorum_approval'});
+ const other=await lost.begin({...credential,password});await assert.rejects(custodians[0].call(quorumRoute('approve'),{...captured[0],operation:other.preview.operation,exactCase:other.preview.operation}),{code:'invalid_key_signature'});
+ const real=custodians[1].fetcher;custodians[1].fetcher=async(url,init)=>{if(url.endsWith(quorumRoute('approve'))){const body=JSON.parse(init.body);body.wrapped.envelope.nonce=encode(new Uint8Array(12));return real(url,{...init,body:JSON.stringify(body)})}return real(url,init)};
+ try{await assert.rejects(new QuorumClient(custodians[1]).approve(operation,{exactCase:operation,confirmed:true,identityChecked:true}),{code:'invalid_signature'})}finally{custodians[1].fetcher=real}
+ await new QuorumClient(custodians[1]).approve(operation,{exactCase:operation,confirmed:true,identityChecked:true});
+ const wrong={...pending,credential:{...credential,statement:{...credential.statement,revision:99}}};await assert.rejects(lost.complete(wrong,password,{confirmed:true}),{code:'quorum_case_changed'});
+ const sessionFetcher=lost.client.fetcher;lost.client.fetcher=async(url,init)=>{const response=await sessionFetcher(url,init);if(url.endsWith(['recovery','session','status'].join('/'))&&response.ok){const body=await response.json();body.payload.ciphertext=encode(new Uint8Array(decode(body.payload.ciphertext).length));return new Response(JSON.stringify(body),{status:200,headers:response.headers})}return response};
+ try{await assert.rejects(lost.complete(pending,password,{confirmed:true}),/cannot_decrypt/)}finally{lost.client.fetcher=sessionFetcher}
+ const outcomes=await Promise.allSettled([lost.complete(pending,password,{confirmed:true}),lost.complete(pending,password,{confirmed:true})]);assert.equal(outcomes.filter(r=>r.status==='fulfilled').length,1);
+ const recovered=outcomes.find(r=>r.status==='fulfilled').value;
+ await assert.rejects(person.client.readVault(vault),error=>error.status===401);await person.client.unlock(recovered.profile,password);assert.equal((await person.client.readVault(vault)).versions[0].value.value,secret);
+ await assert.rejects(new QuorumClient(custodians[0]).review(operation),{code:'quorum_case_unavailable'});
+ const next=(await q.propose(identities.map(i=>i.account),{confirmed:true})).change;for(const c of custodians)await new QuorumClient(c).approveChange(next,{exactChange:next,confirmed:true});const fresh=await q.enroll(identities.map(i=>i.fingerprint),{confirmed:true});
+ const freshLost=new RecoveryClient(await verifiedClient(f,person.email)),freshPending=await freshLost.begin({...fresh,password});
+ // Policy replacement is independently approved and requires fresh enrollment.
+ const replacement=(await q.propose([identities[0].account,s.third.client.profile.account],{confirmed:true})).change;for(const c of custodians)await new QuorumClient(c).approveChange(replacement,{exactChange:replacement,confirmed:true});
+ await assert.rejects(new QuorumClient(custodians[0]).review(freshPending.preview.operation),{code:'quorum_enrollment_unavailable'});
+ await assert.rejects(freshLost.complete(freshPending,password,{confirmed:true}),{code:'recovery_enrollment_unavailable'});
+ const thirdIdentity=await s.third.client.identity();thirdIdentity.fingerprint=await thirdIdentity.fingerprint;await s.third.client.pinAccount(identity.account,identity.fingerprint);
+ const changed=await q.enroll([identities[0].fingerprint,thirdIdentity.fingerprint],{confirmed:true}),expired=await freshLost.begin({...changed,password});await f.db.prepare('UPDATE lky_recovery_cases SET expires_at=0 WHERE id=?').bind(expired.preview.operation).run();await assert.rejects(freshLost.complete(expired,password,{confirmed:true}),{code:'recovery_case_expired'});
+ const active=await freshLost.begin({...changed,password});
+ const op=(await f.db.prepare('SELECT operator_id FROM lky_accounts WHERE id=?').bind(s.third.client.profile.account).first()).operator_id;
+ await recoveryOwnerStepUp(f);
+ const deactivate=await f.fetcher(f.origin+'/auth/operator/status',{method:'POST',headers:{origin:f.origin,cookie:f.owner.cookie,'content-type':'application'+'/json'},body:JSON.stringify({operatorId:op,status:'inactive'})});
+ // Authority changes are made by the ordinary operator door.
+ assert.equal(deactivate.status,200,await deactivate.text());await assert.rejects(freshLost.complete(active,password,{confirmed:true}),error=>['quorum_owner_required','quorum_authority_changed'].includes(error.code));
+ const reactivate=await f.fetcher(f.origin+'/auth/operator/status',{method:'POST',headers:{origin:f.origin,cookie:f.owner.cookie,'content-type':['application','json'].join('/')},body:JSON.stringify({operatorId:op,status:'active'})});assert.equal(reactivate.status,200);await assert.rejects(freshLost.complete(active,password,{confirmed:true}),{code:'quorum_authority_changed'});
+ const removal=(await q.propose([],{confirmed:true})).change;for(const c of custodians)await new QuorumClient(c).approveChange(removal,{exactChange:removal,confirmed:true});await assert.rejects(freshLost.complete(active,password,{confirmed:true}),{code:'recovery_enrollment_unavailable'});await person.client.createVault({kind:'family'});
+ const outputs=[JSON.stringify((await f.db.prepare('SELECT * FROM lky_quorum_enrollments').all()).results),JSON.stringify((await f.db.prepare('SELECT * FROM lky_quorum_approvals').all()).results),JSON.stringify((await f.db.prepare('SELECT * FROM lky_events').all()).results),JSON.stringify(f.mail),JSON.stringify(f.runtimeLogs),JSON.stringify(captured)];
+ for(const output of outputs)for(const secretValue of[...rawShares,person.client.bundle.root.recipient.privateKey,secret,password])assert.ok(!output.includes(secretValue),'Quorum material must stay encrypted');
+ console.log('Two-person recovery: fresh policy, withheld shares, authority and replay refusals, encrypted company recovery passed');
+}
+
+export async function recoveryOwnerStepUp(f){
+ const post=(path,body)=>f.fetcher(f.origin+path,{method:'POST',headers:{origin:f.origin,cookie:f.owner.cookie,'content-type':['application','json'].join('/')},body:JSON.stringify(body),redirect:'manual'});
+ const started=await post('/auth/step-up',{action:'owner:transfer',returnTo:'/app'});assert.equal(started.status,202,await started.text());
+ const token=new URL(f.mail.at(-1).content.find(c=>c.type===['text','plain'].join('/')).value.match(/https:\/\/[^\s<>]+/)[0]).searchParams.get('token');assert.equal((await post('/auth/confirm',{token})).status,303);
+}
+
+async function quorumAgentRefusals(f,custodian,operation,change){
+ const vault=(await custodian.createVault()).vault,keys=await keypair('sign'),credential=await new AutomationClient(custodian).issueCredential({vault,publicKey:keys.publicKey,scopes:['posture:read','access:request'],expiresAt:Date.now()+3600000,confirmed:true}),agent=new McpClient({origin:f.origin,token:credential.token,privateKey:keys.privateKey,fetcher:f.fetcher});
+ assert.equal((await agent.initialize()).result.serverInfo.name,'Latchkey');
+ for(const [action,input] of [['approve',{operation,exactCase:operation,confirmed:true,identityChecked:true}],['change-approve',{change,exactChange:change,confirmed:true}]]){
+  assert.equal((await agent.request('tools/call',{name:'latchkey.recovery.quorum.'+action,arguments:input})).error.code,-32602);
+  const path='/api/latchkey/'+quorumRoute(action),body=JSON.stringify(input),nonce=id(),time=String(Date.now());
+  const response=await f.fetcher(f.origin+path,{method:'POST',headers:{origin:f.origin,'content-type':['application','json'].join('/'),authorization:'Bearer '+credential.token,'x-latchkey-nonce':nonce,'x-latchkey-time':time,'x-latchkey-signature':await sign(keys.privateKey,signingText('POST',path,credential.token,nonce,time,await digest(body)))},body});assert.equal(response.status,401);
+ }
+ await new AutomationClient(custodian).revokeCredential(credential.credential);
 }

@@ -1,3 +1,4 @@
+import { QuorumClient } from './quorum-client.mjs';
 import * as opaque from '@serenity-kit/opaque';
 import { ClientError } from '../client.mjs';
 import { bytes,decode,encode,id,itemKey,json,keypair,open,random,seal,sign,unlockKey,unwrapSigned } from '../crypto/envelope.mjs';
@@ -37,7 +38,8 @@ export class RecoveryClient {
  async complete(pending,password,{confirmed=false,beforeCommit}={}) {
   need(confirmed,'recovery_confirmation_required');const c=this.client,{credential,preview}=pending;
   let payload;
-  if(credential.secret)payload=json(await open(decode(credential.secret),credential.wrapped,binding(preview.tenant,credential.enrollment,'self-recovery',preview.generation)));
+  if(credential.kind==='quorum')payload=await new QuorumClient(c).payload(pending);
+  else if(credential.secret)payload=json(await open(decode(credential.secret),credential.wrapped,binding(preview.tenant,credential.enrollment,'self-recovery',preview.generation)));
   else {
    const approval=await c.request(session('status'),{operation:preview.operation});need(approval.approved,'recovery_approval_required');
    const trusted=credential.trustedAdministrator;need(trusted?.account===approval.custodian&&trusted.authorityKey,'recipient_confirmation_required');

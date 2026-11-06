@@ -1,6 +1,6 @@
 # Recovery custody
 
-The shipped client and CLI support three bounded recovery paths. All cryptography
+The shipped client and CLI support bounded recovery paths. All cryptography
 runs in the buyer client. The Worker stores encrypted envelopes and public keys.
 Recovery does not reset an independent MFA factor or recall copied plaintext.
 
@@ -51,5 +51,58 @@ Installation archives exclude every recovery enrollment, case and emergency
 capability. Restore requires fresh enrollment. Person erasure removes custody
 and cases for the member, administrator or contact and leaves downloaded copies
 explicitly outside product control. Separate MFA recovery, complete root-key
-rotation, graphical ceremonies and applicable native proof remain outstanding.
+rotation, complete graphical authority coverage and applicable native proof remain outstanding.
 The administrator and emergency policies are conservative defaults pending ct.
+
+## Fresh two-person company custody
+
+`recovery-quorum-propose` proposes exactly two distinct named active owners, or
+an empty list to remove custody. The member is the requester and cannot approve.
+Two other active owners use `recovery-quorum-change-review` and
+`recovery-quorum-change-approve`, with `exactChange` equal to the reviewed reference
+and `confirmed: true`. Votes bind the exact proposal, member generation, prior
+policy revision and each approver's current authority. A changed or removed
+owner invalidates their prior vote. The second approval activates a new revision
+and invalidates old enrollments and pending cases. Adding a custodian never
+transfers an existing share: the member must freshly enroll.
+
+`recovery-quorum-enroll` takes the two trusted fingerprints and explicit member
+confirmation. It writes a private credential file using `output`. The client
+creates a random AES key for the encrypted account payload and splits that key
+into two 256-bit XOR shares. One independently random share alone gives no
+information about the payload key. Each share is encrypted to its named
+custodian and signed by the member. Neither custodian receives a full root
+envelope. No raw share or payload key is sent to the service. The credential
+contains the public enrollment transcript and supplies no share.
+
+The existing `recovery-start` and `recovery-finish` commands accept this explicitly
+marked quorum credential. Each owner uses `recovery-quorum-review`, pins the
+member identity, checks the exact case and invokes `recovery-quorum-approve`
+with `exactCase`, `identityChecked: true` and `confirmed: true`. The client
+unwraps only that owner's share and re-encrypts it to the case transfer key.
+Shares and releases bind tenant, member generation, enrollment, policy revision,
+named owner keys and generations, operator authority version, transfer key,
+case reference and expiry. The requester combines both verified releases on
+their client, opens the encrypted payload and proves recovery-key possession.
+A single release cannot finish recovery. Duplicate approval and completion
+replay refuse; current authority and revision fences repeat atomically at writes.
+
+The browser exposes the same ceremonies under Settings → Recovery custody,
+and the locked page's Recover with two custodians form. Human approval requires
+typing the exact reference and explicit identity review. Agent and machine
+credentials provide no approval door. Recovery custody grants no everyday
+vault read rights. Family recipients are refused while fresh quorum enrollment
+is active; independent family roots remain excluded. Recovery-only custodians
+must be current owners in this bounded implementation; delegated recovery
+administrators and independent permission scopes are outstanding.
+
+All six quorum tables are excluded from actual installation archives. Restore
+requires a fresh policy and member enrollment. Subject erasure removes associated
+policies, proposals, votes, enrollments, cases and releases, including custody
+assigned to the erased person. Already delivered copies cannot be recalled.
+
+Legacy `recovery-administrator-enroll` remains single-custodian custody. Existing
+single-custodian envelopes are never counted or relabeled as quorum shares.
+Other existing recovery kits also remain independent authorities. Quorum
+custody does not claim complete root rotation, recall of copied roots, hardware
+factor qualification, separate MFA bypass or an independent cryptographic audit.

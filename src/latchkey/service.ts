@@ -365,6 +365,7 @@ export async function latchkeyResponse(request: Request, env: Bindings, auth: Op
   if (route === 'audit') { exact(input, []); return response(await all('SELECT * FROM lky_events WHERE actor=? ORDER BY created_at,id LIMIT 1000', actor)) }
   if (route === 'vault/create') {
    if(input.kind==='family'&&await first("SELECT 1 FROM lky_recovery_custody WHERE account=? AND kind='administrator' AND revoked_at IS NULL AND generation=?",actor,grant.generation))refuse('independent_family_account_required',403)
+   if(input.kind==='family'&&await first('SELECT 1 FROM lky_quorum_enrollments WHERE account=? AND revoked_at IS NULL AND generation=?',actor,grant.generation))refuse('independent_family_account_required',403)
    exact(input, ['vault', 'wrapped','kind','policy']); const vault = identifier(input.vault)
    if(!['company','private-work','family'].includes(input.kind))refuse('invalid_vault_kind')
    const authority=await first('SELECT authority_key FROM lky_accounts WHERE id=?',actor)
