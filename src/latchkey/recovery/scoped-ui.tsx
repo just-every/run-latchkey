@@ -10,6 +10,7 @@ export function ScopedRecoveryPanel({client}:{client:any}) {
  const run=async(work:()=>Promise<void>)=>{setBusy(true);setError('');setStatus('');try{await work()}catch(e){setReview(null);setError(explain(e))}finally{setBusy(false);setConfirmed(false);setIdentity(false)}};
  const refresh=async()=>setScopes((await recovery.scopes()).scopes);
  useEffect(()=>{void run(refresh)},[client]);
+ useEffect(()=>{setEnrollConfirmed(false)},[custodian,scope,fingerprint]);
  return <section className="detail section recovery-scoped" aria-label="Scoped recovery"><h1>Scoped recovery</h1><p>One named custodian can help recover an explicitly enrolled company account. This is single-custodian recovery, separate from two-person recovery. It grants no everyday vault access.</p>
  <style>{`.recovery-scoped{font-size:14px}.recovery-scoped label{display:grid;gap:6px;margin:12px 0}.recovery-scoped input{min-width:0;max-width:100%}.recovery-scoped code{overflow-wrap:anywhere}.recovery-scoped fieldset{min-width:0;border:1px solid var(--line,#ccc);border-radius:12px;margin:16px 0;padding:16px}.recovery-scoped .check{display:flex;align-items:flex-start;gap:8px}.recovery-scoped button{margin:6px 8px 6px 0}.recovery-scoped li{margin:12px 0;overflow-wrap:anywhere}`}</style>
  {error&&<p role="alert">{error}</p>}<p role="status">{status}</p>

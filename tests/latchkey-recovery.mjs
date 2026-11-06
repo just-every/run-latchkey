@@ -243,17 +243,41 @@ export async function scopedRecoveryJourney(f) {
  grant=await set([entry]);
  await assert.rejects(lost.begin({...credential,password}),{code:'scoped_recovery_authority_required'});
  credential=await enroll();pending=await lost.begin({...credential,password});
- await set([]);await assert.rejects(custodian.client.call('recovery' + '/administrator-review',{operation:pending.preview.operation}),{code:'scoped_recovery_authority_required'});
- await assert.rejects(lost.complete(pending,password,{confirmed:true}),{code:'scoped_recovery_authority_required'});
+ await set([]);
+ const refusedStages=async(custodianInactive=false)=>{
+  const before=await f.db.prepare('SELECT generation,opaque_record FROM lky_accounts WHERE id=?').bind(personIdentity.account).first();
+  for(const attempt of[
+   ()=>person.client.call('recovery' + '/scoped-enroll',{enrollment:personIdentity.account,scope:credential.scope,policy:'scoped-single-v1',custodian:identity.account,wrapped:{},confirmed:true}),
+   ()=>lost.begin({...credential,password}),
+   ()=>custodian.client.call('recovery' + '/administrator-review',{operation:pending.preview.operation}),
+   ()=>requestApi(custodian.client,'POST','/recovery/review',{operation:pending.preview.operation}),
+   ()=>admin.approve(pending.preview.operation,{confirmed:true,identityChecked:true}),
+   ()=>lost.client.request('recovery' + '/session/status',{operation:pending.preview.operation}),
+   ()=>lost.complete(pending,password,{confirmed:true}),
+  ])await assert.rejects(attempt,error=>error.code==='scoped_recovery_authority_required'||custodianInactive&&error.code==='authentication_required'&&error.status===401);
+  assert.deepEqual(await f.db.prepare('SELECT generation,opaque_record FROM lky_accounts WHERE id=?').bind(personIdentity.account).first(),before);
+  assert.equal((await f.db.prepare('SELECT consumed_at FROM lky_recovery_cases WHERE id=?').bind(pending.preview.operation).first()).consumed_at,null);
+ };
+ await refusedStages();
  grant=await set([entry]);credential=await enroll();pending=await lost.begin({...credential,password});
  const custodianOperator=(await f.db.prepare('SELECT operator_id FROM lky_accounts WHERE id=?').bind(identity.account).first()).operator_id;
  await requestApi(f.owner,'PUT',`/users/${custodianOperator}/status`,{status:'inactive'});
- await assert.rejects(lost.complete(pending,password,{confirmed:true}),{code:'scoped_recovery_authority_required'});
+ await refusedStages(true);
  await requestApi(f.owner,'PUT',`/users/${custodianOperator}/status`,{status:'active'});
  await custodian.client.unlock(custodian.enrolled.profile,custodian.password);
  await assert.rejects(lost.begin({...credential,password}),{code:'scoped_recovery_authority_required'});
  grant=await set([entry]);credential=await enroll();pending=await lost.begin({...credential,password});
+ // Stored-scope corruption and an incompatible policy must never widen custody.
+ await f.db.prepare('UPDATE lky_recovery_scopes SET member_generation=? WHERE id=?').bind(entry.generation+1,credential.scope).run();
+ await refusedStages();
+ await f.db.prepare('UPDATE lky_recovery_scopes SET member_generation=? WHERE id=?').bind(entry.generation,credential.scope).run();
+ const originalKey=(await f.db.prepare('SELECT recipient_key FROM lky_recovery_scopes WHERE id=?').bind(credential.scope).first()).recipient_key;
+ await f.db.prepare('UPDATE lky_recovery_scopes SET recipient_key=? WHERE id=?').bind(other.client.profile.recipientKey,credential.scope).run();
+ await refusedStages();
+ await f.db.prepare('UPDATE lky_recovery_scopes SET recipient_key=? WHERE id=?').bind(originalKey,credential.scope).run();
  await f.db.prepare("UPDATE lky_scoped_recovery_enrollments SET policy='quorum-unknown' WHERE enrollment=?").bind(credential.enrollment).run();
+ await assert.rejects(lost.begin({...credential,password}),{code:'recovery_policy_incompatible'});
+ await assert.rejects(custodian.client.call('recovery' + '/administrator-review',{operation:pending.preview.operation}),{code:'recovery_policy_incompatible'});
  await assert.rejects(admin.approve(pending.preview.operation,{confirmed:true,identityChecked:true}),{code:'recovery_policy_incompatible'});
  await assert.rejects(lost.complete(pending,password,{confirmed:true}),{code:'recovery_policy_incompatible'});
  assert.equal((await f.db.prepare('SELECT approved_wrap FROM lky_recovery_cases WHERE id=?').bind(pending.preview.operation).first()).approved_wrap,null);
@@ -301,7 +325,13 @@ export async function scopedRecoveryJourney(f) {
  const restCredential=await throughRest(restPerson.client,()=>new RecoveryClient(restPerson.client).enrollScoped(otherIdentity.account,otherIdentity.fingerprint,restGrant.scopes[0].id,{confirmed:true}));
  const restLost=new RecoveryClient(await verifiedClient(f,restPerson.email)),restPassword='synthetic-latchkey-9633',restPending=await restLost.begin({...restCredential,password:restPassword});
  await throughRest(other.client,()=>new RecoveryClient(other.client).approve(restPending.preview.operation,{confirmed:true,identityChecked:true}));
- const restResult=await restLost.complete(restPending,restPassword,{confirmed:true});await restPerson.client.unlock(restResult.profile,restPassword);
+ const outcomes=await Promise.allSettled([restLost.complete(structuredClone(restPending),restPassword,{confirmed:true}),restLost.complete(structuredClone(restPending),restPassword,{confirmed:true})]);
+ assert.equal(outcomes.filter(row=>row.status==='fulfilled').length,1,'one exact recovery case can finish only once');
+ assert.equal(outcomes.filter(row=>row.status==='rejected').length,1);
+ const restResult=outcomes.find(row=>row.status==='fulfilled').value;await restPerson.client.unlock(restResult.profile,restPassword);
+ assert.equal(restResult.profile.generation,restPending.preview.generation+1);
+ assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM lky_devices WHERE account_id=? AND revoked_at IS NULL').bind(restIdentity.account).first()).n,1);
+ await assert.rejects(restLost.complete(restPending,restPassword,{confirmed:true}));
  assert.equal((await restPerson.client.readVault(restVault)).versions[0].value.value,'synthetic-latchkey-9632');await assert.rejects(other.client.readVault(restVault));
  const stored=JSON.stringify((await f.db.prepare('SELECT * FROM lky_recovery_custody').all()).results)+JSON.stringify((await f.db.prepare('SELECT * FROM lky_recovery_cases').all()).results)+JSON.stringify(await f.owner.call('audit',{}))+JSON.stringify(f.mail);
  for(const secret of[person.client.bundle.root.recipient.privateKey,other.client.bundle.root.recipient.privateKey,password,'synthetic-latchkey-9622',restPassword,restPerson.client.bundle.root.recipient.privateKey,'synthetic-latchkey-9632'])assert.ok(!stored.includes(secret));

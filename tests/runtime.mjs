@@ -232,9 +232,24 @@ try {
  const liveScope=await scopedRest(owner,'PUT','/admin/recovery-scopes',scopedRecoveryInput);
  assert.equal(liveScope.permission,'accounts.recover');
  assert.equal((await scopedRest(member,'GET','/admin/recovery-scopes')).scopes[0].member,leaver.profile.account);
+ const {RecoveryClient}=await import('../src/latchkey/recovery/client.mjs');
+ const scopedMember=new RecoveryClient(leaver),scopedCustodian=new RecoveryClient(member);
+ const leaverIdentity=await leaver.identity(),custodianIdentity=await member.identity();
+ await member.pinAccount(leaverIdentity.account,await leaverIdentity.fingerprint);
+ const scopedCredential=await scopedMember.enrollScoped(custodianIdentity.account,await custodianIdentity.fingerprint,liveScope.scopes[0].id,{confirmed:true});
+ const scopedCase=await scopedMember.begin({...scopedCredential,password:'synthetic-latchkey-2306'});
+ assert.equal((await scopedRest(member,'POST','/recovery/review',{operation:scopedCase.preview.operation})).account,leaverIdentity.account);
+ await scopedCustodian.approve(scopedCase.preview.operation,{confirmed:true,identityChecked:true});
+ await rejected(scopedRest(owner,'PUT','/admin/recovery-scopes',{...scopedRecoveryInput,members:[{...scopedRecoveryInput.members[0],domain:'family'}]}),'invalid_recovery_scope');
+ assert.equal((await scopedRest(member,'GET','/admin/recovery-scopes')).scopes[0].id,liveScope.scopes[0].id);
  await rejected(member.call('admin' + '/permissions/set',{account:leaver.profile.account,permissions:['people.suspend'],confirmed:true}),'owner_required');
  await owner.call('admin' + '/recovery-scopes/set',{custodian:member.profile.account,members:[],confirmed:true});
  assert.equal((await scopedRest(member,'GET','/admin/recovery-scopes')).scopes.length,0);
+ await rejected(scopedRest(member,'POST','/recovery/review',{operation:scopedCase.preview.operation}),'scoped_recovery_authority_required');
+ await rejected(scopedMember.complete(scopedCase,'synthetic-latchkey-2306',{confirmed:true}),'scoped_recovery_authority_required');
+ assert.equal((await productDb.prepare('SELECT generation FROM lky_accounts WHERE id=?').bind(leaverIdentity.account).first()).generation,leaver.profile.generation);
+ await leaver.call('recovery' + '/revoke',{enrollment:scopedCredential.enrollment});
+ console.log('Scoped recovery HTTP journey: exact non-owner custody, signed approval, REST review, rejected domain widening and live revocation without changing the member passed');
 
  const workVault=(await leaver.createVault({kind:'private-work'})).vault;
  const companyObject=(await leaver.put(workVault,{value:'synthetic-latchkey-2302'})).object;

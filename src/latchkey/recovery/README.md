@@ -81,7 +81,9 @@ Previously copied roots or envelopes cannot be recalled.
 
 Settings → Scoped recovery exposes owner grants, member enrollment and exact-case
 custodian approval. The locked screen's account recovery ceremony accepts the
-member's credential file under a freshly verified sign-in. No scope grants
+member's credential file under a freshly verified sign-in. Changing the custodian,
+scope or pinned fingerprint clears enrollment consent and requires confirmation
+of the new selection. No scope grants
 ordinary item or attachment reads, export, policy, billing, settings or
 owner-only actions. Archives exclude the scopes and enrollment bindings; person
 erasure removes both. Legacy named-owner custody remains separate. This policy

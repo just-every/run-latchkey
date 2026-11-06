@@ -38,6 +38,18 @@ export async function scopedRecoveryBrowserJourney(width,output){
   await panel.getByLabel('Enrollment custodian account').fill(custodianIdentity.account);await panel.getByLabel('Enrollment scope').fill(scope.id);await panel.getByLabel('Custodian fingerprint').fill(await custodianIdentity.fingerprint);
   if(assertions)await expect(panel.getByRole('button',{name:'Enroll and save recovery credential'})).toBeDisabled();
   await panel.getByLabel('I consent to encrypted company-account custody by this pinned custodian').check();
+  if(assertions){
+   // Consent belongs to the exact pinned key, including changes in another form.
+   await panel.getByLabel('Custodian fingerprint').fill('synthetic-latchkey-9714');
+   await expect(panel.getByRole('button',{name:'Enroll and save recovery credential'})).toBeDisabled();
+   await panel.getByLabel('Custodian fingerprint').fill(await custodianIdentity.fingerprint);
+   await expect(panel.getByLabel('I consent to encrypted company-account custody by this pinned custodian')).not.toBeChecked();
+   await panel.getByLabel('I consent to encrypted company-account custody by this pinned custodian').check();
+   await panel.getByLabel('Grant custodian account',{exact:true}).fill(personIdentity.account);
+   await expect(panel.getByRole('button',{name:'Enroll and save recovery credential'})).toBeDisabled();
+   await panel.getByLabel('Enrollment custodian account').fill(custodianIdentity.account);
+   await panel.getByLabel('I consent to encrypted company-account custody by this pinned custodian').check();
+  }
   const credential=await downloaded(f.page,()=>panel.getByRole('button',{name:'Enroll and save recovery credential'}).click());
   if(assertions){assert.equal(credential.trustedAdministrator.account,custodianIdentity.account);assert.ok(!JSON.stringify(credential).includes(person.client.bundle.root.recipient.privateKey))}
   await panel.getByRole('status').filter({hasText:'Member enrollment saved'}).waitFor();await capture('scoped-recovery-member');
@@ -67,6 +79,30 @@ export async function scopedRecoveryBrowserJourney(width,output){
   // Decrypt the intended content with the fresh profile in the actual browser.
   await signIn(f,fresh);await memberPage.getByLabel('Profile file').setInputFiles(upload(profile));await memberPage.getByLabel('Master password',{exact:true}).fill(newPassword);await memberPage.getByRole('button',{name:'Unlock vault',exact:true}).click();
   await memberPage.getByRole('button',{name:'New item',exact:true}).waitFor();await memberPage.getByRole('navigation',{name:'Vault items'}).getByRole('button').filter({hasText:'Recovered company document'}).click();if(assertions){await memberPage.getByRole('button',{name:'Reveal Note',exact:true}).focus();await expect(memberPage.getByRole('tooltip')).toContainText('Reveal field')}await memberPage.getByRole('button',{name:'Reveal Note',exact:true}).click();if(assertions)await expect(memberPage.getByLabel('Note',{exact:true})).toHaveValue('synthetic-latchkey-9712');await memberPage.getByRole('button',{name:'Hide Note',exact:true}).click();await capture('scoped-recovery-unlocked');
+  // A later owner revocation must refuse the browser's already-open case.
+  const nextGrant=await new RecoveryClient(f.owner).setScopes(custodianIdentity.account,[{account:profile.account,generation:profile.generation,domain:'company-account'}],{confirmed:true});
+  await unlock(f,fresh,newPassword);
+  await panel.getByLabel('Enrollment custodian account').fill(custodianIdentity.account);
+  await panel.getByLabel('Enrollment scope').fill(nextGrant.scopes[0].id);
+  await panel.getByLabel('Custodian fingerprint').fill(await custodianIdentity.fingerprint);
+  await panel.getByLabel('I consent to encrypted company-account custody by this pinned custodian').check();
+  const nextCredential=await downloaded(memberPage,()=>panel.getByRole('button',{name:'Enroll and save recovery credential'}).click());
+  await panel.getByRole('status').filter({hasText:'Member enrollment saved'}).waitFor();
+  await signIn(f,await verifiedClient(f,person.email));
+  await memberPage.locator('summary').filter({hasText:/^Recover company account$/}).click();
+  await recovery.getByLabel('Recovery credential file').setInputFiles(upload(nextCredential,'recovery.json'));
+  await recovery.getByLabel('New recovery password').fill('synthetic-latchkey-9715');
+  await recovery.getByRole('button',{name:'Start recovery case'}).click();
+  await recovery.locator('[data-recovery-case]').waitFor();
+  await new RecoveryClient(f.owner).setScopes(custodianIdentity.account,[],{confirmed:true});
+  await recovery.getByLabel('I confirm recovery of this exact company account').check();
+  await recovery.getByRole('button',{name:'Finish approved recovery'}).click();
+  await recovery.getByRole('alert').waitFor();
+  if(assertions){
+   await expect(recovery.getByRole('alert')).toContainText('grant no longer matches');
+   assert.equal((await f.db.prepare('SELECT generation FROM lky_accounts WHERE id=?').bind(profile.account).first()).generation,profile.generation);
+  }
+  await capture('scoped-recovery-revoked');
   console.log(`Scoped recovery browser ${width}: owner grant, member encryption, distinct custodian approval, retained new credentials and recovered company account passed`);
  }catch(error){if(output)await f.page.screenshot({path:join(output,`scoped-recovery-failure-${width}.png`),fullPage:true});throw error}finally{await f.close()}
 }

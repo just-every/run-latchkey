@@ -56,7 +56,12 @@ export async function runSubjectErasureJourneys({owner,db,records,mail,post,fetc
  assert.equal((await reportApi.history(retainedVault)).observations.length,1);
 
  const recoveryGrant=await new RecoveryClient(owner).setScopes(reportOwner.profile.account,[{account:person.profile.account,generation:person.profile.generation,domain:'company-account'}],{confirmed:true});
- const recoveryEnrollment=await new RecoveryClient(person).enrollScoped(reportOwner.profile.account,await reportOwner.identity().fingerprint,recoveryGrant.scopes[0].id,{confirmed:true});
+ let recoveryReplay;
+ const recoveryCall=person.call.bind(person);
+ person.call=(route,input)=>{if(route==='recovery' + '/scoped-enroll')recoveryReplay=structuredClone(input);return recoveryCall(route,input)};
+ let recoveryEnrollment;
+ try{recoveryEnrollment=await new RecoveryClient(person).enrollScoped(reportOwner.profile.account,await reportOwner.identity().fingerprint,recoveryGrant.scopes[0].id,{confirmed:true})}finally{person.call=recoveryCall}
+ const recoveryPending=await new RecoveryClient(person).begin({...recoveryEnrollment,password:'synthetic-latchkey-995'});
  assert.ok(await db.prepare('SELECT enrollment FROM lky_scoped_recovery_enrollments WHERE enrollment=?').bind(recoveryEnrollment.enrollment).first());
  const healthItem=await owner.put(otherVault,createItem('login',{title:'Synthetic shared health',values:{password:'aaaa'}}));
  const personHealth=new HealthClient(person),ownerHealth=new HealthClient(owner),finding=(await personHealth.inspect(otherVault)).findings.find(row=>row.object===healthItem.object&&row.code==='weak-password');assert.ok(finding);
@@ -86,6 +91,10 @@ export async function runSubjectErasureJourneys({owner,db,records,mail,post,fetc
  assert.equal((await reportApi.history(retainedVault)).observations.length,1);
  assert.equal(await db.prepare('SELECT id FROM lky_recovery_scopes WHERE id=?').bind(recoveryGrant.scopes[0].id).first(),null);
  assert.equal(await db.prepare('SELECT enrollment FROM lky_scoped_recovery_enrollments WHERE enrollment=?').bind(recoveryEnrollment.enrollment).first(),null);
+ assert.equal(await db.prepare('SELECT id FROM lky_recovery_cases WHERE id=?').bind(recoveryPending.preview.operation).first(),null);
+ await assert.rejects(person.call('recovery' + '/scoped-enroll',recoveryReplay));
+ await assert.rejects(person.request('recovery' + '/session/status',{operation:recoveryPending.preview.operation}));
+ assert.equal(await db.prepare('SELECT id FROM lky_recovery_custody WHERE id=?').bind(recoveryEnrollment.enrollment).first(),null);
  await rejects(new RecoveryClient(owner).setScopes(reportOwner.profile.account,[{account:person.profile.account,generation:person.profile.generation,domain:'company-account'}],{confirmed:true}),'recovery_member_unavailable');
  assert.equal(erased.controlPlaneErased,true);assert.equal(erased.complete,false);
  assert.equal(erased.controlPlaneErased,true);
