@@ -20,6 +20,8 @@ const refused = promise => assert.rejects(promise, error => typeof error.code ==
 export async function exerciseRecordsRestore({ archive, sourceClient, destinationClient, wrongPersonClient, expectedVersions, healthRestore }) {
  const scratch = await mkdtemp(join(tmpdir(), 'synthetic-latchkey-54-'));
  try {
+  const manifest=JSON.parse(archive.trim().split('\n')[0]);
+  for(const table of ['lky_recovery_scopes','lky_scoped_recovery_enrollments']){assert.ok(manifest.excludedTables.includes(table));assert.ok(!manifest.tables.some(row=>row.name===table))}
   const input = join(scratch, 'source.rer'); await writeFile(input, archive, { mode: 0o600 });
   const source = identity(sourceClient), destination = identity(destinationClient);
   assert.notEqual(source.account, destination.account);

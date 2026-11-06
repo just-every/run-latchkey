@@ -1,3 +1,4 @@
+import { scopedRecoveryBrowserJourney } from './recovery-scoped.mjs';
 import { runGeneratorApiJourney } from '../latchkey-generator-policy.mjs';
 import { companyCustodyJourney } from './company-custody.mjs';
 import { staleSaveJourney } from './stale-save.mjs';
@@ -15,11 +16,13 @@ import { SharingClient } from '../../src/latchkey/sharing/client.mjs';
 import { VaultClient } from '../../src/latchkey/client.mjs';
 const output=process.env.LATCHKEY_SCREENSHOTS;
 if(output)await mkdir(output,{recursive:true});
+if(process.argv.includes('--scoped-recovery')){for(const width of [1440,390])await scopedRecoveryBrowserJourney(width,output);process.exit(0)}
 const generatorOnly = process.argv.includes('--generator-policy');
 if (!generatorOnly) { await companyCustodyJourney(output); await staleSaveJourney(1440, output); }
 for(const width of [1440,390]) {
 await generatorPolicyReviewJourney(width, output);
 if (generatorOnly) continue;
+await scopedRecoveryBrowserJourney(width,output);
 await passboltJourney(width, output);
 await migrationJourney(width, output);
 const f=await vaultFixture();

@@ -53,3 +53,37 @@ and cases for the member, administrator or contact and leaves downloaded copies
 explicitly outside product control. Separate MFA recovery, complete root-key
 rotation, graphical ceremonies and applicable native proof remain outstanding.
 The administrator and emergency policies are conservative defaults pending ct.
+
+## Scoped single-custodian recovery
+
+An installation owner can grant `accounts.recover` to one named active non-owner
+member with `recovery-scopes-set`. Supply `custodian`, `confirmed: true` and an
+explicit `members` array, each entry containing `account`, current `generation`
+and `domain: "company-account"`. An empty array revokes that custodian's scopes.
+There are no wildcard scopes. Replacing this array creates fresh grant identities
+and requires fresh enrollment even for retained members. `recovery-scopes` shows
+only the caller's relevant grants, or all grants for the installation owner.
+These permissions are independent of people-management permissions and cannot
+be delegated by their holder.
+
+The member pins that exact custodian's fingerprint and explicitly confirms
+`recovery-scoped-enroll`, supplying the scope id and a private `output` file.
+The encrypted envelope binds the grant identity and current member generation.
+It uses the existing full company-account root; it does not isolate individual
+vaults. Family access makes this enrollment ineligible. Custodians retain their
+own client-held keys; the server never receives a root or a plaintext share.
+The existing start, human review, approval and finish commands then apply.
+Every stage checks both the enrollment and live grant, active member and
+custodian, key domain and generations. Narrowing, revocation, key changes,
+deactivation, erasure and incompatible policies refuse pending operations.
+Regranting cannot revive an old envelope. Replayed approval or finish refuses.
+Previously copied roots or envelopes cannot be recalled.
+
+Settings → Scoped recovery exposes owner grants, member enrollment and exact-case
+custodian approval. The locked screen's account recovery ceremony accepts the
+member's credential file under a freshly verified sign-in. No scope grants
+ordinary item or attachment reads, export, policy, billing, settings or
+owner-only actions. Archives exclude the scopes and enrollment bindings; person
+erasure removes both. Legacy named-owner custody remains separate. This policy
+is single-custodian only, never a two-person quorum, and never converts an
+unknown or quorum-protected enrollment. LKY-051 remains independent.
