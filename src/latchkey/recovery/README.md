@@ -95,3 +95,8 @@ can reinterpret scoped custody as legacy named-owner recovery.
 Starting a scoped case also requires the credential's exact policy, scope and
 custodian. Missing or incompatible descriptors refuse before creating a case;
 legacy credentials remain accepted only for their original enrollment policy.
+
+Scoped case requests also bind the credential’s exact account, tenant and
+generation before any case is created or notice is sent. Changing these fields
+refuses without preparing recovery for the signed-in member. Legacy named-owner
+and self-recovery credentials retain their original ceremony.

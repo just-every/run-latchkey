@@ -217,7 +217,23 @@ export async function scopedRecoveryJourney(f) {
  assert.equal(await f.db.prepare('SELECT id FROM lky_recovery_custody WHERE id=?').bind(personIdentity.account).first(),null);
 
  await assert.rejects(recovery.enrollScoped(identity.account,'synthetic-latchkey-9627',grant.scopes[0].id,{confirmed:true}),{code:'recipient_mismatch'});
- let credential=await enroll();
+ const memberFetch=person.client.fetcher;let enrollmentWire;
+ person.client.fetcher=(url,input)=>{if(url.endsWith('recovery' + '/scoped-enroll'))enrollmentWire={url,input:structuredClone(input)};return memberFetch(url,input)};
+ let credential;
+ try{credential=await enroll()}finally{person.client.fetcher=memberFetch}
+ assert.ok(enrollmentWire,'capture the actual member-signed enrollment');
+ const enrolledBefore=(await f.db.prepare('SELECT COUNT(*) AS n FROM lky_recovery_custody WHERE account=?').bind(personIdentity.account).first()).n,mailBeforeReplay=f.mail.length;
+ for(const [input,status,code]of[
+  [enrollmentWire.input,409,'request_replayed'],
+  [{...enrollmentWire.input,headers:{...enrollmentWire.input.headers,origin:'https://foreign.example.test'}},403,'invalid_origin'],
+  [{...enrollmentWire.input,headers:{...enrollmentWire.input.headers,'x-latchkey-time':'0'}},401,'request_expired'],
+  [{...enrollmentWire.input,body:JSON.stringify({...JSON.parse(enrollmentWire.input.body),custodian:other.client.profile.account})},403,'invalid_signature'],
+ ]){
+  const response=await memberFetch(enrollmentWire.url,input);
+  assert.equal(response.status,status);assert.equal((await response.json()).error,code);
+ }
+ assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM lky_recovery_custody WHERE account=?').bind(personIdentity.account).first()).n,enrolledBefore);
+ assert.equal(f.mail.length,mailBeforeReplay);
  await assert.rejects(new RecoveryClient(new VaultClient('https://foreign.example.test')).begin({...credential,password:'synthetic-latchkey-9628'}),{code:'recovery_origin_mismatch'});
  await assert.rejects(person.client.createVault({kind:'family'}),{code:'independent_family_account_required'});
  const lost=new RecoveryClient(await verifiedClient(f,person.email)),password='synthetic-latchkey-9624';
@@ -226,7 +242,14 @@ export async function scopedRecoveryJourney(f) {
  lost.client.request=(path,input)=>{if(path==='recovery' + '/session/start')startInput=structuredClone(input);return startRequest(path,input)};
  try{pending=await lost.begin({...credential,password})}finally{lost.client.request=startRequest}
  const casesBefore=(await f.db.prepare('SELECT COUNT(*) AS n FROM lky_recovery_cases WHERE account=?').bind(personIdentity.account).first()).n;
- const {policy:ignoredPolicy,scope:ignoredScope,custodian:ignoredCustodian,...legacyStart}=startInput;
+ // A tampered credential must refuse before a case or member notice is created.
+ const noticesBefore=f.mail.length;
+ for(const changed of [{account:other.client.profile.account},{tenant:crypto.randomUUID()},{generation:credential.generation+1}]){
+  await assert.rejects(lost.begin({...credential,...changed,password}),{code:'recovery_context_changed'});
+  assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM lky_recovery_cases WHERE account=?').bind(personIdentity.account).first()).n,casesBefore,'changed credential identity must not create a recovery case');
+  assert.equal(f.mail.length,noticesBefore,'changed credential identity must not send a recovery notice');
+ }
+ const {policy:ignoredPolicy,scope:ignoredScope,custodian:ignoredCustodian,account:ignoredAccount,tenant:ignoredTenant,generation:ignoredGeneration,...legacyStart}=startInput;
  for(const input of[
   {...startInput,policy:'quorum-unknown'},legacyStart,
   {...startInput,scope:other.client.profile.account},
@@ -362,6 +385,30 @@ export async function scopedRecoveryJourney(f) {
   assert.ok((await command(f,'recovery-scopes',{profile:ownerProfile,password:f.password})).value.scopes.some(row=>row.id===replacement.scopes[0].id));
   const memberProfile=join(directory,'member.json'),adminProfile=join(directory,'admin.json'),credentialFile=join(directory,'credential.json'),pendingFile=join(directory,'pending.json'),profileFile=join(directory,'new-profile.json'),kitFile=join(directory,'new-kit.json');
   await writeFile(memberProfile,JSON.stringify(person.client.profile),{mode:0o600});await writeFile(adminProfile,JSON.stringify(other.client.profile),{mode:0o600});
+  // Recovery authority must not turn the shipped CLI into an everyday read or
+  // delegation door. Real content exists, and refused commands create no file.
+  const refusedOutput=join(directory,'refused.json');
+  for(const [name,input]of[
+   ['read',{vault}],['export',{vault,exportKey:encode(random())}],
+   ['item-history',{vault,object:item.object}],
+   ['item-attachment',{vault,object:item.object,attachment:attachment.id}],
+  ]){
+   const result=await command(f,name,{profile:adminProfile,password:other.password,output:refusedOutput,...input},1);
+   assert.ok(['not_found','permission_denied'].includes(result.value.error),result.output);
+   await assert.rejects(stat(refusedOutput),{code:'ENOENT'});
+  }
+  const roleBefore=await f.db.prepare('SELECT role,version FROM oa_operators WHERE id=?').bind(operator).first();
+  const rightsBefore=(await f.db.prepare('SELECT * FROM lky_admin_permissions ORDER BY account,permission').all()).results;
+  for(const api of[
+   {command:'users.role',operator,body:{role:'owner'}},
+   {command:'admin.set-permissions',body:{account:otherIdentity.account,permissions:['people.read'],confirmed:true}},
+   {method:'PUT',path:'/admin/recovery-scopes',body:{custodian:identity.account,members:[entry],confirmed:true}},
+  ]){
+   const result=await command(f,'api',{profile:adminProfile,password:other.password,api},1);
+   assert.ok(['forbidden','owner_required'].includes(result.value.error),result.output);
+  }
+  assert.deepEqual(await f.db.prepare('SELECT role,version FROM oa_operators WHERE id=?').bind(operator).first(),roleBefore);
+  assert.deepEqual((await f.db.prepare('SELECT * FROM lky_admin_permissions ORDER BY account,permission').all()).results,rightsBefore);
   await command(f,'recovery-scoped-enroll',{profile:memberProfile,password:person.password,custodian:otherIdentity.account,fingerprint:await otherIdentity.fingerprint,scope:replacement.scopes[0].id,output:credentialFile,confirmed:true});
   newCredential=JSON.parse(await readFile(credentialFile,'utf8'));assert.equal((await stat(credentialFile)).mode&0o777,0o600);
   await person.client.requestIdentity(person.email);const identityToken=new URL(f.mail.at(-1).content.find(part=>part.type==='text/plain').value.match(/https:\/\/[^\s<>]+/)[0]).searchParams.get('token');

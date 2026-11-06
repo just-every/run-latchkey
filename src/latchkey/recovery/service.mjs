@@ -25,8 +25,11 @@ export async function recoverySession(route,input,ctx) {
  Object.assign(ctx,{actor:account.id,tenant:account.tenant,generation:account.generation,device:'verified-session',fence:"EXISTS(SELECT 1 FROM oa_sessions s JOIN oa_operators o ON o.id=s.operator_id JOIN lky_accounts a ON a.operator_id=o.id WHERE s.id=? AND s.revoked_at IS NULL AND s.expires_at>? AND s.operator_version=o.version AND o.status='active' AND a.id=? AND a.generation=?)",fenceArgs:[ctx.session.id,ctx.now,account.id,account.generation]});
  if(action==='start') {
   const scopedRequest=['policy','scope','custodian'].some(key=>Object.hasOwn(input,key));
-  exact(input,['enrollment','request','transferKey',...(scopedRequest?['policy','scope','custodian']:[])]);const enrolled=await enrollmentFor(ctx,input.enrollment);
+  exact(input,['enrollment','request','transferKey',...(scopedRequest?['policy','scope','custodian','account','tenant','generation']:[])]);const enrolled=await enrollmentFor(ctx,input.enrollment);
   need(await first("SELECT 1 FROM oa_sessions s JOIN oa_tokens t ON t.id=s.source_token_id WHERE s.id=? AND s.kind='native' AND t.consumed_at IS NOT NULL AND s.created_at>?",ctx.session.id,ctx.now-300000),'fresh_verified_identity_required',403);
+  // Refuse a modified credential before creating a case or sending its notice.
+  // Legacy enrollment keeps its original request shape and policy checks.
+  if(scopedRequest)need(input.account===account.id&&input.tenant===account.tenant&&input.generation===account.generation,'recovery_context_changed',403);
   await publicKey(input.transferKey,'wrap');need(typeof input.request==='string'&&input.request.length<4096);
   const authority=await recoveryAuthority(ctx,enrolled);
   need(authority.scope?scopedRequest&&input.policy===scopedPolicy&&input.scope===authority.scope&&input.custodian===enrolled.custodian:!scopedRequest,'recovery_policy_incompatible',403);

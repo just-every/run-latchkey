@@ -38,7 +38,7 @@ export class RecoveryClient {
   need(!scoped||(typeof credential.scope==='string'&&typeof credential.trustedAdministrator?.account==='string'),'recovery_policy_incompatible');
   await opaque.ready;
   const started=opaque.client.startRegistration({password:credential.password}),transfer=await keypair('wrap');
-  const preview=await c.request(session('start'),{enrollment:credential.enrollment,request:started.registrationRequest,transferKey:transfer.publicKey,...(scoped?{policy:credential.policy,scope:credential.scope,custodian:credential.trustedAdministrator.account}:{})});
+  const preview=await c.request(session('start'),{enrollment:credential.enrollment,request:started.registrationRequest,transferKey:transfer.publicKey,...(scoped?{policy:credential.policy,scope:credential.scope,custodian:credential.trustedAdministrator.account,account:credential.account,tenant:credential.tenant,generation:credential.generation}:{})});
   need(preview.account===credential.account&&preview.tenant===credential.tenant&&preview.generation===credential.generation,'recovery_context_changed');
   return {credential:{...credential,password:undefined},started,transfer,preview};
  }
