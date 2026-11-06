@@ -107,3 +107,9 @@ Exact-SHA scan receipt: commit=1c9e95b0183968009f9b4fe0a3656eb18cab0de8; complet
 Local successful outputs: recovery-output.txt, browser-output.txt, runtime-output.txt, typecheck-output.txt, views-output.txt and migration-ledger-output.txt. mechanical-receipt.json carries exact-head commands and exits. receipt.json carries product provenance, current CI state, source blobs, hashes and honest landing boundaries. PLAN.txt is the original work plan. The twelve screenshots in screens show the owner, member, custodian, pending, completed and unlocked states at 1440 and 390. Only explicit regular files are published to the separate evidence ref; no custody files, sessions, credentials or environment values are included.
 
 Initial development corrected an unawaited fingerprint and a typed-record assertion, and added the existing owner step-up ceremony to the granting-owner erasure fixture. One standalone local test was interrupted after an overlapping build and its owned processes were stopped; subsequent complete sequential recovery and runtime journeys passed. No CI test was weakened or rerun to conceal a failure. Earlier candidates were superseded while proof was completed and fresh main judgments were merged; only the final exact head above is handed off.
+
+## Terminal handoff
+
+PUSHED branch=cloud/sx-latchkey-c-f276 head=1c9e95b0183968009f9b4fe0a3656eb18cab0de8
+
+Verify 42295751721 remains in progress after three polls separated by 300 seconds. Eight of the shared ten GitHub calls were used; the remaining budget is short for further monitoring plus failed-job diagnosis. No real test failure is known. All local touched gates passed, and the complete product is pushed. The maintained fleet must establish the exact-SHA CI result and publication scan before landing. Evidence publication is separate from this PUSHED custody.

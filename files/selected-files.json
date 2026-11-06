@@ -22,5 +22,6 @@
   "screens/scoped-recovery-complete-1440.png",
   "screens/scoped-recovery-complete-390.png",
   "screens/scoped-recovery-unlocked-1440.png",
-  "screens/scoped-recovery-unlocked-390.png"
+  "screens/scoped-recovery-unlocked-390.png",
+  "selected-files.json"
 ]

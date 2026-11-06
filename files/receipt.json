@@ -136,5 +136,12 @@
     "recovery_journey_rerun_after_final_assertions": true
   },
   "contract_source_matches_origin_main": true,
-  "candidate_commits": 4
+  "candidate_commits": 4,
+  "handoff": "PUSHED",
+  "github_call_budget": {
+    "used": 8,
+    "limit": 10,
+    "final_run_polls": 3,
+    "minimum_interval_seconds": 300
+  }
 }
