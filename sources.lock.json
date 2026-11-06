@@ -4974,7 +4974,7 @@
       "executable": false
     },
     "tests/latchkey-recovery.mjs": {
-      "sha256": "d943e7a8daec0e543e7221d70514169f7302f20753e8aa854076b4e6d09c44ac",
+      "sha256": "256a5ca38e9b62c167952148ef00d93990f62802a96348c879027ff2d37e60b5",
       "executable": false
     },
     "tests/latchkey-restore.mjs": {
