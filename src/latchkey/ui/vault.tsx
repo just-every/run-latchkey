@@ -100,12 +100,14 @@ export function VaultScreen() {
  };
  const onUnlock = async (connected: any) => {
   activeClient.current = connected;
-  lockWatch.current?.stop();
-  lockWatch.current = watchBrowserLock(connected, () => flushSync(lock));
-  if (activeClient.current !== connected) return;
-  const list = await connected.call('vaults', {}); if (activeClient.current !== connected) return; setVaults(list); if (list.length) await load(connected, list[0].id, '', list[0]);
-  if (activeClient.current !== connected) return;
-  setClient(connected); setStatus('Vault unlocked');
+  try {
+   lockWatch.current?.stop();
+   lockWatch.current = watchBrowserLock(connected, () => flushSync(lock));
+   if (activeClient.current !== connected) return;
+   const list = await connected.call('vaults', {}); if (activeClient.current !== connected) return; setVaults(list); if (list.length) await load(connected, list[0].id, '', list[0]);
+   if (activeClient.current !== connected) return;
+   setClient(connected); setStatus('Vault unlocked');
+  } catch (cause) { if (activeClient.current === connected) lock(); else connected.lock(); throw cause; }
  };
  const refresh = async () => { setRecords([]); setSelected(''); setPanel(''); const list = await client.call('vaults', {}); setVaults(previous => list.map((next: any) => ({ ...next, title: previous.find(v => v.id === next.id)?.title }))); const id = list.some((v: any) => v.id === vault) ? vault : list[0]?.id; if (id) await load(client, id, selected, list.find((v: any) => v.id === id)); else { setRecords([]); setSelected(''); setVault(''); setPanel(''); } };
  const save = async (item: Item, row?: ItemRecord) => {

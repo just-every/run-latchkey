@@ -2382,7 +2382,7 @@
       "executable": false
     },
     "src/latchkey/client.mjs": {
-      "sha256": "d5da135552ee1e858bffeb83246562e2e624293c667c2347776b69d2bdd9322c",
+      "sha256": "fdbb32031d716343b1fcf7fe8a6209ac44d0a69cd15dc9ac2bad8eb062ce7e5d",
       "executable": false
     },
     "src/latchkey/collections/batch-client.mjs": {
@@ -2646,7 +2646,7 @@
       "executable": false
     },
     "src/latchkey/items/client.mjs": {
-      "sha256": "21c9a5e81ff7fa62f56c84aabeaca24531d28ec184b25900f0724d763bd155d6",
+      "sha256": "3a3fe212d51e864bc47648e0ea5696f31cb1fa4c552d2d40f94d9aa3f8e668f7",
       "executable": false
     },
     "src/latchkey/items/fields.mjs": {
@@ -3193,6 +3193,10 @@
       "sha256": "e8638a3ea6732fe2dd1c0f488846748f0290305e058882a632474387e9784175",
       "executable": false
     },
+    "src/latchkey/ui/browser-lock.tsx": {
+      "sha256": "9abff15b70e234b9f89ecac54e5b897ca6b8b4720fc91c3ce680829677cad8a4",
+      "executable": false
+    },
     "src/latchkey/ui/capture.tsx": {
       "sha256": "3032be8ccb7f8a860fc0a1e0e67d6b35d5255683ad615f8c8fe6a4d66d388fe7",
       "executable": false
@@ -3202,7 +3206,7 @@
       "executable": false
     },
     "src/latchkey/ui/detail.tsx": {
-      "sha256": "2b76380707823b27b577cd96b381b2eb9178281aa2f6fd278feae7d8c514389a",
+      "sha256": "4d61dcc03178db451d0c7bf52d833ab33179480056008f8bf0f6eff7d20d7068",
       "executable": false
     },
     "src/latchkey/ui/editor.tsx": {
@@ -3290,7 +3294,15 @@
       "executable": false
     },
     "src/latchkey/ui/vault.tsx": {
-      "sha256": "7ab8437dae71b8ab47f02cefa14911c7c1034ae1c566b9018bb0c67d36820d30",
+      "sha256": "f62af863200ac4a0bee0a6d92cba057c41825c894603cedd5596a9d0a4598a2f",
+      "executable": false
+    },
+    "src/latchkey/unlock/browser-lock.d.mts": {
+      "sha256": "6327ade8b53077a0a3768bcb52e38d26458202e6dea10aba600d9888621ce03b",
+      "executable": false
+    },
+    "src/latchkey/unlock/browser-lock.mjs": {
+      "sha256": "489e4a668b2d79dd7e6d00424cc37b20fb947a587935b3a3b8f452a3c5e5e2f3",
       "executable": false
     },
     "src/mail.server.d.mts": {
@@ -4890,7 +4902,7 @@
       "executable": false
     },
     "tests/browser/vault.mjs": {
-      "sha256": "10396874081f25cec7edcfd16b9c92c57620f340d96d1a68e6973e7b9646cf97",
+      "sha256": "b750eb3d271cd0d797422bf61615f8a1ac5c9113e4d491ccd90e9542320dd6aa",
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {

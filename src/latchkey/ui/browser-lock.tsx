@@ -18,7 +18,7 @@ export function BrowserLockPanel({ client, onApplied }: { client: any; onApplied
   </form>
   {review && <section className="notice" aria-label="Lock settings review"><h2>Review this profile</h2>
    <dl>{Object.entries(review.binding).map(([key, value]) => <div key={key}><dt>{key[0].toUpperCase() + key.slice(1)}</dt><dd style={{ overflowWrap: 'anywhere', marginInlineStart: 0 }}>{String(value)}</dd></div>)}</dl>
-   <p>Inactivity: {review.settings.minutes ? `${review.settings.minutes} minutes` : 'manual lock only'}. Background lock: {review.settings.background ? 'on' : 'off'}.</p>
+   <p>Inactivity: {review.settings.minutes ? `${review.settings.minutes} minute${review.settings.minutes === 1 ? '' : 's'}` : 'manual lock only'}. Background lock: {review.settings.background ? 'on' : 'off'}.</p>
    <div className="actions"><button className="primary" onClick={() => { try { applyBrowserLock(client, review); onApplied(); setReview(null); setSaved(true); } catch (cause) { setError(message(cause)); } }}>Apply reviewed lock settings</button>
     <button onClick={() => { setReview(null); setSettings(readBrowserLock(client)); }}>Cancel lock changes</button></div>
   </section>}

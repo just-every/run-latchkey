@@ -17,8 +17,9 @@ import { VaultClient } from '../../src/latchkey/client.mjs';
 const output=process.env.LATCHKEY_SCREENSHOTS;
 if(output)await mkdir(output,{recursive:true});
 if(process.argv.includes('--scoped-recovery')){for(const width of [1440,390])await scopedRecoveryBrowserJourney(width,output);process.exit(0)}
+if (process.argv.includes('--browser-lock')) { await browserLockJourney(output); process.exit(0); }
 const generatorOnly = process.argv.includes('--generator-policy');
-if (!generatorOnly) { await companyCustodyJourney(output); await staleSaveJourney(1440, output); }
+if (!generatorOnly) { await browserLockJourney(output); await companyCustodyJourney(output); await staleSaveJourney(1440, output); }
 for(const width of [1440,390]) {
 await generatorPolicyReviewJourney(width, output);
 if (generatorOnly) continue;
@@ -160,5 +161,210 @@ async function generatorPolicyReviewJourney(width, output) {
   }
   await capture('generator-policy-entropy-conflict');
  } catch (error) { if (output) await f.page.screenshot({ path: join(output, `generator-policy-failure-${width}.png`), fullPage: true }); throw error; }
+ finally { await f.close(); }
+}
+
+async function browserLockJourney(output) {
+ const f = await vaultFixture(), page = f.page, profile = structuredClone(f.owner.profile), wire = [], errors = [];
+ const secret = 'synthetic-latchkey-2801', title = 'Browser lock reference';
+ const otpSeed = [...Buffer.from('synthetic-latchkey-2806')].map(byte => byte.toString(2).padStart(8, '0')).join('').match(/.{1,5}/g).map(group => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'[parseInt(group.padEnd(5, '0'), 2)]).join('');
+ const locked = () => expect(page.getByRole('heading', { name: 'Unlock your vault', exact: true })).toBeVisible();
+ const capture = async name => {
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'horizontal overflow');
+  if (output) await page.screenshot({ path: join(output, name + '.png'), fullPage: true });
+ };
+ const enter = async (selected = profile, password = f.password) => {
+  await page.getByLabel('Profile file').setInputFiles({ name: 'profile.json', mimeType: 'application' + '/json', buffer: Buffer.from(JSON.stringify(selected)) });
+  await page.getByLabel('Master password', { exact: true }).fill(password);
+  await page.getByRole('button', { name: 'Unlock vault', exact: true }).click();
+ };
+ const unlock = async selected => { await enter(selected); await expect(page.getByRole('button', { name: 'Lock vault', exact: true })).toBeVisible(); };
+ const settings = async () => {
+  await page.locator('summary').filter({ hasText: /^Settings$/ }).click();
+  await page.getByRole('button', { name: 'Browser lock', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Browser lock', exact: true })).toBeVisible();
+ };
+ const review = async (minutes, background) => {
+  await settings(); await page.getByLabel('Lock after inactivity').selectOption(String(minutes));
+  await page.getByLabel('Lock when this page goes into the background').setChecked(background);
+  await page.getByRole('button', { name: 'Review lock settings', exact: true }).click();
+ };
+ const apply = async () => {
+  await page.getByRole('button', { name: 'Apply reviewed lock settings', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Browser lock settings saved' })).toBeVisible();
+ };
+ const vaultView = async () => { await page.getByRole('button', { name: 'Vault', exact: true }).click(); await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible(); };
+ const stored = () => page.evaluate(() => Object.fromEntries(Object.entries(localStorage)));
+ const hide = async () => page.evaluate(() => {
+  Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+  document.dispatchEvent(new Event('visibilitychange'));
+ });
+ const show = async () => page.evaluate(() => {
+  delete document.visibilityState; document.dispatchEvent(new Event('visibilitychange'));
+ });
+ const defer = async path => {
+  let release, seen;
+  const waiting = new Promise(resolve => { seen = resolve; }), delayed = new Promise(resolve => { release = resolve; });
+  const handler = async route => {
+   const response = await route.fetch(); seen(); await delayed;
+   try { await route.fulfill({ response }); } catch { /* Lock aborted the browser request. */ }
+  };
+  await page.route('**/api/latchkey/' + path, handler);
+  return { waiting, finish: async () => { release(); await page.unroute('**/api/latchkey/' + path, handler); } };
+ };
+ try {
+  const vault = (await f.owner.createVault()).vault;
+  const savedItem = await new TypedItems(f.owner).save(vault, createItem('login', { title, values: { username: 'synthetic-latchkey-2802', password: secret, totp: { secret: otpSeed, account: 'synthetic-latchkey-2807', issuer: 'Synthetic' } } }));
+  // A transport that ignores cancellation still cannot deliver an old result.
+  let releaseRead, observeRead, delayRead = false;
+  const readWaiting = new Promise(resolve => { observeRead = resolve; });
+  const readRelease = new Promise(resolve => { releaseRead = resolve; });
+  const guarded = new VaultClient(f.origin, { fetcher: async (url, init) => {
+   const response = await f.fetcher(url, init);
+   if (delayRead && url.endsWith('/item/read')) { observeRead(); await readRelease; }
+   return response;
+  } });
+  await guarded.unlock(structuredClone(profile), f.password); delayRead = true;
+  const oldRead = guarded.readItem(vault, savedItem.object);
+  const refusedRead = assert.rejects(oldRead, { code: 'locked' });
+  await readWaiting; guarded.lock(); releaseRead(); await refusedRead;
+  assert.throws(() => guarded.call('vaults', {}), { code: 'locked' });
+  await assert.rejects(new TypedItems(guarded).field(vault, savedItem.object, 'password', 'copy'), { code: 'locked' });
+  await assert.rejects(guarded.put(vault, createItem('secure-note', { title: 'Refused locked write', values: { note: secret } })), { code: 'locked' });
+  assert.equal((await f.owner.readVault(vault)).versions.length, 1);
+  console.log('PROBE LKY-004 locked client: a delayed actual Worker result is invalidated even without transport cancellation; reveal, copy and mutation refuse without writes');
+  page.on('request', request => { if (request.url().includes('/api/')) wire.push(request.postData() ?? ''); });
+  page.on('pageerror', error => errors.push(error.message));
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(f.origin + '/app/vault');
+  if (new URL(page.url()).pathname === '/setup') { await page.getByRole('checkbox').check(); await page.getByRole('button', { name: 'Finish setup', exact: true }).click(); }
+  const unlocking = await defer('login/finish');
+  try {
+   await enter(); await unlocking.waiting;
+   await page.evaluate(() => { dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true })); dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })); });
+   await locked();
+  } finally { await unlocking.finish(); }
+  await expect(page.getByRole('button', { name: 'Unlock vault', exact: true })).toBeEnabled();
+  await expect(page.getByLabel('Master password', { exact: true })).toHaveValue('');
+  console.log('PROBE LKY-004 pending unlock: leaving the page invalidates a delayed authorized login completion and clears the password');
+  await unlock(); await review(1, true);
+  const reviewed = page.getByRole('region', { name: 'Lock settings review' });
+  for (const value of [f.origin, profile.tenant, profile.account, profile.device]) await expect(reviewed).toContainText(value);
+  assert.deepEqual(await stored(), {}); await capture('browser-lock-review-1440');
+  await page.getByRole('button', { name: 'Cancel lock changes', exact: true }).click();
+  assert.deepEqual(await stored(), {}); await expect(page.getByLabel('Lock after inactivity')).toHaveValue('0');
+  await page.getByLabel('Lock after inactivity').selectOption('1');
+  // Keyboard confirms the reviewed binding; changing a draft invalidates review.
+  await page.getByRole('button', { name: 'Review lock settings', exact: true }).focus(); await page.keyboard.press('Enter');
+  await page.getByLabel('Lock after inactivity').selectOption('5'); await expect(reviewed).toHaveCount(0);
+  await page.getByLabel('Lock after inactivity').selectOption('1');
+  await page.getByRole('button', { name: 'Review lock settings', exact: true }).click();
+  await page.getByRole('button', { name: 'Apply reviewed lock settings', exact: true }).focus(); await page.keyboard.press('Enter');
+  await expect(page.getByRole('status').filter({ hasText: 'Browser lock settings saved' })).toBeVisible();
+  const saved = await stored(); assert.equal(Object.keys(saved).length, 1);
+  assert.deepEqual(JSON.parse(Object.values(saved)[0]), { schema: 1, binding: { origin: f.origin, tenant: profile.tenant, account: profile.account, device: profile.device, generation: profile.generation }, minutes: 1, background: false });
+  await capture('browser-lock-settings-1440');
+  console.log('PROBE LKY-004 settings: reviewed exact profile, cancelled without persistence, changed draft requires review, keyboard confirmation persisted only preferences');
+  await vaultView();
+  await page.getByRole('button', { name: 'Reveal Password', exact: true }).focus();
+  await expect(page.getByRole('tooltip')).toContainText('Reveal field');
+  await page.getByRole('button', { name: 'Reveal Password', exact: true }).click();
+  await expect(page.getByLabel('Password', { exact: true })).toHaveValue(secret);
+  await page.clock.install(); await page.clock.setFixedTime(new Date());
+  await page.clock.fastForward(55000);
+  await page.getByRole('searchbox', { name: 'Search vault' }).fill('Browser');
+  await page.clock.fastForward(55000); await expect(page.getByRole('button', { name: 'Lock vault', exact: true })).toBeVisible();
+  await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true })));
+  await page.clock.fastForward(6000); await locked(); await expect(page.getByRole('heading', { name: title, exact: true })).toHaveCount(0);
+  await expect(page.getByLabel('Password', { exact: true })).toHaveCount(0); await capture('browser-lock-idle-1440');
+  await page.clock.resume(); await page.clock.setFixedTime(new Date());
+  console.log('PROBE LKY-004 inactivity: genuine input extended the deadline; synthetic activity did not; idle lock removed rendered title and revealed secret');
+  await enter(profile, 'synthetic-latchkey-2803'); await expect(page.getByRole('alert')).toContainText('could not unlock'); await locked(); await unlock();
+  await review(0, true); await apply(); await vaultView();
+  await hide(); await locked(); await show(); await locked();
+  console.log('PROBE LKY-004 background: browser visibility boundary locks immediately and return stays locked');
+  await unlock(); await vaultView();
+  // A real history traversal and an explicit persisted lifecycle event both use
+  // the built page. Playwright disables native BFCache in its default launch.
+  await page.goto(f.origin + '/contract'); await page.goBack(); await locked();
+  await unlock(); await page.evaluate(() => {
+   dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true }));
+   dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
+  }); await locked();
+  await unlock(); await page.reload(); await locked();
+  await unlock(); await settings(); await expect(page.getByLabel('Lock after inactivity')).toHaveValue('0'); await expect(page.getByLabel('Lock when this page goes into the background')).toBeChecked();
+  console.log('PROBE LKY-004 restart: reload, history return and persisted page lifecycle require the existing profile and password ceremony; preferences survive without keys');
+  await vaultView();
+  const read = await defer('vault/view');
+  try {
+   await page.getByRole('button', { name: 'Refresh', exact: true }).click(); await read.waiting;
+   await page.getByRole('button', { name: 'Lock vault', exact: true }).click(); await locked();
+  } finally { await read.finish(); }
+  await expect(page.getByRole('heading', { name: title, exact: true })).toHaveCount(0); await unlock(); await vaultView();
+  const reveal = await defer('item/read');
+  try {
+   await page.getByRole('button', { name: 'Reveal Password', exact: true }).click(); await reveal.waiting;
+   await page.getByRole('button', { name: 'Lock vault', exact: true }).click(); await locked();
+  } finally { await reveal.finish(); }
+  await expect(page.getByLabel('Password', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Copy Password', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'New item', exact: true })).toHaveCount(0);
+  console.log('PROBE LKY-004 pending: delayed real read and reveal responses cannot restore state after lock; copy and mutation controls are absent');
+  await unlock(); await vaultView();
+  await f.context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: f.origin });
+  await page.evaluate(() => navigator.clipboard.writeText('synthetic-latchkey-2808'));
+  await page.getByRole('button', { name: 'Show current code', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Copy current code', exact: true })).toBeVisible();
+  await page.evaluate(() => {
+   window.originalSign = crypto.subtle.sign; window.hmacPending = false;
+   crypto.subtle.sign = async function (...args) {
+    const result = await window.originalSign.apply(this, args);
+    if (args[0] === 'HMAC') { window.hmacPending = true; await new Promise(resolve => { window.releaseHmac = resolve; }); }
+    return result;
+   };
+  });
+  await page.getByRole('button', { name: 'Copy current code', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.hmacPending)).toBe(true);
+  await page.getByRole('button', { name: 'Lock vault', exact: true }).click(); await locked();
+  await page.evaluate(() => { crypto.subtle.sign = window.originalSign; window.releaseHmac(); });
+  assert.equal(await page.evaluate(() => navigator.clipboard.readText()), 'synthetic-latchkey-2808');
+  await page.evaluate(() => navigator.clipboard.writeText(''));
+  console.log('PROBE LKY-004 delayed copy: a real TOTP calculation completing after lock cannot overwrite the clipboard');
+  // Existing account with a freshly approved second device has distinct settings.
+  const second = new VaultClient(f.origin, { cookie: f.owner.cookie, fetcher: f.fetcher });
+  const pending = await second.beginEnrollment(profile, f.password); await f.owner.approveEnrollment(pending.device, pending.fingerprint);
+  const secondProfile = await second.completeEnrollment(pending.profile, f.password);
+  await unlock(secondProfile); await settings(); await expect(page.getByLabel('Lock after inactivity')).toHaveValue('0'); await expect(page.getByLabel('Lock when this page goes into the background')).not.toBeChecked();
+  await page.getByRole('button', { name: 'Lock vault', exact: true }).click(); await unlock(); await settings(); await expect(page.getByLabel('Lock when this page goes into the background')).toBeChecked();
+  assert.equal(Object.keys(await stored()).length, 1);
+  await page.getByRole('button', { name: 'Lock vault', exact: true }).click();
+  await f.owner.call('device' + '/revoke', { device: secondProfile.device });
+  await enter(secondProfile); await expect(page.getByRole('alert')).toContainText('could not unlock'); await locked();
+  await enter({ ...profile, origin: 'https://foreign.example.test' }); await expect(page.getByRole('alert')).toContainText('profile mismatch'); await locked();
+  const member = new VaultClient(f.origin, { fetcher: f.fetcher }), memberPassword = 'synthetic-latchkey-2805';
+  await f.owner.call(['api', 'users', 'invite'].join('/'), { email: ['synthetic-latchkey-2804', 'example.test'].join('@'), displayName: 'Browser profile member', role: 'member', returnTo: '/app/vault' });
+  const identity = new URL(f.mail.at(-1).content.find(c => c.type === 'text' + '/plain').value.match(/https:\/\/[^\s<>]+/)[0]).searchParams.get('token');
+  await member.confirmIdentity(identity);
+  const memberEnrollment = await member.register(memberPassword); await member.unlock(memberEnrollment.profile, memberPassword);
+  await enter(memberEnrollment.profile, memberPassword); await expect(page.getByRole('button', { name: 'Lock vault', exact: true })).toBeVisible();
+  await settings(); await expect(page.getByLabel('Lock after inactivity')).toHaveValue('0'); await expect(page.getByLabel('Lock when this page goes into the background')).not.toBeChecked();
+  await page.getByRole('button', { name: 'Lock vault', exact: true }).click(); member.lock();
+  console.log('PROBE LKY-004 isolation: a second approved device and a separate account start unconfigured, foreign origin refuses, original preferences remain isolated, revoked profile and wrong password cannot unlock');
+  await unlock(); await settings();
+  await page.setViewportSize({ width: 390, height: 1000 }); await capture('browser-lock-settings-390');
+  await page.getByLabel('Lock after inactivity').selectOption('1'); await page.getByRole('button', { name: 'Review lock settings', exact: true }).click(); await capture('browser-lock-review-390');
+  await page.getByRole('button', { name: 'Cancel lock changes', exact: true }).click(); await page.getByRole('button', { name: 'Lock vault', exact: true }).click(); await capture('browser-lock-locked-390');
+  const persistence = JSON.stringify(await page.evaluate(async () => ({ local: { ...localStorage }, session: { ...sessionStorage }, databases: await indexedDB.databases(), caches: await caches.keys() })));
+  const audit = JSON.stringify(await f.owner.call('audit', {}));
+  const state = JSON.stringify(await f.db.prepare('SELECT * FROM lky_events').all());
+  for (const canary of [secret, otpSeed, f.password, profile.deviceSecret, f.owner.bundle.root.authority.privateKey, f.owner.bundle.root.recipient.privateKey]) {
+   assert.ok(!persistence.includes(canary), 'secret persisted in browser');
+   assert.ok(!wire.join('').includes(canary), 'secret sent over wire');
+   assert.ok(!audit.includes(canary) && !state.includes(canary), 'secret in audit');
+  }
+  assert.deepEqual(errors, []); second.lock();
+  console.log('PROBE LKY-004 secrecy: local and session storage, IndexedDB, caches, wire and audit contain no password, profile secret, root or decrypted item');
+  console.log('browserLockJourney passed; assertions at 1440, changed settings, review and locked screens captured at 390');
+ } catch (error) { if (output) await page.screenshot({ path: join(output, 'browser-lock-failure.png'), fullPage: true }); throw error; }
  finally { await f.close(); }
 }

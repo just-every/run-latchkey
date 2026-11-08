@@ -48,11 +48,13 @@ export class TypedItems {
   return this.client.put(vault, restored, object, preview.currentVersion);
  }
  async attachment(vault, object, attachmentId, version) {
+  const session = this.client.session;
   await this.authorize(vault, object, 'attachment');
   const row = version == null ? await this.current(vault, object, 'attachment') : (await this.history(vault, object)).find(row => row.version === version);
   const file = row?.value.attachments?.find(file => file.id === attachmentId);
   check(file, 'attachment_not_found');
-  return { name: file.name, mediaType: file.mediaType, data: await attachmentBytes(file) };
+  const data = await attachmentBytes(file);
+  try { this.client.assertSession(session); return { name: file.name, mediaType: file.mediaType, data }; } catch (error) { data.fill(0); throw error; }
  }
  async field(vault, object, fieldId, action = 'reveal') {
   check(['reveal', 'copy', 'fill'].includes(action), 'invalid_item_action');

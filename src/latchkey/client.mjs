@@ -48,6 +48,7 @@ export class VaultClient {
   this.cookie = cookie.split(';')[0];
  }
  async register(password, { beforeCommit } = {}) {
+  const session = this.session;
   requireValue(typeof password === 'string' && password.length >= 1, 'password_required');
   await opaque.ready;
   const started = opaque.client.startRegistration({ password });
@@ -62,7 +63,9 @@ export class VaultClient {
   const recoveryWrap = await seal(await unlockKey(result.exportKey, kit.recoverySecret, profile.account), bytes({ root }), binding(profile.tenant, 'account', profile.account, 'recovery', 1));
   const input = { account: profile.account, record: result.registrationRecord, recipientKey: profile.recipientKey, authorityKey: profile.authorityKey, recoveryKey: root.recovery.publicKey, recoveryWrap, device: profile.device, deviceKey: signing.publicKey, bundle };
   if (beforeCommit) await beforeCommit({ profile, kit });
-  await this.request('register/finish', { ...input, signature: await sign(signing.privateKey, JSON.stringify(input)) });
+  const signature = await sign(signing.privateKey, JSON.stringify(input));
+  this.assertCurrent(session);
+  await this.request('register/finish', { ...input, signature });
   return { profile, kit };
  }
  async exchange(profile, password, device = profile.device) {
@@ -111,13 +114,22 @@ export class VaultClient {
   this.profile.trusted[account] = { recipientKey: recipient.publicKey, authorityKey: recipient.authorityKey };
   return recipient;
  }
- wrap(value, recipient, binding) { return wrapSigned(value, recipient, binding, this.profile.account, this.bundle.root.authority.privateKey); }
+ async wrap(value, recipient, binding) {
+  const session = this.session; this.assertSession(session);
+  const wrapped = await wrapSigned(value, recipient, binding, this.profile.account, this.bundle.root.authority.privateKey);
+  this.assertSession(session); return wrapped;
+ }
  async createVault({kind = 'company'} = {}) {
+  const session = this.session; this.assertSession(session);
   const vault = id(), key = random(), profile = this.profile;
   requireValue(profile, 'locked');
   const statement = {schema:1,purpose:'trash-retention',tenant:profile.tenant,vault,owner:profile.account,days:30};
   const policy = {statement,signature:await sign(this.bundle.root.authority.privateKey,policyText(statement))};
-  try { return await this.call('vault/create', { vault,kind,policy, wrapped: await this.wrap(key, profile.recipientKey, binding(profile.tenant, vault, profile.account, 'vault-key', 1)) }); } finally { key.fill(0); }
+  try {
+   const wrapped = await this.wrap(key, profile.recipientKey, binding(profile.tenant, vault, profile.account, 'vault-key', 1));
+   this.assertSession(session);
+   return await this.call('vault/create', { vault, kind, policy, wrapped });
+  } finally { key.fill(0); }
  }
  async snapshot(vault, mode = 'read', selection) {
   const session = this.session; this.assertSession(session);
@@ -156,8 +168,13 @@ export class VaultClient {
   this.assertSession(session);
   const versions = [];
   for (const row of result.versions) {
+   this.assertSession(session);
    const derived = await itemKey(key, result.tenant, result.vault, row.object_id);
-   try { versions.push({ object: row.object_id, version: row.version, value: json(await open(derived, JSON.parse(row.envelope), binding(result.tenant, result.vault, row.object_id, 'item', result.epoch, row.version))) }); } finally { derived.fill(0); }
+   try {
+    this.assertSession(session);
+    const plain = await open(derived, JSON.parse(row.envelope), binding(result.tenant, result.vault, row.object_id, 'item', result.epoch, row.version));
+    try { this.assertSession(session); versions.push({ object: row.object_id, version: row.version, value: json(plain) }); } finally { plain.fill(0); }
+   } finally { derived.fill(0); }
   }
   this.assertSession(session);
   const seen = this.profile.seen[result.vault], known = { ...seen.versions };
@@ -220,6 +237,7 @@ export class VaultClient {
   const derived = await itemKey(key, result.tenant, vault, object);
   try {
    const envelope = await seal(derived, bytes(value), binding(result.tenant, vault, object, 'item', result.epoch, version));
+   this.assertSession(snapshot.session);
    const written = await this.call('item/put', { vault, object, version, revision: result.revision, envelope });
    const seen = this.profile.seen[vault];
    this.profile.seen[vault] = { ...seen, epoch: result.epoch, revision: written.revision, versions: { ...seen.versions, [`${object}:${version}`]: await digest(bytes(value)) } };
@@ -238,6 +256,7 @@ export class VaultClient {
    requireValue(revision == null || revision === snapshot.result.revision, 'version_conflict');
    const statement={schema:version,...(version===2?{revision:snapshot.result.revision}:{}),purpose:'vault-rights',tenant:this.profile.tenant,vault,owner:this.profile.account,account,authorityKey:recipient.authorityKey,rights,epoch:snapshot.result.epoch,generation:recipient.generation};
    const capability={statement,signature:await sign(this.bundle.root.authority.privateKey,capabilityText(statement))};
+   this.assertSession(snapshot.session);
    const result = await this.call('vault/share', { vault, account, fingerprint, rights, wrapped, capability, revision: snapshot.result.revision });
    return result;
   } finally { snapshot.key.fill(0); }
@@ -262,6 +281,7 @@ export class VaultClient {
     const capability={statement,signature:await sign(this.bundle.root.authority.privateKey,capabilityText(statement))};
     recipients.push({ account: recipient.account_id,capability, wrapped: await this.wrap(nextKey, pinned, binding(result.tenant, vault, recipient.account_id, 'vault-key', epoch)) });
    }
+   this.assertSession(snapshot.session);
    const rotated = await this.call('vault/rotate', { vault, remove, revision: result.revision, versions, recipients });
    this.profile.seen[vault] = { ...this.profile.seen[vault], epoch, revision: result.revision + 1, keyFingerprint: await digest(nextKey) };
    return rotated;
@@ -272,7 +292,8 @@ export class VaultClient {
   const snapshot = await this.snapshot(vault, 'export');
   try {
    const archive = { schema: 1, sourceTenant: this.profile.tenant, vault, versions: await this.decodeVersions(snapshot), activeAuthority: false };
-   return await seal(key, bytes(archive), binding('portable', 'archive', id(), 'export', 1));
+   const sealed = await seal(key, bytes(archive), binding('portable', 'archive', id(), 'export', 1));
+   this.assertSession(snapshot.session); return sealed;
   } finally { snapshot.key.fill(0); key.fill(0); }
  }
  static async openExport(archive, exportKey) {
@@ -320,7 +341,9 @@ export class VaultClient {
    const key = await itemKey(snapshot.key, this.profile.tenant, vault, object);
    let wrapped;
    try { wrapped = await this.wrap(key, identity.recipientKey, binding(this.profile.tenant, vault, identity.machine, `machine-key:${object}`, snapshot.result.epoch)); } finally { key.fill(0); }
-   const result = await this.call('machine/grant', { vault, object, machine: identity.machine, deviceKey: identity.deviceKey, recipientKey: identity.recipientKey, fingerprint, wrapped, tokenHash: await digest(token), expiresInSeconds });
+   const tokenHash = await digest(token);
+   this.assertSession(snapshot.session);
+   const result = await this.call('machine/grant', { vault, object, machine: identity.machine, deviceKey: identity.deviceKey, recipientKey: identity.recipientKey, fingerprint, wrapped, tokenHash, expiresInSeconds });
    return { schema: 1, origin: this.origin, account: this.profile.account, authorityKey: this.profile.authorityKey, tenant: this.profile.tenant, vault, object, epoch: snapshot.result.epoch, machine: result.machine, token, expires: result.expires };
   } finally { snapshot.key.fill(0); }
  }
