@@ -1,0 +1,10 @@
+{
+  "head": "c30f0e5a6b70df245d0c92bc13dee19c29bcb30f",
+  "job": 128781837333,
+  "command": "CI=true WRANGLER_SEND_METRICS=false PLAYWRIGHT_SKIP_BROWSER_GC=1 SHARD=organization-browser node scripts/verify-ci.mjs organization-browser",
+  "test": "directPermissionsJourney at tests/browser/organization.mjs:184",
+  "exit": 0,
+  "ci_failure": "Reveal Password expected disabled; received enabled",
+  "reproduced": false,
+  "observed": "Full organization-browser shard passed, including directPermissionsJourney."
+}

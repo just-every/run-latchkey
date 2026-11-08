@@ -1,0 +1,196 @@
+{
+  "files": [
+    {
+      "blob": "0c7e3162d59b6576051a3714a46e47c87e611b50",
+      "bytes": 16370,
+      "path": "REPORT.md",
+      "sha256": "39927bbbcc2a286048d9c2e1b9e55ee0afe350aaa86c6587ed18ed17e1e56ef0"
+    },
+    {
+      "blob": "c6c43f85f3c2996f6bccdc3312335681b81e61ff",
+      "bytes": 1669,
+      "path": "browser-lock-final.log",
+      "sha256": "dcc487d4de806268b8d6fc20a79fcce27564f64f60f08e57697a7c27592387be"
+    },
+    {
+      "blob": "d1035fa2ed444a6a49825bcb5198f9a07d476dc4",
+      "bytes": 1447,
+      "path": "browser-proof.json",
+      "sha256": "58dcc87e671e98ec9ec4d5210ef8d56dba09aa22d2433d83143d86ef9bc1e782"
+    },
+    {
+      "blob": "5f15e5c4dd5139f3834f0bd5d62fccbfc901554e",
+      "bytes": 3771,
+      "path": "build.log",
+      "sha256": "fcb23fa8c7f4640620683f8b5052d9b8b5ebb3c0b9a541d8f90f23fd0036ce2b"
+    },
+    {
+      "blob": "80233918011c122a4ac6e28ae7e4c0cf91ac5975",
+      "bytes": 12487,
+      "path": "candidate-runs.json",
+      "sha256": "b819cd4c5727030ade3d81d8c16b47fd2a8ad78b7264d9fad315a6463fd5323d"
+    },
+    {
+      "blob": "ae95a209531ddbf3e83afc90abd65d1411cea7d9",
+      "bytes": 66,
+      "path": "ci-discovery-time.json",
+      "sha256": "2335676e8911a472f80b0ba5a98adaa5cdded152506d763f4f0a950c860d2547"
+    },
+    {
+      "blob": "94460888fafe1d259deeb7bf946c44db68564f9e",
+      "bytes": 17525,
+      "path": "ci-organization-failure.log",
+      "sha256": "f659250aaa177b2c3ea7f23d81a1b81d8fd6a18aff77a07193678e1292cfc76a"
+    },
+    {
+      "blob": "f84269f63ad6470a72df8027c72ec3a83462ea26",
+      "bytes": 17085,
+      "path": "ci-runtime-failure.log",
+      "sha256": "b37b2b95184bdd6ea0743aa3b9003ee51d56968129b7605187012fc267ad349b"
+    },
+    {
+      "blob": "a1571fb3f9f23dac46da347b2ae31fc791be21ca",
+      "bytes": 312,
+      "path": "ci-status.json",
+      "sha256": "9f7068e2044d3b641bc45beb828d9c18fe283f5a83611814ce7151ec942a21ce"
+    },
+    {
+      "blob": "fada97ff53f91081d65505214eb37052bbfe4cff",
+      "bytes": 20922,
+      "path": "ci-vault-failure.log",
+      "sha256": "2fff422990f3dcdfa1b4ff4a84b9819c59d8cd9863ac46b3e923e04b04f5675d"
+    },
+    {
+      "blob": "51088dd0c736595083820f79025671bf969b263d",
+      "bytes": 41266,
+      "path": "failed-jobs.json",
+      "sha256": "cc24bd9a1b2733b5ce388c51ae8353ac893c26922b841841b9d500d112819c08"
+    },
+    {
+      "blob": "c673c48b800ddda905215995e17b16e285d11695",
+      "bytes": 2057,
+      "path": "local-receipt.json",
+      "sha256": "ad5f0f30aa5604595f80a0aa6f349123cf5e0dd2fa6190764fb0c08ecdedba6d"
+    },
+    {
+      "blob": "48ddeab2b8c20ff7fcf73c2dd3bc436eda9fbc90",
+      "bytes": 204598,
+      "path": "lock-check.log",
+      "sha256": "271db5aaf4c7ad53cff4161f6ef50dec1b2377f1c4854bb4aec69a240488fb48"
+    },
+    {
+      "blob": "e8e5be087a09d390e44f20a8532826d09b9a5582",
+      "bytes": 204584,
+      "path": "lock-write.log",
+      "sha256": "f16f5809f76be0d15677fd580e5be367f93da50672343702526d098322863389"
+    },
+    {
+      "blob": "52102697d636d695850e1cecd46a50a828d45b4c",
+      "bytes": 1158,
+      "path": "main-runs.json",
+      "sha256": "46be586e9a9595dead830847ccdda450df2b6466e2094f201456080df9a101a0"
+    },
+    {
+      "blob": "23be38188ec3f3a8f7fec5b270eb0bbabc4f52ed",
+      "bytes": 512,
+      "path": "reproduce-organization.json",
+      "sha256": "32b26ee9a3fb2ac8b494cfc30f121f61545b13c707a6b6c370a5031dda6748ec"
+    },
+    {
+      "blob": "ced00d72aaa1d1da1ffc9eaf82b97104fa4119b1",
+      "bytes": 5199,
+      "path": "reproduce-organization.log",
+      "sha256": "be1262a6527ca5b711d1e0cf46667c66caea57fc7a54782bdab51233c8cf1be4"
+    },
+    {
+      "blob": "95d00ce7cd5ec6e23fee7a323f143bb8a2816cae",
+      "bytes": 404,
+      "path": "reproduce-runtime.json",
+      "sha256": "77acda6aa8e88fb360569ac60bc5640dc8249427ef5ff7eb333e4adfab00e482"
+    },
+    {
+      "blob": "8920172683bda45f7ed282937eb9afed4c4efa9c",
+      "bytes": 14201,
+      "path": "reproduce-runtime.log",
+      "sha256": "0f477d25866412ad9669aaaf4e5b1135675fe5c2607069a133d32118ed46a525"
+    },
+    {
+      "blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "bytes": 0,
+      "path": "rer-check.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "blob": "dc48faf05d42a3c5638cf24da683da06ab1a28aa",
+      "bytes": 5497,
+      "path": "runtime-final.log",
+      "sha256": "de84b0155de399a733dc0819ba3db64e35dbedf7b7019fd8026831cfeea33842"
+    },
+    {
+      "blob": "6d48df2420a2d97cd334e5f87aa10f8b7bf54bc2",
+      "bytes": 36740,
+      "path": "screens/browser-lock-idle-1440.png",
+      "sha256": "02d1efc1a26cad9a736d780fb635da7f753e83ff100b1ab974eaba78fd47afdc"
+    },
+    {
+      "blob": "156085e4135db3223d163a5a987cdc048b538db2",
+      "bytes": 29830,
+      "path": "screens/browser-lock-locked-390.png",
+      "sha256": "e0d704d674a066e4374ac0ae15fec0d237ad4d940ac99b4beb1633ee28ae7dd6"
+    },
+    {
+      "blob": "c99d4d8fbf79ee13c08b6d51cb9b820a35b8d860",
+      "bytes": 78240,
+      "path": "screens/browser-lock-review-1440.png",
+      "sha256": "3a631a5077cea68546bf0d1623ef084edf8fec384195d67ec64160747ba52429"
+    },
+    {
+      "blob": "f4323e430029d74d189ae70bbb250aea8fac637d",
+      "bytes": 67561,
+      "path": "screens/browser-lock-review-390.png",
+      "sha256": "f1f49d665a00c22a503bf2d7af822a0956646cb9ea5688689572e6604c44e2c6"
+    },
+    {
+      "blob": "9eb5d302c78e55b5d7d9e1652a9123059f1d6420",
+      "bytes": 51879,
+      "path": "screens/browser-lock-settings-1440.png",
+      "sha256": "b905e1922c74a72a1f42988e93f761964a249a5c3ee0b2121857757858bf771e"
+    },
+    {
+      "blob": "44c95c98639bcbda703b0d03e9de96f9f5330282",
+      "bytes": 42824,
+      "path": "screens/browser-lock-settings-390.png",
+      "sha256": "de99978933a3a59b93f27cdf1834e6276114206080d66992fc00e5964ca724a6"
+    },
+    {
+      "blob": "1b62da701430b782eb19381c73f5f6fff25da666",
+      "bytes": 128,
+      "path": "typecheck.log",
+      "sha256": "0ec062206b9e5b60a58ff20e76b81c436dcc6c8adfc61cd79610ec0d4220b436"
+    },
+    {
+      "blob": "ff384c606997fffbc05e03276f95cc87c2063649",
+      "bytes": 3256,
+      "path": "vault-final.log",
+      "sha256": "cbd6f1bd458c2344c2f21297d0d929356f88e0034e959f12d4e8205af28ea369"
+    },
+    {
+      "blob": "7513cda8dba3712ae435f3f45aae5a7f23ee7135",
+      "bytes": 67,
+      "path": "views-check.log",
+      "sha256": "46145df4abccbdca6e9b7793938bac1aff439d905d77264e64c4e211c528cb84"
+    },
+    {
+      "blob": "64da5ffed7bf49cb7da0863cab3353035e22551b",
+      "bytes": 67,
+      "path": "views-write.log",
+      "sha256": "51e49837f4a91cd9f84fcc4637c0e85658d7ecd489c1909772d917fb673f0083"
+    }
+  ],
+  "product_branch": "cloud/sx-latchkey-c-f280",
+  "product_head": "c30f0e5a6b70df245d0c92bc13dee19c29bcb30f",
+  "ref": "refs/heads/evidence/sx-latchkey-c-f280",
+  "repository": "just-every/run-latchkey",
+  "schema": 1,
+  "tag": "sx-latchkey-c-f280"
+}

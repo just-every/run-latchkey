@@ -1,0 +1,4 @@
+
+> @just-every/latchkey@0.1.0 typecheck /home/agent/rer-consolidation/work/sx-latchkey-c-f280/repo
+> tsc --build --incremental
+

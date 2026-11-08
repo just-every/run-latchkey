@@ -1,0 +1,132 @@
+shards (organization-browser, true)	Run this shard	﻿2026-11-08T15:55:03.1473950Z ##[group]Run node scripts/verify-ci.mjs "$SHARD"
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:03.1474292Z [36;1mnode scripts/verify-ci.mjs "$SHARD"[0m
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:03.1492112Z shell: /usr/bin/bash -e {0}
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:03.1492553Z env:
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:03.1492733Z   CI: true
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:03.1492923Z   WRANGLER_SEND_METRICS: false
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:03.1493172Z   PLAYWRIGHT_SKIP_BROWSER_GC: 1
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:03.1493408Z   SHARD: organization-browser
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:03.1493620Z ##[endgroup]
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:03.1779889Z > pnpm run verify:app
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:03.3970379Z 
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:03.3971420Z > @just-every/latchkey@0.1.0 verify:app /home/runner/work/run-latchkey/run-latchkey
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:03.3972100Z > node scripts/verify-app.mjs
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:03.3972324Z 
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:03.4227321Z > pnpm run build
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:03.6378207Z 
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:03.6379020Z > @just-every/latchkey@0.1.0 build /home/runner/work/run-latchkey/run-latchkey
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:03.6379395Z > rer build
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:03.6379504Z 
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:04.1378069Z Checking pinned pnpm
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:04.3364342Z 10.12.4
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:04.4009391Z Building your application
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:04.7288588Z build:app
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:06.4411322Z vite v8.2.2 building client environment for production...
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:06.4553311Z transforming...
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:06.6203744Z ✓ 284 modules transformed.
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:06.6552082Z rendering chunks...
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:06.7281664Z computing gzip size...
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:06.7395542Z dist/client/.assetsignore                   0.02 kB
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:06.7396973Z dist/client/assets/client-BP-QVP_4.js       1.08 kB │ gzip:   0.53 kB
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:06.7398009Z dist/client/assets/share-LEeHRP2O.js        4.88 kB │ gzip:   2.05 kB
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:06.7398961Z dist/client/assets/types-CWJp1MhE.js        6.15 kB │ gzip:   2.44 kB
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:06.7399908Z dist/client/assets/app.fleet-C5CPM9JV.js   13.45 kB │ gzip:   4.09 kB
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:06.7401076Z dist/client/assets/Lockup-Wk5ofvmL.js      31.89 kB │ gzip:   8.71 kB
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:06.7402077Z dist/client/assets/index-Bd1tueWj.js      314.77 kB │ gzip: 102.04 kB
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:06.7403094Z dist/client/assets/app.vault-HfzXc2NZ.js  369.32 kB │ gzip: 100.67 kB
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:06.7404095Z dist/client/assets/value-IvipYWvN.js      672.85 kB │ gzip: 252.17 kB
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:06.7404606Z 
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:06.7405171Z [plugin builtin:vite-reporter] 
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:06.7405876Z (!) Some chunks are larger than 500 kB after minification. Consider:
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:06.7406676Z - Using dynamic import() to code-split the application
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:06.7407929Z - Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:06.7409177Z - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:06.7604936Z ✓ built in 318ms
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:06.7608054Z vite v8.2.2 building ssr environment for production...
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:06.7676689Z transforming...
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:07.1639125Z ✓ 650 modules transformed.
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:07.2171504Z rendering chunks...
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:07.3235771Z computing gzip size...
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:07.3557045Z dist/server/wrangler.json                                      1.57 kB │ gzip:   0.79 kB
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:07.3558109Z dist/server/.vite/manifest.json                                6.18 kB │ gzip:   1.08 kB
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:07.3559069Z dist/server/assets/opaque-AbhIzWs3.wasm                      309.95 kB │ gzip: 112.11 kB
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:07.3560132Z dist/server/assets/empty-plugin-adapters-D_0twvAa.js           0.28 kB │ gzip:   0.18 kB
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:07.3561161Z dist/server/assets/start-D8qDT34V.js                           0.28 kB │ gzip:   0.21 kB
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:07.3562151Z dist/server/assets/_tanstack-start-manifest_v-arHhnyNa.js      1.13 kB │ gzip:   0.44 kB
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:07.3563166Z dist/server/assets/types-CzLl45fV.js                           1.58 kB │ gzip:   0.84 kB
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:07.3564156Z dist/server/assets/client-DEbLZLGp.js                          1.59 kB │ gzip:   0.68 kB
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:07.3565804Z dist/server/assets/hash-C5X6llL6.js                            4.69 kB │ gzip:   2.16 kB
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:07.3567136Z dist/server/assets/storage-Dqehq99B.js                         4.91 kB │ gzip:   1.95 kB
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:07.3568130Z dist/server/assets/envelope-D5LI7cX0.js                        8.01 kB │ gzip:   2.49 kB
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:07.3569092Z dist/server/assets/share-Cm26oYkA.js                           8.27 kB │ gzip:   2.60 kB
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:07.3570074Z dist/server/assets/jsx-runtime-zPeYIBpK.js                    18.51 kB │ gzip:   4.98 kB
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:07.3571031Z dist/server/assets/react-dom-W4rLc5xo.js                      23.34 kB │ gzip:   7.10 kB
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:07.3571963Z dist/server/assets/app.fleet-C5yEdgDF.js                      25.28 kB │ gzip:   5.44 kB
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:07.3572932Z dist/server/assets/Lockup-VyV9ftSJ.js                         34.26 kB │ gzip:   9.17 kB
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:07.3573892Z dist/server/assets/policy-CwLRlsjT.js                         35.07 kB │ gzip:  10.00 kB
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:07.3574969Z dist/server/assets/router-YrsiZedP.js                         42.61 kB │ gzip:  11.24 kB
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:07.3575936Z dist/server/assets/Match-CyfP9THj.js                         144.97 kB │ gzip:  36.40 kB
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:07.3576865Z dist/server/assets/common-Ba8Q5qW8.js                        163.62 kB │ gzip:  43.49 kB
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:07.3577792Z dist/server/assets/openapi-CJbV_Gbu.js                       225.07 kB │ gzip:   8.46 kB
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:07.3578702Z dist/server/assets/value-DCz38_2Z.js                         377.79 kB │ gzip: 103.87 kB
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:07.3579625Z dist/server/assets/app.vault-BwVYS9dk.js                     633.30 kB │ gzip: 129.57 kB
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:07.3580518Z dist/server/index.js                                       1,920.74 kB │ gzip: 442.86 kB
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:07.3580888Z 
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:07.3731584Z ✓ built in 612ms
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:07.6407454Z Your application is built
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:07.6571655Z build: complete (exit 0)
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:07.6723073Z > node tests/browser/organization.mjs
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:25.6320687Z Account separation: real CLI encrypted profile registry, lock-before-switch, cross-account search/export refusal and independent family survival after company suspension passed
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8446304Z node:internal/modules/run_main:123
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8446793Z     triggerUncaughtException(
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8447030Z     ^
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8447132Z 
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8447306Z ExpectError: expect(locator).toBeDisabled() failed
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8447514Z 
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8447870Z Locator:  getByRole('button', { name: 'Reveal Password', exact: true })
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8448343Z Expected: disabled
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8448626Z Received: enabled
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8448888Z Timeout:  5000ms
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8449042Z 
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8449157Z Call log:
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8449742Z   - Expect "toBeDisabled" getByRole('button', { name: 'Reveal Password', exact: true }) with timeout 5000ms
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8450657Z   - waiting for getByRole('button', { name: 'Reveal Password', exact: true })
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8451780Z     12 × locator resolved to <button aria-describedby="_r_a_" aria-label="Reveal Password">…</button>
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8452428Z        - unexpected value "enabled"
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8452676Z 
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8453477Z     at captureRawStack (/home/runner/work/run-latchkey/run-latchkey/node_modules/.pnpm/playwright-core@1.63.0/node_modules/playwright-core/lib/coreBundle.js:8588:17)
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8455153Z     at callMatcherAsStep (/home/runner/work/run-latchkey/run-latchkey/node_modules/.pnpm/playwright@1.63.0/node_modules/playwright/lib/matchers/expect.js:13310:57)
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8456568Z     at Object.toBeDisabled (/home/runner/work/run-latchkey/run-latchkey/node_modules/.pnpm/playwright@1.63.0/node_modules/playwright/lib/matchers/expect.js:13302:23)
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8458188Z     at directPermissionsJourney (/home/runner/work/run-latchkey/run-latchkey/tests/browser/organization.mjs:184:185)
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8459186Z     at async file:///home/runner/work/run-latchkey/run-latchkey/tests/browser/organization.mjs:198:256 {
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8460005Z   matcherResult: {
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8460366Z     message: 'expect(locator).toBeDisabled() failed\n' +
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8460743Z       '\n' +
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8461187Z       "Locator:  getByRole('button', { name: 'Reveal Password', exact: true })\n" +
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8461722Z       'Expected: disabled\n' +
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8462005Z       'Received: enabled\n' +
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8462276Z       'Timeout:  5000ms\n' +
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8462549Z       '\n' +
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8462785Z       'Call log:\n' +
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8463446Z       `  - Expect "toBeDisabled" getByRole('button', { name: 'Reveal Password', exact: true }) with timeout 5000ms\n` +
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8464238Z       "  - waiting for getByRole('button', { name: 'Reveal Password', exact: true })\n" +
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8465379Z       '    12 × locator resolved to <button aria-describedby="_r_a_" aria-label="Reveal Password">…</button>\n' +
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8466022Z       '       - unexpected value "enabled"\n',
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8466383Z     pass: false,
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8466628Z     actual: 'enabled',
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8466861Z     name: 'toBeDisabled',
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8467067Z     expected: 'disabled',
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8467258Z     log: [
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8467658Z       `  - Expect "toBeDisabled" getByRole('button', { name: 'Reveal Password', exact: true }) with timeout 5000ms`,
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8468195Z       "  - waiting for getByRole('button', { name: 'Reveal Password', exact: true })",
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8468803Z       '    12 × locator resolved to <button aria-describedby="_r_a_" aria-label="Reveal Password">…</button>',
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8469229Z       '       - unexpected value "enabled"'
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8469470Z     ],
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8469643Z     timeout: 5000,
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8469887Z     ariaSnapshot: '- button "Reveal Password"'
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8470124Z   }
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8470304Z }
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8470398Z 
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8470479Z Node.js v22.20.0
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.8951019Z  ELIFECYCLE  Command failed with exit code 1.
+shards (organization-browser, true)	Run this shard	2026-11-08T15:55:37.9160071Z ##[error]Process completed with exit code 1.

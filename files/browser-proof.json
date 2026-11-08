@@ -1,0 +1,46 @@
+{
+  "head": "c30f0e5a6b70df245d0c92bc13dee19c29bcb30f",
+  "recorded_at": "2026-11-08T15:54:09.587426+00:00",
+  "command": "node tests/browser/vault.mjs --browser-lock",
+  "exit": 0,
+  "worker": "fresh build on committed candidate",
+  "assertion_width": 1440,
+  "screen_widths": [
+    1440,
+    390
+  ],
+  "native_bfcache_cache_hit": false,
+  "visibility": "controlled browser document boundary",
+  "screens": [
+    {
+      "file": "screens/browser-lock-settings-1440.png",
+      "bytes": 51879,
+      "sha256": "b905e1922c74a72a1f42988e93f761964a249a5c3ee0b2121857757858bf771e"
+    },
+    {
+      "file": "screens/browser-lock-review-1440.png",
+      "bytes": 78240,
+      "sha256": "3a631a5077cea68546bf0d1623ef084edf8fec384195d67ec64160747ba52429"
+    },
+    {
+      "file": "screens/browser-lock-idle-1440.png",
+      "bytes": 36740,
+      "sha256": "02d1efc1a26cad9a736d780fb635da7f753e83ff100b1ab974eaba78fd47afdc"
+    },
+    {
+      "file": "screens/browser-lock-settings-390.png",
+      "bytes": 42824,
+      "sha256": "de99978933a3a59b93f27cdf1834e6276114206080d66992fc00e5964ca724a6"
+    },
+    {
+      "file": "screens/browser-lock-review-390.png",
+      "bytes": 67561,
+      "sha256": "f1f49d665a00c22a503bf2d7af822a0956646cb9ea5688689572e6604c44e2c6"
+    },
+    {
+      "file": "screens/browser-lock-locked-390.png",
+      "bytes": 29830,
+      "sha256": "e0d704d674a066e4374ac0ae15fec0d237ad4d940ac99b4beb1633ee28ae7dd6"
+    }
+  ]
+}

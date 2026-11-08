@@ -1,0 +1,81 @@
+> pnpm run verify:app
+
+> @just-every/latchkey@0.1.0 verify:app /home/agent/rer-consolidation/work/sx-latchkey-c-f280/repo
+> node scripts/verify-app.mjs
+
+> pnpm run build
+
+> @just-every/latchkey@0.1.0 build /home/agent/rer-consolidation/work/sx-latchkey-c-f280/repo
+> rer build
+
+Checking pinned pnpm
+10.12.4
+Building your application
+build:app
+▲ [WARNING] Proxy environment variables detected. We'll use your proxy for fetch requests.
+
+
+vite v8.2.2 building client environment for production...
+transforming...
+✓ 284 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/client/.assetsignore                   0.02 kB
+dist/client/assets/client-BP-QVP_4.js       1.08 kB │ gzip:   0.53 kB
+dist/client/assets/share-LEeHRP2O.js        4.88 kB │ gzip:   2.05 kB
+dist/client/assets/types-CWJp1MhE.js        6.15 kB │ gzip:   2.44 kB
+dist/client/assets/app.fleet-C5CPM9JV.js   13.45 kB │ gzip:   4.09 kB
+dist/client/assets/Lockup-Wk5ofvmL.js      31.89 kB │ gzip:   8.71 kB
+dist/client/assets/index-Bd1tueWj.js      314.77 kB │ gzip: 102.04 kB
+dist/client/assets/app.vault-HfzXc2NZ.js  369.32 kB │ gzip: 100.67 kB
+dist/client/assets/value-IvipYWvN.js      672.85 kB │ gzip: 252.17 kB
+
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 444ms
+vite v8.2.2 building ssr environment for production...
+transforming...
+✓ 650 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/server/wrangler.json                                      1.60 kB │ gzip:   0.81 kB
+dist/server/.vite/manifest.json                                6.21 kB │ gzip:   1.10 kB
+dist/server/assets/opaque-AbhIzWs3.wasm                      309.95 kB │ gzip: 112.11 kB
+dist/server/assets/empty-plugin-adapters-D_0twvAa.js           0.28 kB │ gzip:   0.18 kB
+dist/server/assets/start-D8qDT34V.js                           0.28 kB │ gzip:   0.21 kB
+dist/server/assets/_tanstack-start-manifest_v-DQdd8k7q.js      1.19 kB │ gzip:   0.46 kB
+dist/server/assets/types-CzLl45fV.js                           1.58 kB │ gzip:   0.84 kB
+dist/server/assets/client-DEbLZLGp.js                          1.59 kB │ gzip:   0.68 kB
+dist/server/assets/hash-C5X6llL6.js                            4.69 kB │ gzip:   2.16 kB
+dist/server/assets/storage-Dqehq99B.js                         4.91 kB │ gzip:   1.95 kB
+dist/server/assets/envelope-D5LI7cX0.js                        8.01 kB │ gzip:   2.49 kB
+dist/server/assets/share-Cm26oYkA.js                           8.27 kB │ gzip:   2.60 kB
+dist/server/assets/jsx-runtime-zPeYIBpK.js                    18.51 kB │ gzip:   4.98 kB
+dist/server/assets/react-dom-W4rLc5xo.js                      23.34 kB │ gzip:   7.10 kB
+dist/server/assets/app.fleet-C5yEdgDF.js                      25.28 kB │ gzip:   5.44 kB
+dist/server/assets/Lockup-VyV9ftSJ.js                         34.26 kB │ gzip:   9.17 kB
+dist/server/assets/policy-CwLRlsjT.js                         35.07 kB │ gzip:  10.00 kB
+dist/server/assets/router-YrsiZedP.js                         42.61 kB │ gzip:  11.24 kB
+dist/server/assets/Match-CyfP9THj.js                         144.97 kB │ gzip:  36.40 kB
+dist/server/assets/common-Ba8Q5qW8.js                        163.62 kB │ gzip:  43.49 kB
+dist/server/assets/openapi-CJbV_Gbu.js                       225.07 kB │ gzip:   8.46 kB
+dist/server/assets/value-DCz38_2Z.js                         377.79 kB │ gzip: 103.87 kB
+dist/server/assets/app.vault-BwVYS9dk.js                     633.30 kB │ gzip: 129.57 kB
+dist/server/index.js                                       1,920.74 kB │ gzip: 442.86 kB
+
+✓ built in 793ms
+Your application is built
+build: complete (exit 0)
+> node tests/browser/organization.mjs
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+
+
+Account separation: real CLI encrypted profile registry, lock-before-switch, cross-account search/export refusal and independent family survival after company suspension passed
+Direct permissions browser: exact owner preview, stale confirmation refusal, independent copy, history and reveal, immediate tooltips, outage preservation and connected revocation clearing passed
+Ownership journey 1440: owner-only exact transfer consent, current recipients, encrypted history/attachments, archived source and plaintext-free audit passed
+Organization journey 1440: 64 encrypted items, private filters/collections, exact bulk preview and undo, independent restore, family refusal and signed 30-day erasure passed
+Ownership journey 390: owner-only exact transfer consent, current recipients, encrypted history/attachments, archived source and plaintext-free audit passed
+Organization journey 390: 64 encrypted items, private filters/collections, exact bulk preview and undo, independent restore, family refusal and signed 30-day erasure passed

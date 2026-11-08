@@ -1,0 +1,142 @@
+shards (runtime, true)	Run this shard	﻿2026-11-08T15:55:03.6134030Z ##[group]Run node scripts/verify-ci.mjs "$SHARD"
+shards (runtime, true)	Run this shard	2026-11-08T15:55:03.6134410Z [36;1mnode scripts/verify-ci.mjs "$SHARD"[0m
+shards (runtime, true)	Run this shard	2026-11-08T15:55:03.6152056Z shell: /usr/bin/bash -e {0}
+shards (runtime, true)	Run this shard	2026-11-08T15:55:03.6152314Z env:
+shards (runtime, true)	Run this shard	2026-11-08T15:55:03.6152505Z   CI: true
+shards (runtime, true)	Run this shard	2026-11-08T15:55:03.6152871Z   WRANGLER_SEND_METRICS: false
+shards (runtime, true)	Run this shard	2026-11-08T15:55:03.6153135Z   PLAYWRIGHT_SKIP_BROWSER_GC: 1
+shards (runtime, true)	Run this shard	2026-11-08T15:55:03.6153382Z   SHARD: runtime
+shards (runtime, true)	Run this shard	2026-11-08T15:55:03.6153581Z ##[endgroup]
+shards (runtime, true)	Run this shard	2026-11-08T15:55:03.6460331Z > pnpm run verify
+shards (runtime, true)	Run this shard	2026-11-08T15:55:03.9098203Z 
+shards (runtime, true)	Run this shard	2026-11-08T15:55:03.9098863Z > @just-every/latchkey@0.1.0 verify /home/runner/work/run-latchkey/run-latchkey
+shards (runtime, true)	Run this shard	2026-11-08T15:55:03.9099366Z > rer verify
+shards (runtime, true)	Run this shard	2026-11-08T15:55:03.9099494Z 
+shards (runtime, true)	Run this shard	2026-11-08T15:55:04.5169284Z Checking pinned pnpm
+shards (runtime, true)	Run this shard	2026-11-08T15:55:04.7682457Z 10.12.4
+shards (runtime, true)	Run this shard	2026-11-08T15:55:05.1065660Z Verifying application
+shards (runtime, true)	Run this shard	2026-11-08T15:55:05.3818601Z 
+shards (runtime, true)	Run this shard	2026-11-08T15:55:05.3819535Z > @just-every/latchkey@0.1.0 verify:app [REDACTED]
+shards (runtime, true)	Run this shard	2026-11-08T15:55:05.3820794Z > node scripts/verify-app.mjs
+shards (runtime, true)	Run this shard	2026-11-08T15:55:05.3821446Z 
+shards (runtime, true)	Run this shard	2026-11-08T15:55:05.4100839Z > pnpm run build
+shards (runtime, true)	Run this shard	2026-11-08T15:55:05.6784693Z 
+shards (runtime, true)	Run this shard	2026-11-08T15:55:05.6785451Z > @just-every/latchkey@0.1.0 build [REDACTED]
+shards (runtime, true)	Run this shard	2026-11-08T15:55:05.6785935Z > rer build
+shards (runtime, true)	Run this shard	2026-11-08T15:55:05.6786063Z 
+shards (runtime, true)	Run this shard	2026-11-08T15:55:06.3469108Z Checking pinned pnpm
+shards (runtime, true)	Run this shard	2026-11-08T15:55:06.5991363Z 10.12.4
+shards (runtime, true)	Run this shard	2026-11-08T15:55:06.6761662Z Building your application
+shards (runtime, true)	Run this shard	2026-11-08T15:55:07.0583741Z build:app
+shards (runtime, true)	Run this shard	2026-11-08T15:55:09.1518148Z vite v8.2.2 building client environment for production...
+shards (runtime, true)	Run this shard	2026-11-08T15:55:09.1686738Z transforming...
+shards (runtime, true)	Run this shard	2026-11-08T15:55:09.3974024Z ✓ 284 modules transformed.
+shards (runtime, true)	Run this shard	2026-11-08T15:55:09.4339490Z rendering chunks...
+shards (runtime, true)	Run this shard	2026-11-08T15:55:09.5221412Z computing gzip size...
+shards (runtime, true)	Run this shard	2026-11-08T15:55:09.5354383Z dist/client/.assetsignore                   0.02 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:09.5381854Z dist/client/assets/client-BP-QVP_4.js       1.08 kB │ gzip:   0.53 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:09.5383319Z dist/client/assets/share-LEeHRP2O.js        4.88 kB │ gzip:   2.05 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:09.5384812Z dist/client/assets/types-CWJp1MhE.js        6.15 kB │ gzip:   2.44 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:09.5386222Z dist/client/assets/app.fleet-C5CPM9JV.js   13.45 kB │ gzip:   4.09 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:09.5387627Z dist/client/assets/Lockup-Wk5ofvmL.js      31.89 kB │ gzip:   8.71 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:09.5389047Z dist/client/assets/index-Bd1tueWj.js      314.77 kB │ gzip: 102.04 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:09.5390647Z dist/client/assets/app.vault-HfzXc2NZ.js  369.32 kB │ gzip: 100.67 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:09.5392054Z dist/client/assets/value-IvipYWvN.js      672.85 kB │ gzip: 252.17 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:09.5392794Z 
+shards (runtime, true)	Run this shard	2026-11-08T15:55:09.5393353Z [plugin builtin:vite-reporter] 
+shards (runtime, true)	Run this shard	2026-11-08T15:55:09.5394191Z (!) Some chunks are larger than 500 kB after minification. Consider:
+shards (runtime, true)	Run this shard	2026-11-08T15:55:09.5395036Z - Using dynamic import() to code-split the application
+shards (runtime, true)	Run this shard	2026-11-08T15:55:09.5396542Z - Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+shards (runtime, true)	Run this shard	2026-11-08T15:55:09.5398135Z - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+shards (runtime, true)	Run this shard	2026-11-08T15:55:09.5584614Z ✓ built in 409ms
+shards (runtime, true)	Run this shard	2026-11-08T15:55:09.5591901Z vite v8.2.2 building ssr environment for production...
+shards (runtime, true)	Run this shard	2026-11-08T15:55:09.5676047Z transforming...
+shards (runtime, true)	Run this shard	2026-11-08T15:55:10.1298971Z ✓ 650 modules transformed.
+shards (runtime, true)	Run this shard	2026-11-08T15:55:10.1895066Z rendering chunks...
+shards (runtime, true)	Run this shard	2026-11-08T15:55:10.2920960Z computing gzip size...
+shards (runtime, true)	Run this shard	2026-11-08T15:55:10.3210593Z dist/server/wrangler.json                                      1.57 kB │ gzip:   0.79 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:10.3211597Z dist/server/.vite/manifest.json                                6.18 kB │ gzip:   1.08 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:10.3212483Z dist/server/assets/opaque-AbhIzWs3.wasm                      309.95 kB │ gzip: 112.11 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:10.3213515Z dist/server/assets/empty-plugin-adapters-D_0twvAa.js           0.28 kB │ gzip:   0.18 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:10.3214567Z dist/server/assets/start-D8qDT34V.js                           0.28 kB │ gzip:   0.21 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:10.3215885Z dist/server/assets/_tanstack-start-manifest_v-arHhnyNa.js      1.13 kB │ gzip:   0.44 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:10.3216856Z dist/server/assets/types-CzLl45fV.js                           1.58 kB │ gzip:   0.84 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:10.3217830Z dist/server/assets/client-DEbLZLGp.js                          1.59 kB │ gzip:   0.68 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:10.3219005Z dist/server/assets/hash-C5X6llL6.js                            4.69 kB │ gzip:   2.16 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:10.3220256Z dist/server/assets/storage-Dqehq99B.js                         4.91 kB │ gzip:   1.95 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:10.3221017Z dist/server/assets/envelope-D5LI7cX0.js                        8.01 kB │ gzip:   2.49 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:10.3221900Z dist/server/assets/share-Cm26oYkA.js                           8.27 kB │ gzip:   2.60 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:10.3222621Z dist/server/assets/jsx-runtime-zPeYIBpK.js                    18.51 kB │ gzip:   4.98 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:10.3223497Z dist/server/assets/react-dom-W4rLc5xo.js                      23.34 kB │ gzip:   7.10 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:10.3224230Z dist/server/assets/app.fleet-C5yEdgDF.js                      25.28 kB │ gzip:   5.44 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:10.3224925Z dist/server/assets/Lockup-VyV9ftSJ.js                         34.26 kB │ gzip:   9.17 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:10.3225624Z dist/server/assets/policy-CwLRlsjT.js                         35.07 kB │ gzip:  10.00 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:10.3226485Z dist/server/assets/router-YrsiZedP.js                         42.61 kB │ gzip:  11.24 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:10.3227168Z dist/server/assets/Match-CyfP9THj.js                         144.97 kB │ gzip:  36.40 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:10.3227855Z dist/server/assets/common-Ba8Q5qW8.js                        163.62 kB │ gzip:  43.49 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:10.3228546Z dist/server/assets/openapi-CJbV_Gbu.js                       225.07 kB │ gzip:   8.46 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:10.3229389Z dist/server/assets/value-DCz38_2Z.js                         377.79 kB │ gzip: 103.87 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:10.3230337Z dist/server/assets/app.vault-BwVYS9dk.js                     633.30 kB │ gzip: 129.57 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:10.3231021Z dist/server/index.js                                       1,920.74 kB │ gzip: 442.86 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:10.3231294Z 
+shards (runtime, true)	Run this shard	2026-11-08T15:55:10.3481221Z ✓ built in 787ms
+shards (runtime, true)	Run this shard	2026-11-08T15:55:10.6455654Z Your application is built
+shards (runtime, true)	Run this shard	2026-11-08T15:55:10.6656343Z build: complete (exit 0)
+shards (runtime, true)	Run this shard	2026-11-08T15:55:10.6899172Z > node tests/latchkey-recovery.mjs
+shards (runtime, true)	Run this shard	2026-11-08T15:55:16.3307428Z Failed mail acceptance refuses enrollment without retaining recovery custody
+shards (runtime, true)	Run this shard	2026-11-08T15:55:20.4434005Z Independent one-use self recovery and named administrator lost-password recovery passed
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.2209574Z node:internal/deps/undici/undici:13510
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.2210556Z       Error.captureStackTrace(err);
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.2211055Z             ^
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.2211304Z 
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.2212036Z TypeError: Failed to construct 'Request': member signal is not of type AbortSignal.
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.2212964Z     at node:internal/deps/undici/undici:13510:13
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.2213825Z     at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.2214866Z     at async scopedRecoveryJourney (file://[REDACTED]/tests/latchkey-recovery.mjs:232:18)
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.2215756Z     at async file://[REDACTED]/tests/latchkey-recovery.mjs:463:83
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.2216167Z 
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.2216314Z Node.js v22.20.0
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.2673807Z  ELIFECYCLE  Command failed with exit code 1.
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3486436Z Verifying application: exit 1, signal none.
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3487048Z Command: pnpm
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3487456Z Last output (up to 40 lines):
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3488403Z dist/server/assets/empty-plugin-adapters-D_0twvAa.js           0.28 kB │ gzip:   0.18 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3489240Z dist/server/assets/start-D8qDT34V.js                           0.28 kB │ gzip:   0.21 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3490335Z dist/server/assets/_tanstack-start-manifest_v-arHhnyNa.js      1.13 kB │ gzip:   0.44 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3491568Z dist/server/assets/types-CzLl45fV.js                           1.58 kB │ gzip:   0.84 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3492353Z dist/server/assets/client-DEbLZLGp.js                          1.59 kB │ gzip:   0.68 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3493136Z dist/server/assets/hash-C5X6llL6.js                            4.69 kB │ gzip:   2.16 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3494087Z dist/server/assets/storage-Dqehq99B.js                         4.91 kB │ gzip:   1.95 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3494921Z dist/server/assets/envelope-D5LI7cX0.js                        8.01 kB │ gzip:   2.49 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3495754Z dist/server/assets/share-Cm26oYkA.js                           8.27 kB │ gzip:   2.60 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3496593Z dist/server/assets/jsx-runtime-zPeYIBpK.js                    18.51 kB │ gzip:   4.98 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3497447Z dist/server/assets/react-dom-W4rLc5xo.js                      23.34 kB │ gzip:   7.10 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3498285Z dist/server/assets/app.fleet-C5yEdgDF.js                      25.28 kB │ gzip:   5.44 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3499069Z dist/server/assets/Lockup-VyV9ftSJ.js                         34.26 kB │ gzip:   9.17 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3500016Z dist/server/assets/policy-CwLRlsjT.js                         35.07 kB │ gzip:  10.00 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3500813Z dist/server/assets/router-YrsiZedP.js                         42.61 kB │ gzip:  11.24 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3501590Z dist/server/assets/Match-CyfP9THj.js                         144.97 kB │ gzip:  36.40 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3502358Z dist/server/assets/common-Ba8Q5qW8.js                        163.62 kB │ gzip:  43.49 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3503121Z dist/server/assets/openapi-CJbV_Gbu.js                       225.07 kB │ gzip:   8.46 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3503885Z dist/server/assets/value-DCz38_2Z.js                         377.79 kB │ gzip: 103.87 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3504620Z dist/server/assets/app.vault-BwVYS9dk.js                     633.30 kB │ gzip: 129.57 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3505344Z dist/server/index.js                                       1,920.74 kB │ gzip: 442.86 kB
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3505659Z 
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3505793Z ✓ built in 787ms
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3506060Z Your application is built
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3506350Z build: complete (exit 0)
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3506673Z > node tests/latchkey-recovery.mjs
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3507194Z Failed mail acceptance refuses enrollment without retaining recovery custody
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3507916Z Independent one-use self recovery and named administrator lost-password recovery passed
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3508445Z node:internal/deps/undici/undici:13510
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3508833Z       Error.captureStackTrace(err);
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3509121Z             ^
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3509246Z 
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3509538Z Failed to construct 'Request': member signal is not of type AbortSignal.
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3510157Z 
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3510265Z Node.js v22.20.0
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3510747Z  ELIFECYCLE  Command failed with exit code 1.
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3511176Z Log: [REDACTED]/.seed/installer/install.log
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3511564Z verify: failed (exit 1)
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3705553Z  ELIFECYCLE  Command failed with exit code 1.
+shards (runtime, true)	Run this shard	2026-11-08T15:55:22.3936078Z ##[error]Process completed with exit code 1.

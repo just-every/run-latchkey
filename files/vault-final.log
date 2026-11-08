@@ -1,0 +1,23 @@
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+
+
+PROBE LKY-004 locked client: a delayed actual Worker result is invalidated even without transport cancellation; reveal, copy and mutation refuse without writes
+PROBE LKY-004 pending unlock: leaving the page invalidates a delayed authorized login completion and clears the password
+PROBE LKY-004 settings: reviewed exact profile, cancelled without persistence, changed draft requires review, keyboard confirmation persisted only preferences
+PROBE LKY-004 inactivity: genuine input extended the deadline; synthetic activity did not; idle lock removed rendered title and revealed secret
+PROBE LKY-004 background: browser visibility boundary locks immediately and return stays locked
+PROBE LKY-004 restart: reload, history return and persisted page lifecycle require the existing profile and password ceremony; preferences survive without keys
+PROBE LKY-004 pending: delayed real read and reveal responses cannot restore state after lock; copy and mutation controls are absent
+PROBE LKY-004 delayed copy: a real TOTP calculation completing after lock cannot overwrite the clipboard
+PROBE LKY-004 isolation: a second approved device and a separate account start unconfigured, foreign origin refuses, original preferences remain isolated, revoked profile and wrong password cannot unlock
+PROBE LKY-004 secrecy: local and session storage, IndexedDB, caches, wire and audit contain no password, profile secret, root or decrypted item
+browserLockJourney passed; assertions at 1440, changed settings, review and locked screens captured at 390
+Company custody browser journey: explicit enrollment, exact reviewed transfer and membership-only reactivation at 1440; changed states captured at 1440 and 390
+Stale save 1440 password: 2/2 attempts refused; 0 appended versions; 2 retained history versions; colleague value intact; draft unchanged; refusal and Save visible, refusal focused; merge buttons=0
+Stale save 1440 title: 2/2 attempts refused; 0 appended versions; 2 retained history versions; colleague value intact; draft unchanged; refusal and Save visible, refusal focused; merge buttons=0
+Stale save 1440 different-field: 2/2 attempts refused; 0 appended versions; 2 retained history versions; colleague value intact; draft unchanged; refusal and Save visible, refusal focused; merge buttons=0
+Generator REST and CLI: read-only preview, exact confirmation, entropy conflict refusal, feasible generation, concurrent application and no refused writes passed
+Scoped recovery browser 1440: owner grant, member encryption, distinct custodian approval, retained new credentials and recovered company account passed
+Vault browser: real owner setup/unlock, typed edit, reveal, attachment download, append restore, generator, templates and protected verified one-view sharing at 1440 and 390 passed
+Scoped recovery browser 390: owner grant, member encryption, distinct custodian approval, retained new credentials and recovered company account passed
+Vault browser: real owner setup/unlock, typed edit, reveal, attachment download, append restore, generator, templates and protected verified one-view sharing at 1440 and 390 passed

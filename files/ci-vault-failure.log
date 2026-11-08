@@ -1,0 +1,145 @@
+shards (vault-browser, true)	Run this shard	﻿2026-11-08T15:55:04.7369439Z ##[group]Run node scripts/verify-ci.mjs "$SHARD"
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:04.7369838Z [36;1mnode scripts/verify-ci.mjs "$SHARD"[0m
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:04.7388216Z shell: /usr/bin/bash -e {0}
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:04.7388472Z env:
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:04.7388656Z   CI: true
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:04.7389024Z   WRANGLER_SEND_METRICS: false
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:04.7389280Z   PLAYWRIGHT_SKIP_BROWSER_GC: 1
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:04.7389534Z   SHARD: vault-browser
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:04.7389749Z ##[endgroup]
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:04.7709789Z > pnpm run verify:app
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:05.0378580Z 
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:05.0379574Z > @just-every/latchkey@0.1.0 verify:app /home/runner/work/run-latchkey/run-latchkey
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:05.0380494Z > node scripts/verify-app.mjs
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:05.0380820Z 
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:05.0752611Z > pnpm run build
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:05.3477459Z 
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:05.3478420Z > @just-every/latchkey@0.1.0 build /home/runner/work/run-latchkey/run-latchkey
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:05.3479271Z > rer build
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:05.3479494Z 
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:05.9727448Z Checking pinned pnpm
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:06.2249813Z 10.12.4
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:06.3009013Z Building your application
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:06.6885846Z build:app
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:08.7803774Z vite v8.2.2 building client environment for production...
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:08.7934765Z transforming...
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:09.0476461Z ✓ 284 modules transformed.
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:09.0884540Z rendering chunks...
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:09.1783444Z computing gzip size...
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:09.1912987Z dist/client/.assetsignore                   0.02 kB
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:09.1914447Z dist/client/assets/client-BP-QVP_4.js       1.08 kB │ gzip:   0.53 kB
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:09.1915715Z dist/client/assets/share-LEeHRP2O.js        4.88 kB │ gzip:   2.05 kB
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:09.1917001Z dist/client/assets/types-CWJp1MhE.js        6.15 kB │ gzip:   2.44 kB
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:09.1918397Z dist/client/assets/app.fleet-C5CPM9JV.js   13.45 kB │ gzip:   4.09 kB
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:09.1919707Z dist/client/assets/Lockup-Wk5ofvmL.js      31.89 kB │ gzip:   8.71 kB
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:09.1920998Z dist/client/assets/index-Bd1tueWj.js      314.77 kB │ gzip: 102.04 kB
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:09.1922493Z dist/client/assets/app.vault-HfzXc2NZ.js  369.32 kB │ gzip: 100.67 kB
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:09.1923879Z dist/client/assets/value-IvipYWvN.js      672.85 kB │ gzip: 252.17 kB
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:09.1924624Z 
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:09.1925116Z [plugin builtin:vite-reporter] 
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:09.1926093Z (!) Some chunks are larger than 500 kB after minification. Consider:
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:09.1927146Z - Using dynamic import() to code-split the application
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:09.1928852Z - Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:09.1930563Z - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:09.2189971Z ✓ built in 440ms
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:09.2195581Z vite v8.2.2 building ssr environment for production...
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:09.2283361Z transforming...
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:09.8010997Z ✓ 650 modules transformed.
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:09.8628986Z rendering chunks...
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:09.9667420Z computing gzip size...
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:09.9995389Z dist/server/wrangler.json                                      1.57 kB │ gzip:   0.79 kB
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:09.9996780Z dist/server/.vite/manifest.json                                6.18 kB │ gzip:   1.08 kB
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:09.9998130Z dist/server/assets/opaque-AbhIzWs3.wasm                      309.95 kB │ gzip: 112.11 kB
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:09.9999650Z dist/server/assets/empty-plugin-adapters-D_0twvAa.js           0.28 kB │ gzip:   0.18 kB
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:10.0001191Z dist/server/assets/start-D8qDT34V.js                           0.28 kB │ gzip:   0.21 kB
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:10.0002946Z dist/server/assets/_tanstack-start-manifest_v-arHhnyNa.js      1.13 kB │ gzip:   0.44 kB
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:10.0004468Z dist/server/assets/types-CzLl45fV.js                           1.58 kB │ gzip:   0.84 kB
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:10.0005881Z dist/server/assets/client-DEbLZLGp.js                          1.59 kB │ gzip:   0.68 kB
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:10.0007791Z dist/server/assets/hash-C5X6llL6.js                            4.69 kB │ gzip:   2.16 kB
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:10.0009221Z dist/server/assets/storage-Dqehq99B.js                         4.91 kB │ gzip:   1.95 kB
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:10.0010860Z dist/server/assets/envelope-D5LI7cX0.js                        8.01 kB │ gzip:   2.49 kB
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:10.0012436Z dist/server/assets/share-Cm26oYkA.js                           8.27 kB │ gzip:   2.60 kB
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:10.0013820Z dist/server/assets/jsx-runtime-zPeYIBpK.js                    18.51 kB │ gzip:   4.98 kB
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:10.0015228Z dist/server/assets/react-dom-W4rLc5xo.js                      23.34 kB │ gzip:   7.10 kB
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:10.0016556Z dist/server/assets/app.fleet-C5yEdgDF.js                      25.28 kB │ gzip:   5.44 kB
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:10.0017891Z dist/server/assets/Lockup-VyV9ftSJ.js                         34.26 kB │ gzip:   9.17 kB
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:10.0019295Z dist/server/assets/policy-CwLRlsjT.js                         35.07 kB │ gzip:  10.00 kB
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:10.0020621Z dist/server/assets/router-YrsiZedP.js                         42.61 kB │ gzip:  11.24 kB
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:10.0022171Z dist/server/assets/Match-CyfP9THj.js                         144.97 kB │ gzip:  36.40 kB
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:10.0023591Z dist/server/assets/common-Ba8Q5qW8.js                        163.62 kB │ gzip:  43.49 kB
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:10.0024909Z dist/server/assets/openapi-CJbV_Gbu.js                       225.07 kB │ gzip:   8.46 kB
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:10.0026249Z dist/server/assets/value-DCz38_2Z.js                         377.79 kB │ gzip: 103.87 kB
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:10.0027599Z dist/server/assets/app.vault-BwVYS9dk.js                     633.30 kB │ gzip: 129.57 kB
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:10.0028838Z dist/server/index.js                                       1,920.74 kB │ gzip: 442.86 kB
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:10.0029396Z 
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:10.0260385Z ✓ built in 806ms
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:10.3282309Z Your application is built
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:10.3566541Z build: complete (exit 0)
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:10.3738634Z > node tests/browser/vault.mjs
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:14.9738993Z PROBE LKY-004 locked client: a delayed actual Worker result is invalidated even without transport cancellation; reveal, copy and mutation refuse without writes
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:15.7846533Z PROBE LKY-004 pending unlock: leaving the page invalidates a delayed authorized login completion and clears the password
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:16.4805949Z PROBE LKY-004 settings: reviewed exact profile, cancelled without persistence, changed draft requires review, keyboard confirmation persisted only preferences
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:16.8112590Z PROBE LKY-004 inactivity: genuine input extended the deadline; synthetic activity did not; idle lock removed rendered title and revealed secret
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:17.7814244Z PROBE LKY-004 background: browser visibility boundary locks immediately and return stays locked
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:20.4671410Z PROBE LKY-004 restart: reload, history return and persisted page lifecycle require the existing profile and password ceremony; preferences survive without keys
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:21.3162435Z PROBE LKY-004 pending: delayed real read and reveal responses cannot restore state after lock; copy and mutation controls are absent
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:22.1512937Z PROBE LKY-004 delayed copy: a real TOTP calculation completing after lock cannot overwrite the clipboard
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:24.8874109Z PROBE LKY-004 isolation: a second approved device and a separate account start unconfigured, foreign origin refuses, original preferences remain isolated, revoked profile and wrong password cannot unlock
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:25.5647149Z PROBE LKY-004 secrecy: local and session storage, IndexedDB, caches, wire and audit contain no password, profile secret, root or decrypted item
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:25.5649016Z browserLockJourney passed; assertions at 1440, changed settings, review and locked screens captured at 390
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:30.6152793Z Company custody browser journey: explicit enrollment, exact reviewed transfer and membership-only reactivation at 1440; changed states captured at 1440 and 390
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:35.6494455Z Stale save 1440 password: 2/2 attempts refused; 0 appended versions; 2 retained history versions; colleague value intact; draft unchanged; refusal and Save visible, refusal focused; merge buttons=0
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:37.1667435Z Stale save 1440 title: 2/2 attempts refused; 0 appended versions; 2 retained history versions; colleague value intact; draft unchanged; refusal and Save visible, refusal focused; merge buttons=0
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:38.6630698Z Stale save 1440 different-field: 2/2 attempts refused; 0 appended versions; 2 retained history versions; colleague value intact; draft unchanged; refusal and Save visible, refusal focused; merge buttons=0
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:48.3862323Z Generator REST and CLI: read-only preview, exact confirmation, entropy conflict refusal, feasible generation, concurrent application and no refused writes passed
+shards (vault-browser, true)	Run this shard	2026-11-08T15:55:58.8266201Z Scoped recovery browser 1440: owner grant, member encryption, distinct custodian approval, retained new credentials and recovered company account passed
+shards (vault-browser, true)	Run this shard	2026-11-08T15:56:19.1023955Z Vault browser: real owner setup/unlock, typed edit, reveal, attachment download, append restore, generator, templates and protected verified one-view sharing at 1440 and 390 passed
+shards (vault-browser, true)	Run this shard	2026-11-08T15:56:31.4947828Z Scoped recovery browser 390: owner grant, member encryption, distinct custodian approval, retained new credentials and recovered company account passed
+shards (vault-browser, true)	Run this shard	2026-11-08T15:56:51.4177060Z Vault browser: real owner setup/unlock, typed edit, reveal, attachment download, append restore, generator, templates and protected verified one-view sharing at 1440 and 390 passed
+shards (vault-browser, true)	Run this shard	2026-11-08T15:56:51.5318588Z > node tests/browser/reviews.mjs
+shards (vault-browser, true)	Run this shard	2026-11-08T15:58:06.8435357Z Evidence attempts: durable upload reference, fresh-client resume, racing resume refusal, ambiguous write fence, idempotent result acknowledgement and revoke before the next provider mutation passed
+shards (vault-browser, true)	Run this shard	2026-11-08T15:58:37.5543044Z Review campaign public-door journey 1440 passed
+shards (vault-browser, true)	Run this shard	2026-11-08T15:59:51.4011021Z Evidence attempts: durable upload reference, fresh-client resume, racing resume refusal, ambiguous write fence, idempotent result acknowledgement and revoke before the next provider mutation passed
+shards (vault-browser, true)	Run this shard	2026-11-08T16:00:05.5615806Z Review campaign public-door journey 390 passed
+shards (vault-browser, true)	Run this shard	2026-11-08T16:00:05.6768449Z > node tests/latchkey-rules.mjs
+shards (vault-browser, true)	Run this shard	2026-11-08T16:01:51.5400418Z PASS ruleLifecycleJourney: bounded versioned rules, exact approval, injected scheduling, replay and inactive Records restore
+shards (vault-browser, true)	Run this shard	2026-11-08T16:01:51.6675411Z > node tests/latchkey-exit.mjs
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:03.8381142Z PROBE LKY-017 interrupted authority and erasure: real commit followed by erasure or device revocation and lost response -> no success, retry or recreated content
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:26.4391681Z PROBE LKY-017 interrupted release: encrypted and approved plaintext requests lost before or after commit, or cancelled during release -> no returned file, no release retry; uncertainty accepted only for retained releases
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:29.9932575Z PROBE LKY-017 interrupted import: failed transport before commit -> unknown outcome and no writes; lost response after atomic commit -> four exact destinations reconciled without retry
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:30.6396446Z PASS ownerRunExitJourney: cancellation retains all typed values, TOTP, history, attachment digests and offline buyer decryption; shutdown consequences are explicit
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:30.7335632Z > perl -e 'alarm 1200; exec @ARGV' -- node tests/browser/exit.mjs
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:38.9607332Z PROBE LKY-017 cancellation: browser item review then Cancel -> no authorization, release, download or import
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:40.2720368Z PROBE LKY-017 final fences: browser export with stale policy and source or policy changes at release -> refusal, no selection download
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:45.9988016Z node:internal/modules/run_main:123
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:45.9991527Z     triggerUncaughtException(
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:45.9992985Z     ^
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:45.9993232Z 
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:45.9993827Z ExpectError: expect(received).toBe(expected) // Object.is equality
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:45.9994346Z 
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:45.9994446Z Expected: 1
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:45.9994877Z Received: 0
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:45.9994990Z 
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:45.9995070Z Call Log:
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:45.9995399Z - Timeout 5000ms exceeded while waiting on the predicate
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:45.9996279Z     at captureRawStack (/home/runner/work/run-latchkey/run-latchkey/node_modules/.pnpm/playwright-core@1.63.0/node_modules/playwright-core/lib/coreBundle.js:8588:17)
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:45.9997483Z     at callMatcherAsStep (/home/runner/work/run-latchkey/run-latchkey/node_modules/.pnpm/playwright@1.63.0/node_modules/playwright/lib/matchers/expect.js:13310:57)
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:45.9998676Z     at Object.toBe (/home/runner/work/run-latchkey/run-latchkey/node_modules/.pnpm/playwright@1.63.0/node_modules/playwright/lib/matchers/expect.js:13302:23)
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:45.9999604Z     at selectedExitJourney (/home/runner/work/run-latchkey/run-latchkey/tests/browser/exit.mjs:122:6)
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:46.0000307Z     at async file:///home/runner/work/run-latchkey/run-latchkey/tests/browser/exit.mjs:300:47 {
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:46.0000779Z   matcherResult: {
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:46.0001012Z     pass: false,
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:46.0001377Z     message: 'expect(received).toBe(expected) // Object.is equality\n' +
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:46.0001749Z       '\n' +
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:46.0002330Z       'Expected: 1\n' +
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:46.0002658Z       'Received: 0\n' +
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:46.0002892Z       '\n' +
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:46.0003090Z       'Call Log:\n' +
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:46.0003426Z       '- Timeout 5000ms exceeded while waiting on the predicate',
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:46.0003783Z     name: 'toBe'
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:46.0003983Z   }
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:46.0004163Z }
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:46.0004263Z 
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:46.0004354Z Node.js v22.20.0
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:46.0534146Z  ELIFECYCLE  Command failed with exit code 1.
+shards (vault-browser, true)	Run this shard	2026-11-08T16:02:46.0773918Z ##[error]Process completed with exit code 1.

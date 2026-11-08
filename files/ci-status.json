@@ -1,0 +1,10 @@
+{
+  "conclusion": "failure",
+  "head_sha": "c30f0e5a6b70df245d0c92bc13dee19c29bcb30f",
+  "html_url": "https://github.com/just-every/run-latchkey/actions/runs/42497138994",
+  "status": "completed",
+  "run_id": 42497138994,
+  "event": "push",
+  "queried_at": "2026-11-08T16:04:41.740799+00:00",
+  "api_calls": 4
+}

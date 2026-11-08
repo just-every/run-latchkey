@@ -1,0 +1,9 @@
+{
+  "head": "c30f0e5a6b70df245d0c92bc13dee19c29bcb30f",
+  "job": 128781837363,
+  "command": "CI=true WRANGLER_SEND_METRICS=false PLAYWRIGHT_SKIP_BROWSER_GC=1 SHARD=runtime node scripts/verify-ci.mjs runtime",
+  "test": "scopedRecoveryJourney at tests/latchkey-recovery.mjs:232",
+  "exit": 1,
+  "failure": "Failed to construct 'Request': member signal is not of type AbortSignal.",
+  "reproduced": true
+}
