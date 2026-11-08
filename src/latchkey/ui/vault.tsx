@@ -1,3 +1,6 @@
+import { flushSync } from 'react-dom';
+import { BrowserLockPanel } from './browser-lock';
+import { watchBrowserLock } from '../unlock/browser-lock.mjs';
 import { ScopedRecoveryPanel, ScopedRecoveryFinish } from '../recovery/scoped-ui';
 import { SelectionPanel } from '../portability/selection-ui';
 import {ReportsPanel} from '../reports/ui';
@@ -36,18 +39,20 @@ export function VaultScreen() {
  const [lifecycle,setLifecycle]=useState<any[]>([]),[itemLimit,setItemLimit]=useState(100),[vaultKind,setVaultKind]=useState('company');
  const [ownerTrust, setOwnerTrust] = useState<{ account: string; fingerprint: string } | null>(null), [links, setLinks] = useState<Map<string, number>>(new Map()), [readAt, setReadAt] = useState(0);
  const activeClient = useRef<any>(null), search = useRef<HTMLInputElement>(null), menu = useRef<HTMLDetailsElement>(null), generation = useRef(0);
- const lock = useCallback(() => { generation.current++; activeClient.current?.lock(); activeClient.current = null; setClient(null); setRecords([]); setVaults([]); setVault(''); setSelected(''); setQuery(''); setPanel(''); setCreate(false); setStatus(''); setOwnerTrust(null); setLinks(new Map()); setReadAt(0); }, []);
+ const lockWatch = useRef<any>(null), lockEpoch = useRef(0);
+ const lock = useCallback(() => { generation.current++; lockEpoch.current++; lockWatch.current?.stop(); lockWatch.current = null; activeClient.current?.lock(); activeClient.current = null; setClient(null); setRecords([]); setVaults([]); setVault(''); setSelected(''); setQuery(''); setPanel(''); setCreate(false); setStatus(''); setOwnerTrust(null); setLinks(new Map()); setReadAt(0); setLifecycle([]); setVaultName(''); setError(''); setPending(0); }, []);
  const run = useCallback(async (work: () => Promise<unknown>) => {
+  const ticket = lockEpoch.current;
   setPending(n => n + 1); setError('');
-  try { await work(); } catch (cause) { if (['device_revoked', 'account_key_changed', 'authority_expired', 'locked'].includes((cause as any)?.code) || activeClient.current && (cause as any)?.status === 401) lock(); if (['not_found', 'permission_denied'].includes((cause as any)?.code)) { setRecords([]); setSelected(''); setPanel(''); } setError(message(cause)); } finally { setPending(n => n - 1); }
+  try { await work(); } catch (cause) { if (ticket !== lockEpoch.current) return; if (['device_revoked', 'account_key_changed', 'authority_expired', 'locked'].includes((cause as any)?.code) || activeClient.current && (cause as any)?.status === 401) lock(); if (['not_found', 'permission_denied'].includes((cause as any)?.code)) { setRecords([]); setSelected(''); setPanel(''); } setError(message(cause)); } finally { if (ticket === lockEpoch.current) setPending(n => Math.max(0, n - 1)); }
  }, [lock]);
  useEffect(() => {
   const keyboard = (event: KeyboardEvent) => { if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); search.current?.focus(); } if (event.key === 'Escape' && menu.current?.open) { menu.current.open = false; menu.current.querySelector('summary')?.focus(); } };
   // The Settings menu is a <details>: a click anywhere else closes it.
   const outside = (event: MouseEvent) => { if (menu.current?.open && !menu.current.contains(event.target as Node)) menu.current.open = false; };
-  const leave = () => activeClient.current?.lock(), returnToPage = (event: PageTransitionEvent) => { if (event.persisted) lock(); }; window.addEventListener('keydown', keyboard); window.addEventListener('click', outside); window.addEventListener('pagehide', leave); window.addEventListener('pageshow', returnToPage);
-  return () => { window.removeEventListener('keydown', keyboard); window.removeEventListener('click', outside); window.removeEventListener('pagehide', leave); window.removeEventListener('pageshow', returnToPage); activeClient.current?.lock(); };
- }, []);
+  const leave = () => flushSync(lock), returnToPage = (event: PageTransitionEvent) => { if (event.persisted) flushSync(lock); }; window.addEventListener('keydown', keyboard); window.addEventListener('click', outside); window.addEventListener('pagehide', leave); window.addEventListener('pageshow', returnToPage);
+  return () => { window.removeEventListener('keydown', keyboard); window.removeEventListener('click', outside); window.removeEventListener('pagehide', leave); window.removeEventListener('pageshow', returnToPage); lockWatch.current?.stop(); activeClient.current?.lock(); };
+ }, [lock]);
  useEffect(() => {
   if (!client || !vault) return;
   let live = true, pending = false;
@@ -80,6 +85,7 @@ export function VaultScreen() {
    return;
   }
   const result = await connected.viewVault(id);
+  if (activeClient.current !== connected || generation.current !== ticket) return;
   if (result.permissions) setVaults(previous => previous.map(v => v.id === id ? { ...v, permissions: result.permissions, accessRevision: result.revision } : v));
   // Share links are listed to accounts that may share from this vault.
   const [states, shared] = await Promise.all([connected.call('lifecycle/list',{vault:id}), sharer(info) ? connected.call('sharing/history', { vault: id, object: null }) : null]);
@@ -94,6 +100,9 @@ export function VaultScreen() {
  };
  const onUnlock = async (connected: any) => {
   activeClient.current = connected;
+  lockWatch.current?.stop();
+  lockWatch.current = watchBrowserLock(connected, () => flushSync(lock));
+  if (activeClient.current !== connected) return;
   const list = await connected.call('vaults', {}); if (activeClient.current !== connected) return; setVaults(list); if (list.length) await load(connected, list[0].id, '', list[0]);
   if (activeClient.current !== connected) return;
   setClient(connected); setStatus('Vault unlocked');
@@ -115,7 +124,7 @@ export function VaultScreen() {
   return JSON.stringify(safe).toLocaleLowerCase().includes(query.toLocaleLowerCase());
  });
  const row = items.find(row => row.object === selected), templates = records.filter(row => row.value.schema === 'latchkey/template/v1');
- const current = vaults.find(v => v.id === vault), vaultView = !['selection', 'received', 'people-erasure', 'reviews', 'projects', 'automation', 'evidence', 'provider', 'rules', 'aliases', 'connections', 'health', 'reports'].includes(panel);
+ const current = vaults.find(v => v.id === vault), vaultView = !['browser-lock', 'selection', 'received', 'people-erasure', 'reviews', 'projects', 'automation', 'evidence', 'provider', 'rules', 'aliases', 'connections', 'health', 'reports'].includes(panel);
  // The bar is the same on every destination: the search stays, and typing in it away from the list opens the list.
  const listed = vaultView && ['', 'new', 'edit'].includes(panel);
  const show = (next: string, toggle = false) => { setPanel(toggle && panel === next ? '' : next); setCreate(false); if (menu.current) menu.current.open = false; };
@@ -131,6 +140,7 @@ export function VaultScreen() {
     <button type="button" disabled={!vault} onClick={() => show('organize')}>Find and organize</button>
     <button type="button" disabled={!vault} onClick={() => show('sharing', true)}>Share vault</button>
     <button type="button" onClick={() => show('selection')}>Export and import</button>
+    <button type="button" onClick={() => show('browser-lock')}>Browser lock</button>
     <button type="button" onClick={() => show('scoped-recovery')}>Scoped recovery</button>
     <button type="button" onClick={() => show('people-erasure')}>Erase a person</button>
     <button type="button" onClick={() => { download('latchkey-profile.json', JSON.stringify(client.profile)); if (menu.current) menu.current.open = false; }}>Save updated profile</button>
@@ -153,6 +163,7 @@ export function VaultScreen() {
     <div className="head-side"><div className="head-actions"><button disabled={pending > 0} onClick={() => void run(refresh)}>Refresh</button><button className="primary" disabled={pending > 0 || !!ownerTrust || current?.permissions?.version === 2 && !current.permissions.rights.includes('create')} onClick={() => { setPanel('new'); setCreate(false); }}><Icon name="plus"/>New item</button></div>
     {!!readAt && <p className="stamp"><span className="sr-only">Opened </span><time dateTime={new Date(readAt).toISOString()}>{stamp(readAt)}</time></p>}</div></header>}
    {create && <form className="new-vault notice" onSubmit={e => { e.preventDefault(); void run(async () => { const name = vaultName.trim(); if (!name) throw { code: 'vault_name_required' }; const created = await client.createVault({kind:vaultKind}); await client.put(created.vault, { schema: 'latchkey/vault-meta/v1', title: name }); const list = await client.call('vaults', {}); setVaults(list); await load(client, created.vault); setCreate(false); setVaultName(''); }); }}><h2>New vault</h2><div className="form-grid"><label>Vault name<input required maxLength={500} value={vaultName} onChange={e => setVaultName(e.target.value)}/></label><label>Vault kind<select value={vaultKind} onChange={e=>setVaultKind(e.target.value)}><option value="company">Company</option><option value="private-work">Private work</option><option value="family">Family</option></select></label></div><p className="muted">Archive keeps history indefinitely. Moving an item to trash requires confirmation and permanently erases it after 30 days.</p><button className="primary" disabled={pending > 0}>Create vault</button></form>}
+   {panel==='browser-lock'&&<BrowserLockPanel client={client} onApplied={() => lockWatch.current?.reload()}/>}
    {panel==='scoped-recovery'&&<ScopedRecoveryPanel client={client}/>}
    {panel==='selection'&&<SelectionPanel client={client} vaults={vaults} onImported={refresh}/>}
    {panel==='connections'&&<ProviderPanel key={vault} client={client} vault={vault}/>}
@@ -168,9 +179,9 @@ export function VaultScreen() {
    {panel === 'reviews' && <ReviewsPanel client={client} vault={vault} run={run}/>}
    {panel === 'people-erasure' && <PeopleErasure client={client} run={run}/>}
    {panel === 'received' && <ReceivedShares client={client}/>}
-   {!vault && !['scoped-recovery','selection','received','reviews','projects','automation','evidence','provider','rules','aliases','connections','health','reports'].includes(panel) && !pending && <section className="detail empty"><h1>Your vault starts here</h1><p>Create a vault to keep your logins, documents and other private items together.</p><button className="primary" onClick={() => setCreate(true)}>Create your first vault</button></section>}
+   {!vault && !['browser-lock','scoped-recovery','selection','received','reviews','projects','automation','evidence','provider','rules','aliases','connections','health','reports'].includes(panel) && !pending && <section className="detail empty"><h1>Your vault starts here</h1><p>Create a vault to keep your logins, documents and other private items together.</p><button className="primary" onClick={() => setCreate(true)}>Create your first vault</button></section>}
    {!!pending && !records.length && vault && <div className="notice loading" role="status">Opening encrypted vault…</div>}
-   {vault && !['scoped-recovery','selection','received','people-erasure','reviews','organize','projects','automation','evidence','provider','rules','aliases','connections','health','reports'].includes(panel) && <>{ownerTrust ? <OwnerTrust owner={ownerTrust} client={client} run={run} onConfirmed={async () => { setOwnerTrust(null); await load(client, vault); }}/>: panel === 'generator' ? <Generator client={client} run={run}/> : panel === 'sharing' ? <section className="detail section" id="sharing"><h1>Share vault</h1><SharingPanel client={client} vault={vault}/></section> : panel === 'templates' ? <Templates templates={templates} typed={typed} vault={vault} run={run} onSaved={refresh} onClose={() => setPanel('')}/> : <>
+   {vault && !['browser-lock','scoped-recovery','selection','received','people-erasure','reviews','organize','projects','automation','evidence','provider','rules','aliases','connections','health','reports'].includes(panel) && <>{ownerTrust ? <OwnerTrust owner={ownerTrust} client={client} run={run} onConfirmed={async () => { setOwnerTrust(null); await load(client, vault); }}/>: panel === 'generator' ? <Generator client={client} run={run}/> : panel === 'sharing' ? <section className="detail section" id="sharing"><h1>Share vault</h1><SharingPanel client={client} vault={vault}/></section> : panel === 'templates' ? <Templates templates={templates} typed={typed} vault={vault} run={run} onSaved={refresh} onClose={() => setPanel('')}/> : <>
     {panel === 'new' && editor}
     <ItemsHead/>
     <nav className="items" aria-label="Vault items">{visible.slice(0,itemLimit).map(item => { const open = selected === item.object; return <div className="row" key={item.object}><ItemRow row={item} links={links.get(item.object) ?? 0} open={open} onOpen={() => { setSelected(item.object); setPanel(''); }}/>

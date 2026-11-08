@@ -10,21 +10,31 @@ export class VaultClient {
  constructor(origin, { cookie = '', fetcher = (url, init) => globalThis.fetch(url, init) } = {}) {
   const url = new URL(origin);
   requireValue(url.origin === origin && (url.protocol === 'https:' || url.protocol === 'http:' && ['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)), 'https_required');
-  this.origin = origin; this.cookie = cookie; this.fetcher = fetcher;
+  this.origin = origin; this.cookie = cookie; this.fetcher = fetcher; this.session = 0; this.requests = new Set();
  }
+ assertCurrent(session) { requireValue(session === this.session, 'locked'); }
+ assertSession(session = this.session) { this.assertCurrent(session); requireValue(this.bundle && this.profile && this.token, 'locked'); }
  async request(route, input, signer) {
-  const path = `/api/latchkey/${route}`, body = JSON.stringify(input);
-  const headers = { origin: this.origin, 'content-type': 'application/json', ...(this.cookie ? { cookie: this.cookie } : {}) };
-  if (signer) {
-   requireValue(this.token, 'locked');
-   const nonce = id(), time = String(Date.now());
-   Object.assign(headers, { 'x-latchkey-grant': this.token, 'x-latchkey-nonce': nonce, 'x-latchkey-time': time, 'x-latchkey-signature': await sign(signer, signingText('POST', path, this.token, nonce, time, await digest(body))) });
-  }
-  const response = await this.fetcher(this.origin + path, { method: 'POST', headers, body, redirect: 'error' });
-  const cookie = response.headers.get('set-cookie'); if (cookie) this.cookie = cookie.split(';')[0];
-  let result; try { result = await response.json(); } catch { throw new ClientError('service_unavailable', response.status); }
-  if (!response.ok) throw new ClientError(typeof result.error === 'string' && /^[a-z_]{1,64}$/.test(result.error) ? result.error : 'request_refused', response.status);
-  return result;
+  const session = this.session, controller = new AbortController();
+  this.requests.add(controller);
+  try {
+   const path = `/api/latchkey/${route}`, body = JSON.stringify(input);
+   const headers = { origin: this.origin, 'content-type': 'application/json', ...(this.cookie ? { cookie: this.cookie } : {}) };
+   if (signer) {
+    requireValue(this.token, 'locked');
+    const token = this.token, nonce = id(), time = String(Date.now());
+    Object.assign(headers, { 'x-latchkey-grant': token, 'x-latchkey-nonce': nonce, 'x-latchkey-time': time, 'x-latchkey-signature': await sign(signer, signingText('POST', path, token, nonce, time, await digest(body))) });
+   }
+   this.assertCurrent(session);
+   const response = await this.fetcher(this.origin + path, { method: 'POST', headers, body, redirect: 'error', signal: controller.signal });
+   this.assertCurrent(session);
+   const cookie = response.headers.get('set-cookie'); if (cookie) this.cookie = cookie.split(';')[0];
+   let result; try { result = await response.json(); } catch { this.assertCurrent(session); throw new ClientError('service_unavailable', response.status); }
+   this.assertCurrent(session);
+   if (!response.ok) throw new ClientError(typeof result.error === 'string' && /^[a-z_]{1,64}$/.test(result.error) ? result.error : 'request_refused', response.status);
+   return result;
+  } catch (error) { this.assertCurrent(session); throw error; }
+  finally { this.requests.delete(controller); }
  }
  async requestIdentity(email) {
   const response = await this.fetcher(this.origin + '/auth/magic-link', { method: 'POST', headers: { origin: this.origin, 'content-type': 'application/json' }, body: JSON.stringify({ email }), redirect: 'error' });
@@ -56,29 +66,44 @@ export class VaultClient {
   return { profile, kit };
  }
  async exchange(profile, password, device = profile.device) {
+  const session = this.session;
   requireValue(profile.schema === 1 && profile.origin === this.origin, 'profile_mismatch');
   await opaque.ready;
+  this.assertCurrent(session);
   const started = opaque.client.startLogin({ password });
   const exchange = await this.request('login/start', { account: profile.account, device, request: started.startLoginRequest });
+  this.assertCurrent(session);
   let result;
   try { result = opaque.client.finishLogin({ clientLoginState: started.clientLoginState, loginResponse: exchange.response, password, identifiers: { client: profile.account, server: profile.tenant }, keyStretching: 'memory-constrained' }); } catch {}
   requireValue(result && result.serverStaticPublicKey === profile.serverKey, 'authentication_failed');
   const admitted = await this.request('login/finish', { exchange: exchange.exchange, request: result.finishLoginRequest });
+  this.assertCurrent(session);
   requireValue(admitted.account === profile.account && admitted.tenant === profile.tenant, 'account_mismatch');
   this.token = admitted.token; this.expires = admitted.expires;
   return { result, admitted };
  }
  async unlock(profile, password) {
-  const { result, admitted } = await this.exchange(profile, password);
-  requireValue(admitted.generation === profile.generation, 'device_revoked');
-  const key = await unlockKey(result.exportKey, profile.deviceSecret, profile.account);
-  try { this.bundle = json(await open(key, admitted.bundle, binding(profile.tenant, 'account', profile.device, 'device', profile.generation))); } finally { key.fill(0); }
-  requireValue(this.bundle.root.recipient.publicKey === profile.recipientKey && admitted.recipientKey === profile.recipientKey && this.bundle.root.recovery.publicKey === admitted.recoveryKey && this.bundle.root.authority.publicKey === profile.authorityKey && admitted.authorityKey === profile.authorityKey, 'account_key_changed');
-  this.profile = profile;
-  return this;
+  const session = this.session;
+  try {
+   const { result, admitted } = await this.exchange(profile, password);
+   this.assertCurrent(session);
+   requireValue(admitted.generation === profile.generation, 'device_revoked');
+   const key = await unlockKey(result.exportKey, profile.deviceSecret, profile.account);
+   let bundle;
+   try { bundle = json(await open(key, admitted.bundle, binding(profile.tenant, 'account', profile.device, 'device', profile.generation))); } finally { key.fill(0); }
+   this.assertCurrent(session);
+   requireValue(bundle.root.recipient.publicKey === profile.recipientKey && admitted.recipientKey === profile.recipientKey && bundle.root.recovery.publicKey === admitted.recoveryKey && bundle.root.authority.publicKey === profile.authorityKey && admitted.authorityKey === profile.authorityKey, 'account_key_changed');
+   this.bundle = bundle; this.profile = profile;
+   return this;
+  } catch (error) { if (session === this.session) this.lock(); throw error; }
  }
- call(route, input) { requireValue(this.bundle && this.profile, 'locked'); return this.request(route, input, this.bundle.signing.privateKey); }
- lock() { this.bundle = null; this.token = null; this.cookie = ''; this.profile = null; }
+ call(route, input) { this.assertSession(); return this.request(route, input, this.bundle.signing.privateKey); }
+ lock() {
+  this.session++;
+  for (const request of this.requests) request.abort();
+  this.requests.clear();
+  this.bundle = null; this.token = null; this.cookie = ''; this.profile = null;
+ }
  identity() { requireValue(this.profile, 'locked'); return { account: this.profile.account, tenant: this.profile.tenant, recipientKey: this.profile.recipientKey, authorityKey: this.profile.authorityKey, fingerprint: digest(JSON.stringify([this.profile.recipientKey, this.profile.authorityKey])) }; }
  async pinAccount(account, fingerprint) {
   const recipient = await this.call('directory', { account });
@@ -95,7 +120,9 @@ export class VaultClient {
   try { return await this.call('vault/create', { vault,kind,policy, wrapped: await this.wrap(key, profile.recipientKey, binding(profile.tenant, vault, profile.account, 'vault-key', 1)) }); } finally { key.fill(0); }
  }
  async snapshot(vault, mode = 'read', selection) {
+  const session = this.session; this.assertSession(session);
   const result = await this.call(selection ? 'item/read' : `vault/${mode}`, selection ? { vault, ...selection } : { vault }), profile = this.profile;
+  this.assertSession(session);
   requireValue(result.vault === vault && result.tenant === profile.tenant, 'context_mismatch');
   let seen = profile.seen[vault];
   requireValue(!seen || result.epoch >= seen.epoch && result.revision >= seen.revision, 'server_rollback');
@@ -114,24 +141,31 @@ export class VaultClient {
   if ((!selection && mode !== 'view') || selection?.history) requireValue(observed.every(version => present.has(version)), 'server_rollback');
   else for (const name of observed) { const [object, version] = name.split(':'); requireValue(result.versions.some(row => row.object_id === object && row.version >= Number(version)), 'server_rollback'); }
   const key = await unwrapSigned(result.wrapped, this.bundle.root.recipient.privateKey, owner.authorityKey, result.owner, binding(profile.tenant, vault, profile.account, 'vault-key', result.epoch));
+  try {
+  this.assertSession(session);
   requireValue(key.length === 32, 'invalid_key');
   const keyFingerprint = await digest(key);
+  this.assertSession(session);
   requireValue(!seen || result.epoch !== seen.epoch || !seen.keyFingerprint || seen.keyFingerprint === keyFingerprint, 'server_rollback');
   profile.seen[vault] = { ...seen, owner: result.owner, epoch: result.epoch, revision: result.revision, keyFingerprint };
-  return { result, key };
+  return { result, key, session };
+  } catch (error) { key.fill(0); throw error; }
  }
  async decodeVersions(snapshot) {
-  const { result, key } = snapshot;
+  const { result, key, session } = snapshot;
+  this.assertSession(session);
   const versions = [];
   for (const row of result.versions) {
    const derived = await itemKey(key, result.tenant, result.vault, row.object_id);
    try { versions.push({ object: row.object_id, version: row.version, value: json(await open(derived, JSON.parse(row.envelope), binding(result.tenant, result.vault, row.object_id, 'item', result.epoch, row.version))) }); } finally { derived.fill(0); }
   }
+  this.assertSession(session);
   const seen = this.profile.seen[result.vault], known = { ...seen.versions };
   for (const row of versions) {
    const name = `${row.object}:${row.version}`, hash = await digest(bytes(row.value));
    requireValue(!known[name] || known[name] === hash, 'server_rollback'); known[name] = hash;
   }
+  this.assertSession(session);
   seen.versions = known;
   return versions;
  }

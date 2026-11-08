@@ -2382,7 +2382,7 @@
       "executable": false
     },
     "src/latchkey/client.mjs": {
-      "sha256": "32f513b80cc6a42d1c5cf66f5172fef74583b356a8edf1e83ef0aecb5dbf9cb9",
+      "sha256": "d5da135552ee1e858bffeb83246562e2e624293c667c2347776b69d2bdd9322c",
       "executable": false
     },
     "src/latchkey/collections/batch-client.mjs": {
@@ -3286,11 +3286,11 @@
       "executable": false
     },
     "src/latchkey/ui/unlock.tsx": {
-      "sha256": "eda7611c2df15530b22c30d98ad8a88195fedfe51d5080aab2ed8401a7ed2984",
+      "sha256": "a4b02d2fda822d3f53143997d42399e03a5a58adfb9123d2d141b7051f0ec65d",
       "executable": false
     },
     "src/latchkey/ui/vault.tsx": {
-      "sha256": "55c23f8f068c23cbf492ec3caebfbaad1fc04393f385a47bf0b9cbcbb8fec0e0",
+      "sha256": "7ab8437dae71b8ab47f02cefa14911c7c1034ae1c566b9018bb0c67d36820d30",
       "executable": false
     },
     "src/mail.server.d.mts": {

@@ -11,10 +11,13 @@ export function Unlock({ run, busy, onUnlock }: { run: Task; busy: boolean; onUn
  const [password, setPassword] = useState(''), [confirm, setConfirm] = useState(''), [existing, setExisting] = useState(false);
  const [staged, setStaged] = useState<any>(null), [saved, setSaved] = useState(false), [downloaded, setDownloaded] = useState({ profile: false, kit: false }), [finishing, setFinishing] = useState(false);
  const profileFile = useRef<HTMLInputElement>(null);
+ const inFlight = useRef<any>(null);
  const mounted = useRef(true), registering = useRef(false), attempt = useRef(0), custody = useRef<{ resolve: () => void; reject: (reason: unknown) => void } | null>(null);
  useEffect(() => {
   mounted.current = true;
-  return () => { mounted.current = false; attempt.current++; custody.current?.reject(cancelledRegistration); custody.current = null; };
+  const cancel = () => { attempt.current++; inFlight.current?.lock(); inFlight.current = null; custody.current?.reject(cancelledRegistration); custody.current = null; setPassword(''); setConfirm(''); };
+  window.addEventListener('pagehide', cancel);
+  return () => { window.removeEventListener('pagehide', cancel); inFlight.current?.lock(); mounted.current = false; attempt.current++; custody.current?.reject(cancelledRegistration); custody.current = null; };
  }, []);
  return <section className="lk-unlock detail" aria-labelledby="unlock-title">
   <div className="section"><h1 id="unlock-title">{staged ? 'Keep your keys safe' : mode === 'unlock' ? 'Unlock your vault' : 'Create your private vault'}</h1>
@@ -25,7 +28,7 @@ export function Unlock({ run, busy, onUnlock }: { run: Task; busy: boolean; onUn
    <label className="check"><input type="checkbox" disabled={!downloaded.profile || !downloaded.kit || finishing} checked={saved} onChange={e => setSaved(e.target.checked)}/>I saved both files securely</label>
    <div className="actions"><button type="button" className="add" disabled={!saved || !downloaded.profile || !downloaded.kit || finishing} onClick={() => { const pending = custody.current; if (!pending) return; custody.current = null; setFinishing(true); pending.resolve(); }}>Create account and open vault</button>{!finishing && <button type="button" onClick={() => { const pending = custody.current; custody.current = null; attempt.current++; setStaged(null); setSaved(false); setPassword(''); setConfirm(''); pending?.reject(cancelledRegistration); }}>Cancel account creation</button>}</div>
   </> : <form onSubmit={e => { e.preventDefault(); void run(async () => {
-   const client = new VaultClient(location.origin);
+   const client = new VaultClient(location.origin); inFlight.current = client;
    if (mode === 'register') {
     if (registering.current) return;
     if (password !== confirm) throw { code: 'passwords_do_not_match' };
@@ -43,18 +46,22 @@ export function Unlock({ run, busy, onUnlock }: { run: Task; busy: boolean; onUn
      if (!mounted.current) return;
      setMode('unlock');
      await client.unlock(result.profile, password);
-     if (mounted.current) await onUnlock(client); else client.lock();
+     if (mounted.current && ticket === attempt.current) { inFlight.current = null; await onUnlock(client); } else client.lock();
     } catch (error) { if ((error as any)?.code === 'already_registered') setExisting(true); else if (error !== cancelledRegistration) throw error; }
     finally { registering.current = false; custody.current = null; if (mounted.current) { setStaged(null); setSaved(false); setFinishing(false); if (enrolled) { setPassword(''); setConfirm(''); } } }
    }
    else {
     // Read the selected file at submission, including a selection retained while
     // the page hydrated. A missed change event must not discard that selection.
+    const ticket = ++attempt.current;
     const file = profileFile.current?.files?.[0];
     if (!file) throw { code: 'choose_profile_file' };
     if (file.size > 16 * 1024 * 1024) throw { code: 'profile_too_large' };
     const selected = JSON.parse(await file.text());
-    await client.unlock(selected, password); setPassword(''); await onUnlock(client);
+    if (!mounted.current || ticket !== attempt.current) { client.lock(); return; }
+    await client.unlock(selected, password);
+    if (!mounted.current || ticket !== attempt.current) { client.lock(); return; }
+    inFlight.current = null; setPassword(''); await onUnlock(client);
    }
   }); }}>
    {mode === 'unlock' && <label>Profile file<input ref={profileFile} required type="file" accept=".json,application/json"/></label>}
