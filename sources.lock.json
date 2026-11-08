@@ -2506,7 +2506,7 @@
       "executable": false
     },
     "src/latchkey/erasure/subject-plan.mjs": {
-      "sha256": "7742680571f7e9c12ac6e52a1ba02d04a1ebc68be5c5187970b1b466af8d9387",
+      "sha256": "de1ab6e666d07f341d30a0a7382ca12ec401e610cec52fae56cb5f37c4a080eb",
       "executable": false
     },
     "src/latchkey/erasure/subject-schema.mjs": {
@@ -5026,7 +5026,7 @@
       "executable": false
     },
     "tests/latchkey-subject-erasure.mjs": {
-      "sha256": "e3fb239eb56ce4767eb5dd3e9c8cfed7291a99c7079ea4c138da77d1da7633c3",
+      "sha256": "6a270b43ad343291b27404e1ca32d727a8794f25d893c88b709440f915891c37",
       "executable": false
     },
     "tests/runtime.mjs": {
