@@ -294,6 +294,12 @@
       "name": "0048_latchkey_agent_bindings.sql",
       "sha256": "5292a2303133ff45b92665b414b48bad3356491c8cf53f7aac29a6432e902333",
       "sql": "-- Business agents reuse the exact native, device-held vault grant.\nCREATE TABLE lky_agent_bindings (\n agent_id TEXT PRIMARY KEY, credential_id TEXT NOT NULL REFERENCES lky_mcp_credentials(id)\n);\nCREATE TABLE lky_agent_requests (\n request_id TEXT PRIMARY KEY REFERENCES lky_mcp_requests(id), agent_id TEXT NOT NULL,\n sponsor_id TEXT NOT NULL, operation_id TEXT NOT NULL UNIQUE, consent TEXT, attribution TEXT NOT NULL\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0049_latchkey_scoped_recovery.sql",
+      "sha256": "f97ea27b542e092b74fef1235d638ea6f089fc21530c96406c4125604b5d4774",
+      "sql": "-- Independent recover authority is explicit and never part of an archive.\nCREATE TABLE lky_recovery_scopes (\n id TEXT PRIMARY KEY, tenant TEXT NOT NULL, custodian TEXT NOT NULL,\n custodian_generation INTEGER NOT NULL, custodian_version INTEGER NOT NULL, member TEXT NOT NULL,\n member_generation INTEGER NOT NULL, member_version INTEGER NOT NULL, domain TEXT NOT NULL CHECK(domain='company-account'),\n permission TEXT NOT NULL CHECK(permission='accounts.recover'),\n recipient_key TEXT NOT NULL, authority_key TEXT NOT NULL,\n granted_by TEXT NOT NULL, granted_at INTEGER NOT NULL,\n UNIQUE(tenant,custodian,member,domain)\n);\nCREATE TABLE lky_scoped_recovery_enrollments (\n enrollment TEXT PRIMARY KEY, scope TEXT NOT NULL, policy TEXT NOT NULL\n);\n"
     }
   ],
   "compatibilityDate": "2026-09-08",
