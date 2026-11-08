@@ -14,9 +14,63 @@ import { subjectReplayKnown,subjectItemReplayKnown } from '../src/latchkey/erasu
 const rejects=(promise,code)=>assert.rejects(promise,error=>error.code===code);
 async function backup(records){const job=await records.exports.create('synthetic-latchkey-980');for(;;){if((await records.exports.advance(job,{maxParts:100})).phase==='complete')break;}const raw=await new Response(await records.exports.download(job)).text();return {job,raw,lines:raw.trim().split('\n').map(line=>JSON.parse(line))};}
 
+// Ordinary member writes must not make the reviewed, atomic erasure plan too
+// large for D1. Use the same emitted Worker and public doors as the other journeys.
+export async function runActiveSubjectErasureJourney({owner,db,mail,post,fetcher=owner.fetcher,writes=200}){
+ const keptVault=(await owner.createVault()).vault,kept=await owner.put(keptVault,{secret:'synthetic-latchkey-1001'});
+ const email='synthetic-latchkey-997@example.test',name='synthetic-latchkey-998',password='synthetic-latchkey-999';
+ assert.equal((await post('/auth/invite',{email,displayName:name,role:'member'},owner.cookie)).status,202);
+ const link=mail.at(-1).content.find(part=>part.type==='text/plain').value.match(/https:\/\/[^\s<>]+/)[0];
+ const person=new VaultClient(owner.origin,{fetcher});
+ try{
+  await person.confirmIdentity(new URL(link).searchParams.get('token'));
+  const registered=await person.register(password);await person.unlock(registered.profile,password);
+  const operator=(await db.prepare('SELECT operator_id FROM lky_accounts WHERE id=?').bind(person.profile.account).first()).operator_id;
+  const vault=(await person.createVault()).vault,objects=[];
+  for(let index=0;index<writes;index++)objects.push((await person.put(vault,{secret:'synthetic-latchkey-1000'})).object);
+  const terms=[operator,person.profile.account,person.profile.device,vault,email,name,...objects];
+  const mentions=row=>terms.some(term=>JSON.stringify(row).includes(term));
+  const details=(await db.prepare('SELECT * FROM lky_audit_details ORDER BY id').all()).results;
+  const selected=details.filter(mentions),untouched=details.filter(row=>!mentions(row));
+  assert.ok(selected.length>=writes*4,'ordinary writes produce hundreds of identifying audit facts');
+  assert.ok(untouched.length>0,'the owner has unrelated audit facts to preserve');
+  const events=(await db.prepare('SELECT * FROM lky_events ORDER BY id').all()).results;
+  const selectedEvents=events.filter(mentions),untouchedEvents=events.filter(row=>!mentions(row));
+  const chain=(await db.prepare('SELECT * FROM lky_audit_chain ORDER BY sequence').all()).results;
+  const checkpoint=await owner.call('audit/checkpoint',{});
+  console.log(`Active person erasure: writes=${writes} auditDetails=${selected.length} events=${selectedEvents.length}`);
+  const preview=await owner.call('subject/erase-preview',{subject:operator});
+  assert.equal(preview.requiresConfirmation,true);
+  assert.equal(preview.counts['redact:lky_audit_details'],selected.length);
+  assert.equal(preview.counts['redact:lky_events'],selectedEvents.length);
+  assert.deepEqual((await db.prepare('SELECT * FROM lky_audit_details ORDER BY id').all()).results,details,'preview leaves all audit details unchanged');
+  const erased=await owner.call('subject/erase',{subject:operator,confirmed:true,planHash:preview.planHash});
+  assert.equal(erased.controlPlaneErased,true);assert.equal(erased.complete,false);
+  assert.deepEqual(erased.counts,preview.counts,'the committed receipt matches every reviewed count');
+  const after=(await db.prepare('SELECT * FROM lky_audit_details ORDER BY id').all()).results;
+  assert.deepEqual(after.filter(row=>untouched.some(old=>old.id===row.id)),untouched,'other people audit details stay byte-for-byte unchanged');
+  const redacted=after.filter(row=>selected.some(old=>old.id===row.id));
+  assert.equal(redacted.length,selected.length,'every identifying audit row is retained with an anonymous disposition');
+  for(const row of redacted){assert.equal(row.facts,null);assert.equal(JSON.parse(row.disposition).reason,'subject-erasure');assert.ok(row.authorization);assert.equal(mentions(row),false);}
+  const afterEvents=(await db.prepare('SELECT * FROM lky_events ORDER BY id').all()).results;
+  assert.deepEqual(afterEvents.filter(row=>untouchedEvents.some(old=>old.id===row.id)),untouchedEvents,'other people event rows stay unchanged');
+  assert.equal(afterEvents.length,events.length);assert.equal(afterEvents.some(mentions),false);
+  assert.deepEqual((await db.prepare('SELECT * FROM lky_audit_chain ORDER BY sequence').all()).results,chain,'erasure preserves the authenticated audit chain');
+  assert.equal((await owner.call('audit/verify',{checkpoint})).valid,true);
+  assert.deepEqual((await owner.call('audit/list',{filters:{person:person.profile.account},after:0,limit:200})).entries,[]);
+  assert.equal(await db.prepare('SELECT id FROM oa_operators WHERE id=?').bind(operator).first(),null);
+  assert.equal(await db.prepare('SELECT id FROM lky_vaults WHERE id=?').bind(vault).first(),null);
+  await assert.rejects(person.readVault(vault),error=>error.status===401||error.status===403);
+  assert.equal((await owner.readItem(keptVault,kept.object)).versions[0].value.secret,'synthetic-latchkey-1001');
+  console.log(`Active person erasure passed: writes=${writes} previewRedactions=${preview.counts['redact:lky_audit_details']} committedRedactions=${redacted.length} unrelatedDetails=${untouched.length}`);
+  return {writes,auditDetails:selected.length,events:selectedEvents.length,previewCounts:preview.counts,erasedCounts:erased.counts,unrelatedDetails:untouched.length,unrelatedEvents:untouchedEvents.length,previewUnchanged:true,unredactedSelectedDetails:0,unrelatedRowsUnchanged:true,auditVerified:true};
+ }finally{person.lock();}
+}
+
 // An actual invited third person, real OPAQUE enrollment, emitted Worker and D1.
 // The caller supplies the existing official-schema mail network fixture only.
 export async function runSubjectErasureJourneys({owner,db,records,mail,post,fetcher=owner.fetcher,erasureSecret}){
+ await runActiveSubjectErasureJourney({owner,db,mail,post,fetcher});
  const email='synthetic-latchkey-981@example.test',name='synthetic-latchkey-982',password='synthetic-latchkey-983';
  assert.equal((await post('/auth/invite',{email,displayName:name,role:'admin'},owner.cookie)).status,202);
  const message=mail.at(-1).content.find(part=>part.type==='text/plain').value,link=message.match(/https:\/\/[^\s<>]+/)[0];
