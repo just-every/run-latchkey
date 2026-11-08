@@ -27,6 +27,8 @@ const schema = {
  lky_quorum_enrollments:'id account tenant generation revision policy_id payload shares revoked_at',
  lky_quorum_cases:'id statement',
  lky_quorum_approvals:'case_id custodian wrapped',
+ lky_recovery_scopes:'id tenant custodian custodian_generation custodian_version member member_generation member_version domain permission recipient_key authority_key granted_by granted_at',
+ lky_scoped_recovery_enrollments:'enrollment scope policy',
  lky_recovery_custody:'id account generation kind custodian custodian_generation wrapped revoked_at',
  lky_recovery_cases:'id enrollment account generation session_id setup transfer_key expires_at approved_wrap consumed_at',
  lky_emergency_access:'id tenant owner contact owner_generation contact_generation vault epoch wrapped wait_ms expires_at requested_at cancelled_at',

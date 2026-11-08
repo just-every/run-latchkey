@@ -31,8 +31,10 @@ export async function subjectPlan(ctx, subject) {
  await select('lky_quorum_votes','approver=? OR change_id IN(SELECT id FROM lky_quorum_changes WHERE account=? OR instr(custodians,?)>0)',[accountId,accountId,accountId]);
  await select('lky_quorum_changes','account=? OR instr(custodians,?)>0',[accountId,accountId]);
  await select('lky_quorum_policies','account=? OR instr(custodians,?)>0',[accountId,accountId]);
- await select('lky_recovery_cases',`account=? OR enrollment IN (SELECT id FROM lky_recovery_custody WHERE custodian=?) OR id IN (${quorumCase})`,[accountId,accountId,...quorumArgs]);
- await select('lky_recovery_custody','account=? OR custodian=?',[accountId,accountId]);
+ await select('lky_scoped_recovery_enrollments','enrollment IN(SELECT id FROM lky_recovery_custody WHERE account=? OR custodian=?) OR scope IN(SELECT id FROM lky_recovery_scopes WHERE member=? OR custodian=? OR granted_by=?)',[accountId,accountId,accountId,accountId,accountId]);
+ await select('lky_recovery_scopes','member=? OR custodian=? OR granted_by=?',[accountId,accountId,accountId]);
+ await select('lky_recovery_cases',`account=? OR enrollment IN (SELECT id FROM lky_recovery_custody WHERE custodian=?) OR id IN (${quorumCase}) OR enrollment IN(SELECT e.enrollment FROM lky_scoped_recovery_enrollments e JOIN lky_recovery_scopes s ON s.id=e.scope WHERE s.granted_by=?)`,[accountId,accountId,...quorumArgs,accountId]);
+ await select('lky_recovery_custody','account=? OR custodian=? OR id IN(SELECT e.enrollment FROM lky_scoped_recovery_enrollments e JOIN lky_recovery_scopes s ON s.id=e.scope WHERE s.granted_by=?)',[accountId,accountId,accountId]);
  await select('lky_emergency_access','owner=? OR contact=?',[accountId,accountId]);
  await select('lky_company_custody','owner=? OR custodian=?',[accountId,accountId]);
  await select('lky_custody_reviews','actor=? OR instr(plan,?)>0 OR instr(plan,?)>0',[accountId,accountId,subject]);

@@ -158,10 +158,14 @@ export async function recoveryArchiveErasureJourney(f) {
  const recovery=new RecoveryClient(person.client),code=await recovery.enrollSelf({confirmed:true});
  const pending=await new RecoveryClient(await verifiedClient(f,person.email)).begin({...code,password:'synthetic-latchkey-9303'});
  const emergency=await recovery.enrollEmergency(vault,f.owner.profile.account,await f.owner.identity().fingerprint,{waitMs:3600000,expiresAt:Date.now()+7200000,confirmed:true});
+ const scopedMember=await member(f,9330),scopedCustodian=await member(f,9340),scopedClient=new RecoveryClient(scopedMember.client);
+ const scope=await new RecoveryClient(f.owner).setScopes(scopedCustodian.client.profile.account,[{account:scopedMember.client.profile.account,generation:scopedMember.client.profile.generation,domain:'company-account'}],{confirmed:true});
+ const scopedEnrollment=await scopedClient.enrollScoped(scopedCustodian.client.profile.account,await scopedCustodian.client.identity().fingerprint,scope.scopes[0].id,{confirmed:true});
+ const scopedLost=new RecoveryClient(await verifiedClient(f,scopedMember.email)),scopedPending=await scopedLost.begin({...scopedEnrollment,password:'synthetic-latchkey-9332'});
  const records=await createPortability({db:f.db,policy:archivePolicy}),job=await records.exports.create();for(;;){if((await records.exports.advance(job,{maxParts:100})).phase==='complete')break}
  const lines=(await new Response(await records.exports.download(job)).text()).trim().split('\n').map(row=>JSON.parse(row));
- for(const table of['lky_recovery_custody','lky_recovery_cases','lky_emergency_access','lky_quorum_policies','lky_quorum_changes','lky_quorum_votes','lky_quorum_enrollments','lky_quorum_cases','lky_quorum_approvals']){assert.ok(!lines[0].tables.some(row=>row.name===table));assert.ok(lines[0].excludedTables.includes(table))}
- const destination=await (await import('./browser/fixture.mjs')).vaultFixture({browserEnabled:false,enrollOwner:false});try{const imported=await createPortability({db:destination.db,policy:archivePolicy}),operation=await imported.imports.create(lines[0]);for(const part of lines.slice(1,-1))await imported.imports.uploadPart(operation,part.index,part);assert.equal((await imported.imports.finalize(operation,{contentHash:lines.at(-1).contentHash,archiveHash:lines.at(-1).archiveHash})).phase,'complete');for(const table of['lky_recovery_custody','lky_recovery_cases','lky_emergency_access','lky_quorum_policies','lky_quorum_changes','lky_quorum_votes','lky_quorum_enrollments','lky_quorum_cases','lky_quorum_approvals'])assert.equal((await destination.db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).first()).n,0)}finally{await destination.close()}
+ for(const table of['lky_recovery_custody','lky_recovery_cases','lky_emergency_access','lky_quorum_policies','lky_quorum_changes','lky_quorum_votes','lky_quorum_enrollments','lky_quorum_cases','lky_quorum_approvals','lky_recovery_scopes','lky_scoped_recovery_enrollments']){assert.ok(!lines[0].tables.some(row=>row.name===table));assert.ok(lines[0].excludedTables.includes(table))}
+ const destination=await (await import('./browser/fixture.mjs')).vaultFixture({browserEnabled:false,enrollOwner:false});try{const imported=await createPortability({db:destination.db,policy:archivePolicy}),operation=await imported.imports.create(lines[0]);for(const part of lines.slice(1,-1))await imported.imports.uploadPart(operation,part.index,part);assert.equal((await imported.imports.finalize(operation,{contentHash:lines.at(-1).contentHash,archiveHash:lines.at(-1).archiveHash})).phase,'complete');for(const table of['lky_recovery_custody','lky_recovery_cases','lky_emergency_access','lky_quorum_policies','lky_quorum_changes','lky_quorum_votes','lky_quorum_enrollments','lky_quorum_cases','lky_quorum_approvals','lky_recovery_scopes','lky_scoped_recovery_enrollments'])assert.equal((await destination.db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).first()).n,0)}finally{await destination.close()}
  const operator=(await f.db.prepare('SELECT operator_id FROM lky_accounts WHERE id=?').bind(person.client.profile.account).first()).operator_id;
  const preview=await f.owner.call(['subject','erase-preview'].join('/'),{subject:operator});await f.owner.call(['subject','erase'].join('/'),{subject:operator,confirmed:true,planHash:preview.planHash});
  assert.equal(await f.db.prepare('SELECT id FROM lky_recovery_custody WHERE id=?').bind(code.enrollment).first(),null);assert.equal(await f.db.prepare('SELECT id FROM lky_recovery_cases WHERE id=?').bind(pending.preview.operation).first(),null);assert.equal(await f.db.prepare('SELECT id FROM lky_emergency_access WHERE id=?').bind(emergency.enrollment).first(),null);
@@ -170,6 +174,27 @@ export async function recoveryArchiveErasureJourney(f) {
  assert.equal((await f.db.prepare('SELECT quorum_seen FROM lky_recovery_root_history WHERE account=?').bind(state.person.client.profile.account).first()).quorum_seen,1);await assert.rejects(new RecoveryClient(state.person.client).enrollAdministrator(f.owner.profile.account,await f.owner.identity().fingerprint,{confirmed:true}),{code:'quorum_custody_requires_separate_account'});
  await assert.rejects(quorumLost.complete(quorumPending,'synthetic-latchkey-9898',{confirmed:true}),{code:'recovery_case_expired'});
  const memberOperator=(await f.db.prepare('SELECT operator_id FROM lky_accounts WHERE id=?').bind(state.person.client.profile.account).first()).operator_id;const memberPlan=await f.owner.call(['subject','erase-preview'].join('/'),{subject:memberOperator});await f.owner.call(['subject','erase'].join('/'),{subject:memberOperator,confirmed:true,planHash:memberPlan.planHash});assert.equal(await f.db.prepare('SELECT account FROM lky_recovery_root_history WHERE account=?').bind(state.person.client.profile.account).first(),null);await assert.rejects(quorumLost.begin({...quorumCredential,password:'synthetic-latchkey-9898'}),error=>error.status===401);
+ const scopedCustodianOperator=(await f.db.prepare('SELECT operator_id FROM lky_accounts WHERE id=?').bind(scopedCustodian.client.profile.account).first()).operator_id;
+ const scopedPreview=await f.owner.call('subject/erase-preview',{subject:scopedCustodianOperator});await f.owner.call('subject/erase',{subject:scopedCustodianOperator,confirmed:true,planHash:scopedPreview.planHash});
+ assert.equal(await f.db.prepare('SELECT id FROM lky_recovery_scopes WHERE id=?').bind(scope.scopes[0].id).first(),null);
+ assert.equal(await f.db.prepare('SELECT enrollment FROM lky_scoped_recovery_enrollments WHERE enrollment=?').bind(scopedEnrollment.enrollment).first(),null);
+ await assert.rejects(scopedLost.complete(scopedPending,'synthetic-latchkey-9332',{confirmed:true}),{code:'recovery_case_expired'});
+ // Erasing a scope's granting owner also removes the dependent envelope:
+ // deleting its policy binding must never turn it into legacy owner custody.
+ const isolated=await (await import('./browser/fixture.mjs')).vaultFixture({browserEnabled:false});
+ try{
+  const post=(path,input)=>isolated.fetcher(isolated.origin+path,{method:'POST',headers:{origin:isolated.origin,cookie:isolated.owner.cookie,'content-type':'application/json'},body:JSON.stringify(input),redirect:'manual'});
+  assert.equal((await post('/auth/step-up',{action:'owner:transfer',returnTo:'/app'})).status,202);
+  const token=new URL(isolated.mail.at(-1).content.find(part=>part.type==='text/plain').value.match(/https:\/\/[^\s<>]+/)[0]).searchParams.get('token');assert.equal((await post('/auth/confirm',{token})).status,303);
+  const secondOwner=await member(isolated,9350,'owner'),recipient=await member(isolated,9360),custodian=await member(isolated,9370);
+  const granted=await new RecoveryClient(isolated.owner).setScopes(custodian.client.profile.account,[{account:recipient.client.profile.account,generation:recipient.client.profile.generation,domain:'company-account'}],{confirmed:true});
+  const enrolled=await new RecoveryClient(recipient.client).enrollScoped(custodian.client.profile.account,await custodian.client.identity().fingerprint,granted.scopes[0].id,{confirmed:true});
+  const grantor=(await isolated.db.prepare('SELECT operator_id FROM lky_accounts WHERE id=?').bind(isolated.owner.profile.account).first()).operator_id;
+  const preview=await secondOwner.client.call('subject/erase-preview',{subject:grantor});await secondOwner.client.call('subject/erase',{subject:grantor,confirmed:true,planHash:preview.planHash});
+  assert.equal(await isolated.db.prepare('SELECT id FROM lky_recovery_custody WHERE id=?').bind(enrolled.enrollment).first(),null);
+  assert.equal(await isolated.db.prepare('SELECT enrollment FROM lky_scoped_recovery_enrollments WHERE enrollment=?').bind(enrolled.enrollment).first(),null);
+  await assert.rejects(new RecoveryClient(await verifiedClient(isolated,recipient.email)).begin({...enrolled,password:'synthetic-latchkey-9362'}),{code:'recovery_enrollment_unavailable'});
+ }finally{await isolated.close()}
  console.log('Recovery authority stays absent after actual archive restore and person erasure removes custody');
 }
 export async function recoveryNoticeFailureJourney() {
@@ -179,12 +204,278 @@ export async function recoveryNoticeFailureJourney() {
  console.log('Failed mail acceptance refuses enrollment without retaining recovery custody');
  }finally{await f.close()}
 }
+export async function scopedRecoveryJourney(f) {
+ const {requestApi}=await import('../src/latchkey/api/client.mjs');
+ const custodian=await member(f,9600),other=await member(f,9610),person=await member(f,9620);
+ const recovery=new RecoveryClient(person.client),admin=new RecoveryClient(custodian.client),identity=await custodian.client.identity(),personIdentity=await person.client.identity();
+ identity.fingerprint=await identity.fingerprint;
+ const {TypedItems}=await import('../src/latchkey/items/client.mjs'),{createItem}=await import('../src/latchkey/items/types.mjs'),{createAttachment}=await import('../src/latchkey/items/attachments.mjs');
+ const vault=(await person.client.createVault()).vault,attachment=await createAttachment('Synthetic recovery document',new TextEncoder().encode('synthetic-latchkey-9623')),item=await new TypedItems(person.client).save(vault,createItem('secure-note',{title:'Synthetic recovered company content',values:{note:'synthetic-latchkey-9622'},attachments:[attachment]}));
+ await custodian.client.pinAccount(personIdentity.account,await personIdentity.fingerprint);
+ const entry={account:personIdentity.account,generation:person.client.profile.generation,domain:'company-account'},set=members=>new RecoveryClient(f.owner).setScopes(identity.account,members,{confirmed:true});
+ await assert.rejects(recovery.enrollAdministrator(identity.account,await identity.fingerprint,{confirmed:true}),{code:'named_recovery_administrator_required'});
+ await assert.rejects(recovery.enrollScoped(identity.account,await identity.fingerprint,personIdentity.account,{confirmed:true}),{code:'scoped_recovery_authority_required'});
+ await assert.rejects(admin.setScopes(identity.account,[entry],{confirmed:true}),{code:'owner_required'});
+ await assert.rejects(new RecoveryClient(f.owner).setScopes(identity.account,[entry]),{code:'admin_consent_required'});
+ await assert.rejects(set([{...entry,account:identity.account}]),{code:'invalid_recovery_scope'});
+ await assert.rejects(set([{...entry,domain:'family'}]),{code:'invalid_recovery_scope'});
+ await assert.rejects(set([{...entry,account:'*'}]));
+ await assert.rejects(set([{...entry,generation:entry.generation+1}]),{code:'recovery_member_unavailable'});
+ let grant=await requestApi(f.owner,'PUT','/admin/recovery-scopes',{custodian:identity.account,members:[entry],confirmed:true});
+ const enroll=()=>recovery.enrollScoped(identity.account,identity.fingerprint,grant.scopes[0].id,{confirmed:true});
+ await assert.rejects(new RecoveryClient(other.client).enrollScoped(identity.account,await identity.fingerprint,grant.scopes[0].id,{confirmed:true}),{code:'scoped_recovery_authority_required'});
+ const scopedInput={enrollment:personIdentity.account,scope:grant.scopes[0].id,policy:'scoped-single-v1',custodian:identity.account,wrapped:{},confirmed:true};
+ await assert.rejects(other.client.call('recovery' + '/scoped-enroll',scopedInput),{code:'scoped_recovery_authority_required'});
+ await assert.rejects(person.client.call('recovery' + '/scoped-enroll',{...scopedInput,scope:personIdentity.account}),{code:'scoped_recovery_authority_required'});
+ assert.equal(await f.db.prepare('SELECT id FROM lky_recovery_custody WHERE id=?').bind(personIdentity.account).first(),null);
+
+ await assert.rejects(recovery.enrollScoped(identity.account,'synthetic-latchkey-9627',grant.scopes[0].id,{confirmed:true}),{code:'recipient_mismatch'});
+ const memberFetch=person.client.fetcher;let enrollmentWire;
+ person.client.fetcher=(url,input)=>{if(url.endsWith('recovery' + '/scoped-enroll'))enrollmentWire={url,input:structuredClone(input)};return memberFetch(url,input)};
+ let credential;
+ try{credential=await enroll()}finally{person.client.fetcher=memberFetch}
+ assert.ok(enrollmentWire,'capture the actual member-signed enrollment');
+ const enrolledBefore=(await f.db.prepare('SELECT COUNT(*) AS n FROM lky_recovery_custody WHERE account=?').bind(personIdentity.account).first()).n,mailBeforeReplay=f.mail.length;
+ for(const [input,status,code]of[
+  [enrollmentWire.input,409,'request_replayed'],
+  [{...enrollmentWire.input,headers:{...enrollmentWire.input.headers,origin:'https://foreign.example.test'}},403,'invalid_origin'],
+  [{...enrollmentWire.input,headers:{...enrollmentWire.input.headers,'x-latchkey-time':'0'}},401,'request_expired'],
+  [{...enrollmentWire.input,body:JSON.stringify({...JSON.parse(enrollmentWire.input.body),custodian:other.client.profile.account})},403,'invalid_signature'],
+ ]){
+  const response=await memberFetch(enrollmentWire.url,input);
+  assert.equal(response.status,status);assert.equal((await response.json()).error,code);
+ }
+ assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM lky_recovery_custody WHERE account=?').bind(personIdentity.account).first()).n,enrolledBefore);
+ assert.equal(f.mail.length,mailBeforeReplay);
+ await assert.rejects(new RecoveryClient(new VaultClient('https://foreign.example.test')).begin({...credential,password:'synthetic-latchkey-9628'}),{code:'recovery_origin_mismatch'});
+ await assert.rejects(person.client.createVault({kind:'family'}),{code:'independent_family_account_required'});
+ const lost=new RecoveryClient(await verifiedClient(f,person.email)),password='synthetic-latchkey-9624';
+ await assert.rejects(lost.begin({...credential,password,policy:'quorum-unknown'}),{code:'recovery_policy_incompatible'});
+ const startRequest=lost.client.request.bind(lost.client);let startInput,pending;
+ lost.client.request=(path,input)=>{if(path==='recovery' + '/session/start')startInput=structuredClone(input);return startRequest(path,input)};
+ try{pending=await lost.begin({...credential,password})}finally{lost.client.request=startRequest}
+ const casesBefore=(await f.db.prepare('SELECT COUNT(*) AS n FROM lky_recovery_cases WHERE account=?').bind(personIdentity.account).first()).n;
+ // A tampered credential must refuse before a case or member notice is created.
+ const noticesBefore=f.mail.length;
+ for(const changed of [{account:other.client.profile.account},{tenant:crypto.randomUUID()},{generation:credential.generation+1}]){
+  await assert.rejects(lost.begin({...credential,...changed,password}),{code:'recovery_context_changed'});
+  assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM lky_recovery_cases WHERE account=?').bind(personIdentity.account).first()).n,casesBefore,'changed credential identity must not create a recovery case');
+  assert.equal(f.mail.length,noticesBefore,'changed credential identity must not send a recovery notice');
+ }
+ const {policy:ignoredPolicy,scope:ignoredScope,custodian:ignoredCustodian,account:ignoredAccount,tenant:ignoredTenant,generation:ignoredGeneration,...legacyStart}=startInput;
+ for(const input of[
+  {...startInput,policy:'quorum-unknown'},legacyStart,
+  {...startInput,scope:other.client.profile.account},
+  {...startInput,custodian:other.client.profile.account},
+ ])await assert.rejects(startRequest('recovery' + '/session/start',input),{code:'recovery_policy_incompatible'});
+ assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM lky_recovery_cases WHERE account=?').bind(personIdentity.account).first()).n,casesBefore);
+ await assert.rejects(lost.complete(pending,password,{confirmed:true}),{code:'recovery_approval_required'});
+ await assert.rejects(new RecoveryClient(other.client).approve(pending.preview.operation,{confirmed:true,identityChecked:true}),{code:'named_recovery_administrator_required'});
+ // Recovery-only means every ordinary door retains its own authority check.
+ for(const attempt of[
+  ()=>custodian.client.readVault(vault),()=>custodian.client.exportVault(vault,encode(random())),()=>new TypedItems(custodian.client).attachment(vault,item.object,attachment.id),()=>custodian.client.call('item/read',{vault,object:item.object,history:true}),
+  ()=>requestApi(custodian.client,'GET',`/vaults/${vault}/items/${item.object}`),()=>requestApi(custodian.client,'GET','/users'),
+  ()=>custodian.client.call('admin' + '/permissions/set',{account:other.client.profile.account,permissions:['people.read'],confirmed:true}),
+  ()=>custodian.client.call('sharing/policy/set',{externalEnabled:true,domains:['example.test'],defaultDays:7,maxDays:30}),
+ ]) { await assert.rejects(attempt); }
+ const operator=(await f.db.prepare('SELECT operator_id FROM lky_accounts WHERE id=?').bind(other.client.profile.account).first()).operator_id;
+ await assert.rejects(requestApi(custodian.client,'PUT',`/users/${operator}/role`,{role:'owner'}));
+ for(const path of ['/api/rer/business-settings','/api/latchkey/v1/billing','/auth/operators']){const response=await f.fetcher(f.origin+path,{headers:{cookie:custodian.client.cookie}});assert.ok(response.status>=400)}
+ const settingsBefore=(await f.db.prepare('SELECT * FROM oa_auth_settings').all()).results;
+ const businessBefore=(await f.db.prepare('SELECT * FROM bs_settings').all()).results;
+ for(const [path,input]of[
+  ['/auth/settings/identity',{idpSignIn:false}],
+  ['/auth/settings/business',{}],
+ ]){
+  const response=await f.fetcher(f.origin+path,{method:'POST',headers:{origin:f.origin,cookie:custodian.client.cookie,'content-type':['application','json'].join('/')},body:JSON.stringify(input)});
+  assert.equal(response.status,403);assert.equal((await response.json()).error,'owner_required');
+ }
+ assert.deepEqual((await f.db.prepare('SELECT * FROM oa_auth_settings').all()).results,settingsBefore);
+ assert.deepEqual((await f.db.prepare('SELECT * FROM bs_settings').all()).results,businessBefore);
+ // Narrowing a grant invalidates even an already-approved pending case.
+ await admin.approve(pending.preview.operation,{confirmed:true,identityChecked:true});
+ await set([{account:other.client.profile.account,generation:other.client.profile.generation,domain:'company-account'}]);
+ await assert.rejects(admin.approve(pending.preview.operation,{confirmed:true,identityChecked:true}),{code:'scoped_recovery_authority_required'});
+ await assert.rejects(lost.complete(pending,password,{confirmed:true}),{code:'scoped_recovery_authority_required'});
+ assert.equal((await f.db.prepare('SELECT generation FROM lky_accounts WHERE id=?').bind(personIdentity.account).first()).generation,entry.generation);
+ grant=await set([entry]);
+ await assert.rejects(lost.begin({...credential,password}),{code:'scoped_recovery_authority_required'});
+ credential=await enroll();pending=await lost.begin({...credential,password});
+ await set([]);
+ const refusedStages=async(custodianInactive=false,memberInactive=false)=>{
+  const before=await f.db.prepare('SELECT generation,opaque_record FROM lky_accounts WHERE id=?').bind(personIdentity.account).first();
+  for(const attempt of[
+   ()=>person.client.call('recovery' + '/scoped-enroll',{enrollment:personIdentity.account,scope:credential.scope,policy:'scoped-single-v1',custodian:identity.account,wrapped:{},confirmed:true}),
+   ()=>lost.begin({...credential,password}),
+   ()=>custodian.client.call('recovery' + '/administrator-review',{operation:pending.preview.operation}),
+   ()=>requestApi(custodian.client,'POST','/recovery/review',{operation:pending.preview.operation}),
+   ()=>admin.approve(pending.preview.operation,{confirmed:true,identityChecked:true}),
+   ()=>lost.client.request('recovery' + '/session/status',{operation:pending.preview.operation}),
+   ()=>lost.complete(pending,password,{confirmed:true}),
+  ])await assert.rejects(attempt,error=>error.code==='scoped_recovery_authority_required'||(custodianInactive||memberInactive)&&error.code==='authentication_required'&&error.status===401||memberInactive&&error.code==='named_recovery_administrator_required'&&error.status===403);
+  assert.deepEqual(await f.db.prepare('SELECT generation,opaque_record FROM lky_accounts WHERE id=?').bind(personIdentity.account).first(),before);
+  assert.equal((await f.db.prepare('SELECT consumed_at FROM lky_recovery_cases WHERE id=?').bind(pending.preview.operation).first()).consumed_at,null);
+ };
+ await refusedStages();
+ grant=await set([entry]);credential=await enroll();pending=await lost.begin({...credential,password});
+ const custodianOperator=(await f.db.prepare('SELECT operator_id FROM lky_accounts WHERE id=?').bind(identity.account).first()).operator_id;
+ await requestApi(f.owner,'PUT',`/users/${custodianOperator}/status`,{status:'inactive'});
+ await refusedStages(true);
+ await requestApi(f.owner,'PUT',`/users/${custodianOperator}/status`,{status:'active'});
+ await custodian.client.unlock(custodian.enrolled.profile,custodian.password);
+ await assert.rejects(lost.begin({...credential,password}),{code:'scoped_recovery_authority_required'});
+ grant=await set([entry]);credential=await enroll();pending=await lost.begin({...credential,password});
+ const memberOperator=(await f.db.prepare('SELECT operator_id FROM lky_accounts WHERE id=?').bind(personIdentity.account).first()).operator_id;
+ await requestApi(f.owner,'PUT',`/users/${memberOperator}/status`,{status:'inactive'});
+ await refusedStages(false,true);
+ await requestApi(f.owner,'PUT',`/users/${memberOperator}/status`,{status:'active'});
+ await person.client.unlock(person.enrolled.profile,person.password);
+ lost.client.cookie=(await verifiedClient(f,person.email)).cookie;
+ await assert.rejects(lost.begin({...credential,password}),{code:'scoped_recovery_authority_required'});
+ grant=await set([entry]);credential=await enroll();pending=await lost.begin({...credential,password});
+ // Stored-scope corruption and an incompatible policy must never widen custody.
+ await f.db.prepare('UPDATE lky_recovery_scopes SET member=? WHERE id=?').bind(other.client.profile.account,credential.scope).run();
+ await refusedStages();
+ await f.db.prepare('UPDATE lky_recovery_scopes SET member=? WHERE id=?').bind(personIdentity.account,credential.scope).run();
+ await f.db.prepare('UPDATE lky_recovery_scopes SET member_generation=? WHERE id=?').bind(entry.generation+1,credential.scope).run();
+ await refusedStages();
+ await f.db.prepare('UPDATE lky_recovery_scopes SET member_generation=? WHERE id=?').bind(entry.generation,credential.scope).run();
+ const originalKey=(await f.db.prepare('SELECT recipient_key FROM lky_recovery_scopes WHERE id=?').bind(credential.scope).first()).recipient_key;
+ await f.db.prepare('UPDATE lky_recovery_scopes SET recipient_key=? WHERE id=?').bind(other.client.profile.recipientKey,credential.scope).run();
+ await refusedStages();
+ await f.db.prepare('UPDATE lky_recovery_scopes SET recipient_key=? WHERE id=?').bind(originalKey,credential.scope).run();
+ await f.db.prepare("UPDATE lky_scoped_recovery_enrollments SET policy='quorum-unknown' WHERE enrollment=?").bind(credential.enrollment).run();
+ await assert.rejects(lost.begin({...credential,password}),{code:'recovery_policy_incompatible'});
+ await assert.rejects(custodian.client.call('recovery' + '/administrator-review',{operation:pending.preview.operation}),{code:'recovery_policy_incompatible'});
+ await assert.rejects(admin.approve(pending.preview.operation,{confirmed:true,identityChecked:true}),{code:'recovery_policy_incompatible'});
+ await assert.rejects(lost.complete(pending,password,{confirmed:true}),{code:'recovery_policy_incompatible'});
+ assert.equal((await f.db.prepare('SELECT approved_wrap FROM lky_recovery_cases WHERE id=?').bind(pending.preview.operation).first()).approved_wrap,null);
+ await f.db.prepare('UPDATE lky_scoped_recovery_enrollments SET policy=? WHERE enrollment=?').bind('scoped-single-v1',credential.enrollment).run();
+ const incompatiblePolicy=async()=>{
+  for(const attempt of[
+   ()=>lost.begin({...credential,password}),
+   ()=>custodian.client.call('recovery' + '/administrator-review',{operation:pending.preview.operation}),
+   ()=>admin.approve(pending.preview.operation,{confirmed:true,identityChecked:true}),
+   ()=>lost.client.request('recovery' + '/session/status',{operation:pending.preview.operation}),
+   ()=>lost.complete(pending,password,{confirmed:true}),
+  ])await assert.rejects(attempt,{code:'recovery_policy_incompatible'});
+  assert.equal((await f.db.prepare('SELECT approved_wrap FROM lky_recovery_cases WHERE id=?').bind(pending.preview.operation).first()).approved_wrap,null);
+  assert.equal((await f.db.prepare('SELECT generation FROM lky_accounts WHERE id=?').bind(personIdentity.account).first()).generation,entry.generation);
+ };
+ // Removing the policy binding cannot silently downgrade the member's signed
+ // scoped envelope to legacy custody, even before any custodian role check.
+ await f.db.prepare('DELETE FROM lky_scoped_recovery_enrollments WHERE enrollment=?').bind(credential.enrollment).run();
+ await incompatiblePolicy();
+ await f.db.prepare('INSERT INTO lky_scoped_recovery_enrollments VALUES(?,?,?)').bind(credential.enrollment,credential.scope,'scoped-single-v1').run();
+ const originalWrapped=(await f.db.prepare('SELECT wrapped FROM lky_recovery_custody WHERE id=?').bind(credential.enrollment).first()).wrapped;
+ const changedPurpose=JSON.parse(originalWrapped);changedPurpose.envelope.context.purpose='administrator-recovery';
+ await f.db.prepare('UPDATE lky_recovery_custody SET wrapped=? WHERE id=?').bind(JSON.stringify(changedPurpose),credential.enrollment).run();
+ await incompatiblePolicy();
+ await f.db.prepare('UPDATE lky_recovery_custody SET wrapped=? WHERE id=?').bind(originalWrapped,credential.enrollment).run();
+ // A real custodian recovery changes its generation. New connected custody
+ // still cannot approve envelopes granted to the previous generation.
+ const renewedCustodian=await custodian.client.recover(custodian.enrolled.kit,custodian.password);
+ await custodian.client.unlock(renewedCustodian.profile,custodian.password);
+ for(const attempt of[
+  ()=>lost.begin({...credential,password}),
+  ()=>lost.client.request('recovery' + '/session/status',{operation:pending.preview.operation}),
+  ()=>lost.complete(pending,password,{confirmed:true}),
+ ])await assert.rejects(attempt,{code:'scoped_recovery_authority_required'});
+ await assert.rejects(custodian.client.call('recovery' + '/administrator-review',{operation:pending.preview.operation}),{code:'named_recovery_administrator_required'});
+ await assert.rejects(admin.approve(pending.preview.operation,{confirmed:true,identityChecked:true}),{code:'named_recovery_administrator_required'});
+ assert.equal((await f.db.prepare('SELECT generation FROM lky_accounts WHERE id=?').bind(personIdentity.account).first()).generation,entry.generation);
+ await f.db.prepare('UPDATE lky_recovery_cases SET expires_at=0 WHERE id=?').bind(pending.preview.operation).run();
+ await assert.rejects(admin.approve(pending.preview.operation,{confirmed:true,identityChecked:true}),{code:'named_recovery_administrator_required'});
+ await assert.rejects(lost.complete(pending,password,{confirmed:true}),{code:'recovery_case_expired'});
+ // Changed custody needs a new member wrap; a different grant cannot open this envelope.
+ const otherIdentity=await other.client.identity();otherIdentity.fingerprint=await otherIdentity.fingerprint;await other.client.pinAccount(personIdentity.account,await personIdentity.fingerprint);
+ let replacement;
+ await assert.rejects(new RecoveryClient(other.client).approve(pending.preview.operation,{confirmed:true,identityChecked:true}),{code:'named_recovery_administrator_required'});
+ const directory=await mkdtemp(join(tmpdir(),'latchkey-scoped-cli-'));let completed,newCredential,newPending;
+ try{
+  const ownerProfile=join(directory,'owner.json');await writeFile(ownerProfile,JSON.stringify(f.owner.profile),{mode:0o600});
+  replacement=(await command(f,'recovery-scopes-set',{profile:ownerProfile,password:f.password,custodian:otherIdentity.account,members:[entry],confirmed:true})).value;
+  assert.ok((await command(f,'recovery-scopes',{profile:ownerProfile,password:f.password})).value.scopes.some(row=>row.id===replacement.scopes[0].id));
+  const memberProfile=join(directory,'member.json'),adminProfile=join(directory,'admin.json'),credentialFile=join(directory,'credential.json'),pendingFile=join(directory,'pending.json'),profileFile=join(directory,'new-profile.json'),kitFile=join(directory,'new-kit.json');
+  await writeFile(memberProfile,JSON.stringify(person.client.profile),{mode:0o600});await writeFile(adminProfile,JSON.stringify(other.client.profile),{mode:0o600});
+  // Recovery authority must not turn the shipped CLI into an everyday read or
+  // delegation door. Real content exists, and refused commands create no file.
+  const refusedOutput=join(directory,'refused.json');
+  for(const [name,input]of[
+   ['read',{vault}],['export',{vault,exportKey:encode(random())}],
+   ['item-history',{vault,object:item.object}],
+   ['item-attachment',{vault,object:item.object,attachment:attachment.id}],
+  ]){
+   const result=await command(f,name,{profile:adminProfile,password:other.password,output:refusedOutput,...input},1);
+   assert.ok(['not_found','permission_denied'].includes(result.value.error),result.output);
+   await assert.rejects(stat(refusedOutput),{code:'ENOENT'});
+  }
+  const roleBefore=await f.db.prepare('SELECT role,version FROM oa_operators WHERE id=?').bind(operator).first();
+  const rightsBefore=(await f.db.prepare('SELECT * FROM lky_admin_permissions ORDER BY account,permission').all()).results;
+  for(const api of[
+   {command:'users.role',operator,body:{role:'owner'}},
+   {command:'admin.set-permissions',body:{account:otherIdentity.account,permissions:['people.read'],confirmed:true}},
+   {method:'PUT',path:'/admin/recovery-scopes',body:{custodian:identity.account,members:[entry],confirmed:true}},
+  ]){
+   const result=await command(f,'api',{profile:adminProfile,password:other.password,api},1);
+   assert.ok(['forbidden','owner_required'].includes(result.value.error),result.output);
+  }
+  assert.deepEqual(await f.db.prepare('SELECT role,version FROM oa_operators WHERE id=?').bind(operator).first(),roleBefore);
+  assert.deepEqual((await f.db.prepare('SELECT * FROM lky_admin_permissions ORDER BY account,permission').all()).results,rightsBefore);
+  await command(f,'recovery-scoped-enroll',{profile:memberProfile,password:person.password,custodian:otherIdentity.account,fingerprint:await otherIdentity.fingerprint,scope:replacement.scopes[0].id,output:credentialFile,confirmed:true});
+  newCredential=JSON.parse(await readFile(credentialFile,'utf8'));assert.equal((await stat(credentialFile)).mode&0o777,0o600);
+  await person.client.requestIdentity(person.email);const identityToken=new URL(f.mail.at(-1).content.find(part=>part.type==='text/plain').value.match(/https:\/\/[^\s<>]+/)[0]).searchParams.get('token');
+  const started=await command(f,'recovery-start',{credential:credentialFile,identityToken,password,pending:pendingFile});newPending=JSON.parse(await readFile(pendingFile,'utf8'));
+  assert.equal(started.value.account,personIdentity.account);lost.client.cookie=newPending.cookie;
+  const review=await requestApi(other.client,'POST','/recovery/review',{operation:newPending.preview.operation});assert.equal(review.account,personIdentity.account);
+  const {bytes}=await import('../src/latchkey/crypto/envelope.mjs');
+  const invalid=await other.client.wrap(bytes({root:'synthetic-latchkey-9625'}),review.transferKey,{tenant:review.tenant,vault:'account',object:review.operation,purpose:'recovery-approval',epoch:review.generation,version:1});
+  invalid.signature='synthetic-latchkey-9626';await assert.rejects(requestApi(other.client,'POST','/recovery/approve',{operation:review.operation,wrapped:invalid,confirmed:true,identityChecked:true}),{code:'invalid_key_signature'});
+  const approved=await command(f,'recovery-approve',{profile:adminProfile,password:other.password,operation:newPending.preview.operation,confirmed:true,identityChecked:true});assert.equal(approved.value.approved,true);
+  assert.ok(!approved.output.includes(person.client.bundle.root.recipient.privateKey));
+  await assert.rejects(new RecoveryClient(other.client).approve(newPending.preview.operation,{confirmed:true,identityChecked:true}),{code:'lifecycle_changed'});
+  const finished=await command(f,'recovery-finish',{pending:pendingFile,password,profile:profileFile,newKit:kitFile,confirmed:true});assert.equal(finished.value.recovered,true);
+  completed={profile:JSON.parse(await readFile(profileFile,'utf8'))};assert.equal((await stat(profileFile)).mode&0o777,0o600);assert.equal((await stat(kitFile)).mode&0o777,0o600);await assert.rejects(stat(pendingFile));
+  await assert.rejects(lost.complete(newPending,password,{confirmed:true}));
+ }finally{await rm(directory,{recursive:true,force:true})}
+ await person.client.unlock(completed.profile,password);assert.equal((await person.client.readVault(vault)).versions[0].value.fields.find(field=>field.id==='note').value,'synthetic-latchkey-9622');assert.deepEqual([...(await new TypedItems(person.client).attachment(vault,item.object,attachment.id)).data],[...new TextEncoder().encode('synthetic-latchkey-9623')]);
+ await assert.rejects(other.client.readVault(vault));
+ await assert.rejects(new RecoveryClient(await verifiedClient(f,person.email)).begin({...newCredential,password}),{code:'recovery_enrollment_unavailable'});
+ // Exercise the REST administration doors positively, using client-held crypto.
+ const restPerson=await member(f,9630),restVault=(await restPerson.client.createVault()).vault;
+ await restPerson.client.put(restVault,{value:'synthetic-latchkey-9632'});
+ const restIdentity=await restPerson.client.identity();await other.client.pinAccount(restIdentity.account,await restIdentity.fingerprint);
+ const restGrant=await requestApi(f.owner,'PUT','/admin/recovery-scopes',{custodian:otherIdentity.account,members:[{account:restIdentity.account,generation:restPerson.client.profile.generation,domain:'company-account'}],confirmed:true});
+ const restRoutes=new Map([['recovery' + '/scoped-enroll',['POST','/recovery/scoped-enroll']],['recovery' + '/administrator-review',['POST','/recovery/review']],['recovery' + '/administrator-approve',['POST','/recovery/approve']]]);
+ const throughRest=async(client,work)=>{const original=client.call.bind(client);client.call=(route,input)=>{const mapped=restRoutes.get(route);return mapped?requestApi(client,...mapped,input):original(route,input)};try{return await work()}finally{client.call=original}};
+ const restCredential=await throughRest(restPerson.client,()=>new RecoveryClient(restPerson.client).enrollScoped(otherIdentity.account,otherIdentity.fingerprint,restGrant.scopes[0].id,{confirmed:true}));
+ const restLost=new RecoveryClient(await verifiedClient(f,restPerson.email)),restPassword='synthetic-latchkey-9633',restPending=await restLost.begin({...restCredential,password:restPassword});
+ await throughRest(other.client,()=>new RecoveryClient(other.client).approve(restPending.preview.operation,{confirmed:true,identityChecked:true}));
+ const separateCase=await restLost.begin({...restCredential,password:restPassword});
+ const acceptedWrap=JSON.parse((await f.db.prepare('SELECT approved_wrap FROM lky_recovery_cases WHERE id=?').bind(restPending.preview.operation).first()).approved_wrap);
+ await assert.rejects(requestApi(other.client,'POST','/recovery/approve',{operation:separateCase.preview.operation,wrapped:acceptedWrap,confirmed:true,identityChecked:true}),{code:'invalid_key_signature'});
+ const alteredWrap=structuredClone(acceptedWrap);alteredWrap.envelope.ciphertext=(alteredWrap.envelope.ciphertext[0]==='A'?'B':'A')+alteredWrap.envelope.ciphertext.slice(1);
+ await assert.rejects(requestApi(other.client,'POST','/recovery/approve',{operation:separateCase.preview.operation,wrapped:alteredWrap,confirmed:true,identityChecked:true}),{code:'invalid_key_signature'});
+ assert.equal((await f.db.prepare('SELECT approved_wrap FROM lky_recovery_cases WHERE id=?').bind(separateCase.preview.operation).first()).approved_wrap,null);
+ await assert.rejects(restLost.complete(separateCase,restPassword,{confirmed:true}),{code:'recovery_approval_required'});
+ const outcomes=await Promise.allSettled([restLost.complete(structuredClone(restPending),restPassword,{confirmed:true}),restLost.complete(structuredClone(restPending),restPassword,{confirmed:true})]);
+ assert.equal(outcomes.filter(row=>row.status==='fulfilled').length,1,'one exact recovery case can finish only once');
+ assert.equal(outcomes.filter(row=>row.status==='rejected').length,1);
+ const restResult=outcomes.find(row=>row.status==='fulfilled').value;await restPerson.client.unlock(restResult.profile,restPassword);
+ assert.equal(restResult.profile.generation,restPending.preview.generation+1);
+ assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM lky_devices WHERE account_id=? AND revoked_at IS NULL').bind(restIdentity.account).first()).n,1);
+ await assert.rejects(restLost.complete(restPending,restPassword,{confirmed:true}));
+ assert.equal((await restPerson.client.readVault(restVault)).versions[0].value.value,'synthetic-latchkey-9632');await assert.rejects(other.client.readVault(restVault));
+ const stored=JSON.stringify((await f.db.prepare('SELECT * FROM lky_recovery_custody').all()).results)+JSON.stringify((await f.db.prepare('SELECT * FROM lky_recovery_cases').all()).results)+JSON.stringify(await f.owner.call('audit',{}))+JSON.stringify(f.mail);
+ for(const secret of[person.client.bundle.root.recipient.privateKey,other.client.bundle.root.recipient.privateKey,password,'synthetic-latchkey-9622',restPassword,restPerson.client.bundle.root.recipient.privateKey,'synthetic-latchkey-9632'])assert.ok(!stored.includes(secret));
+ console.log('Scoped recovery: owner-confirmed exact domains, non-owner client custody, live authority at every stage, changed custodian, CLI and REST approval, forbidden everyday doors and replay refusal passed');
+}
 if (process.argv[1] === import.meta.filename) {
  const { vaultFixture } = await import('./browser/fixture.mjs');
  const f = await vaultFixture({ browserEnabled: false });
  try {
   for(const journey of [quorumRecoveryJourney,quorumCliJourney]){const isolated=await vaultFixture({browserEnabled:false});try{await journey(isolated)}finally{await isolated.close()}}
-  await recoveryNoticeFailureJourney(); await independentRecoveryJourney(f); await emergencyRecoveryJourney(f); await recoveryArchiveErasureJourney(f); await recoveryCliJourney(f); await recoveryPreviewJourney(f); console.log('Recovery preview, kit factors, old-authority refusal and retained decryption passed'); }
+  await recoveryNoticeFailureJourney(); await independentRecoveryJourney(f); await scopedRecoveryJourney(f); await emergencyRecoveryJourney(f); await recoveryArchiveErasureJourney(f); await recoveryCliJourney(f); await recoveryPreviewJourney(f); console.log('Recovery preview, kit factors, old-authority refusal and retained decryption passed'); }
  finally { await f.close(); }
 }
 
