@@ -1,0 +1,33 @@
+[
+  {
+    "number": 1,
+    "timestamp": 1794155077.805961,
+    "command": [
+      "gh",
+      "api",
+      "repos/just-every/run-latchkey/actions/runs?head_sha=ac210759b9aab75493aafb4c66b0416dc6440c68&per_page=100"
+    ]
+  },
+  {
+    "number": 2,
+    "timestamp": 1794155377.8130267,
+    "command": [
+      "gh",
+      "api",
+      "repos/just-every/run-latchkey/actions/runs/42499740353",
+      "--jq",
+      "{status,conclusion,head_sha,html_url}"
+    ]
+  },
+  {
+    "number": 3,
+    "timestamp": 1794155677.8339639,
+    "command": [
+      "gh",
+      "api",
+      "repos/just-every/run-latchkey/actions/runs/42499740353",
+      "--jq",
+      "{status,conclusion,head_sha,html_url}"
+    ]
+  }
+]

@@ -1,0 +1,66 @@
+{
+  "repository": "just-every/run-latchkey",
+  "branch": "cloud/sx-latchkey-erasure-1",
+  "head": "ac210759b9aab75493aafb4c66b0416dc6440c68",
+  "base": "1ed203cff1fd807b61290d1af39c7db586600e58",
+  "push": "success",
+  "pushAttempts": 1,
+  "fullHistory": true,
+  "sourceLock": "passed",
+  "diffCheck": "passed",
+  "identityAndTrailers": "all candidate commits inspected; fleet author and committer; no trailers",
+  "checks": [
+    {
+      "command": "npx -y @runeditrun/rer build",
+      "exit": 0
+    },
+    {
+      "command": "pnpm run typecheck",
+      "exit": 0
+    },
+    {
+      "command": "pnpm run test:runtime",
+      "exit": 0
+    },
+    {
+      "command": "npx -y @runeditrun/rer check",
+      "exit": 0
+    },
+    {
+      "command": "npx -y @runeditrun/rer check --profile first-party",
+      "exit": 0
+    },
+    {
+      "command": "node scripts/edition-authoring/cli.mjs lock",
+      "exit": 0
+    },
+    {
+      "command": "node scripts/edition-authoring/cli.mjs check",
+      "exit": 0
+    }
+  ],
+  "clauseStatusChanges": [],
+  "files": [
+    {
+      "path": "src/latchkey/erasure/subject-plan.mjs",
+      "sha256": "4b1630d758757dceac10d9c88f44ff7c79f676234027cb083da79f91baaa788f"
+    },
+    {
+      "path": "tests/latchkey-subject-erasure.mjs",
+      "sha256": "6a270b43ad343291b27404e1ca32d727a8794f25d893c88b709440f915891c37"
+    },
+    {
+      "path": "sources.lock.json",
+      "sha256": "64a30bf07b07ff4dd0a09c7c9dc982240888947c29e09b3ed4479b07b40e1c98"
+    }
+  ],
+  "verify": {
+    "id": 42499740353,
+    "conclusion": "success",
+    "head_sha": "ac210759b9aab75493aafb4c66b0416dc6440c68",
+    "html_url": "https://github.com/just-every/run-latchkey/actions/runs/42499740353",
+    "status": "completed"
+  },
+  "githubCallsUsed": 3,
+  "blockers": []
+}

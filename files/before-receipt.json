@@ -1,0 +1,11 @@
+{
+  "stage": "before",
+  "result": "reproduced",
+  "writes": 60,
+  "auditDetails": 242,
+  "previewStatus": 400,
+  "previewCode": "request_refused",
+  "d1Error": "D1_ERROR: Expression tree is too large (maximum depth 100): SQLITE_ERROR",
+  "baseline": "1ed203cff1fd807b61290d1af39c7db586600e58",
+  "sourceSha256": "cb3a8b3dc00489bb443d6d022112cf61dc12f86e2aa5b83de68bd5b6c2b058ed"
+}

@@ -1,0 +1,94 @@
+{
+  "files": [
+    {
+      "blob": "ce4ad24bbeac8f52727a1354957228f86c2c770f",
+      "bytes": 7571,
+      "path": "REPORT.md",
+      "sha256": "5746fa4cf357cae7d42debb7046d640644f80841baabd342a4d7b154d5feb0c5"
+    },
+    {
+      "blob": "dc688c391ee67fba3351fc327eddd24d0fc55d65",
+      "bytes": 7799,
+      "path": "after-receipt.json",
+      "sha256": "cc223827cb3935be6c7cf4e1ec023b9782cfaa0da41e3691afb3be1589f6648b"
+    },
+    {
+      "blob": "f27452c5499d46d9402b1f77144969ed69412dab",
+      "bytes": 7933,
+      "path": "after.log",
+      "sha256": "829ad179df03ec26db2f58c77ee73b17a5e1c1d6c5bc9915aec05475f815bf37"
+    },
+    {
+      "blob": "73291cea21c25cee0fa4cf20037b5024b3408155",
+      "bytes": 382,
+      "path": "before-receipt.json",
+      "sha256": "051edc569ef735a9c027c090385fe43a8b8ccdc519e16d087d8777b01c047aa4"
+    },
+    {
+      "blob": "800533562070acfbec5050b395b788b9d233a5bc",
+      "bytes": 434,
+      "path": "before.log",
+      "sha256": "9241181188809f6d2c18fb00ef40a974ffe4cbfc438b55ff27780a5515537665"
+    },
+    {
+      "blob": "ee78d578a244c0390ddbdc248ecf8ead7771121d",
+      "bytes": 17102,
+      "path": "ci-receipt.json",
+      "sha256": "a0177598df181f3f5396eac199dbb750385cda37542256dada6cb3c1813f48ee"
+    },
+    {
+      "blob": "f6ebb5d06dd03004b80ce71adfdc4750f6488aa9",
+      "bytes": 697,
+      "path": "github-calls.json",
+      "sha256": "cf5cfa533608c2dd0cb13b1021ef08086132cc948a3d53907acecc7f44f50f48"
+    },
+    {
+      "blob": "5bceafd78a4db2ad4aa1532ecf4ad3f760e452b8",
+      "bytes": 1925,
+      "path": "probe.mjs",
+      "sha256": "3652d2874aa5ab9b50caa25cb307432e751d1dfdf256c9d816f204078ca7ffab"
+    },
+    {
+      "blob": "5eefc7354134196977daf41e825df855c0f4a60b",
+      "bytes": 9009,
+      "path": "product.patch",
+      "sha256": "e5b0654e2a99416f336a7b021e81de85c2db40a43536aaa5f7dd6528a96d6f93"
+    },
+    {
+      "blob": "c0e4bc9ce1b882b7c21bf0d43ee0811498b528c3",
+      "bytes": 5945,
+      "path": "runtime.log",
+      "sha256": "e11577a8f0e858163b795d219acf1957302fc5f7cf0b80cd6ac3c5461dcab896"
+    },
+    {
+      "blob": "80de20e9a14379df197955216a3eb8b8a74393c2",
+      "bytes": 7901,
+      "path": "scale-receipt.json",
+      "sha256": "47dba906407d3717687e1c1095c2e835c7cb6099a0a958c821ac8e33b15e9e7a"
+    },
+    {
+      "blob": "e743dae81d1030aa49f72bcea528bbe24472f896",
+      "bytes": 7941,
+      "path": "scale.log",
+      "sha256": "e90a08c2e583e2c406686d17df6274d5defa0e78af0cf9f9a7c3dc6f51133f89"
+    },
+    {
+      "blob": "93b5d9fb2ff89248ba608ecccb1c35744de75884",
+      "bytes": 245,
+      "path": "typecheck.log",
+      "sha256": "a71f1c4df9a829e87959739f60ba2a68e6ca2dd3b666caa74217c2a737591cf9"
+    },
+    {
+      "blob": "13cda0fa5a8d5b4c298deffe6a83d40bcbbc4d30",
+      "bytes": 1776,
+      "path": "validation-receipt.json",
+      "sha256": "1ab23e8100baa45829b20cb879038d3897c9d9576dcb888e3f0bf25ae1f73542"
+    }
+  ],
+  "product_branch": "cloud/sx-latchkey-erasure-1",
+  "product_head": "ac210759b9aab75493aafb4c66b0416dc6440c68",
+  "ref": "refs/heads/evidence/sx-latchkey-erasure-1",
+  "repository": "just-every/run-latchkey",
+  "schema": 1,
+  "tag": "sx-latchkey-erasure-1"
+}
