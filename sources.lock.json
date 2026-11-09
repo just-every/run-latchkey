@@ -2522,7 +2522,7 @@
       "executable": false
     },
     "src/latchkey/erasure/subject.mjs": {
-      "sha256": "2bf84f2e0045c3f6f37ee830cfcca5be09d7f5c3ded0b182bab816eeabfa39a1",
+      "sha256": "6d2f42994dc8899f38700cce691dce87a8752131f948cb09f6cbcd6120d20764",
       "executable": false
     },
     "src/latchkey/evidence/adapters.d.mts": {

@@ -32,7 +32,7 @@ export async function subjectErasureAuthenticated(route,input,ctx){
   exact(input,[]);return {invalidations:await access(ctx).all('SELECT vault_id AS vault,operation,epoch,status FROM lky_subject_invalidations WHERE tenant=? ORDER BY vault_id,operation',ctx.tenant)};
  }
  if(route==='subject/audit-verify'){
-  exact(input,['operation','checkpoint']);need(input.checkpoint&&typeof input.checkpoint==='object','held_audit_checkpoint_required');return verifySubjectAudit(ctx,uuid(input.operation),input.checkpoint);
+  exact(input,['operation','checkpoint']);need(input.checkpoint&&typeof input.checkpoint==='object'&&typeof input.checkpoint.root==='string'&&Number.isSafeInteger(input.checkpoint.length)&&typeof input.checkpoint.signature==='string','held_audit_checkpoint_required');return verifySubjectAudit(ctx,uuid(input.operation),input.checkpoint);
  }
  const preview=route.endsWith('-preview');exact(input,preview?['subject']:['subject','confirmed','planHash']);const subject=uuid(input.subject);
  if(!preview)need(input.confirmed===true,'subject_erasure_confirmation_required');
