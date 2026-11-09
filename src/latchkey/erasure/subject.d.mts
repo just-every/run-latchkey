@@ -7,4 +7,9 @@ export function subjectReplayKnown(ctx:Pick<SubjectContext,'db'|'env'|'tenant'>,
 export function subjectItemReplayKnown(ctx:Pick<SubjectContext,'db'|'env'|'tenant'>,vault:string,object:string):Promise<boolean>;
 export function subjectVaultWriteAllowed(ctx:Pick<SubjectContext,'db'|'tenant'>,vault:string):Promise<true>;
 export function subjectRotationStatements(ctx:Pick<SubjectContext,'db'|'tenant'>,vault:string,newEpoch:number):D1PreparedStatement[];
-export function verifySubjectAudit(ctx:SubjectContext,operation:string,checkpoint?:{root:string;length:number;signature:string}):Promise<any>;
+export interface SubjectAuditVerification {
+ valid:true;operation:string;root:string;length:number;signature:string;
+ coverage:{completeSanitizedRows:number;legacyPartialRows:number;detailRows:number;legacyExcludedColumns:string[]};
+ requiresHeldCheckpointForTailVerification:true;
+}
+export function verifySubjectAudit(ctx:SubjectContext,operation:string,checkpoint:{root:string;length:number;signature:string}):Promise<SubjectAuditVerification>;

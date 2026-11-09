@@ -38,7 +38,7 @@ export async function commitSubject(ctx,plan,service){
  for(const {entry,row}of deleted.values())if(entry.table==='lky_report_observations')fences.push(['report-observation',[row.vault_id,row.id]]);
  if(plan.account)fences.push(['account',plan.account.id]);
  const fenceRows=[];for(const [kind,value]of fences)fenceRows.push({kind,digest:await keyed(ctx,`fence:${kind}`,kind==='email'?value.toLowerCase():value)});
- const audit=await subjectAudit(ctx,operation,plan.counts,ctx.now,redactions),outstanding=[...plan.outstanding,{domain:'audit-checkpoint',state:'held-checkpoint-required',root:audit.root,length:audit.rows.length,signature:audit.signature}];
+ const audit=await subjectAudit(ctx,operation,plan.counts,ctx.now,redactions),outstanding=[...plan.outstanding,{domain:'audit-checkpoint',state:'held-checkpoint-required',commitmentVersion:2,coverage:'versioned-per-row',root:audit.root,length:audit.rows.length,signature:audit.signature}];
  const result={operation,label,phase:'control-plane-erased',controlPlaneErased:true,complete:false,counts:plan.counts,outstanding,createdAt:ctx.now},proof=await keyed(ctx,'receipt',result);
  const ordered=await deletionOrder(ctx,deletionEntries);
  const eraseStatements=ordered.flatMap(table=>[...deleted.values()].filter(value=>value.entry.table===table).map(({entry,row})=>stmt(`DELETE FROM ${table} WHERE ${entry.keys.map(key=>`${key}=?`).join(' AND ')}`,...entry.keys.map(key=>row[key]))));

@@ -2494,11 +2494,11 @@
       "executable": false
     },
     "src/latchkey/erasure/subject-audit.mjs": {
-      "sha256": "0e944861e80fae51831e4d8d4176610da8b7f81cdde380121624472e27d877d3",
+      "sha256": "18ebfcf148d4c01b109d556966813b5906870bbe6f65cfb83cf40f89bd62cd97",
       "executable": false
     },
     "src/latchkey/erasure/subject-commit.mjs": {
-      "sha256": "e3239d12d1e7b6cc5f4d20378f4ab014fa95f465c3067850a71c72d07cbfa467",
+      "sha256": "1676aac24ed7ff2af1fa61ac1043f00669e5a751b1b1fbd5fc940f0f27131253",
       "executable": false
     },
     "src/latchkey/erasure/subject-common.mjs": {
@@ -2514,7 +2514,7 @@
       "executable": false
     },
     "src/latchkey/erasure/subject.d.mts": {
-      "sha256": "4a9aa0a09452fad87e503778e624cac095985e3689c3537a5c67d8398d2098d3",
+      "sha256": "e30291646607d7088b7b2d6d6f1477123a61b540e50951a1c0f742e07e31d95e",
       "executable": false
     },
     "src/latchkey/erasure/subject.mjs": {
