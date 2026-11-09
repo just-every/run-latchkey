@@ -1,0 +1,38 @@
+{
+  "main": "8c8bc16f1ebdf95274a5b26ea2e44a8d5d11bcb5",
+  "worktree_head_metadata": "2ab6152a66752d08e2b5b45d8846f3d33b4c86c8",
+  "description": "Baseline built with original main audit sources restored temporarily; saved product HEAD metadata differs. Unused new commitment module is not imported by these original sources.",
+  "sources": [
+    {
+      "path": "src/latchkey/erasure/subject-audit.mjs",
+      "sha256": "0e944861e80fae51831e4d8d4176610da8b7f81cdde380121624472e27d877d3",
+      "equals_original_main": true
+    },
+    {
+      "path": "src/latchkey/erasure/subject-commit.mjs",
+      "sha256": "e3239d12d1e7b6cc5f4d20378f4ab014fa95f465c3067850a71c72d07cbfa467",
+      "equals_original_main": true
+    },
+    {
+      "path": "src/latchkey/erasure/subject.mjs",
+      "sha256": "2bf84f2e0045c3f6f37ee830cfcca5be09d7f5c3ded0b182bab816eeabfa39a1",
+      "equals_original_main": true
+    },
+    {
+      "path": "src/latchkey/erasure/subject-plan.mjs",
+      "sha256": "de1ab6e666d07f341d30a0a7382ca12ec401e610cec52fae56cb5f37c4a080eb",
+      "equals_original_main": true
+    },
+    {
+      "path": "src/latchkey/erasure/subject-common.mjs",
+      "sha256": "27ae003352df062136a24f74b8033c45587ff566cf23423a0ec67f442c069914",
+      "equals_original_main": true
+    },
+    {
+      "path": "src/latchkey/erasure/subject.d.mts",
+      "sha256": "4a9aa0a09452fad87e503778e624cac095985e3689c3537a5c67d8398d2098d3",
+      "equals_original_main": true
+    }
+  ],
+  "worker_sha256": "2b0fc048a0bd784587b06cb6b16c4c1340df973003766e2bc28a3b14e4a0be6b"
+}

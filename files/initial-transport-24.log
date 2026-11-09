@@ -1,0 +1,42 @@
+Waiting to start (queue position 1/1): all job slots are in use (1 of 1; change slots in /home/agent/.rer/jobs/config.json).
+Ahead of this job:
+  running: Latchkey setup:workflow [721d1c32f2fc] in [REDACTED]
+Memory: 15.8 GiB available, floor 2.0 GiB. Change the floor with RER_JOBS_MIN_FREE_MEMORY_BYTES (bytes; 0 for no floor).
+Run from the project root. Inspect the queue with: 'node' 'node_modules/.pnpm/@runeditrun+rer@0.2.91/node_modules/@runeditrun/rer/modules/job-queue/cli.mjs' 'status' '--json'
+verify:runtime
+Heavy job admitted: Latchkey verify:runtime:suite [721d1c32f2fc]
+HTTP-001 passed against emitted local Worker: health, the installed homepage, HTTP and document 404s
+▲ [WARNING] Proxy environment variables detected. We'll use your proxy for fetch requests.
+
+
+Vault envelopes: signup, all payload classes, encrypted metadata/attachments, ten versions and portable encrypted export passed
+Audit HTTP journey: authenticated facts, every query field, bounded pagination, scoped CSV, owner refusal, altered, deleted and reordered history and checkpoint-anchored truncation passed
+People HTTP journey: 25-row CSV preview, duplicate and invalid rows, independent rights, live revocation at native and signed doors, explicit invite confirmation, replay refusal, resend and cancelled-link denial passed
+Scoped recovery HTTP journey: exact non-owner custody, signed approval, REST review, rejected domain widening and live revocation without changing the member passed
+Manual offboarding HTTP journey: independent permission, authoritative-directory refusal, connected suspension, custodian-owned exposure, explicit missing-custody blocker, family preservation, replay and deletion and reactivation fences passed
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+[TypeError: fetch failed] {
+  [cause]: SocketError: other side closed
+      at TLSSocket.onHttpSocketEnd ([REDACTED]/node_modules/.pnpm/undici@7.29.1/node_modules/undici/lib/dispatcher/client-h1.js:959:22)
+      at TLSSocket.emit (node:events:521:24)
+      at TLSSocket.emit (node:domain:489:12)
+      at endReadableNT (node:internal/streams/readable:1736:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+    code: 'UND_ERR_SOCKET',
+    socket: {
+      localAddress: '127.0.0.1',
+      localPort: 34582,
+      remoteAddress: undefined,
+      remotePort: undefined,
+      remoteFamily: undefined,
+      timeout: undefined,
+      bytesWritten: 66210,
+      bytesRead: 53519
+    }
+  }
+}
+
+Node.js v24.19.0

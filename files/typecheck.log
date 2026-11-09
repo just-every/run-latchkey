@@ -1,0 +1,4 @@
+
+> @just-every/latchkey@0.1.0 typecheck /workspace/run-latchkey
+> tsc --build --incremental
+

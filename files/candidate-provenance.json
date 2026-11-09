@@ -1,0 +1,70 @@
+{
+  "head": "098fb26d4fa4716590b4853a417617db8a1b77fb",
+  "branch": "cloud/sx-latchkey-c-f281",
+  "sources": [
+    {
+      "path": "sources.lock.json",
+      "sha256": "2f3e493aca8995867ddd49d096eb52b0730b0f8b2730c06c00304e8bac101c37",
+      "equals_candidate": true
+    },
+    {
+      "path": "src/latchkey/erasure/subject-audit.mjs",
+      "sha256": "18ebfcf148d4c01b109d556966813b5906870bbe6f65cfb83cf40f89bd62cd97",
+      "equals_candidate": true
+    },
+    {
+      "path": "src/latchkey/erasure/subject-commit.mjs",
+      "sha256": "1676aac24ed7ff2af1fa61ac1043f00669e5a751b1b1fbd5fc940f0f27131253",
+      "equals_candidate": true
+    },
+    {
+      "path": "src/latchkey/erasure/subject-commitment.mjs",
+      "sha256": "29fae940b931284525c027b8e4db96ea922d94ed4741a20833ad8ec99a72312b",
+      "equals_candidate": true
+    },
+    {
+      "path": "src/latchkey/erasure/subject.d.mts",
+      "sha256": "e30291646607d7088b7b2d6d6f1477123a61b540e50951a1c0f742e07e31d95e",
+      "equals_candidate": true
+    },
+    {
+      "path": "src/latchkey/erasure/subject.mjs",
+      "sha256": "6d2f42994dc8899f38700cce691dce87a8752131f948cb09f6cbcd6120d20764",
+      "equals_candidate": true
+    },
+    {
+      "path": "tests/runtime.mjs",
+      "sha256": "fce6ee2b52cceb6e3be3a4b9469964fa0bb7085c28dfd3a13d27a7c4a6a58e9a",
+      "equals_candidate": true
+    },
+    {
+      "path": "tests/latchkey-subject-erasure.mjs",
+      "sha256": "6a270b43ad343291b27404e1ca32d727a8794f25d893c88b709440f915891c37",
+      "equals_candidate": true
+    },
+    {
+      "path": "tests/latchkey-erasure.mjs",
+      "sha256": "2d991ec4a584027a29c6d86826fbf64a036814d747fe1c9a2d718f37fd75aa38",
+      "equals_candidate": true
+    },
+    {
+      "path": "tests/latchkey-restore.mjs",
+      "sha256": "823a2bf9709298c6cd0c2d989dcf2c19c130b763eb11b244a29c961ab1f2bb5e",
+      "equals_candidate": true
+    },
+    {
+      "path": "tests/browser/automation.mjs",
+      "sha256": "7796c2453c8179c8526d277c7df8e86320c53a0d12afb6c14501841813fb73b5",
+      "equals_candidate": true
+    },
+    {
+      "path": "tests/browser/fixture.mjs",
+      "sha256": "84b3343f7e3615332e8263e6e56bc22a62c6d8013f0d28409361258ebf110230",
+      "equals_candidate": true
+    }
+  ],
+  "worker_sha256": "c294b1d5c835111006af922ce173f68d0c6dade06dbb28a7e6030da5fde62f0a",
+  "full_history": true,
+  "tracked_worktree_clean": true,
+  "index_clean": true
+}

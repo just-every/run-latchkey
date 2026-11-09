@@ -1,0 +1,39 @@
+verify:runtime
+Heavy job admitted: Latchkey verify:runtime:suite [721d1c32f2fc]
+HTTP-001 passed against emitted local Worker: health, the installed homepage, HTTP and document 404s
+▲ [WARNING] Proxy environment variables detected. We'll use your proxy for fetch requests.
+
+
+Vault envelopes: signup, all payload classes, encrypted metadata/attachments, ten versions and portable encrypted export passed
+node:internal/deps/undici/undici:13510
+      Error.captureStackTrace(err);
+            ^
+
+TypeError: fetch failed
+    at node:internal/deps/undici/undici:13510:13
+    at async VaultClient.fetchProduct [as fetcher] (file://[REDACTED]/tests/.sx-runtime.mjs:93:17)
+    at async VaultClient.request (file://[REDACTED]/src/latchkey/client.mjs:23:20)
+    at async VaultClient.exchange (file://[REDACTED]/src/latchkey/client.mjs:66:20)
+    at async VaultClient.unlock (file://[REDACTED]/src/latchkey/client.mjs:72:32)
+    at async file://[REDACTED]/tests/.sx-runtime.mjs:143:2 {
+  [cause]: SocketError: other side closed
+      at TLSSocket.onHttpSocketEnd ([REDACTED]/node_modules/.pnpm/undici@7.29.1/node_modules/undici/lib/dispatcher/client-h1.js:959:22)
+      at TLSSocket.emit (node:events:531:35)
+      at TLSSocket.emit (node:domain:489:12)
+      at endReadableNT (node:internal/streams/readable:1698:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+    code: 'UND_ERR_SOCKET',
+    socket: {
+      localAddress: '127.0.0.1',
+      localPort: 34648,
+      remoteAddress: undefined,
+      remotePort: undefined,
+      remoteFamily: undefined,
+      timeout: undefined,
+      bytesWritten: 5894,
+      bytesRead: 1021
+    }
+  }
+}
+
+Node.js v22.20.0

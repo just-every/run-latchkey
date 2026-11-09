@@ -1,0 +1,5 @@
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+
+
+SX_PROBE {"phase":"before","checks":[{"table":"lky_events","column":"actor","accepted":true},{"table":"lky_events","column":"device","accepted":true},{"table":"lky_events","column":"object_id","accepted":true},{"table":"oa_auth_audit","column":"actor_id","accepted":true},{"table":"lky_generator_policy_changes","column":"actor","accepted":true},{"table":"lky_generator_policy_changes","column":"device","accepted":true},{"table":"lky_generator_policy_changes","column":"group_id","accepted":true},{"table":"lky_restore_history","column":"source_account","accepted":true},{"table":"lky_restore_history","column":"destination_account","accepted":true},{"table":"lky_restore_history","column":"vaults","accepted":true},{"table":"lky_restore_history","column":"plan_hash","accepted":true},{"table":"lky_restore_history","column":"content_hash","accepted":true},{"table":"lky_restore_history","column":"archive_hash","accepted":true}]}
+SX_MINIMAL_PUBLIC_DOOR_PROOF_PASSED phase=before

@@ -1,0 +1,79 @@
+{
+  "phase": "before",
+  "sourceDoors": [
+    "real OPAQUE enrollment",
+    "activity",
+    "generator policy preview and confirmed set",
+    "Base archive import and separately approved restore activation",
+    "subject erasure preview and confirmation",
+    "subject audit verify"
+  ],
+  "intact": true,
+  "checks": [
+    {
+      "table": "lky_events",
+      "column": "actor",
+      "accepted": true
+    },
+    {
+      "table": "lky_events",
+      "column": "device",
+      "accepted": true
+    },
+    {
+      "table": "lky_events",
+      "column": "object_id",
+      "accepted": true
+    },
+    {
+      "table": "oa_auth_audit",
+      "column": "actor_id",
+      "accepted": true
+    },
+    {
+      "table": "lky_generator_policy_changes",
+      "column": "actor",
+      "accepted": true
+    },
+    {
+      "table": "lky_generator_policy_changes",
+      "column": "device",
+      "accepted": true
+    },
+    {
+      "table": "lky_generator_policy_changes",
+      "column": "group_id",
+      "accepted": true
+    },
+    {
+      "table": "lky_restore_history",
+      "column": "source_account",
+      "accepted": true
+    },
+    {
+      "table": "lky_restore_history",
+      "column": "destination_account",
+      "accepted": true
+    },
+    {
+      "table": "lky_restore_history",
+      "column": "vaults",
+      "accepted": true
+    },
+    {
+      "table": "lky_restore_history",
+      "column": "plan_hash",
+      "accepted": true
+    },
+    {
+      "table": "lky_restore_history",
+      "column": "content_hash",
+      "accepted": true
+    },
+    {
+      "table": "lky_restore_history",
+      "column": "archive_hash",
+      "accepted": true
+    }
+  ]
+}

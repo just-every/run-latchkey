@@ -1,0 +1,141 @@
+{
+  "phase": "after",
+  "sourceDoors": [
+    "real OPAQUE enrollment",
+    "activity",
+    "generator policy preview and confirmed set",
+    "Base archive import and separately approved restore activation",
+    "subject erasure preview and confirmation",
+    "subject audit verify"
+  ],
+  "intact": true,
+  "checks": [
+    {
+      "table": "lky_events",
+      "column": "actor",
+      "accepted": false,
+      "error": "subject_audit_tampered"
+    },
+    {
+      "table": "lky_events",
+      "column": "device",
+      "accepted": false,
+      "error": "subject_audit_tampered"
+    },
+    {
+      "table": "lky_events",
+      "column": "object_id",
+      "accepted": false,
+      "error": "subject_audit_tampered"
+    },
+    {
+      "table": "oa_auth_audit",
+      "column": "actor_id",
+      "accepted": false,
+      "error": "subject_audit_tampered"
+    },
+    {
+      "table": "lky_generator_policy_changes",
+      "column": "actor",
+      "accepted": false,
+      "error": "subject_audit_tampered"
+    },
+    {
+      "table": "lky_generator_policy_changes",
+      "column": "device",
+      "accepted": false,
+      "error": "subject_audit_tampered"
+    },
+    {
+      "table": "lky_generator_policy_changes",
+      "column": "group_id",
+      "accepted": false,
+      "error": "subject_audit_tampered"
+    },
+    {
+      "table": "lky_restore_history",
+      "column": "source_account",
+      "accepted": false,
+      "error": "subject_audit_tampered"
+    },
+    {
+      "table": "lky_restore_history",
+      "column": "destination_account",
+      "accepted": false,
+      "error": "subject_audit_tampered"
+    },
+    {
+      "table": "lky_restore_history",
+      "column": "vaults",
+      "accepted": false,
+      "error": "subject_audit_tampered"
+    },
+    {
+      "table": "lky_restore_history",
+      "column": "plan_hash",
+      "accepted": false,
+      "error": "subject_audit_tampered"
+    },
+    {
+      "table": "lky_restore_history",
+      "column": "content_hash",
+      "accepted": false,
+      "error": "subject_audit_tampered"
+    },
+    {
+      "table": "lky_restore_history",
+      "column": "archive_hash",
+      "accepted": false,
+      "error": "subject_audit_tampered"
+    }
+  ],
+  "newCoverage": {
+    "completeSanitizedRows": 9,
+    "legacyPartialRows": 0,
+    "detailRows": 0,
+    "legacyExcludedColumns": [
+      "actor",
+      "actor_id",
+      "device",
+      "object_id",
+      "source_account",
+      "destination_account",
+      "group_id",
+      "vaults",
+      "plan_hash",
+      "content_hash",
+      "archive_hash"
+    ]
+  },
+  "legacyCoverage": {
+    "completeSanitizedRows": 0,
+    "legacyPartialRows": 9,
+    "detailRows": 0,
+    "legacyExcludedColumns": [
+      "actor",
+      "actor_id",
+      "device",
+      "object_id",
+      "source_account",
+      "destination_account",
+      "group_id",
+      "vaults",
+      "plan_hash",
+      "content_hash",
+      "archive_hash"
+    ]
+  },
+  "legacyFixture": "Original legacy emitter over captured first-erasure sanitized rows",
+  "emptyCheckpointRefused": true,
+  "tailTruncationRefused": true,
+  "retainedDeletionRefused": true,
+  "priorTamperBlocksLaterErasureWithoutWrites": true,
+  "twoErasureTransitionVerified": true,
+  "oldProofUnchanged": true,
+  "unrelatedRowsPreserved": true,
+  "laterExportIdentityFree": true,
+  "auditIdentityFree": true,
+  "nonOwnerAllThreeDoorsRefused": true,
+  "latestRowTamperRefusedFromEarlierCheckpoint": true,
+  "foreignTenantAllThreeDoorsRefused": true
+}
