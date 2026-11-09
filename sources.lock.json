@@ -2501,6 +2501,10 @@
       "sha256": "1676aac24ed7ff2af1fa61ac1043f00669e5a751b1b1fbd5fc940f0f27131253",
       "executable": false
     },
+    "src/latchkey/erasure/subject-commitment.mjs": {
+      "sha256": "29fae940b931284525c027b8e4db96ea922d94ed4741a20833ad8ec99a72312b",
+      "executable": false
+    },
     "src/latchkey/erasure/subject-common.mjs": {
       "sha256": "27ae003352df062136a24f74b8033c45587ff566cf23423a0ec67f442c069914",
       "executable": false

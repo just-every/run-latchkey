@@ -26,6 +26,7 @@ export async function commitmentHistory(ctx) {
    tampered(row.position===position&&row.previous_hash===previous&&row.hash===await digest(canonicalJson([stored.id,position,previous,row.facts])));
    previous=row.hash;
    let facts;try{facts=JSON.parse(row.facts)}catch{tampered(false)}
+   tampered(facts&&typeof facts==='object'&&!Array.isArray(facts));
    const node={operation:stored.id,position,facts};entries.push(node);
    if(facts.version!==undefined){
     tampered(retainedDomains.has(facts.domain)&&facts.version===2&&facts.coverage==='complete-sanitized-row'&&Array.isArray(facts.columns)&&typeof facts.content==='string'&&typeof facts.prior==='string'&&typeof facts.reference==='string');
