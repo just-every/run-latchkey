@@ -22,7 +22,7 @@ export async function verifySubjectAudit(ctx,operation,{root,length,signature}={
  need(record,'subject_erasure_not_found',404);
  need(typeof root==='string'&&Number.isSafeInteger(length)&&typeof signature==='string','held_audit_checkpoint_required');
  need(root===record.checkpoint.root&&length===record.checkpoint.length&&signature===record.checkpoint.signature,'subject_audit_tampered',409);
- const {all}=access(ctx),domainRows=new Map(),coverage={completeSanitizedRows:0,legacyPartialRows:0,detailRows:0,legacyExcludedColumns:[...legacyExcludedColumns]};
+ const {all}=access(ctx),domainRows=new Map(),coverage={completeSanitizedRows:0,wholeRowOnlyRows:0,legacyPartialRows:0,detailRows:0,legacyExcludedColumns:[...legacyExcludedColumns]};
  for(const node of record.entries){
   const {facts}=node;
   if(auditDomains.has(facts.domain)){
@@ -32,7 +32,7 @@ export async function verifySubjectAudit(ctx,operation,{root,length,signature}={
     domainRows.set(facts.domain,indexed);
    }
    const current=domainRows.get(facts.domain).get(facts.reference);
-   if(facts.version===2){await verifyCompleteRow(ctx,history,node,current);coverage.completeSanitizedRows++;}
+   if(facts.version!==undefined){await verifyCompleteRow(ctx,history,node,current);coverage.completeSanitizedRows++;if(facts.version===2)coverage.wholeRowOnlyRows++;}
    else{
     need(current&&facts.content===await keyed(ctx,'audit-content',legacyProjection(current)),'subject_audit_tampered',409);
     if(retainedDomains.has(facts.domain))coverage.legacyPartialRows++;else coverage.detailRows++;

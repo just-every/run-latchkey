@@ -9,7 +9,7 @@ export function subjectVaultWriteAllowed(ctx:Pick<SubjectContext,'db'|'tenant'>,
 export function subjectRotationStatements(ctx:Pick<SubjectContext,'db'|'tenant'>,vault:string,newEpoch:number):D1PreparedStatement[];
 export interface SubjectAuditVerification {
  valid:true;operation:string;root:string;length:number;signature:string;
- coverage:{completeSanitizedRows:number;legacyPartialRows:number;detailRows:number;legacyExcludedColumns:string[]};
+ coverage:{completeSanitizedRows:number;wholeRowOnlyRows:number;legacyPartialRows:number;detailRows:number;legacyExcludedColumns:string[]};
  requiresHeldCheckpointForTailVerification:true;
 }
 export function verifySubjectAudit(ctx:SubjectContext,operation:string,checkpoint:{root:string;length:number;signature:string}):Promise<SubjectAuditVerification>;
