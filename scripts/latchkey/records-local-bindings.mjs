@@ -5,7 +5,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { parseJsonc } from '@runeditrun/rer/jsonc';
 import { migrationReplay } from '@runeditrun/rer/modules/portability/migration-history';
-import { appliedMigrations } from '@runeditrun/rer/internal/modules/portability/bridge.mjs';
+import { destinationLedger } from '@runeditrun/rer/internal/modules/portability/ledgers.mjs';
 import { migrationStatements } from '@runeditrun/rer/internal/modules/portability/migration-sql.mjs';
 import { portabilityPlan, ensurePortabilitySchema } from '@runeditrun/rer/internal/modules/container/portability-schema.mjs';
 import { legacyTargetState, requireLegacyEmpty } from '@runeditrun/rer/modules/portability/legacy-safety';
@@ -40,10 +40,10 @@ export async function localBindings(root, config, policy, operationToken, resumi
  try {
   proxy = await connect();
   const bindingNames = Object.keys(policy.buckets ?? {}), buckets = () => Object.fromEntries(bindingNames.map(name => [name, proxy.env[name]]));
-  const applied = await appliedMigrations(proxy.env.DB) ?? [];
+  const applied = (await destinationLedger(proxy.env.DB))?.map(entry => entry.name) ?? [];
   need(applied.every(name => config.migrations.some(migration => migration.name === name)), 'records_migration_source_missing');
   const replay = async () => {
-   const names = await appliedMigrations(proxy.env.DB) ?? [];
+   const names = (await destinationLedger(proxy.env.DB))?.map(entry => entry.name) ?? [];
    return migrationReplay(names.map(name => {
     const entry = config.migrations.find(migration => migration.name === name); need(entry, 'records_migration_source_missing');
     return { name, sha256: entry.sha256, statements: migrationStatements(entry.sql, wrangler.unstable_splitSqlQuery) };
