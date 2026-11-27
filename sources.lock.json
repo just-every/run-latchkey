@@ -2518,7 +2518,7 @@
       "executable": false
     },
     "src/latchkey/erasure/subject-schema.mjs": {
-      "sha256": "fec70cbb61d07ffe00b1976283783e005b0157d4c490636129a2c11d7105130c",
+      "sha256": "77cb72bae3af49723e7eb6089f5df4ffa8187be3f5a8b0673581abfd07cd1e93",
       "executable": false
     },
     "src/latchkey/erasure/subject.d.mts": {

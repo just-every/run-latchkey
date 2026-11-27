@@ -59,6 +59,18 @@ const schema = {
  lky_accounts:'id operator_id tenant generation opaque_setup opaque_record recipient_key recovery_key recovery_wrap mutation authority_key',lky_devices:'id account_id public_key bundle generation revoked_at',lky_exchanges:'id account_id device_id state generation operator_version expires_at used_at',lky_grants:'token_hash account_id device_id session_id generation expires_at recovery',lky_nonces:'grant_hash nonce expires_at',lky_limits:'key window count',lky_registrations:'id operator_id session_id tenant setup expires_at',lky_vaults:'id tenant owner epoch revision mutation kind trash_policy',lky_recipients:'vault_id account_id rights wrapped_key',lky_versions:'vault_id object_id version envelope',lky_enrollments:'id account_id public_key transfer_key generation expires_at approved_wrap consumed_at approved_nonce',lky_events:'id actor device action object_id created_at',lky_installation:'singleton id',lky_password_changes:'id account_id device_id generation setup expires_at',lky_machines:'id token_hash account_id device_id generation operator_version vault_id object_id epoch public_key recipient_key wrapped_key expires_at revoked_at mutation',
  lky_sharing_policy:'tenant external_enabled domains default_days max_days mutation',lky_share_groups:'id tenant created_by',lky_share_group_members:'group_id account_id',lky_shares:'id tenant vault_id source_account source_device source_generation source_operator_version epoch scope group_id rights starts_at expires_at approved_at revoked_at created_at mutation',lky_share_keys:'share_id account_id recipient_generation object_id version wrapped_key',lky_links:'id tenant vault_id object_id source_version epoch source_account source_device source_generation source_operator_version verifier_hash password_salt password_required recipient_email envelope starts_at expires_at max_views views revoked_at created_at mutation',lky_link_challenges:'id link_id code_hash expires_at attempts consumed_at',
  lky_restore_preparations:'id actor tenant import_id plan_hash approval_hash plan approval expires_at phase prepared_at activated_at activation',lky_restore_guard:'value',lky_restore_history:'restore_id source_identity content_hash archive_hash source_account destination_account plan_hash vaults activation activated_at',lky_erased_items:'vault_id object_id tenant receipt_id erased_by erased_device erased_at revision counts proof',lky_erasure_guard:'value',lky_generator_policies:'tenant scope group_id policy mutation',lky_generator_policy_changes:'id tenant group_id actor device reason policy created_at',
+ // RER creates this table when Records opens (rer 0.2.143; no migration). It
+ // holds a transfer job's list of stored files once that list passes 256 KiB:
+ //   job    the transfer job's random id. Names no person.
+ //   chunk  position of this slice in the list. Names no person.
+ //   data   JSON for up to 50 stored files: bucket, key, size, etag or sha256,
+ //          HTTP and custom metadata. A key or a metadata value can name a person.
+ // Erasure deletes every row and keeps or redacts none. An archive snapshot may
+ // copy any person's records, so each erasure commit deletes every transfer job
+ // (invalidateTransfersStatements) and D1 deletes these rows with their job.
+ // That depends on the cascade, which subjectSchema checks. Latchkey archives no
+ // stored files, so the table is empty unless a bucket is added to the policy.
+ rer_portability_object_inventory:'job chunk data',
  lky_subject_erasures:'id tenant label phase counts outstanding created_at proof',lky_subject_fences:'tenant kind digest operation created_at',lky_subject_invalidations:'tenant vault_id operation epoch status',lky_subject_audit:'operation position facts previous_hash hash',lky_subject_guard:'value',
 };
 const platform = /^(?:sqlite_|_cf_|rer_portability_(?:state|jobs|parts|segments|owned|journal|epochs|guard|import_leases|recovery_audit)$|rer_portability_(?:snap|stage)_[0-9a-f]{32}_[0-9]+(?:_meta|_order)?$|rer_migrations$|d1_migrations$|_rer_deploy_migrations$|_rer_portability_migrations$)/;
@@ -69,6 +81,10 @@ export async function subjectSchema(ctx) {
   need(Object.hasOwn(schema,table.name),'subject_schema_unmapped',409);
   const columns = await all(`PRAGMA table_info("${table.name}")`);
   need(columns.map(row=>row.name).sort().join(' ') === schema[table.name].split(' ').sort().join(' '),'subject_schema_unmapped',409);
+  if (table.name === 'rer_portability_object_inventory') {
+   const refs = await all(`PRAGMA foreign_key_list("${table.name}")`);
+   need(refs.length === 1 && refs[0].from === 'job' && refs[0].table === 'rer_portability_jobs' && refs[0].to === 'id' && refs[0].on_delete === 'CASCADE','subject_schema_unmapped',409);
+  }
  }
  return tables;
 }
