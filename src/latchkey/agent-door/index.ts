@@ -38,8 +38,8 @@ export function latchkeyAgentDoor(env: Bindings) {
    return {sponsor: {id: credential.operator_id}, agent: {id: credential.id, name: 'Scoped vault client', specialist: 'credential-security'}, clientId: credential.id, scopes: JSON.parse(credential.scopes)}
  }
  return {...door, async handle(request: Request) {
-  // The shared transport parses the body before credential admission. Verify the
-  // native wire signature against its untouched clone before handing it over.
+  // A native credential signs the request body. Verify that signature against an
+  // untouched clone here; the door then admits the result or answers its 401.
   if (/^Bearer [A-Za-z0-9_-]{43}$/.test(request.headers.get('authorization') ?? '')) credentials.set(request, await authenticateLocal(request))
   return door.handle(request)
  }}

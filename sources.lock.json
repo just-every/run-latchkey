@@ -2234,7 +2234,7 @@
       "executable": false
     },
     "src/latchkey/agent-door/index.ts": {
-      "sha256": "ffd6bdee26b80faeef3230b4f6a832dae9f984a91217995d66d9740b18957873",
+      "sha256": "a140c641ba5261f9251e46d0627c5d4246553553d9ab4090d6de4a6eed6e713f",
       "executable": false
     },
     "src/latchkey/agent-door/tools.ts": {
