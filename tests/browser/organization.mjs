@@ -159,7 +159,12 @@ export async function directPermissionsJourney(f) {
  await f.page.getByText('Direct recipient permissions · owner only',{exact:true}).click();
  await f.page.getByLabel('Direct recipient account',{exact:true}).fill(member.profile.account);await f.page.getByLabel('Direct recipient fingerprint',{exact:true}).fill(await member.identity().fingerprint);
  const select=async(rights)=>{for(const action of['reveal','copy','history'])await f.page.getByLabel(`Allow ${action}`,{exact:true}).setChecked(rights.includes(action));await f.page.getByRole('button',{name:'Preview direct permissions',exact:true}).click();await expect(f.page.getByRole('heading',{name:'Effective direct permissions',exact:true})).toBeVisible()};
- const apply=async()=>{await f.page.getByLabel('I verified the recipient fingerprint and approve replacing this exact direct grant').check();await f.page.getByRole('button',{name:'Apply direct permissions',exact:true}).click()};
+ const apply=async()=>{
+  await f.page.getByLabel('I verified the recipient fingerprint and approve replacing this exact direct grant').check();
+  await f.page.getByRole('button',{name:'Apply direct permissions',exact:true}).click();
+  // The response closes the preview. Refreshing the recipient earlier can read the old grant.
+  await expect(f.page.getByRole('heading',{name:'Effective direct permissions',exact:true})).toBeHidden();
+ };
  await select([]);await refused(member.call('vault' + '/rights',{vault}),'not_found');
  const revision=(await owner.call('vault' + '/rights',{vault})).revision;
  for(const width of[1440,390]){await f.page.setViewportSize({width,height:1000});if(output)await f.page.screenshot({path:join(output,`direct-permissions-preview-${width}.png`),fullPage:true})}await f.page.setViewportSize({width:1440,height:1000});
