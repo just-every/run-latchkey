@@ -4,14 +4,27 @@ import { access, need } from './subject-common.mjs';
 const schema = {
  // Agent/Business storage. The plan's existing full-content
  // sweep refuses any unmapped person reference before erasure can commit.
- agent_door_agents:'id name specialist sponsor sponsor_name revoked window requests',
+ agent_door_agents:'id name specialist sponsor sponsor_name revoked window requests tombstone',
  agent_door_approvals:'id state saved approvals result version',
  agent_door_audit:'sequence id at agent classes row evidence',
- agent_door_calls:'agent key digest decision_id created_at state outcome',
+ agent_door_calls:'agent key digest decision_id created_at state outcome expires_at',
  agent_door_events:'sequence id uri event',
  agent_door_reviews:'id state saved marked_by marked_at',
  agent_door_state:'id envelope local_document local_revision local_paused decision_lock decision_until',
  agent_door_usage:'decision_id at seed specialist agent classes',
+ // Added with Base's rer-v0.2.143 door. Erasure keeps these rows: none holds a
+ // person's id, address or name. agent_door_agents.tombstone and the alias and
+ // retirement tables are written only by Base's agent erasure, which Latchkey
+ // does not use; agent_door_calls.expires_at is a time. The sweep still reads
+ // every row and refuses the erasure if one names the person.
+ //   agent_door_relay         decision ids and the installation's Business id
+ //   agent_door_retired_refs  one-way digests of retired policy references
+ //   agent_door_replay_aliases keyed one-way aliases of replay keys
+ //   bs_retired               one-way digests of retired roster addresses
+ agent_door_relay:'sequence decision_id business',
+ agent_door_retired_refs:'digest marker',
+ agent_door_replay_aliases:'agent alias call_id tombstone',
+ bs_retired:'digest invite erasure_id',
  bs_assert:'value',
  bs_audit:'id actor action field changed_at',
  bs_logo:'singleton sha256 type bytes',

@@ -8,22 +8,33 @@ The listing preparation refreshes recorded Base copies to rer-v0.2.80 at commit 
 
 ## Agent-door source
 
-`src/modules/agent-door`, `src/modules/business-settings` and their theme/icon
-dependencies in `src/foundation/runtime` are verbatim source from Base commit
-`2135c394939f4a737adabdc8003b0e667b31ac5a`. `base-copies.json` records the
-individual bytes and executable modes. Base's module unit tests and Business
-settings test signing fixtures are excluded from the runtime copy.
+`src/modules/agent-door` and `src/modules/business-settings` are verbatim source
+from Base commit `6e207e22349a2d5bf4d2b3e15c23639fac465d96` (rer-v0.2.143), the
+release of the pinned `@runeditrun/rer` CLI whose conformance suite checks the
+door. Their theme and icon dependencies in `src/foundation/runtime` remain
+verbatim from Base commit `2135c394939f4a737adabdc8003b0e667b31ac5a`
+(rer-v0.2.91). `base-copies.json` records the individual bytes and executable
+modes. Base's module unit tests and Business settings test signing fixtures are
+excluded from the runtime copy.
 
 Additive migrations `0045_business_settings.sql`, `0046_business_people.sql` and
 `0047_agent_door.sql` install their storage without replacing applied history.
-The production Worker mounts the copied door before application auth and redirects.
-The runtime pin is rer-v0.2.91; the independently pinned published CLI is
-`@runeditrun/rer` 0.2.91. The native adapters live in
-`src/latchkey/agent-door`. Migration `0048_latchkey_agent_bindings.sql` binds
-Business agents to existing device-held scoped credentials and retains native
-request attribution. Applied migrations are unchanged.
+`0052_agent_door_custody_relay.sql` carries that schema forward to rer-v0.2.143
+with the additive SQL Base's adoption guide gives for a copy older than 0.2.96:
+replay and erasure custody columns, the Business decision relay and its
+backfill, policy-reference suppression and the relay privacy correction.
+`0053_business_retired.sql` is Base's `0003_business_retired.sql`.
+The production Worker mounts the copied door before application auth and
+redirects, including the signed relay pull at `/api/rer/agent-decisions`.
+The native adapters live in `src/latchkey/agent-door`. Migration
+`0048_latchkey_agent_bindings.sql` binds Business agents to existing device-held
+scoped credentials and retains native request attribution. Applied migrations
+are unchanged. Latchkey does not use Base's agent erasure custody: person
+erasure still refuses while a retained door record names the person.
 
 The source was acquired as an authenticated GitHub API archive. The installed
 edition-authoring CLI recorded the runtime, Business settings and foundation
 copies and refreshed the selected record against that archive. Upstream tests
 are omitted by the authoring export's `testSource` filter.
+The refresh to rer-v0.2.143 read a Base Git checkout at that commit with the
+same CLI, scoped to the agent-door and Business settings records.

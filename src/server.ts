@@ -35,7 +35,7 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     const asset = await staticAssetResponse(request, env)
     if (asset) return asset
     const path = new URL(request.url).pathname
-    if (path === '/mcp' || path === '/api/latchkey/mcp' || path.startsWith('/agents') || path === '/api/rer/agent-policy' || path.startsWith('/.well-known/oauth-protected-resource')) {
+    if (path === '/mcp' || path === '/api/latchkey/mcp' || path.startsWith('/agents') || path === '/api/rer/agent-decisions' || path === '/api/rer/agent-policy' || path.startsWith('/.well-known/oauth-protected-resource')) {
       const agent = await latchkeyAgentDoor(runtimeBindings(env)).handle(request)
       if (agent) return agent
     }

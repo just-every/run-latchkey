@@ -52,7 +52,9 @@
     "0048_latchkey_agent_bindings.sql",
     "0049_latchkey_scoped_recovery.sql",
     "0050_latchkey_recovery_quorum.sql",
-    "0051_latchkey_recovery_root_history.sql"
+    "0051_latchkey_recovery_root_history.sql",
+    "0052_agent_door_custody_relay.sql",
+    "0053_business_retired.sql"
   ],
   "breaking": false,
   "agentUpdateInstructions": "Install the locked dependencies, preserve applied migrations and buyer-held encryption keys, and follow OPERATIONS.md. This metadata prepares a future native release."
